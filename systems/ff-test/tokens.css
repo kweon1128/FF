@@ -1,0 +1,13 @@
+/* FF가 관리하는 디자인 값입니다. @theme 안의 값은 FF에서 고칠 수 있습니다. */
+@theme {
+  --color-primary-500: #888888;
+  --color-primary-600: #888888;
+  --color-new-2: #2f6fe0;
+  --color-new: #888888;
+  --color-new2: #888888;
+  --color-new3: #888888;
+  --color-new4: #888888;
+  --color-new5: #888888;
+  --font-new: system-ui, sans-serif;
+  --text-new: 16px;
+}

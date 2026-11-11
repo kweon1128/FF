@@ -1,0 +1,43 @@
+@import "tailwindcss";
+@source not "../systems";
+
+/* FF 도구 자체의 디자인 값. 기준은 DESIGN.md. */
+@theme {
+  --color-ink: #000000;
+  --color-ink-soft: #5c5c5c;
+  --color-ink-faint: #757575;
+  --color-canvas: #ffffff;
+  --color-workspace: #f7f7f5;
+  --color-hover: #f1f1f1;
+  --color-hairline: #e6e6e6;
+  --color-hairline-soft: #f1f1f1;
+  --color-selection: #0d99ff;
+  --color-selection-soft: #e5f4ff;
+  --color-danger: #c5221f;
+  --color-success: #1ea64a;
+
+  --font-sans: "SUIT Variable", SUIT, Pretendard, system-ui, sans-serif;
+  --font-mono: ui-monospace, Consolas, monospace;
+
+  --shadow-float: 0 4px 16px rgb(0 0 0 / 0.08);
+  --shadow-dialog: 0 8px 32px rgb(0 0 0 / 0.12);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-ink);
+  background: var(--color-canvas);
+  overflow: hidden;
+}
+
+button {
+  cursor: pointer;
+}
