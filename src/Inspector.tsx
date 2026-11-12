@@ -21,7 +21,7 @@ const PLAIN = /^[a-z0-9]+$/
 // 그것을 설명하는 것(구역 제목, 이름표, 코드 표시)은 12px.
 
 /** 패널의 한 구역. 구역 사이에만 전체 폭 구분선을 둔다. */
-function Section({ title, children }: { title?: string; children: ReactNode }) {
+export function Section({ title, children }: { title?: string; children: ReactNode }) {
   return (
     <section className="border-b border-hairline px-4 py-3 last:border-b-0">
       {title && <h3 className="mb-2 text-xs font-[650]">{title}</h3>}
@@ -162,6 +162,70 @@ export function Inspector({ token, kind, file, allNames, onRename, onValue, onDe
         <Button variant="danger" className="-ml-2" onClick={onDelete}>
           <Trash2 size={16} strokeWidth={1.5} />
           삭제
+        </Button>
+      </Section>
+    </div>
+  )
+}
+
+/** 여러 값을 함께 선택했을 때의 편집 패널. 같은 종류끼리면 값을 한 번에 바꿀 수 있다. */
+export function MultiInspector({
+  tokens,
+  kind,
+  onValue,
+  onDelete,
+}: {
+  tokens: Token[]
+  /** 선택한 값이 모두 같은 종류일 때만 있다. */
+  kind: Kind | null
+  onValue: (value: string) => void
+  onDelete: () => void
+}) {
+  const same = tokens.every((t) => t.value === tokens[0].value)
+  const [draft, setDraft] = useState(same ? tokens[0].value : '')
+  const [error, setError] = useState<string | null>(null)
+
+  function change(raw: string) {
+    setDraft(raw)
+    const next = raw.trim()
+    if (!next) return setError('값을 입력해 주세요.')
+    if (/[;{}]/.test(next)) return setError('; { } 기호는 쓸 수 없어요.')
+    setError(null)
+    onValue(next)
+  }
+
+  return (
+    <div>
+      <Section>
+        <h2 className="font-[650]">{tokens.length}개 선택됨</h2>
+        <p className="mt-0.5 text-xs text-ink-faint">Shift를 누른 채 누르면 선택에 더하거나 뺄 수 있어요.</p>
+      </Section>
+
+      <Section title="선택한 값">
+        <div className="flex flex-wrap gap-1">
+          {tokens.map((t) => (
+            <Chip key={t.name}>{t.name}</Chip>
+          ))}
+        </div>
+      </Section>
+
+      {kind && (
+        <Section title={`${kind.valueLabel} 한 번에 바꾸기`}>
+          <input
+            aria-label={kind.valueLabel}
+            className={`${inputClass} ${error ? 'border-danger focus:border-danger' : ''}`}
+            value={draft}
+            placeholder={same ? undefined : '서로 다른 값'}
+            onChange={(e) => change(e.target.value)}
+          />
+          {error && <span className="mt-1 block text-xs text-danger">{error}</span>}
+        </Section>
+      )}
+
+      <Section>
+        <Button variant="danger" className="-ml-2" onClick={onDelete}>
+          <Trash2 size={16} strokeWidth={1.5} />
+          {tokens.length}개 삭제
         </Button>
       </Section>
     </div>

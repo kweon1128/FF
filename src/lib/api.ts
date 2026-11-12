@@ -31,7 +31,16 @@ export const putCanvas = (system: string, boards: Record<string, Pos>) =>
     body: JSON.stringify({ boards }),
   })
 
-export const putTokens =(system: string, tokens: Token[]) =>
+export const getComponents = (system: string) =>
+  request<{ components: unknown; file: string }>(`/api/systems/${encodeURIComponent(system)}/components`)
+
+export const putComponents = (system: string, components: unknown[]) =>
+  request<{ ok: true }>(`/api/systems/${encodeURIComponent(system)}/components`, {
+    method: 'PUT',
+    body: JSON.stringify({ components }),
+  })
+
+export const putTokens = (system: string, tokens: Token[]) =>
   request<{ ok: true }>(`/api/systems/${encodeURIComponent(system)}/tokens`, {
     method: 'PUT',
     body: JSON.stringify({ tokens }),

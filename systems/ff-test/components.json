@@ -1,0 +1,72 @@
+{
+  "components": [
+    {
+      "name": "button",
+      "label": "버튼",
+      "font": "--font-new",
+      "weight": "--font-weight-medium",
+      "radius": "--radius-md",
+      "borderWidth": "--border-width-thin",
+      "icon": "arrow-right",
+      "iconPos": "none",
+      "variants": [
+        {
+          "name": "primary",
+          "states": {
+            "default": {
+              "bg": "--color-blue-500",
+              "text": "--color-white"
+            },
+            "hover": {
+              "bg": "--color-blue-600"
+            },
+            "pressed": {
+              "bg": "--color-blue-700"
+            },
+            "disabled": {
+              "bg": "--color-gray-300"
+            }
+          }
+        },
+        {
+          "name": "secondary",
+          "states": {
+            "default": {
+              "bg": "--color-white",
+              "text": "--color-gray-900",
+              "border": "--color-gray-300"
+            },
+            "hover": {
+              "bg": "--color-gray-100"
+            },
+            "pressed": {
+              "bg": "--color-gray-300"
+            },
+            "disabled": {
+              "text": "--color-gray-500"
+            }
+          }
+        }
+      ],
+      "sizes": [
+        {
+          "name": "sm",
+          "padX": "--spacing-3",
+          "padY": "--spacing-2",
+          "textSize": "--text-sm",
+          "gap": "--spacing-2"
+        },
+        {
+          "name": "md",
+          "padX": "--spacing-4",
+          "padY": "--spacing-3",
+          "textSize": "--text-base",
+          "gap": "--spacing-2"
+        },
+        {
+          "name": "new"
+        }
+      ]
+    }
+  ]
+}

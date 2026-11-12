@@ -1,7 +1,25 @@
 // 기본 값의 종류와 화면 구성.
 // 변수 이름의 앞부분은 Tailwind v4의 규칙을 따른다(--color-*, --text-*, --radius-* 등).
 
-export type PreviewType = 'color' | 'font' | 'size' | 'weight' | 'space' | 'radius'
+export type PreviewType =
+  | 'color'
+  | 'font'
+  | 'size'
+  | 'weight'
+  | 'leading'
+  | 'tracking'
+  | 'space'
+  | 'radius'
+  | 'border'
+  | 'shadow'
+  | 'opacity'
+  | 'blur'
+  | 'breakpoint'
+  | 'container'
+  | 'aspect'
+  | 'z'
+  | 'duration'
+  | 'ease'
 
 export type Kind = {
   id: PreviewType
@@ -13,15 +31,19 @@ export type Kind = {
   valueLabel: string
   emptyTitle: string
   emptyBody: string
+  /** 줄 목록 대신 네모 칸 격자로 보여 준다. */
+  tiles?: boolean
 }
 
 export const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/
+
+const starts = (prefix: string) => (n: string) => n.startsWith(prefix)
 
 const color: Kind = {
   id: 'color',
   title: '색상',
   prefix: '--color-',
-  matches: (n) => n.startsWith('--color-'),
+  matches: starts('--color-'),
   defaultValue: '#888888',
   addLabel: '색 추가',
   valueLabel: '색 값',
@@ -57,7 +79,7 @@ const weight: Kind = {
   id: 'weight',
   title: '굵기',
   prefix: '--font-weight-',
-  matches: (n) => n.startsWith('--font-weight-'),
+  matches: starts('--font-weight-'),
   defaultValue: '400',
   addLabel: '굵기 추가',
   valueLabel: '굵기',
@@ -65,11 +87,35 @@ const weight: Kind = {
   emptyBody: 'regular, bold처럼 추가해 보세요.',
 }
 
+const leading: Kind = {
+  id: 'leading',
+  title: '줄 높이',
+  prefix: '--leading-',
+  matches: starts('--leading-'),
+  defaultValue: '1.5',
+  addLabel: '줄 높이 추가',
+  valueLabel: '줄 높이',
+  emptyTitle: '줄 높이가 아직 없어요',
+  emptyBody: 'tight, normal처럼 추가해 보세요.',
+}
+
+const tracking: Kind = {
+  id: 'tracking',
+  title: '글자 사이',
+  prefix: '--tracking-',
+  matches: starts('--tracking-'),
+  defaultValue: '0em',
+  addLabel: '글자 사이 추가',
+  valueLabel: '글자 사이 간격',
+  emptyTitle: '글자 사이 값이 아직 없어요',
+  emptyBody: 'tight, wide처럼 추가해 보세요.',
+}
+
 const space: Kind = {
   id: 'space',
   title: '간격',
   prefix: '--spacing-',
-  matches: (n) => n.startsWith('--spacing-'),
+  matches: starts('--spacing-'),
   defaultValue: '16px',
   addLabel: '간격 추가',
   valueLabel: '길이',
@@ -81,19 +127,165 @@ const radius: Kind = {
   id: 'radius',
   title: '모서리',
   prefix: '--radius-',
-  matches: (n) => n.startsWith('--radius-'),
+  matches: starts('--radius-'),
   defaultValue: '8px',
   addLabel: '모서리 추가',
   valueLabel: '둥글기',
   emptyTitle: '첫 모서리 값을 추가해 보세요',
   emptyBody: '버튼, 카드 등에 쓸 둥글기를 단계별로 정해요.',
+  tiles: true,
 }
 
-export type TokenScreenId = 'color' | 'type' | 'spacing' | 'radius'
-export type PlaceholderScreenId = 'components' | 'layouts' | 'assets'
-export type ScreenId = 'canvas' | TokenScreenId | PlaceholderScreenId
+const border: Kind = {
+  id: 'border',
+  title: '테두리 굵기',
+  prefix: '--border-width-',
+  matches: starts('--border-width-'),
+  defaultValue: '1px',
+  addLabel: '테두리 굵기 추가',
+  valueLabel: '굵기',
+  emptyTitle: '첫 테두리 굵기를 추가해 보세요',
+  emptyBody: '컴포넌트의 테두리에 쓸 굵기를 정해요.',
+}
 
-export const ALL_KINDS: Kind[] = [color, font, size, weight, space, radius]
+const shadow: Kind = {
+  id: 'shadow',
+  title: '그림자',
+  prefix: '--shadow-',
+  matches: starts('--shadow-'),
+  defaultValue: '0 4px 16px rgb(0 0 0 / 0.12)',
+  addLabel: '그림자 추가',
+  valueLabel: '그림자',
+  emptyTitle: '그림자가 아직 없어요',
+  emptyBody: 'sm, md, lg처럼 떠 있는 정도별로 추가해 보세요.',
+  tiles: true,
+}
+
+const opacity: Kind = {
+  id: 'opacity',
+  title: '투명도',
+  prefix: '--opacity-',
+  matches: starts('--opacity-'),
+  defaultValue: '0.5',
+  addLabel: '투명도 추가',
+  valueLabel: '투명도 (0~1)',
+  emptyTitle: '투명도가 아직 없어요',
+  emptyBody: '비활성, 덮개처럼 쓰임새별로 추가해 보세요.',
+  tiles: true,
+}
+
+const blur: Kind = {
+  id: 'blur',
+  title: '흐림',
+  prefix: '--blur-',
+  matches: starts('--blur-'),
+  defaultValue: '8px',
+  addLabel: '흐림 추가',
+  valueLabel: '흐림 정도',
+  emptyTitle: '흐림 값이 아직 없어요',
+  emptyBody: '배경을 흐리게 할 때 쓸 정도를 추가해 보세요.',
+  tiles: true,
+}
+
+const breakpoint: Kind = {
+  id: 'breakpoint',
+  title: '화면 폭 기준',
+  prefix: '--breakpoint-',
+  matches: starts('--breakpoint-'),
+  defaultValue: '768px',
+  addLabel: '화면 폭 기준 추가',
+  valueLabel: '폭',
+  emptyTitle: '화면 폭 기준이 아직 없어요',
+  emptyBody: '모바일, 태블릿, PC를 나누는 폭을 추가해 보세요.',
+}
+
+const container: Kind = {
+  id: 'container',
+  title: '최대 너비',
+  prefix: '--container-',
+  matches: starts('--container-'),
+  defaultValue: '960px',
+  addLabel: '최대 너비 추가',
+  valueLabel: '너비',
+  emptyTitle: '최대 너비가 아직 없어요',
+  emptyBody: '본문이나 창이 넓어질 수 있는 한계를 추가해 보세요.',
+}
+
+const aspect: Kind = {
+  id: 'aspect',
+  title: '비율',
+  prefix: '--aspect-',
+  matches: starts('--aspect-'),
+  defaultValue: '16 / 9',
+  addLabel: '비율 추가',
+  valueLabel: '가로 / 세로',
+  emptyTitle: '비율이 아직 없어요',
+  emptyBody: '이미지와 영상에 쓸 가로세로 비율을 추가해 보세요.',
+  tiles: true,
+}
+
+const z: Kind = {
+  id: 'z',
+  title: '겹치는 순서',
+  prefix: '--z-',
+  matches: starts('--z-'),
+  defaultValue: '10',
+  addLabel: '겹치는 순서 추가',
+  valueLabel: '순서 (클수록 위)',
+  emptyTitle: '겹치는 순서가 아직 없어요',
+  emptyBody: '드롭다운, 확인 창처럼 위에 뜨는 것의 순서를 추가해 보세요.',
+}
+
+const duration: Kind = {
+  id: 'duration',
+  title: '움직임 시간',
+  prefix: '--duration-',
+  matches: starts('--duration-'),
+  defaultValue: '200ms',
+  addLabel: '움직임 시간 추가',
+  valueLabel: '시간',
+  emptyTitle: '움직임 시간이 아직 없어요',
+  emptyBody: 'fast, normal, slow처럼 추가해 보세요.',
+}
+
+const ease: Kind = {
+  id: 'ease',
+  title: '움직임 흐름',
+  prefix: '--ease-',
+  matches: starts('--ease-'),
+  defaultValue: 'cubic-bezier(0.4, 0, 0.2, 1)',
+  addLabel: '움직임 흐름 추가',
+  valueLabel: '속도 곡선',
+  emptyTitle: '움직임 흐름이 아직 없어요',
+  emptyBody: '천천히 시작하거나 천천히 멈추는 흐름을 추가해 보세요.',
+}
+
+export const KINDS = {
+  color,
+  font,
+  size,
+  weight,
+  leading,
+  tracking,
+  space,
+  radius,
+  border,
+  shadow,
+  opacity,
+  blur,
+  breakpoint,
+  container,
+  aspect,
+  z,
+  duration,
+  ease,
+}
+
+export const ALL_KINDS: Kind[] = Object.values(KINDS)
+
+export type TokenScreenId = 'color' | 'type' | 'spacing' | 'radius' | 'border' | 'effect' | 'layout' | 'motion'
+export type PlaceholderScreenId = 'layouts' | 'assets'
+export type ScreenId = 'canvas' | 'components' | TokenScreenId | PlaceholderScreenId
 
 /** 목록 안에 색을 더할 때의 다음 이름. 100, 200처럼 숫자면 같은 간격으로 이어 간다. */
 export function nextStep(steps: string[]) {
@@ -112,13 +304,16 @@ export function nextStep(steps: string[]) {
 
 export const TOKEN_SCREENS: Record<TokenScreenId, { title: string; kinds: Kind[] }> = {
   color: { title: '색상', kinds: [color] },
-  type: { title: '글꼴', kinds: [font, size, weight] },
+  type: { title: '글꼴', kinds: [font, size, weight, leading, tracking] },
   spacing: { title: '간격', kinds: [space] },
   radius: { title: '모서리', kinds: [radius] },
+  border: { title: '테두리', kinds: [border] },
+  effect: { title: '효과', kinds: [shadow, opacity, blur] },
+  layout: { title: '화면 크기', kinds: [breakpoint, container, aspect, z] },
+  motion: { title: '움직임', kinds: [duration, ease] },
 }
 
 export const PLACEHOLDER_SCREENS: Record<PlaceholderScreenId, { title: string; body: string }> = {
-  components: { title: '컴포넌트', body: '실제 컴포넌트를 상태별로 보고 옵션을 바꿔보는 화면이에요.' },
   layouts: { title: '화면 구조', body: '블록을 쌓아 페이지 구조를 짜는 화면이에요.' },
   assets: { title: '아이콘·이미지', body: '프로젝트의 아이콘과 이미지를 모아 보는 화면이에요.' },
 }

@@ -10,6 +10,7 @@ import { isValidToken, parseTokens, writeTokens } from './tokensCss.ts'
 const SYSTEM_NAME = /^[a-z0-9]+(-[a-z0-9]+)*$/
 const TOKENS_FILE = 'tokens.css'
 const CANVAS_FILE = 'ff.canvas.json'
+const COMPONENTS_FILE = 'components.json'
 const EMPTY_TOKENS = `/* FF가 관리하는 디자인 값입니다. @theme 안의 값은 FF에서 고칠 수 있습니다. */\n@theme {\n}\n`
 
 class HttpError extends Error {
@@ -143,6 +144,40 @@ export function ffApi(): Plugin {
           Object.entries(boards).map(([id, p]: [string, any]) => [id, { x: Math.round(p.x), y: Math.round(p.y) }]),
         )
         await fs.writeFile(file, JSON.stringify({ boards: clean }, null, 2) + '\n', 'utf-8')
+        return send(res, 200, { ok: true })
+      }
+    }
+
+    // 컴포넌트 설정
+    if (parts.length === 3 && parts[2] === 'components') {
+      const name = decodeURIComponent(parts[1])
+      await tokensPath(name) // 시스템이 있는지 확인
+      const file = path.join(systemDir(name), COMPONENTS_FILE)
+      const shownPath = `systems/${name}/${COMPONENTS_FILE}`
+
+      if (method === 'GET') {
+        let text: string
+        try {
+          text = await fs.readFile(file, 'utf-8')
+        } catch {
+          return send(res, 200, { components: [], file: shownPath })
+        }
+        try {
+          return send(res, 200, { components: JSON.parse(text).components ?? [], file: shownPath })
+        } catch {
+          throw new HttpError(500, 'components.json 파일을 읽지 못했어요. 파일 내용을 확인해 주세요.')
+        }
+      }
+
+      if (method === 'PUT') {
+        const { components } = await readJson(req)
+        const valid =
+          Array.isArray(components) &&
+          components.every((c) => c && typeof c === 'object' && SYSTEM_NAME.test(String(c.name ?? '')))
+        if (!valid) throw new HttpError(400, '저장할 수 없는 컴포넌트가 있어요.')
+        const names = new Set(components.map((c) => c.name))
+        if (names.size !== components.length) throw new HttpError(400, '같은 이름의 컴포넌트가 두 개 있어요.')
+        await fs.writeFile(file, JSON.stringify({ components }, null, 2) + '\n', 'utf-8')
         return send(res, 200, { ok: true })
       }
     }
