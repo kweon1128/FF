@@ -23,6 +23,46 @@
   --shadow-dialog: 0 8px 32px rgb(0 0 0 / 0.12);
 }
 
+/* 선택과 호버 선의 굵기. 전체 보기에서는 확대 비율의 반대로 키워서, 축소해도 화면에서 같은 굵기로 보이게 한다. */
+:root {
+  --line: 1px;
+  --unzoom: 1;
+}
+
+/*
+  선택(1배)과 호버(2배)의 선. 피그마처럼 항목의 모서리가 둥글어도 선은 항상 각진 사각형으로 그린다.
+  outline은 둥근 모서리를 따라가므로 쓰지 않고, 항목 위에 겹친 사각형의 테두리로 그린다.
+  사각형은 항목의 1px 테두리를 덮도록 바깥으로 1px 넓힌다(테두리가 없는 항목은 --edge를 0으로 둔다).
+*/
+@utility line-1 {
+  position: relative;
+  &::after {
+    content: '';
+    position: absolute;
+    inset: calc(var(--edge, 1px) * -1);
+    border: var(--line) solid var(--color-selection);
+    border-radius: 0;
+    pointer-events: none;
+  }
+}
+
+@utility line-2 {
+  position: relative;
+  &::after {
+    content: '';
+    position: absolute;
+    inset: calc(var(--edge, 1px) * -1);
+    border: calc(var(--line) * 2) solid var(--color-selection);
+    border-radius: 0;
+    pointer-events: none;
+  }
+}
+
+/* 선을 두를 항목에 붙인다. 겹친 사각형의 기준이 된다. */
+@utility line-inset {
+  position: relative;
+}
+
 html,
 body,
 #root {

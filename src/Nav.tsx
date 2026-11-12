@@ -1,8 +1,10 @@
 import {
   Component,
+  EyeOff,
   Image,
   LayoutGrid,
   LayoutTemplate,
+  Lock,
   Monitor,
   Palette,
   Plus,
@@ -53,6 +55,10 @@ export function Nav({
   currentComponent,
   onPickComponent,
   onAddComponent,
+  hidden,
+  locked,
+  onShow,
+  onUnlock,
 }: {
   screen: ScreenId
   onSelect: (id: ScreenId) => void
@@ -60,7 +66,14 @@ export function Nav({
   currentComponent: number
   onPickComponent: (index: number) => void
   onAddComponent: () => void
+  /** 숨기거나 잠근 판. 메뉴 줄 오른쪽의 아이콘을 누르면 다시 보이거나 풀린다. */
+  hidden: string[]
+  locked: string[]
+  onShow: (id: string) => void
+  onUnlock: (id: string) => void
 }) {
+  const MARK =
+    'absolute top-1 right-1 flex size-6 items-center justify-center rounded-sm text-ink-faint outline-selection hover:bg-canvas hover:text-ink focus-visible:outline-2'
   return (
     <nav className="w-[220px] shrink-0 overflow-y-auto border-r border-hairline p-2">
       {SECTIONS.map((section, i) => (
@@ -70,7 +83,7 @@ export function Nav({
             {section.items.map(({ id, label, icon: Icon }) => {
               const selected = id === screen
               return (
-                <div key={id} className="space-y-0.5">
+                <div key={id} className="relative space-y-0.5">
                   <button
                     type="button"
                     aria-current={selected ? 'page' : undefined}
@@ -78,8 +91,29 @@ export function Nav({
                     className={`${ROW} ${selected ? 'bg-hover font-[550] text-ink' : IDLE}`}
                   >
                     <Icon size={16} strokeWidth={1.5} />
-                    {label}
+                    <span className={hidden.includes(id) ? 'text-ink-faint' : ''}>{label}</span>
                   </button>
+                  {hidden.includes(id) ? (
+                    <button
+                      type="button"
+                      title="숨긴 판 다시 보이기"
+                      aria-label={`${label} 판 다시 보이기`}
+                      onClick={() => onShow(id)}
+                      className={MARK}
+                    >
+                      <EyeOff size={14} strokeWidth={1.5} />
+                    </button>
+                  ) : locked.includes(id) ? (
+                    <button
+                      type="button"
+                      title="잠금 풀기"
+                      aria-label={`${label} 판 잠금 풀기`}
+                      onClick={() => onUnlock(id)}
+                      className={MARK}
+                    >
+                      <Lock size={14} strokeWidth={1.5} />
+                    </button>
+                  ) : null}
 
                   {/* 컴포넌트 화면에서는 메뉴 아래에 컴포넌트 목록을 펼친다. */}
                   {id === 'components' && selected && (

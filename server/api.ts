@@ -11,6 +11,11 @@ const SYSTEM_NAME = /^[a-z0-9]+(-[a-z0-9]+)*$/
 const TOKENS_FILE = 'tokens.css'
 const CANVAS_FILE = 'ff.canvas.json'
 const COMPONENTS_FILE = 'components.json'
+// 판마다 고칠 수 있는 값: 너비, 투명도, 모서리, 테두리 굵기와 채우기·테두리 색.
+const BOARD_NUMBERS = ['w', 'opacity', 'radius', 'strokeWidth']
+const BOARD_COLORS = ['fill', 'stroke']
+const BOARD_FLAGS = ['locked', 'hidden']
+const HEX_COLOR = /^#[0-9a-f]{6}$/i
 const EMPTY_TOKENS = `/* FF가 관리하는 디자인 값입니다. @theme 안의 값은 FF에서 고칠 수 있습니다. */\n@theme {\n}\n`
 
 class HttpError extends Error {
@@ -140,13 +145,22 @@ export function ffApi(): Plugin {
               /^[a-z]+$/.test(id) &&
               Number.isFinite(p?.x) &&
               Number.isFinite(p?.y) &&
-              (p.w === undefined || Number.isFinite(p.w)),
+              BOARD_NUMBERS.every((key) => p[key] === undefined || Number.isFinite(p[key])) &&
+              BOARD_COLORS.every((key) => p[key] === undefined || HEX_COLOR.test(String(p[key]))) &&
+              BOARD_FLAGS.every((key) => p[key] === undefined || typeof p[key] === 'boolean'),
           )
         if (!valid) throw new HttpError(400, '저장할 수 없는 위치 값이에요.')
         const clean = Object.fromEntries(
           Object.entries(boards).map(([id, p]: [string, any]) => [
             id,
-            { x: Math.round(p.x), y: Math.round(p.y), ...(p.w === undefined ? {} : { w: Math.round(p.w) }) },
+            {
+              x: Math.round(p.x),
+              y: Math.round(p.y),
+              // 고치지 않은 값은 파일에 적지 않는다.
+              ...Object.fromEntries(BOARD_NUMBERS.filter((key) => p[key] !== undefined).map((key) => [key, Math.round(p[key])])),
+              ...Object.fromEntries(BOARD_COLORS.filter((key) => p[key] !== undefined).map((key) => [key, String(p[key]).toLowerCase()])),
+              ...Object.fromEntries(BOARD_FLAGS.filter((key) => p[key] === true).map((key) => [key, true])),
+            },
           ]),
         )
         await fs.writeFile(file, JSON.stringify({ boards: clean }, null, 2) + '\n', 'utf-8')

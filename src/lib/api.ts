@@ -20,8 +20,36 @@ export const createSystem = (name: string) =>
 export const getTokens = (system: string) =>
   request<{ tokens: Token[]; file: string }>(`/api/systems/${encodeURIComponent(system)}/tokens`)
 
-/** 판의 자리. w는 너비를 바꾼 판에만 있다. */
-export type Pos = { x: number; y: number; w?: number }
+/** 판의 모양. 고치지 않은 값은 비어 있고 기본 모양을 따른다. */
+export type BoardStyle = {
+  /** 투명도, 0~100 */
+  opacity?: number
+  /** 모서리, px */
+  radius?: number
+  /** 채우기 색, #rrggbb */
+  fill?: string
+  /** 테두리 색, #rrggbb */
+  stroke?: string
+  /** 테두리 굵기, px */
+  strokeWidth?: number
+  /** 잠금. 잠근 판은 옮겨지지 않는다. */
+  locked?: boolean
+  /** 숨김. 숨긴 판은 캔버스에 그리지 않는다. */
+  hidden?: boolean
+}
+
+export const BOARD_DEFAULTS: Required<BoardStyle> = {
+  opacity: 100,
+  radius: 8,
+  fill: '#ffffff',
+  stroke: '#e6e6e6',
+  strokeWidth: 1,
+  locked: false,
+  hidden: false,
+}
+
+/** 판의 자리와 모양. w는 너비를 바꾼 판에만 있다. */
+export type Pos = { x: number; y: number; w?: number } & BoardStyle
 
 export const getCanvas = (system: string) =>
   request<{ boards: Record<string, Pos> }>(`/api/systems/${encodeURIComponent(system)}/canvas`)

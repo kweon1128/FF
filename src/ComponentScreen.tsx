@@ -3,7 +3,7 @@ import { Plus } from 'lucide-react'
 import { DynamicIcon, iconNames, type IconName } from 'lucide-react/dynamic'
 import type { Token } from './lib/api'
 import { STATES, cellLabel, cellStyle, type Cell, type Comp, type StateId } from './lib/components'
-import { ADD_TILE, HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
+import { ADD_TILE, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
 
 export const isIconName = (name: string | undefined): name is IconName =>
   !!name && (iconNames as string[]).includes(name)
@@ -44,6 +44,8 @@ export function ComponentScreen({
   onSelect,
   onAddVariant,
   onAddSize,
+  onRenameVariant,
+  onRenameSize,
 }: {
   comp: Comp
   tokens: Token[]
@@ -52,6 +54,9 @@ export function ComponentScreen({
   onSelect: (cell: Cell, additive: boolean) => void
   onAddVariant: () => void
   onAddSize: () => void
+  /** 종류나 크기의 이름을 더블클릭하면 그 자리에서 고친다. rect는 이름이 적힌 자리. */
+  onRenameVariant: (index: number, rect: DOMRect) => void
+  onRenameSize: (index: number, rect: DOMRect) => void
 }) {
   const shown = cells.at(-1) ?? { v: 0, s: 0, state: 'default' as StateId }
 
@@ -63,17 +68,25 @@ export function ComponentScreen({
         <LivePreview comp={comp} cell={shown} tokens={tokens} />
       </div>
       <p className="mt-1 text-xs text-ink-faint">
-        {comp.variants[shown.v]?.name} · {comp.sizes[shown.s]?.name} · 마우스를 올리거나 눌러 볼 수 있어요
+        {comp.variants[shown.v]?.name} · {comp.sizes[shown.s]?.name}
       </p>
 
       <div className="mt-8 space-y-8">
         {comp.variants.map((variant, v) => (
           <section key={v}>
-            <h2 className="mb-2 text-xs font-[550] text-ink-faint">{variant.name}</h2>
+            <h2 className="mb-2 text-xs font-[550] text-ink-faint">
+              <span data-variant-name={v} onDoubleClick={(e) => onRenameVariant(v, e.currentTarget.getBoundingClientRect())}>
+                {variant.name}
+              </span>
+            </h2>
             <div className="space-y-3">
               {comp.sizes.map((size, s) => (
                 <div key={s} className="flex items-start gap-3">
-                  <span className="flex h-24 w-12 shrink-0 items-center truncate text-xs text-ink-soft">{size.name}</span>
+                  <span className="flex h-24 w-12 shrink-0 items-center text-xs text-ink-soft">
+                    <span className="truncate" onDoubleClick={(e) => onRenameSize(s, e.currentTarget.getBoundingClientRect())}>
+                      {size.name}
+                    </span>
+                  </span>
                   <div className="grid min-w-0 flex-1 grid-cols-4 gap-3">
                     {STATES.map(({ id, label }) => {
                       const here = { v, s, state: id }
@@ -85,18 +98,19 @@ export function ComponentScreen({
                           type="button"
                           aria-pressed={isSelected}
                           aria-label={cellLabel(comp, here)}
+                          data-cell
                           onClick={(e) => onSelect(here, isAdditive(e))}
                           className="group min-w-0 text-left outline-none select-none"
                         >
                           <span
-                            className={`relative flex h-24 items-center justify-center rounded-lg border border-hairline bg-canvas p-3 ${isSelected ? SELECTED : ''} group-hover:outline-2 group-focus-visible:outline-2 ${OUTLINE}`}
+                            className={`relative flex h-24 items-center justify-center rounded-lg border border-hairline bg-canvas p-3 ${isSelected ? SELECTED : ''} group-hover:line-2 group-focus-visible:line-2 ${OUTLINE}`}
                           >
                             <span className="pointer-events-none flex max-w-full overflow-hidden">
                               <CompPreview comp={comp} cell={here} tokens={tokens} />
                             </span>
                             {labeled && <SelectionLabel name={cellLabel(comp, here)} />}
                           </span>
-                          <span className={`mt-1 block truncate text-xs text-ink-faint ${labeled ? 'invisible' : ''}`}>
+                          <span className="mt-1 block truncate text-xs text-ink-faint">
                             {label}
                           </span>
                         </button>
@@ -119,7 +133,7 @@ export function ComponentScreen({
           type="button"
           aria-label="종류 추가"
           onClick={onAddVariant}
-          className={`${ADD_TILE} ${HOVER} h-24 w-full rounded-lg`}
+          className={`${ADD_TILE} h-24 w-full rounded-lg`}
         >
           <Plus size={16} strokeWidth={1.5} />
         </button>

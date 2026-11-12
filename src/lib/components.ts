@@ -155,6 +155,75 @@ export function cellStyle(comp: Comp, cell: Cell, tokens: Token[]): CSSPropertie
   }
 }
 
+const COMMON_LABELS = { font: '글꼴', weight: '굵기', radius: '모서리', borderWidth: '테두리 굵기' } as const
+const COLOR_LABELS = { bg: '바탕색', text: '글자색', border: '테두리색' } as const
+const SIZE_LABELS = { padX: '좌우 여백', padY: '위아래 여백', textSize: '글자 크기', gap: '아이콘과 글자 사이' } as const
+
+/** 이 기본 값을 쓰는 컴포넌트와 그 자리들. */
+export function usesOf(comps: Comp[], token: string): { index: number; name: string; where: string[] }[] {
+  return comps
+    .map((c, index) => {
+      const where: string[] = []
+      for (const [key, label] of Object.entries(COMMON_LABELS)) if (c[key as keyof typeof COMMON_LABELS] === token) where.push(label)
+      for (const v of c.variants)
+        for (const { id, label } of STATES)
+          for (const [key, name] of Object.entries(COLOR_LABELS))
+            if (v.states[id][key as keyof Colors] === token) where.push(`${v.name} · ${label} · ${name}`)
+      for (const s of c.sizes)
+        for (const [key, label] of Object.entries(SIZE_LABELS))
+          if (s[key as keyof typeof SIZE_LABELS] === token) where.push(`${s.name} · ${label}`)
+      return { index, name: c.name, where }
+    })
+    .filter((u) => u.where.length > 0)
+}
+
+/** 종류나 크기를 통째로 하나 더 만든다. */
+export const cloneVariant = (v: Variant, name: string): Variant => ({
+  name,
+  states: Object.fromEntries(STATES.map(({ id }) => [id, { ...v.states[id] }])) as Record<StateId, Colors>,
+})
+
+/** 컴포넌트를 CSS로 옮긴다. 값은 모두 기본 값의 변수를 가리킨다. */
+export function compCss(comp: Comp): string {
+  const v = (name: Ref) => (name ? `var(${name})` : undefined)
+  const rule = (selector: string, lines: [string, string | undefined][]) => {
+    const body = lines.filter(([, value]) => value).map(([prop, value]) => `  ${prop}: ${value};`)
+    return body.length ? `${selector} {\n${body.join('\n')}\n}` : ''
+  }
+  const base = `.${comp.name}`
+  const colors = (c: Colors): [string, string | undefined][] => [
+    ['background', v(c.bg)],
+    ['color', v(c.text)],
+    ['border-color', v(c.border)],
+  ]
+  const suffix: Record<StateId, string> = { default: '', hover: ':hover', pressed: ':active', disabled: ':disabled' }
+  return [
+    rule(base, [
+      ['display', 'inline-flex'],
+      ['align-items', 'center'],
+      ['justify-content', 'center'],
+      ['border', comp.borderWidth ? `var(${comp.borderWidth}) solid transparent` : undefined],
+      ['border-radius', v(comp.radius)],
+      ['font-family', v(comp.font)],
+      ['font-weight', v(comp.weight)],
+      ['line-height', '1.2'],
+      ['white-space', 'nowrap'],
+    ]),
+    ...comp.sizes.map((s) =>
+      rule(`${base}--${s.name}`, [
+        ['padding', s.padX || s.padY ? `${v(s.padY) ?? '0'} ${v(s.padX) ?? '0'}` : undefined],
+        ['font-size', v(s.textSize)],
+        ['gap', v(s.gap)],
+      ]),
+    ),
+    ...comp.variants.flatMap((variant) =>
+      STATES.map(({ id }) => rule(`${base}--${variant.name}${suffix[id]}`, colors(variant.states[id]))),
+    ),
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+}
+
 export function cellLabel(comp: Comp, cell: Cell) {
   const state = STATES.find((s) => s.id === cell.state)!.label
   return `${comp.variants[cell.v]?.name} · ${comp.sizes[cell.s]?.name} · ${state}`

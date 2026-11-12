@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Trash2 } from 'lucide-react'
+import { Copy, CopyPlus, Trash2 } from 'lucide-react'
 import { DynamicIcon, iconNames } from 'lucide-react/dynamic'
 import type { Token } from './lib/api'
 import { KINDS, SLUG, shortName, type Kind } from './lib/catalog'
@@ -164,6 +164,10 @@ type Props = {
   onChange: (next: Comp) => void
   onDeleteVariant: (index: number) => void
   onDeleteSize: (index: number) => void
+  onDuplicateVariant: (index: number) => void
+  onDuplicateSize: (index: number) => void
+  /** 컴포넌트를 CSS로 복사한다. */
+  onCopyCss: () => void
   onDelete: () => void
 }
 
@@ -177,6 +181,9 @@ export function ComponentInspector({
   onChange,
   onDeleteVariant,
   onDeleteSize,
+  onDuplicateVariant,
+  onDuplicateSize,
+  onCopyCss,
   onDelete,
 }: Props) {
   const cell = cells.at(-1) ?? null
@@ -211,17 +218,8 @@ export function ComponentInspector({
     <div>
       <Section>
         <h2 className="font-[650] break-all">{comp.name}</h2>
-        <p className="mt-0.5 text-xs text-ink-faint">
-          {!cell
-            ? '칸을 누르면 그 종류와 크기도 고칠 수 있어요.'
-            : single
-              ? cellLabel(comp, cell)
-              : `${cells.length}칸 선택됨`}
-        </p>
         {cell && (
-          <p className="mt-1 text-xs text-ink-faint">
-            색은 선택한 상태에, 여백과 글자 크기는 선택한 크기에, 나머지는 컴포넌트 전체에 적용돼요.
-          </p>
+          <p className="mt-0.5 text-xs text-ink-faint">{single ? cellLabel(comp, cell) : `${cells.length}칸 선택됨`}</p>
         )}
       </Section>
 
@@ -333,12 +331,18 @@ export function ComponentInspector({
               onChange({ ...comp, variants: comp.variants.map((v, i) => (i === cell.v ? { ...v, name } : v)) })
             }
           />
-          {comp.variants.length > 1 && (
-            <Button variant="danger" className="mt-2 -ml-2" onClick={() => onDeleteVariant(cell.v)}>
-              <Trash2 size={16} strokeWidth={1.5} />
-              종류 삭제
+          <div className="mt-2 -ml-2 flex flex-wrap">
+            <Button variant="ghost" title="Ctrl+D" onClick={() => onDuplicateVariant(cell.v)}>
+              <CopyPlus size={16} strokeWidth={1.5} />
+              종류 복제
             </Button>
-          )}
+            {comp.variants.length > 1 && (
+              <Button variant="danger" onClick={() => onDeleteVariant(cell.v)}>
+                <Trash2 size={16} strokeWidth={1.5} />
+                종류 삭제
+              </Button>
+            )}
+          </div>
         </Section>
       )}
 
@@ -350,12 +354,18 @@ export function ComponentInspector({
             taken={comp.sizes.map((s) => s.name)}
             onCommit={(name) => setSize({ name })}
           />
-          {comp.sizes.length > 1 && (
-            <Button variant="danger" className="mt-2 -ml-2" onClick={() => onDeleteSize(cell.s)}>
-              <Trash2 size={16} strokeWidth={1.5} />
-              크기 삭제
+          <div className="mt-2 -ml-2 flex flex-wrap">
+            <Button variant="ghost" onClick={() => onDuplicateSize(cell.s)}>
+              <CopyPlus size={16} strokeWidth={1.5} />
+              크기 복제
             </Button>
-          )}
+            {comp.sizes.length > 1 && (
+              <Button variant="danger" onClick={() => onDeleteSize(cell.s)}>
+                <Trash2 size={16} strokeWidth={1.5} />
+                크기 삭제
+              </Button>
+            )}
+          </div>
         </Section>
       )}
 
@@ -367,10 +377,16 @@ export function ComponentInspector({
             <Chip>{file}</Chip>
           </div>
         </div>
-        <Button variant="danger" className="mt-2 -ml-2" onClick={onDelete}>
-          <Trash2 size={16} strokeWidth={1.5} />
-          컴포넌트 삭제
-        </Button>
+        <div className="mt-2 -ml-2 flex flex-wrap">
+          <Button variant="ghost" onClick={onCopyCss}>
+            <Copy size={16} strokeWidth={1.5} />
+            CSS 복사
+          </Button>
+          <Button variant="danger" onClick={onDelete}>
+            <Trash2 size={16} strokeWidth={1.5} />
+            컴포넌트 삭제
+          </Button>
+        </div>
       </Section>
     </div>
   )

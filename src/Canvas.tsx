@@ -1,10 +1,11 @@
 // 전체 보기: 모든 기본 값을 판으로 펼쳐 놓고 자유롭게 이동하며 보는 넓은 화면.
 // 휠은 이동, Ctrl+휠은 확대·축소, 스페이스+끌기는 화면 이동.
 // 그냥 끌면 영역 선택(항목은 걸치면, 판은 통째로 들어오면 선택), 판 제목을 끌면 선택한 판들이 함께 이동.
+// 판을 끌 때는 다른 판의 가장자리와 가운데에 붙고(Ctrl을 누르면 붙지 않는다), Shift를 누르면 가로나 세로로만 움직인다.
 
-import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react'
-import { Minus, Plus } from 'lucide-react'
-import type { Pos } from './lib/api'
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from 'react'
+import { Lock, Minus, Plus } from 'lucide-react'
+import { BOARD_DEFAULTS, type Pos } from './lib/api'
 import { arrange, type Arrange, type Placed } from './lib/arrange'
 import { HANDLE } from './TokenScreen'
 
@@ -13,8 +14,34 @@ const BOARD_GAP = 80
 const MIN_ZOOM = 0.1
 const MAX_ZOOM = 4
 const DRAG_START = 3
+/** 메뉴를 눌러 판으로 이동할 때 걸리는 시간. */
+const GLIDE_MS = 300
 /** 화면 맞춤을 할 때 가장자리에 남기는 여백. */
 const FIT_PADDING = 48
+/** 끌 때 이 거리(화면 px) 안으로 들어오면 다른 판에 붙는다. */
+const SNAP = 6
+
+type Rect = { x: number; y: number; w: number; h: number }
+/** 붙었을 때 보이는 안내선, 또는 거리를 재는 선. */
+type Guide = { x: number; y: number; len: number; vertical: boolean; label?: string }
+
+const bound = (rects: Rect[]): Rect => {
+  const x = Math.min(...rects.map((r) => r.x))
+  const y = Math.min(...rects.map((r) => r.y))
+  return { x, y, w: Math.max(...rects.map((r) => r.x + r.w)) - x, h: Math.max(...rects.map((r) => r.y + r.h)) - y }
+}
+
+/** 한 축에서 움직이는 것의 시작·가운데·끝이 다른 것의 시작·가운데·끝과 가장 가까운 곳을 찾는다. */
+function snapAxis(lo: number, size: number, others: [number, number][], tolerance: number) {
+  let best: { shift: number; at: number } | null = null
+  for (const [start, length] of others)
+    for (const target of [start, start + length / 2, start + length])
+      for (const mine of [lo, lo + size / 2, lo + size]) {
+        const shift = target - mine
+        if (Math.abs(shift) <= tolerance && (!best || Math.abs(shift) < Math.abs(best.shift))) best = { shift, at: target }
+      }
+  return best
+}
 
 type View = { x: number; y: number; z: number }
 type Board = { id: string; title: string; content: ReactNode }
@@ -28,6 +55,9 @@ type Drag =
       startY: number
       start: Record<string, Pos>
       next?: Record<string, Pos>
+      /** 움직이는 판들을 감싼 상자와, 붙을 수 있는 나머지 판들. */
+      box: Rect | null
+      others: Rect[]
       moved: boolean
     }
   | {
@@ -39,6 +69,10 @@ type Drag =
       baseBoards: string[]
       moved: boolean
     }
+
+/** 비어 있는(undefined) 값을 뺀다. 기본값 위에 덮어쓸 때 빈 값이 기본값을 지우지 않게 한다. */
+const definedOnly = <T extends object>(o: T | undefined) =>
+  Object.fromEntries(Object.entries(o ?? {}).filter(([, v]) => v !== undefined)) as Partial<T>
 
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n))
 const sameList = (a: string[], b: string[]) => a.length === b.length && a.every((v, i) => v === b[i])
@@ -70,6 +104,7 @@ export function Canvas({
   selectedBoards,
   onSelectBoards: setSelectedBoards,
   onMove,
+  focus,
 }: {
   viewKey: string
   boards: Board[]
@@ -79,8 +114,10 @@ export function Canvas({
   onSelectItems: (names: string[]) => void
   selectedBoards: string[]
   onSelectBoards: (ids: string[]) => void
-  /** 움직인 판들의 새 위치. */
-  onMove: (moved: Record<string, Pos>) => void
+  /** 화면에 맞춰 보여 줄 판. id가 없으면 전체. nonce가 바뀔 때마다 그곳으로 이동한다. */
+  focus: { id: string | null; token?: string | null; nonce: number }
+  /** 움직이거나 고친 판들의 새 값. 적지 않은 값은 그대로 둔다. */
+  onMove: (moved: Record<string, Partial<Pos>>) => void
 }) {
   const root = useRef<HTMLDivElement>(null)
   const drag = useRef<Drag | null>(null)
@@ -91,6 +128,10 @@ export function Canvas({
   const [marquee, setMarquee] = useState<Box | null>(null)
   const [space, setSpace] = useState(false)
   const [panning, setPanning] = useState(false)
+  const [guides, setGuides] = useState<Guide[]>([])
+  // Alt를 누르고 있는 동안 선택한 판과 마우스를 올린 판 사이의 거리를 보여 준다.
+  const [alt, setAlt] = useState(false)
+  const [over, setOver] = useState<string | null>(null)
 
   useEffect(() => {
     try {
@@ -133,16 +174,25 @@ export function Canvas({
     const typing = (t: EventTarget | null) =>
       t instanceof HTMLElement && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)
     const down = (e: KeyboardEvent) => {
+      if (e.key === 'Alt') return setAlt(true)
       if (e.code !== 'Space' || typing(e.target)) return
       e.preventDefault()
       setSpace(true)
     }
     const up = (e: KeyboardEvent) => {
+      if (e.key === 'Alt') {
+        // Alt만 눌렀다 떼면 브라우저 메뉴로 초점이 넘어가므로 막는다.
+        e.preventDefault()
+        return setAlt(false)
+      }
       if (e.code !== 'Space') return
       if (!typing(e.target)) e.preventDefault()
       setSpace(false)
     }
-    const blur = () => setSpace(false)
+    const blur = () => {
+      setSpace(false)
+      setAlt(false)
+    }
     window.addEventListener('keydown', down)
     window.addEventListener('keyup', up)
     window.addEventListener('blur', blur)
@@ -155,6 +205,16 @@ export function Canvas({
 
   const posOf = (id: string, index: number): Pos => ({ ...(positions[id] ?? defaultPos(index)), ...live?.[id] })
   const widthOf = (id: string) => positions[id]?.w ?? BOARD_WIDTH
+  const isLocked = (id: string) => !!positions[id]?.locked
+  const isHidden = (id: string) => !!positions[id]?.hidden
+
+  /** 판의 흰 면이 캔버스에서 차지하는 자리. 제목은 뺀다. */
+  function rectOf(id: string): Rect | null {
+    const n = root.current?.querySelector<HTMLElement>(`[data-board="${id}"]`)
+    if (!n) return null
+    const p = posOf(id, boards.findIndex((b) => b.id === id))
+    return { x: p.x, y: p.y + n.offsetTop, w: n.offsetWidth, h: n.offsetHeight }
+  }
 
   /** 주어진 요소들이 모두 보이도록 화면을 맞춘다. */
   function fitTo(elements: HTMLElement[], maxZoom: number) {
@@ -183,6 +243,29 @@ export function Canvas({
     setView({ z, x: (el.clientWidth - width * z) / 2 - left * z, y: (el.clientHeight - height * z) / 2 - top * z })
   }
 
+  // 왼쪽 메뉴에서 화면을 고르면 그 판(전체 보기는 모든 판)이 화면에 맞게 보이도록 부드럽게 이동한다.
+  const [gliding, setGliding] = useState(false)
+  const seenFocus = useRef(focus.nonce)
+  useEffect(() => {
+    const el = root.current
+    if (!el) return
+    const opening = seenFocus.current === focus.nonce
+    seenFocus.current = focus.nonce
+    // 처음 열 때는 지난번에 보던 위치를 그대로 둔다. 다만 특정 판을 고른 채 열렸으면 그 판을 보여 준다.
+    if (opening && !focus.id && !focus.token) return
+    const targets = [
+      ...el.querySelectorAll<HTMLElement>(
+        focus.token ? `[data-token="${CSS.escape(focus.token)}"]` : focus.id ? `[data-board="${focus.id}"]` : '[data-board]',
+      ),
+    ]
+    setGliding(!opening)
+    fitTo(targets, 1)
+    const timer = window.setTimeout(() => setGliding(false), GLIDE_MS + 50)
+    return () => window.clearTimeout(timer)
+    // 이동은 고른 화면이 바뀔 때만 한다. 보는 위치가 바뀔 때마다 다시 맞추면 안 된다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focus.id, focus.token, focus.nonce])
+
   // 단축키. 키는 피그마와 같다. 최신 상태를 보도록 매번 새 함수를 담아 둔다.
   const onKey = useRef<(e: KeyboardEvent) => void>(() => {})
   onKey.current = (e) => {
@@ -198,7 +281,23 @@ export function Canvas({
     if (e.code === 'Escape') return setSelectedBoards([])
     if (mod && !e.altKey && e.code === 'KeyA') {
       done()
-      return setSelectedBoards(boards.map((b) => b.id))
+      return setSelectedBoards(boards.map((b) => b.id).filter((id) => !isHidden(id)))
+    }
+
+    // 잠그기(Ctrl+Shift+L)와 숨기기(Ctrl+Shift+H)
+    if (mod && e.shiftKey && !e.altKey && (e.code === 'KeyL' || e.code === 'KeyH') && selectedBoards.length) {
+      done()
+      if (e.code === 'KeyH') return onMove(Object.fromEntries(selectedBoards.map((id) => [id, { hidden: true }])))
+      const all = selectedBoards.every(isLocked)
+      return onMove(Object.fromEntries(selectedBoards.map((id) => [id, { locked: !all }])))
+    }
+
+    // 숫자키: 선택한 판의 투명도. 1~9는 10~90%, 0은 100%.
+    const digit = /^(?:Digit|Numpad)(\d)$/.exec(e.code)
+    if (digit && !mod && !e.altKey && !e.shiftKey && selectedBoards.length && selectedItems.length === 0) {
+      done()
+      const opacity = digit[1] === '0' ? 100 : Number(digit[1]) * 10
+      return onMove(Object.fromEntries(selectedBoards.map((id) => [id, { opacity }])))
     }
 
     // 보기
@@ -221,7 +320,8 @@ export function Canvas({
     if (!mod && !e.altKey && (e.code === 'Minus' || e.code === 'NumpadSubtract')) return zoomBy(1 / 1.25)
 
     // 여기부터는 선택한 판을 움직이는 단축키.
-    const picked: Placed[] = selectedBoards.map((id) => {
+    // 잠근 판은 움직이지 않는다.
+    const picked: Placed[] = selectedBoards.filter((id) => !isLocked(id)).map((id) => {
       const p = posOf(id, boards.findIndex((b) => b.id === id))
       const h = el.querySelector<HTMLElement>(`[data-board="${id}"]`)?.offsetHeight ?? 0
       return { id, x: p.x, y: p.y, w: widthOf(id), h }
@@ -289,10 +389,22 @@ export function Canvas({
         setSelectedBoards([id])
         if (selectedItems.length) onSelectItems([])
       }
-      const ids = has || additive ? union(selectedBoards, [id]) : [id]
+      // 잠근 판은 선택만 되고 끌리지 않는다.
+      if (isLocked(id)) return
+      const ids = (has || additive ? union(selectedBoards, [id]) : [id]).filter((b) => !isLocked(b))
       const start = Object.fromEntries(ids.map((b) => [b, posOf(b, boards.findIndex((x) => x.id === b))]))
+      const rects = (list: string[]) => list.map(rectOf).filter((r): r is Rect => r !== null)
+      const moving = rects(ids)
       // 움직이기 전에는 포인터를 붙잡지 않는다. 붙잡으면 클릭이 바탕을 누른 것으로 처리되어 선택이 풀린다.
-      drag.current = { type: 'board', startX: e.clientX, startY: e.clientY, start, moved: false }
+      drag.current = {
+        type: 'board',
+        startX: e.clientX,
+        startY: e.clientY,
+        start,
+        box: moving.length ? bound(moving) : null,
+        others: rects(boards.map((b) => b.id).filter((b) => !ids.includes(b))),
+        moved: false,
+      }
     } else if (e.button === 0) {
       // 그 밖의 곳: 끌면 영역 선택. 움직이기 전까지는 보통의 클릭으로 둔다.
       drag.current = {
@@ -321,9 +433,35 @@ export function Canvas({
     if (d.type === 'pan') {
       setView({ ...d.view, x: d.view.x + dx, y: d.view.y + dy })
     } else if (d.type === 'board') {
-      d.next = Object.fromEntries(
-        Object.entries(d.start).map(([id, p]) => [id, { x: p.x + dx / view.z, y: p.y + dy / view.z }]),
-      )
+      let mx = dx / view.z
+      let my = dy / view.z
+      // Shift를 누르면 더 많이 움직인 쪽으로만 움직인다.
+      const free = { x: !e.shiftKey || Math.abs(mx) >= Math.abs(my), y: !e.shiftKey || Math.abs(mx) < Math.abs(my) }
+      if (!free.x) mx = 0
+      if (!free.y) my = 0
+      const lines: Guide[] = []
+      // 다른 판의 가장자리나 가운데에 가까워지면 붙이고 그 자리에 선을 긋는다. Ctrl을 누르면 붙지 않는다.
+      if (d.box && !e.ctrlKey && !e.metaKey) {
+        const tolerance = SNAP / view.z
+        const near = (a: number, b: number) => Math.abs(a - b) < 0.5
+        const sx = free.x ? snapAxis(d.box.x + mx, d.box.w, d.others.map((o) => [o.x, o.w]), tolerance) : null
+        const sy = free.y ? snapAxis(d.box.y + my, d.box.h, d.others.map((o) => [o.y, o.h]), tolerance) : null
+        if (sx) mx += sx.shift
+        if (sy) my += sy.shift
+        const now = { ...d.box, x: d.box.x + mx, y: d.box.y + my }
+        if (sx) {
+          const hit = d.others.filter((o) => [o.x, o.x + o.w / 2, o.x + o.w].some((v) => near(v, sx.at)))
+          const span = bound([now, ...hit])
+          lines.push({ x: sx.at, y: span.y, len: span.h, vertical: true })
+        }
+        if (sy) {
+          const hit = d.others.filter((o) => [o.y, o.y + o.h / 2, o.y + o.h].some((v) => near(v, sy.at)))
+          const span = bound([now, ...hit])
+          lines.push({ x: span.x, y: sy.at, len: span.w, vertical: false })
+        }
+      }
+      setGuides(lines)
+      d.next = Object.fromEntries(Object.entries(d.start).map(([id, p]) => [id, { ...p, x: p.x + mx, y: p.y + my }]))
       setLive(d.next)
     } else {
       const box: Box = {
@@ -347,6 +485,7 @@ export function Canvas({
       const inside = [...el.querySelectorAll<HTMLElement>('[data-board]')]
         .filter((n) => holds(box, n.getBoundingClientRect()))
         .map((n) => n.dataset.board!)
+        .filter((id) => !isLocked(id))
 
       const nextItems = union(d.baseItems, items)
       const nextBoards = union(d.baseBoards, inside)
@@ -361,6 +500,7 @@ export function Canvas({
     drag.current = null
     setPanning(false)
     setMarquee(null)
+    setGuides([])
     try {
       e.currentTarget.releasePointerCapture(e.pointerId)
     } catch {
@@ -385,6 +525,24 @@ export function Canvas({
       const k = z / v.z
       return { z, x: cx - (cx - v.x) * k, y: cy - (cy - v.y) * k }
     })
+  }
+
+  // Alt를 누른 채 다른 판에 마우스를 올리면, 선택한 판들과 그 판 사이의 거리를 잰다.
+  const measures: Guide[] = []
+  if (alt && over && selectedBoards.length > 0 && !selectedBoards.includes(over) && !live) {
+    const picked = selectedBoards.map(rectOf).filter((r): r is Rect => r !== null)
+    const target = rectOf(over)
+    if (picked.length && target) {
+      const s = bound(picked)
+      const cx = s.x + s.w / 2
+      const cy = s.y + s.h / 2
+      const gap = (from: number, to: number, vertical: boolean) =>
+        measures.push({ x: vertical ? cx : from, y: vertical ? from : cy, len: to - from, vertical, label: String(Math.round(to - from)) })
+      if (target.x >= s.x + s.w) gap(s.x + s.w, target.x, false)
+      else if (target.x + target.w <= s.x) gap(target.x + target.w, s.x, false)
+      if (target.y >= s.y + s.h) gap(s.y + s.h, target.y, true)
+      else if (target.y + target.h <= s.y) gap(target.y + target.h, s.y, true)
+    }
   }
 
   return (
@@ -420,34 +578,62 @@ export function Canvas({
     >
       <div
         className="absolute top-0 left-0 origin-top-left"
-        style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})` }}
+        style={
+          {
+            transition: gliding ? `transform ${GLIDE_MS}ms ease-out` : undefined,
+            transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`,
+            // 선과 꼭짓점이 축소해도 화면에서 같은 크기로 보이도록 확대 비율의 반대를 넘긴다.
+            '--line': `${1 / view.z}px`,
+            '--unzoom': 1 / view.z,
+          } as CSSProperties
+        }
       >
         {boards.map((board, i) => {
+          if (isHidden(board.id)) return null
           const pos = posOf(board.id, i)
           const isSelected = selectedBoards.includes(board.id)
+          const look = { ...BOARD_DEFAULTS, ...definedOnly(positions[board.id]) }
           return (
             <div
               key={board.id}
               className="absolute"
               style={{ left: pos.x, top: pos.y, width: widthOf(board.id) }}
-              onPointerOver={(e) => setHovered((e.target as HTMLElement).closest('button, input') ? null : board.id)}
-              onPointerLeave={() => setHovered(null)}
+              onPointerOver={(e) => {
+                setOver(board.id)
+                setHovered((e.target as HTMLElement).closest('button, input') ? null : board.id)
+              }}
+              onPointerLeave={() => {
+                setOver(null)
+                setHovered(null)
+              }}
             >
               <div
                 data-board-handle={board.id}
-                className={`mb-1.5 inline-block text-xs ${
+                className={`mb-1.5 inline-flex origin-bottom-left items-center gap-1 align-top [scale:var(--unzoom)] text-xs whitespace-nowrap ${
                   isSelected ? 'font-[550] text-selection' : 'text-ink-faint hover:text-ink'
                 }`}
               >
                 {board.title}
+                {isLocked(board.id) && <Lock size={12} strokeWidth={1.5} aria-label="잠김" />}
               </div>
+              {/* 바깥은 선택 표시가 붙는 틀이고, 안쪽이 판의 실제 모양이다. 투명도를 낮춰도 선택 표시는 흐려지지 않는다. */}
               <div
                 data-board={board.id}
-                className={`relative rounded-lg border border-hairline bg-canvas p-6 -outline-offset-1 outline-selection ${
-                  hovered === board.id && !marquee ? 'outline-2' : isSelected ? 'outline-1' : ''
-                }`}
+                className={`line-inset ${hovered === board.id && !marquee ? 'line-2' : isSelected ? 'line-1' : ''}`}
+                style={{ '--edge': '0px' } as CSSProperties}
               >
-                {board.content}
+                <div
+                  className="border-solid p-6"
+                  style={{
+                    opacity: look.opacity / 100,
+                    borderRadius: look.radius,
+                    background: look.fill,
+                    borderColor: look.stroke,
+                    borderWidth: look.strokeWidth,
+                  }}
+                >
+                  {board.content}
+                </div>
                 {isSelected && (
                   <>
                     <span className={`${HANDLE} -top-[3px] -left-[3px]`} />
@@ -460,6 +646,25 @@ export function Canvas({
             </div>
           )
         })}
+
+        {/* 붙었을 때의 안내선과 거리 재기. 선택과 헷갈리지 않게 빨강을 쓴다(피그마와 같다). */}
+        {[...guides, ...measures].map((g, i) => (
+          <div
+            key={i}
+            className="pointer-events-none absolute z-30 bg-danger"
+            style={
+              g.vertical
+                ? { left: g.x, top: g.y, width: 'var(--line)', height: g.len }
+                : { left: g.x, top: g.y, width: g.len, height: 'var(--line)' }
+            }
+          >
+            {g.label && (
+              <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 [scale:var(--unzoom)] rounded-xs bg-danger px-1 text-xs leading-[18px] font-[550] whitespace-nowrap text-white tabular-nums">
+                {g.label}
+              </span>
+            )}
+          </div>
+        ))}
       </div>
 
       {marquee && (

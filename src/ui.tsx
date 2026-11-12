@@ -84,10 +84,13 @@ export function EmptyState({
 
 export function Modal({
   title,
+  wide,
   onClose,
   children,
 }: {
   title: string
+  /** 내용이 많은 창(단축키 목록)은 넓게 연다. */
+  wide?: boolean
   onClose: () => void
   children: ReactNode
 }) {
@@ -106,7 +109,7 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="w-[360px] rounded-lg border border-hairline bg-canvas p-6 shadow-dialog"
+        className={`${wide ? 'w-[720px]' : 'w-[360px]'} max-w-[calc(100vw-48px)] rounded-lg border border-hairline bg-canvas p-6 shadow-dialog`}
       >
         <h2 className="mb-4 text-base font-[650]">{title}</h2>
         {children}
