@@ -12,6 +12,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { BOARD_DEFAULTS, type BoardStyle, type Pos } from './lib/api'
+import { asHex } from './lib/color'
 import { arrange, gapOf, setGap, type Arrange, type Placed } from './lib/arrange'
 import { ColorSwatch } from './ColorPicker'
 import { Section } from './Inspector'
@@ -125,7 +126,8 @@ function ColorField({ label, value, onCommit }: { label: string; value: string |
   useEffect(() => setDraft(value ?? ''), [value])
 
   function commit() {
-    const next = draft.trim().toLowerCase()
+    // #을 빼고 여섯 자리만 적어도 받는다.
+    const next = asHex(draft) ?? ''
     if (!HEX6.test(next) || next === value) return setDraft(value ?? '')
     onCommit(next)
   }

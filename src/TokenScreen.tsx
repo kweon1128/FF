@@ -1,9 +1,10 @@
-import type { CSSProperties, MouseEvent } from 'react'
-import { Plus } from 'lucide-react'
+import { useRef, useState, type CSSProperties, type MouseEvent } from 'react'
+import { ChevronsDownUp, ChevronsUpDown, Plus } from 'lucide-react'
 import type { Token } from './lib/api'
 import { groupOf, shortName, type Kind } from './lib/catalog'
 import { isApprox, showColor } from './lib/color'
-import { Button, EmptyState, swatchBackground } from './ui'
+import { SCALE_STEPS } from './lib/scale'
+import { Button, swatchBackground } from './ui'
 
 const SAMPLE = '다람쥐 헌 쳇바퀴에 타고파 Aa 123'
 
@@ -13,11 +14,9 @@ export type SectionProps = {
   selected: string[]
   /** additive가 참이면 지금 선택에 더하거나 뺀다. */
   onSelect: (name: string, additive: boolean) => void
-  /** group은 색에서만 쓴다. ''는 목록에 속하지 않은 단독 색. */
+  /** group은 색에서만 쓴다. ''는 단계 목록에 속하지 않은 예외 색. */
   onAdd: (kind: Kind, group?: string) => void
   onAddGroup: () => void
-  /** 목록에 속하지 않는 단독 색(white, black 등)을 만드는 창을 연다. */
-  onAddSolo: () => void
   /** 항목을 더블클릭하면 그 자리에서 이름을 고친다. */
   onRename: (name: string) => void
   /** 색 목록의 이름을 누르면 그 목록의 색을 모두 선택한다. rename이면 이어서 목록 이름을 고치러 간다. */
@@ -27,13 +26,17 @@ export type SectionProps = {
   /** 빈 목록은 색이 없어서 목록 자체를 선택한다. 선택한 빈 목록의 이름(없으면 null). Delete로 지운다. */
   pickedGroup: string | null
   onPickGroup: (group: string) => void
+  /** 색 목록을 끌어서 다른 자리에 놓는다. before는 그 앞에 놓일 목록(맨 끝이면 null). */
+  onReorderGroup: (group: string, before: string | null) => void
+  /** 색상 판을 접었는지. 접으면 색 견본 아래의 이름과 값 글자를 모두 숨기고 색만 보여 준다. */
+  folded: boolean
 }
 
 /** Shift, Ctrl, Cmd 중 하나를 누른 채 누르면 여러 개 선택이다. */
 export const isAdditive = (e: MouseEvent) => e.shiftKey || e.ctrlKey || e.metaKey
 
 /** 한 화면에 속한 종류들을 차례로 그린다. 전체 보기의 판 안에서도 그대로 쓴다. */
-export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGroup, onAddSolo, onRename, onSelectGroup, emptyGroups, pickedGroup, onPickGroup }: SectionProps & { kinds: Kind[] }) {
+export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGroup, onRename, onSelectGroup, emptyGroups, pickedGroup, onPickGroup, folded, onReorderGroup }: SectionProps & { kinds: Kind[] }) {
   const single = kinds.length === 1
   return (
     <div className="space-y-8">
@@ -44,15 +47,8 @@ export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGr
           <section key={kind.id}>
             {!single && <h2 className="mb-2 font-[650]">{kind.title}</h2>}
             {kind.id === 'color' ? (
-              items.length === 0 && emptyGroups.length === 0 ? (
-                <div className="rounded-lg border border-hairline bg-canvas">
-                  <EmptyState title={kind.emptyTitle}>
-                    <AddColorButtons onAddGroup={onAddGroup} onAddSolo={onAddSolo} />
-                  </EmptyState>
-                </div>
-              ) : (
-                <ColorGroups {...list} onSelectGroup={onSelectGroup} emptyGroups={emptyGroups} pickedGroup={pickedGroup} onPickGroup={onPickGroup} />
-              )
+              // 색이 하나도 없어도 "예외 색" 목록은 처음부터 있다. 목록은 판 오른쪽 위의 "목록 추가"로 만든다.
+              <ColorGroups {...list} onSelectGroup={onSelectGroup} emptyGroups={emptyGroups} pickedGroup={pickedGroup} onPickGroup={onPickGroup} folded={folded} onReorderGroup={onReorderGroup} onAddGroup={onAddGroup} />
             ) : kind.tiles ? (
               <TileGrid {...list} />
             ) : (
@@ -65,14 +61,25 @@ export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGr
   )
 }
 
-/** 색을 새로 만드는 두 버튼. 목록(primary-500 같은 단계 묶음)과 단독 색(white, black). */
-export function AddColorButtons({ onAddGroup, onAddSolo }: { onAddGroup: () => void; onAddSolo: () => void }) {
+/** 색상 판의 버튼들. 글자 접기와 목록 추가. */
+export function AddColorButtons({
+  onAddGroup,
+  folded,
+  onToggleFold,
+}: {
+  onAddGroup: () => void
+  /** 색상 판을 접었는지. onToggleFold가 있을 때만 접기 버튼을 보여 준다. */
+  folded?: boolean
+  onToggleFold?: () => void
+}) {
   return (
     <span className="flex gap-2">
-      <Button onClick={onAddSolo}>
-        <Plus size={16} strokeWidth={1.5} />
-        단독 색 추가
-      </Button>
+      {onToggleFold && (
+        <Button variant="ghost" aria-pressed={folded} title="색 아래의 이름과 값 글자를 모두 숨기거나 보여요" onClick={onToggleFold}>
+          {folded ? <ChevronsUpDown size={16} strokeWidth={1.5} /> : <ChevronsDownUp size={16} strokeWidth={1.5} />}
+          {folded ? '펼치기' : '접기'}
+        </Button>
+      )}
       <Button onClick={onAddGroup}>
         <Plus size={16} strokeWidth={1.5} />
         목록 추가
@@ -146,7 +153,11 @@ function ColorGroups({
   emptyGroups,
   pickedGroup,
   onPickGroup,
-}: ListProps & Pick<SectionProps, 'onSelectGroup' | 'emptyGroups' | 'pickedGroup' | 'onPickGroup'>) {
+  folded,
+  onReorderGroup,
+  onAddGroup,
+}: ListProps &
+  Pick<SectionProps, 'onSelectGroup' | 'emptyGroups' | 'pickedGroup' | 'onPickGroup' | 'folded' | 'onReorderGroup' | 'onAddGroup'>) {
   const groups = new Map<string, Token[]>()
   for (const t of items) {
     const g = groupOf(shortName(kind, t.name))
@@ -154,29 +165,125 @@ function ColorGroups({
   }
   // 색을 모두 지운 목록도 빈 채로 남겨 둔다.
   for (const g of emptyGroups) if (!groups.has(g)) groups.set(g, [])
+  // 예외 색(단계 목록에 속하지 않는 white, black 같은 색)의 목록은 색이 없어도 항상 있고, 언제나 맨 아래에 놓인다.
+  const exceptions = groups.get('') ?? []
+  groups.delete('')
+  groups.set('', exceptions)
+
+  // 목록 이름을 잡고 위아래로 끌면 목록의 순서가 바뀐다. 색이 있는 목록만 옮길 수 있다(빈 목록은 파일에 자리가 없다).
+  // 예외 색 목록은 항상 맨 아래라 옮기지 않는다.
+  const movable = [...groups].filter(([g, list]) => g && list.length > 0).map(([g]) => g)
+  const drag = useRef<{ group: string; y: number; moved: boolean } | null>(null)
+  // 끌기가 끝난 직후에 따라오는 클릭은 목록 선택으로 치지 않는다.
+  const dragged = useRef(false)
+  // 끄는 중에 놓일 자리. before 앞에 놓인다(맨 끝이면 null).
+  const [drop, setDrop] = useState<{ group: string; before: string | null } | null>(null)
+
+  /** 마우스 높이에서 놓으면 어느 목록 앞에 들어가는지. 목록의 세로 한가운데보다 위면 그 목록 앞이다. */
+  function slotAt(clientY: number): string | null {
+    for (const g of movable) {
+      const box = document.querySelector(`[data-color-group="${CSS.escape(g)}"]`)?.getBoundingClientRect()
+      if (box && clientY < box.top + box.height / 2) return g
+    }
+    return null
+  }
 
   return (
     <div className="space-y-6">
+      {/*
+        목록이 아직 하나도 없으면 "primary"라는 본보기 목록을 흐리게 보여 준다. 예외 색 목록만 덩그러니 있으면 무엇을 하는 곳인지 알기 어렵다.
+        실제 값이 아니라 자리 표시다. 누르면 목록 추가 창이 열린다.
+      */}
+      {groups.size === 1 && (
+        <button type="button" aria-label="목록 추가" onClick={onAddGroup} className="group block w-full text-left outline-selection focus-visible:outline-2">
+          <span className="mb-2 block text-base font-[650] text-ink-faint">primary</span>
+          <span className={`grid grid-cols-12 gap-x-3 ${folded ? 'gap-y-3' : 'gap-y-4'}`}>
+            {SCALE_STEPS.map((step) => (
+              <span key={step}>
+                {/* 점선은 직접 그린다. 브라우저의 기본 점선은 1px 굵기에서 너무 촘촘하다. 6px 긋고 5px 띄운다. */}
+                <span className="relative block h-16 rounded-md bg-canvas group-hover:bg-hover">
+                  <svg aria-hidden className="absolute inset-0 size-full overflow-visible">
+                    <rect
+                      x="0.5"
+                      y="0.5"
+                      rx="5.5"
+                      fill="none"
+                      strokeDasharray="6 5"
+                      className="stroke-hairline group-hover:stroke-transparent"
+                      style={{ width: 'calc(100% - 1px)', height: 'calc(100% - 1px)' }}
+                    />
+                  </svg>
+                </span>
+                {!folded && <span className="mt-1.5 block text-sm text-ink-faint">{step}</span>}
+              </span>
+            ))}
+          </span>
+        </button>
+      )}
       {[...groups].map(([group, list]) => (
-        <div key={group}>
-          {/* 영문 목록 이름은 소문자라 작아 보여서 16px, 한글인 '단독 색'은 다른 제목과 같은 14px. */}
+        <div key={group} data-color-group={group} className={`relative ${drop?.group === group ? 'opacity-40' : ''}`}>
+          {/* 끄는 중에 놓일 자리를 알려 주는 선. 이 목록 앞에 놓이면 위에, 맨 끝에 놓이면 마지막 목록 아래에 긋는다. */}
+          {drop && drop.before === group && drop.group !== group && (
+            <span className="pointer-events-none absolute inset-x-0 -top-3 h-[calc(var(--line)*2)] -translate-y-1/2 bg-selection" />
+          )}
+          {drop && drop.before === null && movable.at(-1) === group && drop.group !== group && (
+            <span className="pointer-events-none absolute inset-x-0 -bottom-3 h-[calc(var(--line)*2)] translate-y-1/2 bg-selection" />
+          )}
+          {/* 영문 목록 이름은 소문자라 작아 보여서 16px, 한글인 '예외 색'은 다른 제목과 같은 14px. */}
           {/* 목록 이름을 누르면 그 목록의 색이 모두 선택되고, 더블클릭하면 오른쪽 패널의 목록 이름 칸으로 간다. */}
           {/* 색이 없는 빈 목록은 이름 자체가 선택되고(파란 선), 그 상태에서 Delete를 누르면 목록이 지워진다. */}
+          <div className="mb-2 -ml-1 flex items-center gap-1">
           <button
             type="button"
             data-group-name={group}
             aria-pressed={list.length === 0 ? pickedGroup === group : undefined}
-            onClick={(e) => (list.length === 0 ? onPickGroup(group) : onSelectGroup(list.map((t) => t.name), isAdditive(e), false))}
+            onClick={(e) => {
+              if (dragged.current) return
+              // 예외 색 목록은 비어 있어도 지울 수 없으므로 선택하지 않는다.
+              if (list.length === 0) group && onPickGroup(group)
+              else onSelectGroup(list.map((t) => t.name), isAdditive(e), false)
+            }}
+            // 이름을 잡고 끌면 목록이 옮겨진다. 캔버스가 이 끌기를 영역 선택으로 받지 않게 막는다.
+            onPointerDown={(e) => {
+              if (e.button !== 0 || list.length === 0 || !group) return
+              e.stopPropagation()
+              // 누르는 순간부터 마우스를 붙잡아 둔다. 빠르게 끌어 이름 밖으로 나가도 계속 따라갈 수 있다.
+              e.currentTarget.setPointerCapture(e.pointerId)
+              drag.current = { group, y: e.clientY, moved: false }
+            }}
+            onPointerMove={(e) => {
+              const d = drag.current
+              if (!d) return
+              if (!d.moved) {
+                if (Math.abs(e.clientY - d.y) < 5) return
+                d.moved = true
+              }
+              setDrop({ group: d.group, before: slotAt(e.clientY) })
+            }}
+            onPointerUp={(e) => {
+              const d = drag.current
+              drag.current = null
+              setDrop(null)
+              if (!d?.moved) return
+              dragged.current = true
+              window.setTimeout(() => (dragged.current = false))
+              onReorderGroup(d.group, slotAt(e.clientY))
+            }}
+            onPointerCancel={() => {
+              drag.current = null
+              setDrop(null)
+            }}
             onDoubleClick={() => list.length > 0 && onSelectGroup(list.map((t) => t.name), false, true)}
-            className={`mb-2 -ml-1 block rounded-sm px-1 font-[650] outline-selection hover:bg-hover focus-visible:outline-2 ${group ? 'text-base' : ''} ${
+            className={`rounded-sm px-1 font-[650] outline-selection hover:bg-hover focus-visible:outline-2 ${group ? 'text-base' : ''} ${
               list.length === 0 && pickedGroup === group ? 'line-1' : ''
             }`}
             style={{ '--edge': '0px' } as CSSProperties}
           >
-            {group || '단독 색'}
+            {group || '예외 색'}
           </button>
-          {/* 한 줄에 12칸. 50부터 950까지 11단계인 한 목록과 추가 칸이 한 줄에 들어간다. */}
-          <div className="grid grid-cols-12 gap-x-3 gap-y-4">
+          </div>
+          {/* 한 줄에 12칸. 50부터 950까지 11단계인 한 목록과 추가 칸이 한 줄에 들어간다. 접으면 글자가 없어지므로 줄 사이를 좁힌다. */}
+          <div className={`grid grid-cols-12 gap-x-3 ${folded ? 'gap-y-3' : 'gap-y-4'}`}>
             {list.map((t, i) => {
               const short = shortName(kind, t.name)
               const isSelected = selected.includes(t.name)
@@ -205,6 +312,8 @@ function ColorGroups({
                     />
                     {labeled && <SelectionLabel name={short} value={shown} />}
                   </span>
+                  {/* 접으면 이름과 값 글자를 숨긴다. 색을 고르면 뜨는 파란 이름표로는 여전히 볼 수 있다. */}
+                  {!folded && (
                   <span>
                     <span data-name className="mt-1.5 block truncate text-sm text-ink-soft">
                       {group ? short.slice(group.length + 1) : short}
@@ -217,12 +326,13 @@ function ColorGroups({
                       {shown}
                     </span>
                   </span>
+                  )}
                 </button>
               )
             })}
             <button
               type="button"
-              aria-label={group ? `${group} 목록에 색 추가` : '단독 색 추가'}
+              aria-label={group ? `${group} 목록에 색 추가` : '예외 색 추가'}
               onClick={() => onAdd(kind, group)}
               className={`${ADD_TILE} h-16`}
             >

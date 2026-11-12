@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { Copy, PencilLine, Pipette, Rows3 } from 'lucide-react'
 import type { Token } from './lib/api'
 import { SLUG, groupOf, shortName, type Kind } from './lib/catalog'
-import { isApprox, showColor, toOklch } from './lib/color'
+import { asHex, contrast, isApprox, showColor, toHex, toOklch } from './lib/color'
 import { stepValue } from './lib/tokens'
 import { ColorSwatch } from './ColorPicker'
 import { Button, Chip, Field, inputClass } from './ui'
@@ -96,7 +96,8 @@ export function Inspector({
     if (/[;{}]/.test(next)) return setValueError('; { } 기호는 쓸 수 없어요.')
     setValueError(null)
     // 색으로 읽히는 값(#, rgb, hsl)은 oklch로 바꿔 저장한다. 읽을 수 없는 값은 적은 그대로 둔다.
-    onValue(isColor ? toOklch(next) : next)
+    // #을 빼고 여섯 자리만 적어도 색으로 받는다.
+    onValue(isColor ? toOklch(asHex(next) ?? next) : next)
   }
 
   const nameInput = (
@@ -196,6 +197,8 @@ export function Inspector({
         )}
       </Section>
 
+      {isColor && <Contrast value={token.value} />}
+
       <Section title="코드">
         <div className="space-y-2">
           <div>
@@ -260,6 +263,42 @@ export function Inspector({
         )}
       </Section>
     </div>
+  )
+}
+
+/**
+ * 색의 대비. 이 색을 바탕으로 썼을 때 흰 글자와 검은 글자가 얼마나 읽히는지 보여 준다.
+ * AI가 고른 색이 실제로 쓸 만한지 사람이 확인하는 자리다. 반투명한 색은 뒤 배경에 따라 달라지므로 보여 주지 않는다.
+ */
+function Contrast({ value }: { value: string }) {
+  const hex = toHex(value)
+  if (hex?.length !== 7) return null
+  const rows = [
+    { name: '흰 글자', ink: '#ffffff' },
+    { name: '검은 글자', ink: '#000000' },
+  ].map((row) => ({ ...row, ratio: contrast(hex, row.ink) }))
+  // 읽기 기준(WCAG): 4.5 이상이면 본문도 읽힌다. 3 이상이면 큰 글자와 아이콘만. 그 아래는 쓰기 어렵다.
+  const verdict = (ratio: number) => (ratio >= 4.5 ? '읽기 좋음' : ratio >= 3 ? '큰 글자만' : '읽기 어려움')
+  return (
+    <Section title="대비">
+      <div className="space-y-2">
+        {rows.map((row) => (
+          <div key={row.name} className="flex items-center gap-2">
+            <span
+              className="flex size-8 shrink-0 items-center justify-center rounded-md text-sm font-[650] shadow-[inset_0_0_0_1px_rgb(0_0_0/0.1)]"
+              style={{ background: hex, color: row.ink }}
+            >
+              가
+            </span>
+            <span className="min-w-0 flex-1">{row.name}</span>
+            <span className="tabular-nums">{row.ratio.toFixed(1)} : 1</span>
+            <span className={`w-[68px] shrink-0 text-right text-sm ${row.ratio >= 4.5 ? 'text-success' : row.ratio >= 3 ? 'text-ink-soft' : 'text-danger'}`}>
+              {verdict(row.ratio)}
+            </span>
+          </div>
+        ))}
+      </div>
+    </Section>
   )
 }
 

@@ -182,6 +182,24 @@ export function App() {
   const [keptGroups, setKeptGroups] = useState<string[]>([])
   // 선택한 빈 색 목록. 빈 목록은 색이 없어서 목록 이름 자체를 선택하고 Delete로 지운다.
   const [pickedGroup, setPickedGroup] = useState<string | null>(null)
+  // 색상 판을 접었는지. 접으면 모든 색의 이름과 값 글자를 숨긴다. 보는 방식일 뿐이라 파일이 아니라 브라우저에 기억한다.
+  const [folded, setFolded] = useState(false)
+  useEffect(() => {
+    try {
+      setFolded(localStorage.getItem(`ff.folded.${system}`) === 'true')
+    } catch {
+      setFolded(false)
+    }
+  }, [system])
+
+  function toggleFold() {
+    setFolded(!folded)
+    try {
+      localStorage.setItem(`ff.folded.${system}`, String(!folded))
+    } catch {
+      // 저장소를 못 쓰면 접은 상태를 기억하지 않는다.
+    }
+  }
   const latest = useRef({ boards, images })
   latest.current = { boards, images }
   const [file, setFile] = useState('')
@@ -204,7 +222,7 @@ export function App() {
   const [addingGroup, setAddingGroup] = useState(false)
   // 빈 목록에 첫 색을 넣는 중이면 그 목록의 이름. 단계와 색을 묻는 창이 뜬다.
   const [addingFirst, setAddingFirst] = useState<string | null>(null)
-  // 단독 색(white, black 등)을 만드는 창이 떠 있는지.
+  // 예외 색(white, black 등)을 만드는 창이 떠 있는지.
   const [addingSolo, setAddingSolo] = useState(false)
   // 붙여넣기 전에 정할 것이 있을 때(이름이 같은 값, 읽지 못한 값) 띄우는 창의 내용.
   const [pasting, setPasting] = useState<PasteJob | null>(null)
@@ -312,6 +330,7 @@ export function App() {
       setKeptGroups(canvas.groups ?? [])
       setComps(normalize(components.components))
       setCompFile(components.file)
+      return { tokens: stored, boards: canvas.boards, images: canvas.images ?? {} }
     },
     [queueTokens],
   )
@@ -364,19 +383,35 @@ export function App() {
   reload.current = (why) => {
     const name = systemNow.current
     if (!name) return
-    // 아직 저장하지 않은 변경과 되돌리기 기록은 예전 내용을 바탕으로 한 것이라 버린다.
+    // 아직 저장하지 않은 변경은 예전 내용을 바탕으로 한 것이라 저장하지 않는다.
     tokenSaver.cancel()
     compSaver.cancel()
     canvasSaver.cancel()
-    history.current = { undo: [], redo: [], at: 0 }
+    // 바뀌기 전의 모습을 되돌리기 기록에 남긴다. 밖에서(AI가) 바꾼 것이 마음에 들지 않으면 Ctrl+Z로 물릴 수 있다.
+    const before = { tokens, comps, boards, images, groups: keptGroups }
+    history.current.undo.push(before)
+    if (history.current.undo.length > HISTORY_LIMIT) history.current.undo.shift()
+    history.current.redo = []
+    history.current.at = 0
     load(name)
-      .then(() => {
-        setSelectedBoards([])
+      .then((now) => {
+        // 무엇이 바뀌었는지 바로 보이도록, 새로 생기거나 값이 달라진 것을 선택한다.
+        const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
+        const was = new Map(before.tokens.map((t) => [t.name, t.value]))
+        const changed = now.tokens.filter((t) => was.get(t.name) !== t.value).map((t) => t.name)
+        const removed = before.tokens.filter((t) => !now.tokens.some((n) => n.name === t.name)).length
+        const moved = [...new Set([...Object.keys(now.boards), ...Object.keys(before.boards)])].filter(
+          (id) => !now.boards[id]?.hidden && !same(now.boards[id], before.boards[id]),
+        )
+        if (changed.length) setSelected(changed)
+        setSelectedBoards(changed.length ? [] : moved)
         setCells([])
         setPickedGroup(null)
         setSelectionId((n) => n + 1)
         setStatus('idle')
-        notify(why === 'blocked' ? '파일이 밖에서 바뀌어 있어서 다시 불러왔어요. 방금 고친 것은 반영되지 않았어요.' : '파일이 밖에서 바뀌어 다시 불러왔어요.')
+        const what = [changed.length ? `값 ${changed.length}개가 바뀌었고` : '', removed ? `${removed}개가 없어졌고` : ''].filter(Boolean).join(' ')
+        const head = why === 'blocked' ? '파일이 밖에서 바뀌어 있어서 다시 불러왔어요. 방금 고친 것은 반영되지 않았어요.' : '파일이 밖에서 바뀌어 다시 불러왔어요.'
+        notify(what ? `${head} ${what.replace(/고$/, '어요.')} Ctrl+Z로 되돌릴 수 있어요.` : head)
       })
       .catch((e) => setLoadError(e instanceof Error ? e.message : '불러오지 못했어요.'))
   }
@@ -533,7 +568,7 @@ export function App() {
   function addToken(kind: Kind, group?: string) {
     const names = new Set(tokens.map((t) => t.name))
 
-    // 단독 색은 이름을 정해야 하므로 바로 만들지 않고 이름과 색을 묻는다.
+    // 예외 색은 이름을 정해야 하므로 바로 만들지 않고 이름과 색을 묻는다.
     if (kind.id === 'color' && !group) return setAddingSolo(true)
 
     if (kind.id === 'color' && group) {
@@ -646,7 +681,7 @@ export function App() {
     select(list.map((t) => t.name))
   }
 
-  /** 단독 색을 만든다. 다른 단독 색들 뒤에, 없으면 색들의 맨 뒤에 놓는다. */
+  /** 예외 색을 만든다. 다른 예외 색들 뒤에, 없으면 색들의 맨 뒤에 놓는다. */
   function addSolo(name: string, value: string) {
     setAddingSolo(false)
     const solo = (t: Token) => COLOR.matches(t.name) && groupOf(shortName(COLOR, t.name)) === ''
@@ -658,14 +693,37 @@ export function App() {
    * 색들을 목록별로 모아 순서를 바꾼 뒤, 원래 색이 있던 자리들에 차례로 다시 채운다.
    */
   function moveGroup(group: string, dir: 1 | -1) {
-    const colors = tokens.filter((t) => COLOR.matches(t.name))
-    const groupName = (t: Token) => groupOf(shortName(COLOR, t.name))
-    const order = [...new Set(colors.map(groupName))]
+    // 예외 색 목록은 항상 맨 아래에 있고, 다른 목록의 순서를 셀 때도 끼지 않는다.
+    if (!group) return
+    const order = groupOrder()
     const i = order.indexOf(group)
     const j = i + dir
     if (i === -1 || j < 0 || j >= order.length) return
     ;[order[i], order[j]] = [order[j], order[i]]
-    const sorted = order.flatMap((g) => colors.filter((t) => groupName(t) === g))
+    setGroupOrder(order)
+  }
+
+  /** 색 목록을 끌어서 놓았다. before 앞으로(맨 끝이면 null) 옮긴다. */
+  function reorderGroup(group: string, before: string | null) {
+    const order = groupOrder().filter((g) => g !== group)
+    const at = before === null ? order.length : order.indexOf(before)
+    // 자기 자신 앞에 놓은 것은 제자리다.
+    if (before === group || at === -1) return
+    order.splice(at, 0, group)
+    setGroupOrder(order)
+  }
+
+  /** 지금 색 목록들의 순서. 파일에 색이 적힌 순서다. */
+  function groupOrder() {
+    return [...new Set(tokens.filter((t) => COLOR.matches(t.name)).map((t) => groupOf(shortName(COLOR, t.name))))].filter(Boolean)
+  }
+
+  /** 색 목록의 순서를 바꾼다. 색들을 목록별로 모아 새 순서로 늘어놓고, 원래 색이 있던 자리들에 차례로 다시 채운다. */
+  function setGroupOrder(order: string[]) {
+    if (order.join('\n') === groupOrder().join('\n')) return
+    const colors = tokens.filter((t) => COLOR.matches(t.name))
+    // 예외 색은 파일에서도 맨 뒤에 둔다.
+    const sorted = [...order, ''].flatMap((g) => colors.filter((t) => groupOf(shortName(COLOR, t.name)) === g))
     let k = 0
     commit(tokens.map((t) => (COLOR.matches(t.name) ? sorted[k++] : t)))
   }
@@ -673,10 +731,15 @@ export function App() {
   function removeTokens(names: string[]) {
     const rest = tokens.filter((t) => !names.includes(t.name))
     commit(rest)
-    // 목록의 색을 모두 지워도 목록은 빈 채로 남겨 둔다.
+    // 색을 하나씩 지우다가 목록이 비면 목록은 빈 채로 남겨 둔다(다시 채울 수 있게).
+    // 한 번에 색을 둘 이상 지워서 비운 것은 목록을 통째로 지우려는 것이므로 목록도 함께 없앤다.
     const groupName = (name: string) => (COLOR.matches(name) ? groupOf(shortName(COLOR, name)) : '')
     const emptied = [...new Set(names.map(groupName))].filter(
-      (g) => g && !keptGroups.includes(g) && !rest.some((t) => groupName(t.name) === g),
+      (g) =>
+        g &&
+        !keptGroups.includes(g) &&
+        !rest.some((t) => groupName(t.name) === g) &&
+        names.filter((n) => groupName(n) === g).length === 1,
     )
     if (emptied.length) saveBoards(boards, images, [...keptGroups, ...emptied])
     select([])
@@ -1154,15 +1217,16 @@ export function App() {
     onSelect: pick,
     onAdd: addToken,
     onAddGroup: () => setAddingGroup(true),
-    onAddSolo: () => setAddingSolo(true),
     onRename: renameTokenInPanel,
     emptyGroups: keptGroups,
+    folded,
     pickedGroup,
     onPickGroup: (group: string) => {
       setSelectedBoards([])
       select([])
       setPickedGroup(group)
     },
+    onReorderGroup: reorderGroup,
     onSelectGroup: (names: string[], additive: boolean, rename: boolean) => {
       setSelectedBoards([])
       select(additive ? [...selected, ...names.filter((n) => !selected.includes(n))] : names)
@@ -1187,7 +1251,7 @@ export function App() {
     tokens.filter((t) => COLOR.matches(t.name) && groupOf(shortName(COLOR, t.name)) === onlyGroup).length === selectedTokens.length
       ? onlyGroup
       : null
-  // Ctrl+]/[로 통째로 옮길 수 있는 목록. 한 목록(단독 색 묶음 포함)의 색을 빠짐없이, 그것만 골랐을 때다.
+  // Ctrl+]/[로 통째로 옮길 수 있는 목록. 한 목록의 색을 빠짐없이, 그것만 골랐을 때다.
   const movableGroup =
     onlyGroup !== null &&
     selectedTokens.length > 0 &&
@@ -1294,9 +1358,9 @@ export function App() {
                 title: TOKEN_SCREENS[id].title,
                 content: (
                   <>
-                    {id === 'color' && colorGroups.size > 0 && (
+                    {id === 'color' && (
                       <div className="mb-4 flex justify-end">
-                        <AddColorButtons onAddGroup={sectionProps.onAddGroup} onAddSolo={sectionProps.onAddSolo} />
+                        <AddColorButtons onAddGroup={sectionProps.onAddGroup} folded={folded} onToggleFold={toggleFold} />
                       </div>
                     )}
                     <KindSections kinds={TOKEN_SCREENS[id].kinds} {...sectionProps} />
@@ -1466,9 +1530,9 @@ export function App() {
       )}
 
       {addingSolo && (
-        <Modal title="단독 색 추가" onClose={() => setAddingSolo(false)}>
+        <Modal title="예외 색 추가" onClose={() => setAddingSolo(false)}>
           <NewSoloForm
-            // 단독 색의 이름은 다른 단독 색과도, 목록 이름과도 겹치면 안 된다.
+            // 예외 색의 이름은 다른 예외 색과도, 목록 이름과도 겹치면 안 된다.
             existing={new Set([...colorGroups, ...tokens.filter((t) => COLOR.matches(t.name)).map((t) => shortName(COLOR, t.name))])}
             onCancel={() => setAddingSolo(false)}
             onCreate={addSolo}

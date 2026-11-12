@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { SLUG } from './lib/catalog'
 import { SCALE_STEPS, grayOf, nearestStep } from './lib/scale'
 import { ColorSwatch } from './ColorPicker'
+import { asHex } from './lib/color'
 import { Button, Check, Field, inputClass } from './ui'
 
 const HEX6 = /^#[0-9a-f]{6}$/i
@@ -33,7 +34,8 @@ export function NewGroupForm({
   // 목록을 만드는 가장 흔한 이유가 단계 한 벌을 만드는 것이라, 함께 만들기가 기본이다.
   const [scale, setScale] = useState(true)
 
-  const typedColor = HEX6.test(color.trim()) ? color.trim().toLowerCase() : null
+  // #을 빼고 적어도 받는다. 투명한 색(여덟 자리)은 단계의 기준이 될 수 없어 받지 않는다.
+  const typedColor = HEX6.test(asHex(color) ?? '') ? asHex(color) : null
   // 색을 골랐으면 그 밝기에 맞는 단계를, 아니면 가운데 단계를 추천한다.
   const suggestedStep = String(typedColor ? nearestStep(typedColor) : DEFAULT_STEP)
   // 단계를 적었으면 그 단계 밝기의 회색을 추천한다. 50~950이 아닌 단계면 가운데 밝기의 회색.

@@ -92,7 +92,7 @@ export function adoptColors(skipped: Token[]): Token[] {
   return out
 }
 
-/** 붙여넣을 값이 실제로 갖게 될 이름. intoGroup이 있으면 색은 그 목록으로 들어간다('' 는 단독 색). */
+/** 붙여넣을 값이 실제로 갖게 될 이름. intoGroup이 있으면 색은 그 목록으로 들어간다('' 는 예외 색). */
 export function pasteName(name: string, intoGroup: string | null) {
   const kind = kindOf(name)
   if (!kind || kind.id !== 'color' || intoGroup === null) return name
@@ -105,7 +105,7 @@ export function pasteName(name: string, intoGroup: string | null) {
 /**
  * 붙여넣기. 같은 묶음의 맨 끝에 넣는다.
  * 이름이 이미 있으면 overwrite일 때는 그 값만 바꾸고, 아니면 copy를 붙여 따로 만든다.
- * intoGroup이 있으면 색은 그 목록으로 들어간다('' 는 단독 색).
+ * intoGroup이 있으면 색은 그 목록으로 들어간다('' 는 예외 색).
  * added는 새로 생기거나 값이 바뀐 이름들, replaced는 그중 덮어쓴 수.
  */
 export function pasteTokens(tokens: Token[], pasted: Token[], intoGroup: string | null, overwrite = false) {

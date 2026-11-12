@@ -141,3 +141,22 @@ export function toOklch(value: string): string {
 
 /** 화면에 보여 줄 글자. 색으로 읽히면 #, 아니면 적힌 그대로. */
 export const showColor = (value: string) => toHex(value) ?? value
+
+/** 사람이 적은 #rrggbb(aa). #을 빼고 적어도 받는다. 색 값이 아니면 null. */
+export function asHex(text: string): string | null {
+  const t = text.trim().toLowerCase()
+  const hex = t.startsWith('#') ? t : `#${t}`
+  return HEX.test(hex) ? hex : null
+}
+
+/** 색의 밝기(0 검정 ~ 1 흰색). 대비를 셈할 때 쓰는 값이다. */
+function luminance(hex: string) {
+  const [r, g, b] = [1, 3, 5].map((i) => toLinear(parseInt(hex.slice(i, i + 2), 16) / 255))
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b
+}
+
+/** 두 색(#rrggbb)의 대비. 1(같은 색)부터 21(검정과 흰색)까지. 글자가 읽히려면 4.5, 큰 글자는 3이 넘어야 한다(WCAG). */
+export function contrast(a: string, b: string) {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x)
+  return (hi + 0.05) / (lo + 0.05)
+}

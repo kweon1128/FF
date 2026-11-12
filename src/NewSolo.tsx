@@ -1,21 +1,22 @@
 import { useState, type FormEvent } from 'react'
 import { ColorSwatch } from './ColorPicker'
+import { asHex } from './lib/color'
 import { Button, Field, inputClass } from './ui'
 
 const HEX6 = /^#[0-9a-f]{6}$/i
-// 단독 색의 이름에는 하이픈을 쓸 수 없다. 하이픈이 있으면 그 앞부분이 목록 이름이 된다.
+// 예외 색의 이름에는 하이픈을 쓸 수 없다. 하이픈이 있으면 그 앞부분이 목록 이름이 된다.
 const NAME = /^[a-z0-9]+$/
 /** 이름만 보고도 색을 알 수 있는 것들. 색을 비워 두면 이 색을 추천한다. */
 const KNOWN: Record<string, string> = { white: '#ffffff', black: '#000000' }
 const FALLBACK = '#868686'
 
-/** 목록에 속하지 않는 단독 색(white, black 등)을 만드는 양식. 이름과 색을 정한다. */
+/** 단계 목록에 속하지 않는 예외 색(white, black 등)을 만드는 양식. 이름과 색을 정한다. */
 export function NewSoloForm({
   existing,
   onCreate,
   onCancel,
 }: {
-  /** 이미 있는 단독 색의 이름과 목록 이름들. */
+  /** 이미 있는 예외 색의 이름과 목록 이름들. */
   existing: Set<string>
   onCreate: (name: string, color: string) => void
   onCancel: () => void
@@ -24,7 +25,8 @@ export function NewSoloForm({
   const [color, setColor] = useState('')
   const [error, setError] = useState<{ name?: string; color?: string }>({})
 
-  const typed = HEX6.test(color.trim()) ? color.trim().toLowerCase() : null
+  // #을 빼고 적어도 받는다.
+  const typed = HEX6.test(asHex(color) ?? '') ? asHex(color) : null
   // 색을 비워 두면 이름에 맞는 색(white면 흰색)을, 모르는 이름이면 가운데 밝기의 회색을 추천한다.
   const suggested = KNOWN[name.trim()] ?? FALLBACK
 
