@@ -238,8 +238,8 @@ export function Canvas({
     const top = Math.min(...picked.map((b) => b.y))
     const bottom = Math.max(...picked.map((b) => b.y + b.h))
 
-    if (mod) {
-      // 간격 맞춤: 양 끝의 판은 그대로 두고 그 사이를 고르게 나눈다.
+    if (e.shiftKey || mod) {
+      // 간격 맞춤(Alt+Shift+H/V, 피그마의 윈도우 키. Ctrl+Alt도 받는다): 양 끝의 판은 그대로 두고 그 사이를 고르게 나눈다.
       if (picked.length < 3) return
       if (e.code === 'KeyH') {
         done()

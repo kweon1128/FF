@@ -87,6 +87,13 @@ function useSaver<T>(save: (system: string, data: T) => Promise<unknown>, report
   return { queue, flush }
 }
 
+/** 되돌리기를 위해 기억해 두는 한 시점의 내용. */
+type Snapshot = { tokens: Token[]; comps: Comp[]; boards: Record<string, Pos> }
+
+const HISTORY_LIMIT = 100
+// 이 시간 안에 이어진 변경(글자 입력, 방향키 이동 등)은 한 번의 되돌리기로 묶는다.
+const HISTORY_GROUP = 500
+
 type Confirm = { title: string; body: ReactNode; run: () => void }
 
 export function App() {
@@ -127,6 +134,7 @@ export function App() {
   const openSystem = useCallback(
     async (name: string) => {
       await Promise.all([flushTokens(), flushComps()])
+      history.current = { undo: [], redo: [], at: 0 }
       setSystem(name)
       setSelected([])
       setCells([])
@@ -167,14 +175,62 @@ export function App() {
     }
   }, [openSystem])
 
+  // 되돌리기와 다시 실행. 파일 내용(값, 컴포넌트, 판 위치)이 바뀌기 직전의 모습을 쌓아 둔다.
+  const history = useRef<{ undo: Snapshot[]; redo: Snapshot[]; at: number }>({ undo: [], redo: [], at: 0 })
+
+  function record() {
+    const h = history.current
+    const now = Date.now()
+    if (now - h.at > HISTORY_GROUP) {
+      h.undo.push({ tokens, comps, boards })
+      if (h.undo.length > HISTORY_LIMIT) h.undo.shift()
+    }
+    h.at = now
+    h.redo = []
+  }
+
+  function saveBoards(next: Record<string, Pos>) {
+    if (!system) return
+    setBoards(next)
+    setStatus('saving')
+    putCanvas(system, next)
+      .then(() => setStatus('saved'))
+      .catch((e) => report(e instanceof Error ? e : new Error()))
+  }
+
+  /** from에서 하나를 꺼내 그 모습으로 돌아가고, 지금 모습은 to에 쌓는다. */
+  function travel(from: Snapshot[], to: Snapshot[]) {
+    const snap = from.pop()
+    if (!snap || !system) return
+    to.push({ tokens, comps, boards })
+    history.current.at = 0
+    if (snap.tokens !== tokens) {
+      setTokens(snap.tokens)
+      tokenSaver.queue(system, snap.tokens)
+    }
+    if (snap.comps !== comps) {
+      setComps(snap.comps)
+      compSaver.queue(system, snap.comps)
+    }
+    if (snap.boards !== boards) saveBoards(snap.boards)
+    // 없어진 항목은 선택에서 빼고, 편집 패널은 새 값으로 다시 그린다.
+    setSelected(selected.filter((name) => snap.tokens.some((t) => t.name === name)))
+    const comp = snap.comps[compIndex]
+    setCells(comp ? cells.filter((c) => c.v < comp.variants.length && c.s < comp.sizes.length) : [])
+    if (!comp) setCompIndex(0)
+    setSelectionId((n) => n + 1)
+  }
+
   function commit(next: Token[]) {
     if (!system) return
+    record()
     setTokens(next)
     tokenSaver.queue(system, next)
   }
 
   function commitComps(next: Comp[]) {
     if (!system) return
+    record()
     setComps(next)
     compSaver.queue(system, next)
   }
@@ -259,12 +315,8 @@ export function App() {
 
   function moveBoards(moved: Record<string, Pos>) {
     if (!system) return
-    const next = { ...boards, ...moved }
-    setBoards(next)
-    setStatus('saving')
-    putCanvas(system, next)
-      .then(() => setStatus('saved'))
-      .catch((e) => report(e instanceof Error ? e : new Error()))
+    record()
+    saveBoards({ ...boards, ...moved })
   }
 
   function changeScreen(id: ScreenId) {
@@ -317,7 +369,7 @@ export function App() {
     })
   }
 
-  // 단축키: Delete·Backspace 삭제, Esc 선택 풀기, Ctrl+A 모두 선택. 최신 상태를 보도록 매번 새 함수를 담아 둔다.
+  // 단축키: Ctrl+Z 되돌리기, Ctrl+Shift+Z 다시 실행, Delete·Backspace 삭제, Esc 선택 풀기, Ctrl+A 모두 선택. 최신 상태를 보도록 매번 새 함수를 담아 둔다.
   const onKey = useRef<(e: KeyboardEvent) => void>(() => {})
   onKey.current = (e) => {
     const t = e.target
@@ -325,7 +377,14 @@ export function App() {
       t instanceof HTMLElement && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)
     if (typing || document.querySelector('[role="dialog"]')) return
 
-    if (e.code === 'Escape') {
+    const mod = e.ctrlKey || e.metaKey
+    if (mod && !e.altKey && (e.code === 'KeyZ' || e.code === 'KeyY')) {
+      e.preventDefault()
+      const { undo, redo } = history.current
+      // Ctrl+Z 되돌리기, Ctrl+Shift+Z(또는 Ctrl+Y) 다시 실행.
+      if (e.code === 'KeyY' || e.shiftKey) travel(redo, undo)
+      else travel(undo, redo)
+    } else if (e.code === 'Escape') {
       if (selected.length) select([])
       if (cells.length) selectCells([])
     } else if (e.code === 'Delete' || e.code === 'Backspace') {
