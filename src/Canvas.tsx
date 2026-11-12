@@ -11,6 +11,10 @@ import { arrange, type Arrange, type Placed } from './lib/arrange'
 import { HANDLE } from './TokenScreen'
 
 export const BOARD_WIDTH = 560
+/** 색상 판은 한 줄에 색 11개(50~950)와 추가 칸이 들어가도록 넓게 시작한다. */
+export const COLOR_BOARD_WIDTH = 1380
+/** 너비를 따로 고치지 않은 판의 너비. */
+export const defaultWidth = (id: string) => (id === 'color' ? COLOR_BOARD_WIDTH : BOARD_WIDTH)
 const BOARD_GAP = 80
 const MIN_ZOOM = 0.1
 const MAX_ZOOM = 4
@@ -34,7 +38,8 @@ type Point = { clientX: number; clientY: number; shiftKey: boolean; ctrlKey: boo
 
 type Rect = { x: number; y: number; w: number; h: number }
 /** 붙었을 때 보이는 안내선, 또는 거리를 재는 선. */
-type Guide = { x: number; y: number; len: number; vertical: boolean; label?: string }
+/** dashed는 상대의 가장자리를 늘인 점선(숫자 없음). */
+type Guide = { x: number; y: number; len: number; vertical: boolean; label?: string; dashed?: boolean }
 
 const bound = (rects: Rect[]): Rect => {
   const x = Math.min(...rects.map((r) => r.x))
@@ -149,7 +154,8 @@ const holds = (outer: Box, inner: Box) =>
   inner.left >= outer.left && inner.right <= outer.right && inner.top >= outer.top && inner.bottom <= outer.bottom
 
 export function defaultPos(index: number): Pos {
-  return { x: index * (BOARD_WIDTH + BOARD_GAP), y: 0 }
+  // 맨 앞의 색상 판이 넓은 만큼 그 뒤의 판들을 밀어 둔다.
+  return { x: index * (BOARD_WIDTH + BOARD_GAP) + (index > 0 ? COLOR_BOARD_WIDTH - BOARD_WIDTH : 0), y: 0 }
 }
 
 function loadView(key: string): View {
@@ -281,7 +287,7 @@ export function Canvas({
     const picture = pictureOf(id)
     return { ...(picture ? { x: picture.x, y: picture.y } : (positions[id] ?? defaultPos(index))), ...live?.[id] }
   }
-  const widthOf = (id: string) => live?.[id]?.w ?? pictureOf(id)?.w ?? positions[id]?.w ?? BOARD_WIDTH
+  const widthOf = (id: string) => live?.[id]?.w ?? pictureOf(id)?.w ?? positions[id]?.w ?? defaultWidth(id)
   /** 캔버스에 놓인 모든 것(판과 사진)의 id. */
   const allIds = [...boards.map((b) => b.id), ...images.map((p) => p.id)]
   const isLocked = (id: string) => !!positions[id]?.locked
@@ -700,16 +706,74 @@ export function Canvas({
     const target = rectOf(over)
     if (picked.length && target) {
       const s = bound(picked)
-      const cx = s.x + s.w / 2
-      const cy = s.y + s.h / 2
-      const gap = (from: number, to: number, vertical: boolean) =>
-        measures.push({ x: vertical ? cx : from, y: vertical ? from : cy, len: to - from, vertical, label: String(Math.round(to - from)) })
-      if (target.x >= s.x + s.w) gap(s.x + s.w, target.x, false)
-      else if (target.x + target.w <= s.x) gap(target.x + target.w, s.x, false)
-      if (target.y >= s.y + s.h) gap(s.y + s.h, target.y, true)
-      else if (target.y + target.h <= s.y) gap(target.y + target.h, s.y, true)
+      const t = target
+      // 피그마와 같은 방식. 선은 한쪽(o)의 가장자리 한가운데에서 시작해 다른 쪽(other)의 가장자리가 있는 자리까지 긋고,
+      // 선의 끝이 다른 쪽의 바깥에 떨어지면 그 가장자리를 점선으로 선의 끝까지 늘여 어디를 잰 것인지 보여 준다.
+      // from은 o의 가장자리, to는 other의 가장자리다.
+      const horizontal = (o: Rect, other: Rect, from: number, to: number) => {
+        if (Math.abs(to - from) < 0.5) return
+        const y = o.y + o.h / 2
+        measures.push({ x: Math.min(from, to), y, len: Math.abs(to - from), vertical: false, label: String(Math.round(Math.abs(to - from))) })
+        if (y < other.y) measures.push({ x: to, y, len: other.y - y, vertical: true, dashed: true })
+        else if (y > other.y + other.h) measures.push({ x: to, y: other.y + other.h, len: y - (other.y + other.h), vertical: true, dashed: true })
+      }
+      const vertical = (o: Rect, other: Rect, from: number, to: number) => {
+        if (Math.abs(to - from) < 0.5) return
+        const x = o.x + o.w / 2
+        measures.push({ x, y: Math.min(from, to), len: Math.abs(to - from), vertical: true, label: String(Math.round(Math.abs(to - from))) })
+        if (x < other.x) measures.push({ x, y: to, len: other.x - x, vertical: false, dashed: true })
+        else if (x > other.x + other.w) measures.push({ x: other.x + other.w, y: to, len: x - (other.x + other.w), vertical: false, dashed: true })
+      }
+      // 한 축에서 잴 곳을 고른다. lo·hi는 선택, tlo·thi는 상대.
+      // size는 선이 놓이는 반대 축에서의 크기(가로 선이면 높이, 세로 선이면 너비).
+      const along = (lo: number, hi: number, tlo: number, thi: number, draw: typeof horizontal, size: (r: Rect) => number) => {
+        // 떨어져 있으면 마주 보는 가장자리 사이. 선은 둘 중 좁은 쪽의 한가운데에서 나가게 해서,
+        // 어느 쪽을 선택했든 같은 자리에 그려지고 선의 끝이 상대의 가장자리 안에 닿기 쉽게 한다.
+        const fromTarget = size(t) < size(s)
+        if (tlo >= hi) return fromTarget ? draw(t, s, tlo, hi) : draw(s, t, hi, tlo)
+        if (thi <= lo) return fromTarget ? draw(t, s, thi, lo) : draw(s, t, lo, thi)
+        // 상대가 선택 안쪽에 들어와 있으면(선택이 더 넓으면) 거꾸로 상대에서 선택의 양쪽 가장자리로 긋는다.
+        // 어느 쪽을 선택했든 좁은 쪽에서 넓은 쪽으로 선이 나가서 같은 그림이 된다.
+        if (tlo >= lo && thi <= hi) {
+          draw(t, s, tlo, lo)
+          return draw(t, s, thi, hi)
+        }
+        // 걸쳐 있으면 상대가 선택보다 바깥으로 나간 쪽의 차이.
+        if (tlo < lo) draw(s, t, lo, tlo)
+        if (thi > hi) draw(s, t, hi, thi)
+      }
+      along(s.x, s.x + s.w, t.x, t.x + t.w, horizontal, (r) => r.h)
+      along(s.y, s.y + s.h, t.y, t.y + t.h, vertical, (r) => r.w)
     }
   }
+
+  /**
+   * 숫자 이름표를 둘 자리. 선의 시작점에서부터 선을 따라 간 거리(along)와 선에서 옆으로 벗어난 거리(aside).
+   * 선의 한가운데가 기본이다. 한가운데가 화면 밖이면 화면에 보이는 부분의 한가운데로 옮기고,
+   * 선이 통째로 화면 밖이면 선에서 가장 가까운 화면 가장자리에 붙여서 숫자는 언제나 보이게 한다.
+   */
+  function labelPlace(g: Guide) {
+    const el = root.current
+    if (!el) return { along: g.len / 2, aside: 0 }
+    // 화면에 보이는 범위를 캔버스 좌표로 바꾼다. 가장자리에 붙지 않게 조금 안쪽까지만 쓴다.
+    const pad = 28 / view.z
+    const visible = {
+      x: [-view.x / view.z + pad, (el.clientWidth - view.x) / view.z - pad],
+      y: [-view.y / view.z + pad, (el.clientHeight - view.y) / view.z - pad],
+    }
+    const [lo, hi] = g.vertical ? visible.y : visible.x
+    const [sideLo, sideHi] = g.vertical ? visible.x : visible.y
+    const start = g.vertical ? g.y : g.x
+    const line = g.vertical ? g.x : g.y
+    const from = Math.max(start, lo)
+    const to = Math.min(start + g.len, hi)
+    // 보이는 부분이 있으면 그 한가운데, 없으면 선에 가까운 쪽 가장자리.
+    const at = from <= to ? (from + to) / 2 : start > hi ? hi : lo
+    return { along: at - start, aside: Math.min(sideHi, Math.max(sideLo, line)) - line }
+  }
+
+  // 지금 거리를 재고 있는 상대(마우스를 올린 판이나 사진).
+  const measured = measures.length > 0 ? over : null
 
   return (
     <div
@@ -785,8 +849,9 @@ export function Canvas({
               {/* 바깥은 선택 표시가 붙는 틀이고, 안쪽이 판의 실제 모양이다. 투명도를 낮춰도 선택 표시는 흐려지지 않는다. */}
               <div
                 data-board={board.id}
-                className={`line-inset ${hovered === board.id && !marquee ? 'line-2' : isSelected ? 'line-1' : ''}`}
-                style={{ '--edge': '0px' } as CSSProperties}
+                // 거리를 재는 중에는 상대 판에 호버 선 대신 안내선 색의 1px 선을 두른다(피그마와 같다).
+                className={`line-inset ${measured === board.id ? 'line-1' : hovered === board.id && !marquee ? 'line-2' : isSelected ? 'line-1' : ''}`}
+                style={{ '--edge': '0px', '--line-color': measured === board.id ? 'var(--color-guide)' : undefined } as CSSProperties}
               >
                 <div
                   className="border-solid p-6"
@@ -822,8 +887,8 @@ export function Canvas({
             <div key={picture.id} className="absolute" style={{ left: pos.x, top: pos.y, width: w, height: (w * picture.h) / picture.w }}>
               <div
                 data-board={picture.id}
-                className={`line-inset size-full ${hovered === picture.id && !marquee ? 'line-2' : isSelected ? 'line-1' : ''}`}
-                style={{ '--edge': '0px' } as CSSProperties}
+                className={`line-inset size-full ${measured === picture.id ? 'line-1' : hovered === picture.id && !marquee ? 'line-2' : isSelected ? 'line-1' : ''}`}
+                style={{ '--edge': '0px', '--line-color': measured === picture.id ? 'var(--color-guide)' : undefined } as CSSProperties}
                 onPointerOver={() => {
                   setOver(picture.id)
                   setHovered(picture.id)
@@ -853,18 +918,31 @@ export function Canvas({
         {[...guides, ...measures].map((g, i) => (
           <div
             key={i}
-            className="pointer-events-none absolute z-30 bg-guide"
-            style={
-              g.vertical
-                ? { left: g.x, top: g.y, width: 'var(--line)', height: g.len }
-                : { left: g.x, top: g.y, width: g.len, height: 'var(--line)' }
-            }
+            className={`pointer-events-none absolute z-30 ${g.dashed ? '' : 'bg-guide'}`}
+            style={{
+              left: g.x,
+              top: g.y,
+              // 굵기는 화면에서 1px. 세로 선은 너비가, 가로 선은 높이가 굵기다.
+              width: g.vertical ? 'var(--line)' : g.len,
+              height: g.vertical ? g.len : 'var(--line)',
+              // 점선은 화면에서 6px 긋고 4px 띄운다. 브라우저의 기본 점선은 1px 굵기에서 너무 잘아 잘 안 보인다.
+              background: g.dashed
+                ? `repeating-linear-gradient(to ${g.vertical ? 'bottom' : 'right'}, var(--color-guide) 0 calc(var(--line) * 6), transparent 0 calc(var(--line) * 10))`
+                : undefined,
+            }}
           >
-            {g.label && (
-              <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 [scale:var(--unzoom)] rounded-xs bg-guide px-1 text-xs leading-[18px] font-[550] whitespace-nowrap text-white tabular-nums">
-                {g.label}
-              </span>
-            )}
+            {g.label &&
+              (() => {
+                const { along, aside } = labelPlace(g)
+                return (
+                  <span
+                    className="absolute -translate-x-1/2 -translate-y-1/2 [scale:var(--unzoom)] rounded-xs bg-guide px-1 text-xs leading-[18px] font-[550] whitespace-nowrap text-white tabular-nums"
+                    style={g.vertical ? { left: aside, top: along } : { left: along, top: aside }}
+                  >
+                    {g.label}
+                  </span>
+                )
+              })()}
           </div>
         ))}
       </div>

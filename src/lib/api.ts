@@ -1,5 +1,11 @@
 export type Token = { name: string; value: string }
 
+/** 저장하려는데 그 사이에 파일이 FF 밖에서(AI나 편집기로) 바뀌어 있어 쓰지 않았다는 뜻. 다시 불러와야 한다. */
+export class ConflictError extends Error {}
+
+/** 저장 결과. rev는 방금 쓴 파일 내용의 지문으로, 다음 저장 때 돌려보내 그 사이에 바뀌지 않았는지 확인한다. */
+type Saved = { ok: true; rev: string }
+
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   let res: Response
   try {
@@ -8,6 +14,7 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
     throw new Error('FF 서버에 연결하지 못했어요. 실행 중인지 확인해 주세요.')
   }
   const data = await res.json().catch(() => null)
+  if (res.status === 409 && init?.method === 'PUT') throw new ConflictError(data?.error)
   if (!res.ok) throw new Error(data?.error ?? '요청을 처리하지 못했어요.')
   return data as T
 }
@@ -18,7 +25,7 @@ export const createSystem = (name: string) =>
   request<{ name: string }>('/api/systems', { method: 'POST', body: JSON.stringify({ name }) })
 
 export const getTokens = (system: string) =>
-  request<{ tokens: Token[]; file: string }>(`/api/systems/${encodeURIComponent(system)}/tokens`)
+  request<{ tokens: Token[]; file: string; rev: string }>(`/api/systems/${encodeURIComponent(system)}/tokens`)
 
 /** 판의 모양. 고치지 않은 값은 비어 있고 기본 모양을 따른다. */
 export type BoardStyle = {
@@ -55,7 +62,7 @@ export type Pos = { x: number; y: number; w?: number } & BoardStyle
 export type CanvasImage = { file: string; x: number; y: number; w: number; h: number }
 
 export const getCanvas = (system: string) =>
-  request<{ boards: Record<string, Pos>; images: Record<string, CanvasImage> }>(
+  request<{ boards: Record<string, Pos>; images: Record<string, CanvasImage>; groups: string[]; rev: string }>(
     `/api/systems/${encodeURIComponent(system)}/canvas`,
   )
 
@@ -68,23 +75,30 @@ export const uploadImage = (system: string, image: Blob) =>
     body: image,
   })
 
-export const putCanvas = (system: string, boards: Record<string, Pos>, images: Record<string, CanvasImage>) =>
-  request<{ ok: true }>(`/api/systems/${encodeURIComponent(system)}/canvas`, {
+/** groups는 색을 모두 지워도 남겨 둘 빈 색 목록의 이름들. */
+export const putCanvas = (
+  system: string,
+  boards: Record<string, Pos>,
+  images: Record<string, CanvasImage>,
+  groups: string[],
+  rev?: string,
+) =>
+  request<Saved>(`/api/systems/${encodeURIComponent(system)}/canvas`, {
     method: 'PUT',
-    body: JSON.stringify({ boards, images }),
+    body: JSON.stringify({ boards, images, groups, rev }),
   })
 
 export const getComponents = (system: string) =>
-  request<{ components: unknown; file: string }>(`/api/systems/${encodeURIComponent(system)}/components`)
+  request<{ components: unknown; file: string; rev: string }>(`/api/systems/${encodeURIComponent(system)}/components`)
 
-export const putComponents = (system: string, components: unknown[]) =>
-  request<{ ok: true }>(`/api/systems/${encodeURIComponent(system)}/components`, {
+export const putComponents = (system: string, components: unknown[], rev?: string) =>
+  request<Saved>(`/api/systems/${encodeURIComponent(system)}/components`, {
     method: 'PUT',
-    body: JSON.stringify({ components }),
+    body: JSON.stringify({ components, rev }),
   })
 
-export const putTokens = (system: string, tokens: Token[]) =>
-  request<{ ok: true }>(`/api/systems/${encodeURIComponent(system)}/tokens`, {
+export const putTokens = (system: string, tokens: Token[], rev?: string) =>
+  request<Saved>(`/api/systems/${encodeURIComponent(system)}/tokens`, {
     method: 'PUT',
-    body: JSON.stringify({ tokens }),
+    body: JSON.stringify({ tokens, rev }),
   })

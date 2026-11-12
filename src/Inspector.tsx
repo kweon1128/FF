@@ -1,8 +1,10 @@
 import { useState, type ReactNode } from 'react'
-import { Copy, Pipette, Trash2 } from 'lucide-react'
+import { Copy, PencilLine, Pipette, Rows3 } from 'lucide-react'
 import type { Token } from './lib/api'
 import { SLUG, groupOf, shortName, type Kind } from './lib/catalog'
+import { isApprox, showColor, toOklch } from './lib/color'
 import { stepValue } from './lib/tokens'
+import { ColorSwatch } from './ColorPicker'
 import { Button, Chip, Field, inputClass } from './ui'
 
 type Props = {
@@ -12,7 +14,6 @@ type Props = {
   allNames: string[]
   onRename: (next: string) => void
   onValue: (value: string) => void
-  onDelete: () => void
   /** 이 값을 쓰는 컴포넌트와 그 자리들. */
   uses: { index: number; name: string; where: string[] }[]
   onOpenComponent: (index: number) => void
@@ -20,6 +21,9 @@ type Props = {
   onCopy: (text: string) => void
   /** 화면에서 색을 찍는다(스포이드). 색 값에서만 쓴다. */
   onPickColor: () => void
+  /** 이 색을 기준으로 50~950 단계를 만들 수 있으면, 아직 없는 단계의 수. 만들 수 없는 색이면 null. */
+  scaleMissing: number | null
+  onMakeScale: () => void
 }
 
 const ICON_BUTTON =
@@ -35,7 +39,7 @@ const PLAIN = /^[a-z0-9]+$/
 export function Section({ title, children }: { title?: string; children: ReactNode }) {
   return (
     <section className="border-b border-hairline px-4 py-3 last:border-b-0">
-      {title && <h3 className="mb-2 text-xs font-[650]">{title}</h3>}
+      {title && <h3 className="mb-2 text-sm font-[650]">{title}</h3>}
       {children}
     </section>
   )
@@ -49,11 +53,12 @@ export function Inspector({
   allNames,
   onRename,
   onValue,
-  onDelete,
   uses,
   onOpenComponent,
   onCopy,
   onPickColor,
+  scaleMissing,
+  onMakeScale,
 }: Props) {
   const short = shortName(kind, token.name)
   const isColor = kind.id === 'color'
@@ -64,7 +69,8 @@ export function Inspector({
   const [nameDraft, setNameDraft] = useState(initialName)
   const [nameError, setNameError] = useState<string | null>(null)
   const [groupError, setGroupError] = useState<string | null>(null)
-  const [valueDraft, setValueDraft] = useState(token.value)
+  // 색은 파일에 oklch로 저장하지만, 여기서는 읽고 쓰기 쉬운 #으로 보여 주고 받는다.
+  const [valueDraft, setValueDraft] = useState(kind.id === 'color' ? showColor(token.value) : token.value)
   const [valueError, setValueError] = useState<string | null>(null)
 
   function commitName() {
@@ -89,7 +95,8 @@ export function Inspector({
     if (!next) return setValueError('값을 입력해 주세요.')
     if (/[;{}]/.test(next)) return setValueError('; { } 기호는 쓸 수 없어요.')
     setValueError(null)
-    onValue(next)
+    // 색으로 읽히는 값(#, rgb, hsl)은 oklch로 바꿔 저장한다. 읽을 수 없는 값은 적은 그대로 둔다.
+    onValue(isColor ? toOklch(next) : next)
   }
 
   const nameInput = (
@@ -119,6 +126,7 @@ export function Inspector({
             <Field label="목록" error={groupError}>
               <input
                 className={inputClass}
+                data-rename="group"
                 value={groupDraft}
                 onChange={(e) => {
                   setGroupDraft(e.target.value)
@@ -135,30 +143,14 @@ export function Inspector({
         ) : (
           <>
             {nameInput}
-            {nameError && <span className="mt-1 block text-xs text-danger">{nameError}</span>}
+            {nameError && <span className="mt-1 block text-sm text-danger">{nameError}</span>}
           </>
         )}
       </Section>
 
       <Section title={kind.valueLabel}>
         <span className="flex items-center gap-2">
-          {isColor && (
-            // 둥근 사각형 전체를 색으로 채운다. 색 선택 창은 그 위에 투명하게 겹쳐 둔 입력칸이 연다.
-            <span
-              className="relative size-8 shrink-0 overflow-hidden rounded-md border border-hairline focus-within:border-selection"
-              style={{ background: valueDraft }}
-            >
-              {HEX6.test(valueDraft.trim()) && (
-                <input
-                  type="color"
-                  aria-label="색 고르기"
-                  value={valueDraft.trim().toLowerCase()}
-                  onChange={(e) => changeValue(e.target.value)}
-                  className="absolute inset-0 size-full cursor-pointer opacity-0"
-                />
-              )}
-            </span>
-          )}
+          {isColor && <ColorSwatch label="색 고르기" value={valueDraft} alpha onChange={changeValue} />}
           <input
             aria-label={kind.valueLabel}
             className={`${inputClass} ${valueError ? 'border-danger focus:border-danger' : ''}`}
@@ -185,13 +177,29 @@ export function Inspector({
             </button>
           )}
         </span>
-        {valueError && <span className="mt-1 block text-xs text-danger">{valueError}</span>}
+        {valueError && <span className="mt-1 block text-sm text-danger">{valueError}</span>}
+        {scaleMissing !== null && (
+          <Button
+            variant="ghost"
+            className="mt-2 -ml-2"
+            disabled={!HEX6.test(valueDraft.trim())}
+            title={
+              scaleMissing === 0
+                ? '이 색을 기준으로 나머지 단계의 색을 모두 다시 계산해요. 지금 있는 색은 바뀌어요.'
+                : '이 색을 기준으로 같은 목록에 50~950 단계를 만들어요. 이미 있는 단계는 그대로 둬요.'
+            }
+            onClick={onMakeScale}
+          >
+            <Rows3 size={16} strokeWidth={1.5} />
+            {scaleMissing === 0 ? '단계 다시 생성' : '단계 생성'}
+          </Button>
+        )}
       </Section>
 
       <Section title="코드">
         <div className="space-y-2">
           <div>
-            <p className="mb-1 text-xs font-[550] text-ink-faint">변수 이름</p>
+            <p className="mb-1 text-sm font-[550] text-ink-faint">변수 이름</p>
             <span className="flex items-center gap-1">
               <span className="min-w-0 flex-1">
                 <Chip>{token.name}</Chip>
@@ -207,8 +215,24 @@ export function Inspector({
               </button>
             </span>
           </div>
+          {isColor && (
+            <div>
+              <p className="mb-1 text-sm font-[550] text-ink-faint">저장된 값</p>
+              <span className="flex items-center gap-1">
+                <span className="min-w-0 flex-1">
+                  <Chip>{token.value}</Chip>
+                </span>
+                <button type="button" title="저장된 값 복사" aria-label="저장된 값 복사" onClick={() => onCopy(token.value)} className={ICON_BUTTON}>
+                  <Copy size={16} strokeWidth={1.5} />
+                </button>
+              </span>
+              {isApprox(token.value) && (
+                <p className="mt-1 text-sm text-ink-faint">화면이 낼 수 없는 선명한 색이라, 위의 # 값은 가장 가까운 색이에요.</p>
+              )}
+            </div>
+          )}
           <div>
-            <p className="mb-1 text-xs font-[550] text-ink-faint">저장 위치</p>
+            <p className="mb-1 text-sm font-[550] text-ink-faint">저장 위치</p>
             <Chip>{file}</Chip>
           </div>
         </div>
@@ -216,7 +240,7 @@ export function Inspector({
 
       <Section title="쓰이는 곳">
         {uses.length === 0 ? (
-          <p className="text-xs text-ink-faint">이 값을 쓰는 컴포넌트가 아직 없어요.</p>
+          <p className="text-sm text-ink-faint">이 값을 쓰는 컴포넌트가 아직 없어요.</p>
         ) : (
           <div className="space-y-2">
             {uses.map((u) => (
@@ -227,49 +251,39 @@ export function Inspector({
                   className="-ml-2 flex h-8 max-w-full items-center rounded-md px-2 font-[550] outline-selection hover:bg-hover focus-visible:outline-2"
                 >
                   <span className="truncate">{u.name}</span>
-                  <span className="ml-1.5 shrink-0 text-xs font-normal text-ink-faint">{u.where.length}곳</span>
+                  <span className="ml-1.5 shrink-0 text-sm font-normal text-ink-faint">{u.where.length}곳</span>
                 </button>
-                <p className="text-xs text-ink-faint">{u.where.join(', ')}</p>
+                <p className="text-sm text-ink-faint">{u.where.join(', ')}</p>
               </div>
             ))}
           </div>
         )}
       </Section>
-
-      <Section>
-        <Button variant="danger" className="-ml-2" onClick={onDelete}>
-          <Trash2 size={16} strokeWidth={1.5} />
-          삭제
-        </Button>
-      </Section>
     </div>
   )
 }
 
-/** 여러 값을 함께 선택했을 때의 편집 패널. 같은 종류끼리면 값을 한 번에 바꿀 수 있다. */
+/** 여러 값을 함께 선택했을 때의 패널. 무엇을 골랐는지 보여 주고, 이름을 한꺼번에 바꾸는 창을 연다. */
 export function MultiInspector({
   tokens,
-  kind,
-  onValue,
-  onDelete,
+  group,
+  onRenameGroup,
+  onRename,
 }: {
   tokens: Token[]
-  /** 선택한 값이 모두 같은 종류일 때만 있다. */
-  kind: Kind | null
-  onValue: (value: string) => void
-  onDelete: () => void
+  /** 한 색 목록을 통째로 선택했을 때 그 목록의 이름. 아니면 null. */
+  group: string | null
+  /** 목록 이름을 바꾼다. 바꿀 수 없으면 이유를 돌려준다. */
+  onRenameGroup: (next: string) => string | null
+  onRename: () => void
 }) {
-  const same = tokens.every((t) => t.value === tokens[0].value)
-  const [draft, setDraft] = useState(same ? tokens[0].value : '')
+  const [draft, setDraft] = useState(group ?? '')
   const [error, setError] = useState<string | null>(null)
 
-  function change(raw: string) {
-    setDraft(raw)
-    const next = raw.trim()
-    if (!next) return setError('값을 입력해 주세요.')
-    if (/[;{}]/.test(next)) return setError('; { } 기호는 쓸 수 없어요.')
-    setError(null)
-    onValue(next)
+  function commitGroup() {
+    const next = draft.trim()
+    if (next === group) return setError(null)
+    setError(next ? onRenameGroup(next) : '이름을 입력해 주세요.')
   }
 
   return (
@@ -277,6 +291,24 @@ export function MultiInspector({
       <Section>
         <h2 className="font-[650]">{tokens.length}개 선택됨</h2>
       </Section>
+
+      {group !== null && (
+        <Section title="목록 이름">
+          <input
+            aria-label="목록 이름"
+            data-rename="group"
+            className={`${inputClass} ${error ? 'border-danger focus:border-danger' : ''}`}
+            value={draft}
+            onChange={(e) => {
+              setDraft(e.target.value)
+              setError(null)
+            }}
+            onBlur={commitGroup}
+            onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+          />
+          {error && <span className="mt-1 block text-sm text-danger">{error}</span>}
+        </Section>
+      )}
 
       <Section title="선택한 값">
         <div className="flex flex-wrap gap-1">
@@ -286,23 +318,10 @@ export function MultiInspector({
         </div>
       </Section>
 
-      {kind && (
-        <Section title={`${kind.valueLabel} 한 번에 바꾸기`}>
-          <input
-            aria-label={kind.valueLabel}
-            className={`${inputClass} ${error ? 'border-danger focus:border-danger' : ''}`}
-            value={draft}
-            placeholder={same ? undefined : '서로 다른 값'}
-            onChange={(e) => change(e.target.value)}
-          />
-          {error && <span className="mt-1 block text-xs text-danger">{error}</span>}
-        </Section>
-      )}
-
       <Section>
-        <Button variant="danger" className="-ml-2" onClick={onDelete}>
-          <Trash2 size={16} strokeWidth={1.5} />
-          {tokens.length}개 삭제
+        <Button variant="ghost" className="-ml-2" title="Ctrl+R" onClick={onRename}>
+          <PencilLine size={16} strokeWidth={1.5} />
+          번호 다시 매기기
         </Button>
       </Section>
     </div>

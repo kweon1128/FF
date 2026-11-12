@@ -2,7 +2,8 @@ import type { CSSProperties, MouseEvent } from 'react'
 import { Plus } from 'lucide-react'
 import type { Token } from './lib/api'
 import { groupOf, shortName, type Kind } from './lib/catalog'
-import { Button, EmptyState } from './ui'
+import { isApprox, showColor } from './lib/color'
+import { Button, EmptyState, swatchBackground } from './ui'
 
 const SAMPLE = '다람쥐 헌 쳇바퀴에 타고파 Aa 123'
 
@@ -15,15 +16,24 @@ export type SectionProps = {
   /** group은 색에서만 쓴다. ''는 목록에 속하지 않은 단독 색. */
   onAdd: (kind: Kind, group?: string) => void
   onAddGroup: () => void
+  /** 목록에 속하지 않는 단독 색(white, black 등)을 만드는 창을 연다. */
+  onAddSolo: () => void
   /** 항목을 더블클릭하면 그 자리에서 이름을 고친다. */
   onRename: (name: string) => void
+  /** 색 목록의 이름을 누르면 그 목록의 색을 모두 선택한다. rename이면 이어서 목록 이름을 고치러 간다. */
+  onSelectGroup: (names: string[], additive: boolean, rename: boolean) => void
+  /** 색을 모두 지웠지만 남겨 둔 빈 색 목록들. */
+  emptyGroups: string[]
+  /** 빈 목록은 색이 없어서 목록 자체를 선택한다. 선택한 빈 목록의 이름(없으면 null). Delete로 지운다. */
+  pickedGroup: string | null
+  onPickGroup: (group: string) => void
 }
 
 /** Shift, Ctrl, Cmd 중 하나를 누른 채 누르면 여러 개 선택이다. */
 export const isAdditive = (e: MouseEvent) => e.shiftKey || e.ctrlKey || e.metaKey
 
 /** 한 화면에 속한 종류들을 차례로 그린다. 전체 보기의 판 안에서도 그대로 쓴다. */
-export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGroup, onRename }: SectionProps & { kinds: Kind[] }) {
+export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGroup, onAddSolo, onRename, onSelectGroup, emptyGroups, pickedGroup, onPickGroup }: SectionProps & { kinds: Kind[] }) {
   const single = kinds.length === 1
   return (
     <div className="space-y-8">
@@ -34,14 +44,14 @@ export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGr
           <section key={kind.id}>
             {!single && <h2 className="mb-2 font-[650]">{kind.title}</h2>}
             {kind.id === 'color' ? (
-              items.length === 0 ? (
+              items.length === 0 && emptyGroups.length === 0 ? (
                 <div className="rounded-lg border border-hairline bg-canvas">
                   <EmptyState title={kind.emptyTitle}>
-                    <AddGroupButton onAddGroup={onAddGroup} />
+                    <AddColorButtons onAddGroup={onAddGroup} onAddSolo={onAddSolo} />
                   </EmptyState>
                 </div>
               ) : (
-                <ColorGroups {...list} />
+                <ColorGroups {...list} onSelectGroup={onSelectGroup} emptyGroups={emptyGroups} pickedGroup={pickedGroup} onPickGroup={onPickGroup} />
               )
             ) : kind.tiles ? (
               <TileGrid {...list} />
@@ -55,12 +65,19 @@ export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGr
   )
 }
 
-export function AddGroupButton({ onAddGroup }: { onAddGroup: () => void }) {
+/** 색을 새로 만드는 두 버튼. 목록(primary-500 같은 단계 묶음)과 단독 색(white, black). */
+export function AddColorButtons({ onAddGroup, onAddSolo }: { onAddGroup: () => void; onAddSolo: () => void }) {
   return (
-    <Button onClick={onAddGroup}>
-      <Plus size={16} strokeWidth={1.5} />
-      목록 추가
-    </Button>
+    <span className="flex gap-2">
+      <Button onClick={onAddSolo}>
+        <Plus size={16} strokeWidth={1.5} />
+        단독 색 추가
+      </Button>
+      <Button onClick={onAddGroup}>
+        <Plus size={16} strokeWidth={1.5} />
+        목록 추가
+      </Button>
+    </span>
   )
 }
 
@@ -118,46 +135,87 @@ export const HOVER = 'hover:line-2 focus-visible:line-2'
 export const ADD_TILE =
   'flex items-center justify-center rounded-md border border-dashed border-hairline bg-canvas text-ink-faint outline-selection hover:border-transparent hover:bg-hover hover:text-ink focus-visible:line-1'
 
-function ColorGroups({ kind, items, selected, onSelect, onAdd, onRename }: ListProps) {
+function ColorGroups({
+  kind,
+  items,
+  selected,
+  onSelect,
+  onAdd,
+  onRename,
+  onSelectGroup,
+  emptyGroups,
+  pickedGroup,
+  onPickGroup,
+}: ListProps & Pick<SectionProps, 'onSelectGroup' | 'emptyGroups' | 'pickedGroup' | 'onPickGroup'>) {
   const groups = new Map<string, Token[]>()
   for (const t of items) {
     const g = groupOf(shortName(kind, t.name))
     groups.set(g, [...(groups.get(g) ?? []), t])
   }
+  // 색을 모두 지운 목록도 빈 채로 남겨 둔다.
+  for (const g of emptyGroups) if (!groups.has(g)) groups.set(g, [])
 
   return (
     <div className="space-y-6">
       {[...groups].map(([group, list]) => (
         <div key={group}>
-          <p className="mb-2 text-xs font-[550] text-ink-faint">{group || '단독 색'}</p>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(112px,1fr))] gap-x-3 gap-y-4">
-            {list.map((t) => {
+          {/* 영문 목록 이름은 소문자라 작아 보여서 16px, 한글인 '단독 색'은 다른 제목과 같은 14px. */}
+          {/* 목록 이름을 누르면 그 목록의 색이 모두 선택되고, 더블클릭하면 오른쪽 패널의 목록 이름 칸으로 간다. */}
+          {/* 색이 없는 빈 목록은 이름 자체가 선택되고(파란 선), 그 상태에서 Delete를 누르면 목록이 지워진다. */}
+          <button
+            type="button"
+            data-group-name={group}
+            aria-pressed={list.length === 0 ? pickedGroup === group : undefined}
+            onClick={(e) => (list.length === 0 ? onPickGroup(group) : onSelectGroup(list.map((t) => t.name), isAdditive(e), false))}
+            onDoubleClick={() => list.length > 0 && onSelectGroup(list.map((t) => t.name), false, true)}
+            className={`mb-2 -ml-1 block rounded-sm px-1 font-[650] outline-selection hover:bg-hover focus-visible:outline-2 ${group ? 'text-base' : ''} ${
+              list.length === 0 && pickedGroup === group ? 'line-1' : ''
+            }`}
+            style={{ '--edge': '0px' } as CSSProperties}
+          >
+            {group || '단독 색'}
+          </button>
+          {/* 한 줄에 12칸. 50부터 950까지 11단계인 한 목록과 추가 칸이 한 줄에 들어간다. */}
+          <div className="grid grid-cols-12 gap-x-3 gap-y-4">
+            {list.map((t, i) => {
               const short = shortName(kind, t.name)
               const isSelected = selected.includes(t.name)
               const labeled = isSelected && selected.length === 1
+              // 파일에는 oklch로 적혀 있어도 화면에는 읽기 쉬운 #으로 보여 준다.
+              const shown = showColor(t.value)
+              // 화면이 낼 수 없는 선명한 색이면 #은 가까운 색일 뿐이라는 표시를 붙인다.
+              const approx = isApprox(t.value)
               return (
                 <button
                   key={t.name}
                   type="button"
                   data-token={t.name}
                   aria-pressed={isSelected}
-                  aria-label={`${short} ${t.value}`}
+                  aria-label={`${short} ${shown}`}
                   onClick={(e) => onSelect(t.name, isAdditive(e))}
                   onDoubleClick={() => onRename(t.name)}
-                  className="group text-left outline-none select-none"
+                  // 색은 한 줄에 11개까지. 12번째 칸은 추가 칸의 자리라서, 12번째 색부터는 다음 줄 맨 앞에서 시작한다.
+                  className={`group text-left outline-none select-none ${i > 0 && i % 11 === 0 ? 'col-start-1' : ''}`}
                 >
                   <span className="relative block">
                     <span
-                      className={`block h-14 rounded-md border border-hairline ${isSelected ? SELECTED : ''} group-hover:line-2 group-focus-visible:line-2 ${OUTLINE}`}
-                      style={{ background: t.value }}
+                      className={`block h-16 rounded-md shadow-[inset_0_0_0_1px_rgb(0_0_0/0.1)] ${isSelected ? SELECTED : ''} group-hover:line-2 group-focus-visible:line-2 ${OUTLINE}`}
+                      // 옅은 선은 색 면의 안쪽에 그린다(바깥으로 삐져나오지 않는다). 테두리가 없으므로 선택 선도 면의 가장자리에 딱 맞춘다.
+                      style={{ background: swatchBackground(t.value), '--edge': '0px' } as CSSProperties}
                     />
-                    {labeled && <SelectionLabel name={short} value={t.value} />}
+                    {labeled && <SelectionLabel name={short} value={shown} />}
                   </span>
                   <span>
-                    <span data-name className="mt-1.5 block truncate text-xs text-ink-soft">
+                    <span data-name className="mt-1.5 block truncate text-sm text-ink-soft">
                       {group ? short.slice(group.length + 1) : short}
                     </span>
-                    <span className="block truncate font-mono text-xs text-ink-faint">{t.value}</span>
+                    <span
+                      className="block truncate font-mono text-sm text-ink-faint"
+                      title={approx ? `${t.value} · 화면이 낼 수 없는 색이라 가까운 색으로 보여 줘요` : undefined}
+                    >
+                      {approx ? '≈ ' : ''}
+                      {shown}
+                    </span>
                   </span>
                 </button>
               )
@@ -166,7 +224,7 @@ function ColorGroups({ kind, items, selected, onSelect, onAdd, onRename }: ListP
               type="button"
               aria-label={group ? `${group} 목록에 색 추가` : '단독 색 추가'}
               onClick={() => onAdd(kind, group)}
-              className={`${ADD_TILE} h-14`}
+              className={`${ADD_TILE} h-16`}
             >
               <Plus size={16} strokeWidth={1.5} />
             </button>
@@ -216,8 +274,8 @@ function TileGrid({ kind, items, selected, onSelect, onAdd, onRename }: ListProp
             className={`relative flex flex-col items-center rounded-lg border border-hairline bg-canvas p-4 select-none ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
           >
             <TileSample kind={kind} value={t.value} />
-            <span data-name className="mt-3 block max-w-full truncate text-xs text-ink-soft">{short}</span>
-            <span className="block max-w-full truncate font-mono text-xs text-ink-faint">{t.value}</span>
+            <span data-name className="mt-3 block max-w-full truncate text-sm text-ink-soft">{short}</span>
+            <span className="block max-w-full truncate font-mono text-sm text-ink-faint">{t.value}</span>
             {isSelected && selected.length === 1 && <SelectionLabel name={short} value={t.value} />}
           </button>
         )
@@ -247,8 +305,8 @@ function RowList({ kind, items, selected, onSelect, onAdd, onRename }: ListProps
             className={`group relative flex w-full items-center gap-4 rounded-md px-3 py-2.5 text-left select-none ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
           >
             <span className="w-28 shrink-0">
-              <span data-name className="block truncate text-xs text-ink-soft">{short}</span>
-              <span className="block truncate font-mono text-xs text-ink-faint">{t.value}</span>
+              <span data-name className="block truncate text-sm text-ink-soft">{short}</span>
+              <span className="block truncate font-mono text-sm text-ink-faint">{t.value}</span>
             </span>
             <span className="min-w-0 flex-1 overflow-hidden">
               <RowSample kind={kind} value={t.value} />

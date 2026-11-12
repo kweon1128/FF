@@ -2,6 +2,7 @@
 
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 import { useEffect } from 'react'
+import { Check as CheckIcon } from 'lucide-react'
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
 
@@ -29,6 +30,48 @@ export function Button({
   )
 }
 
+/**
+ * 색 견본의 바탕. 색 뒤에 회색과 흰색의 바둑판 무늬를 깔아서, 반투명한 색이면 무늬가 비쳐 보이게 한다.
+ * 불투명한 색이면 무늬가 가려져 색만 보인다. paint는 색 값이나 그러데이션, cell은 무늬 한 칸의 크기(px).
+ */
+export function swatchBackground(paint: string, cell = 8) {
+  const top = paint.includes('gradient(') ? paint : `linear-gradient(${paint}, ${paint})`
+  return `${top}, repeating-conic-gradient(#d9d9d9 0% 25%, #ffffff 0% 50%) 0 0 / ${cell * 2}px ${cell * 2}px`
+}
+
+/**
+ * 체크박스와 그 옆의 글자. 브라우저의 기본 체크박스는 화면 배율에 따라 글자와 높이가 어긋나 보여서, 상자를 직접 그린다.
+ * 상자는 16px이고 글자 줄의 세로 한가운데에 놓인다. 글자가 두 줄이 되면 첫 줄에 맞춘다.
+ */
+export function Check({
+  checked,
+  disabled,
+  onChange,
+  children,
+}: {
+  checked: boolean
+  disabled?: boolean
+  onChange: (checked: boolean) => void
+  children: ReactNode
+}) {
+  return (
+    <label className={`flex items-start gap-2 ${disabled ? 'text-ink-faint' : ''}`}>
+      <input type="checkbox" className="peer sr-only" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
+      {/* 글자 한 줄의 높이(20px)만큼의 자리 안에서 상자를 가운데에 둔다. 위아래로 2px씩 남아 정확히 가운데다. */}
+      <span className="flex h-5 shrink-0 items-center outline-selection peer-focus-visible:[&>span]:outline-2">
+        <span
+          className={`flex size-4 items-center justify-center rounded-sm border outline-offset-1 outline-selection ${
+            checked ? 'border-ink bg-ink text-white' : 'border-ink-faint bg-canvas'
+          } ${disabled ? 'opacity-40' : ''}`}
+        >
+          {checked && <CheckIcon size={12} strokeWidth={3} />}
+        </span>
+      </span>
+      <span className="min-w-0">{children}</span>
+    </label>
+  )
+}
+
 export const inputClass =
   'h-8 w-full rounded-md border border-hairline bg-canvas px-2 text-sm text-ink outline-none placeholder:text-ink-faint focus:border-selection'
 
@@ -45,12 +88,12 @@ export function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-xs font-[550] text-ink-faint">{label}</span>
+      <span className="mb-1 block text-sm font-[550] text-ink-faint">{label}</span>
       {children}
       {error ? (
-        <span className="mt-1 block text-xs text-danger">{error}</span>
+        <span className="mt-1 block text-sm text-danger">{error}</span>
       ) : hint ? (
-        <span className="mt-1 block text-xs text-ink-faint">{hint}</span>
+        <span className="mt-1 block text-sm text-ink-faint">{hint}</span>
       ) : null}
     </label>
   )
@@ -58,7 +101,7 @@ export function Field({
 
 export function Chip({ children }: { children: ReactNode }) {
   return (
-    <span className="inline-block max-w-full rounded-sm bg-hover px-1.5 py-0.5 font-mono text-xs break-all text-ink">
+    <span className="inline-block max-w-full rounded-sm bg-hover px-1.5 py-0.5 font-mono text-sm break-all text-ink">
       {children}
     </span>
   )

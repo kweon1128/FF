@@ -3,10 +3,11 @@ import { Copy, CopyPlus, Trash2 } from 'lucide-react'
 import { DynamicIcon, iconNames } from 'lucide-react/dynamic'
 import type { Token } from './lib/api'
 import { KINDS, SLUG, shortName, type Kind } from './lib/catalog'
+import { showColor } from './lib/color'
 import { cellLabel, type Cell, type Colors, type Comp, type IconPos, type Size } from './lib/components'
 import { isIconName } from './ComponentScreen'
 import { Section } from './Inspector'
-import { Button, Chip, Field, inputClass } from './ui'
+import { Button, Chip, Field, inputClass, swatchBackground } from './ui'
 
 const ICON_RESULTS = 30
 
@@ -84,7 +85,7 @@ function TokenField({
         {kind.id === 'color' && (
           <span
             className="size-8 shrink-0 rounded-md border border-hairline"
-            style={{ background: current?.value }}
+            style={{ background: current ? swatchBackground(current.value) : undefined }}
           />
         )}
         <select
@@ -97,7 +98,7 @@ function TokenField({
           {missing && <option value={value}>{shortName(kind, value)} (없어짐)</option>}
           {options.map((t) => (
             <option key={t.name} value={t.name}>
-              {shortName(kind, t.name)} · {t.value}
+              {shortName(kind, t.name)} · {kind.id === 'color' ? showColor(t.value) : t.value}
             </option>
           ))}
         </select>
@@ -129,7 +130,7 @@ function IconPicker({ value, onChange }: { value: string | undefined; onChange: 
         />
       </Field>
       {results.length === 0 ? (
-        <p className="text-xs text-ink-faint">맞는 아이콘이 없어요.</p>
+        <p className="text-sm text-ink-faint">맞는 아이콘이 없어요.</p>
       ) : (
         <div className="grid grid-cols-6 gap-0.5">
           {results.map((name) => (
@@ -150,7 +151,7 @@ function IconPicker({ value, onChange }: { value: string | undefined; onChange: 
         </div>
       )}
       {matches.length > ICON_RESULTS && (
-        <p className="text-xs text-ink-faint">
+        <p className="text-sm text-ink-faint">
           {matches.length}개 중 {ICON_RESULTS}개만 보여요. 검색어를 더 적어 보세요.
         </p>
       )}
@@ -223,7 +224,7 @@ export function ComponentInspector({
       <Section>
         <h2 className="font-[650] break-all">{comp.name}</h2>
         {cell && (
-          <p className="mt-0.5 text-xs text-ink-faint">{single ? cellLabel(comp, cell) : `${cells.length}칸 선택됨`}</p>
+          <p className="mt-0.5 text-sm text-ink-faint">{single ? cellLabel(comp, cell) : `${cells.length}칸 선택됨`}</p>
         )}
       </Section>
 
@@ -275,7 +276,7 @@ export function ComponentInspector({
             value={comp.borderWidth}
             onChange={(borderWidth) => common({ borderWidth })}
           />
-          {colors && !comp.borderWidth && <p className="text-xs text-ink-faint">굵기를 골라야 테두리가 보여요.</p>}
+          {colors && !comp.borderWidth && <p className="text-sm text-ink-faint">굵기를 골라야 테두리가 보여요.</p>}
         </div>
       </Section>
 
@@ -336,7 +337,7 @@ export function ComponentInspector({
               onChange({ ...comp, variants: comp.variants.map((v, i) => (i === cell.v ? { ...v, name } : v)) })
             }
           />
-          <div className="mt-2 -ml-2 flex flex-wrap">
+          <div className="mt-2 -ml-2 flex flex-wrap gap-1">
             <Button variant="ghost" title="Ctrl+D" onClick={() => onDuplicateVariant(cell.v)}>
               <CopyPlus size={16} strokeWidth={1.5} />
               종류 복제
@@ -360,7 +361,7 @@ export function ComponentInspector({
             taken={comp.sizes.map((s) => s.name)}
             onCommit={(name) => setSize({ name })}
           />
-          <div className="mt-2 -ml-2 flex flex-wrap">
+          <div className="mt-2 -ml-2 flex flex-wrap gap-1">
             <Button variant="ghost" onClick={() => onDuplicateSize(cell.s)}>
               <CopyPlus size={16} strokeWidth={1.5} />
               크기 복제
@@ -379,11 +380,11 @@ export function ComponentInspector({
         <div className="space-y-3">
           <NameField label="이름" value={comp.name} taken={otherNames} onCommit={(name) => common({ name })} />
           <div>
-            <p className="mb-1 text-xs font-[550] text-ink-faint">저장 위치</p>
+            <p className="mb-1 text-sm font-[550] text-ink-faint">저장 위치</p>
             <Chip>{file}</Chip>
           </div>
         </div>
-        <div className="mt-2 -ml-2 flex flex-wrap">
+        <div className="mt-2 -ml-2 flex flex-wrap gap-1">
           <Button variant="ghost" onClick={onCopyCss}>
             <Copy size={16} strokeWidth={1.5} />
             CSS 복사

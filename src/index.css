@@ -42,7 +42,7 @@
     content: '';
     position: absolute;
     inset: calc(var(--edge, 1px) * -1);
-    border: var(--line) solid var(--color-selection);
+    border: var(--line) solid var(--line-color, var(--color-selection));
     border-radius: 0;
     pointer-events: none;
   }
@@ -54,7 +54,7 @@
     content: '';
     position: absolute;
     inset: calc(var(--edge, 1px) * -1);
-    border: calc(var(--line) * 2) solid var(--color-selection);
+    border: calc(var(--line) * 2) solid var(--line-color, var(--color-selection));
     border-radius: 0;
     pointer-events: none;
   }
@@ -74,7 +74,8 @@ body,
 body {
   font-family: var(--font-sans);
   font-size: 14px;
-  line-height: 1.5;
+  /* 14px 글자의 줄 높이는 20px. 짝수라야 16px 아이콘이나 체크박스가 줄의 한가운데에 반 픽셀 어긋남 없이 놓인다. */
+  line-height: 20px;
   color: var(--color-ink);
   background: var(--color-canvas);
   overflow: hidden;

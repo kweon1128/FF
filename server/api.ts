@@ -1,6 +1,8 @@
 // FF 화면이 디자인 시스템 파일을 읽고 쓸 수 있게 해 주는 작은 서버.
 // 개발 서버 안에서 /api 로 시작하는 요청을 처리한다.
 
+import { createHash } from 'node:crypto'
+import { mkdirSync, watch } from 'node:fs'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import type { IncomingMessage, ServerResponse } from 'node:http'
@@ -60,8 +62,37 @@ async function readBytes(req: IncomingMessage, limit: number): Promise<Buffer> {
   return Buffer.concat(chunks)
 }
 
+/** FF가 지켜보는 파일들. 이 파일이 FF 밖에서(AI나 편집기로) 바뀌면 화면에 알린다. */
+const WATCHED = [TOKENS_FILE, CANVAS_FILE, COMPONENTS_FILE]
+const CHANGED = '파일이 FF 밖에서 바뀌었어요.'
+
+const hash = (content: string) => createHash('sha1').update(content).digest('hex')
+
+/** 파일 내용의 지문. 화면이 마지막으로 본 내용과 지금 파일이 같은지 가릴 때 쓴다. 파일이 없으면 ''. */
+async function revOf(file: string) {
+  try {
+    return hash(await fs.readFile(file, 'utf-8'))
+  } catch {
+    return ''
+  }
+}
+
 export function ffApi(): Plugin {
   let systemsDir = ''
+  // FF가 직접 쓴 내용의 지문. 지켜보다가 바뀐 것을 봤을 때, 내가 쓴 것이면 알리지 않는다.
+  const written = new Map<string, string>()
+
+  /**
+   * 파일을 쓴다. 화면이 알고 있는 지문(rev)이 지금 파일과 다르면 그 사이에 밖에서 바뀐 것이므로 쓰지 않고 막는다.
+   * rev를 주지 않으면 그대로 쓴다.
+   */
+  async function save(file: string, content: string, rev: unknown) {
+    if (typeof rev === 'string' && rev !== (await revOf(file))) throw new HttpError(409, CHANGED)
+    const next = hash(content)
+    written.set(path.resolve(file), next)
+    await fs.writeFile(file, content, 'utf-8')
+    return next
+  }
 
   const systemDir = (name: string) => {
     if (!SYSTEM_NAME.test(name)) {
@@ -122,19 +153,18 @@ export function ffApi(): Plugin {
 
       if (method === 'GET') {
         const css = await fs.readFile(file, 'utf-8')
-        return send(res, 200, { tokens: parseTokens(css), file: shownPath })
+        return send(res, 200, { tokens: parseTokens(css), file: shownPath, rev: hash(css) })
       }
 
       if (method === 'PUT') {
-        const { tokens } = await readJson(req)
+        const { tokens, rev } = await readJson(req)
         if (!Array.isArray(tokens) || !tokens.every(isValidToken)) {
           throw new HttpError(400, '저장할 수 없는 값이 있어요.')
         }
         const names = new Set(tokens.map((t) => t.name))
         if (names.size !== tokens.length) throw new HttpError(400, '같은 이름의 값이 두 개 있어요.')
         const css = await fs.readFile(file, 'utf-8')
-        await fs.writeFile(file, writeTokens(css, tokens), 'utf-8')
-        return send(res, 200, { ok: true })
+        return send(res, 200, { ok: true, rev: await save(file, writeTokens(css, tokens), rev) })
       }
     }
 
@@ -146,15 +176,16 @@ export function ffApi(): Plugin {
 
       if (method === 'GET') {
         try {
-          const saved = JSON.parse(await fs.readFile(file, 'utf-8'))
-          return send(res, 200, { boards: saved.boards ?? {}, images: saved.images ?? {} })
+          const text = await fs.readFile(file, 'utf-8')
+          const saved = JSON.parse(text)
+          return send(res, 200, { boards: saved.boards ?? {}, images: saved.images ?? {}, groups: saved.groups ?? [], rev: hash(text) })
         } catch {
-          return send(res, 200, { boards: {}, images: {} })
+          return send(res, 200, { boards: {}, images: {}, groups: [], rev: await revOf(file) })
         }
       }
 
       if (method === 'PUT') {
-        const { boards, images = {} } = await readJson(req)
+        const { boards, images = {}, groups = [], rev } = await readJson(req)
         const valid =
           boards &&
           typeof boards === 'object' &&
@@ -194,9 +225,16 @@ export function ffApi(): Plugin {
             },
           ]),
         )
-        const body = Object.keys(cleanImages).length ? { boards: clean, images: cleanImages } : { boards: clean }
-        await fs.writeFile(file, JSON.stringify(body, null, 2) + '\n', 'utf-8')
-        return send(res, 200, { ok: true })
+        // 색을 모두 지워도 남겨 둘 빈 색 목록의 이름들.
+        if (!Array.isArray(groups) || !groups.every((g) => typeof g === 'string' && SYSTEM_NAME.test(g))) {
+          throw new HttpError(400, '저장할 수 없는 목록 이름이에요.')
+        }
+        const body = {
+          boards: clean,
+          ...(Object.keys(cleanImages).length ? { images: cleanImages } : {}),
+          ...(groups.length ? { groups: [...new Set(groups)] } : {}),
+        }
+        return send(res, 200, { ok: true, rev: await save(file, JSON.stringify(body, null, 2) + '\n', rev) })
       }
     }
 
@@ -246,25 +284,24 @@ export function ffApi(): Plugin {
         try {
           text = await fs.readFile(file, 'utf-8')
         } catch {
-          return send(res, 200, { components: [], file: shownPath })
+          return send(res, 200, { components: [], file: shownPath, rev: '' })
         }
         try {
-          return send(res, 200, { components: JSON.parse(text).components ?? [], file: shownPath })
+          return send(res, 200, { components: JSON.parse(text).components ?? [], file: shownPath, rev: hash(text) })
         } catch {
           throw new HttpError(500, 'components.json 파일을 읽지 못했어요. 파일 내용을 확인해 주세요.')
         }
       }
 
       if (method === 'PUT') {
-        const { components } = await readJson(req)
+        const { components, rev } = await readJson(req)
         const valid =
           Array.isArray(components) &&
           components.every((c) => c && typeof c === 'object' && SYSTEM_NAME.test(String(c.name ?? '')))
         if (!valid) throw new HttpError(400, '저장할 수 없는 컴포넌트가 있어요.')
         const names = new Set(components.map((c) => c.name))
         if (names.size !== components.length) throw new HttpError(400, '같은 이름의 컴포넌트가 두 개 있어요.')
-        await fs.writeFile(file, JSON.stringify({ components }, null, 2) + '\n', 'utf-8')
-        return send(res, 200, { ok: true })
+        return send(res, 200, { ok: true, rev: await save(file, JSON.stringify({ components }, null, 2) + '\n', rev) })
       }
     }
 
@@ -277,6 +314,27 @@ export function ffApi(): Plugin {
       systemsDir = path.resolve(config.root, 'systems')
     },
     configureServer(server) {
+      // 디자인 시스템 폴더를 직접 지켜본다(Vite는 이 폴더를 지켜보지 않게 해 두었다).
+      // FF 밖에서 파일이 바뀌면 화면에 알려서 다시 불러오게 한다. FF가 방금 쓴 내용이면 알리지 않는다.
+      mkdirSync(systemsDir, { recursive: true })
+      const timers = new Map<string, NodeJS.Timeout>()
+      const watcher = watch(systemsDir, { recursive: true }, (_, changed) => {
+        if (!changed) return
+        const parts = changed.split(/[\\/]/)
+        if (parts.length !== 2 || !WATCHED.includes(parts[1]) || !SYSTEM_NAME.test(parts[0])) return
+        const file = path.resolve(systemsDir, changed)
+        // 한 번 저장해도 신호가 여러 번 오므로 잠깐 모았다가 한 번만 본다.
+        clearTimeout(timers.get(file))
+        timers.set(
+          file,
+          setTimeout(async () => {
+            timers.delete(file)
+            if ((await revOf(file)) === written.get(file)) return
+            server.ws.send({ type: 'custom', event: 'ff:changed', data: { system: parts[0], file: parts[1] } })
+          }, 80),
+        )
+      })
+      server.httpServer?.on('close', () => watcher.close())
       server.middlewares.use((req, res, next) => {
         const url = new URL(req.url ?? '/', 'http://localhost')
         if (!url.pathname.startsWith('/api/')) return next()

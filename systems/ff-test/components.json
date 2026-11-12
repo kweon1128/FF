@@ -14,14 +14,14 @@
           "name": "primary",
           "states": {
             "default": {
-              "bg": "--color-blue-500",
+              "bg": "--color-purple-500",
               "text": "--color-white"
             },
             "hover": {
-              "bg": "--color-blue-600"
+              "bg": "--color-purple-600"
             },
             "pressed": {
-              "bg": "--color-blue-700"
+              "bg": "--color-purple-700"
             },
             "disabled": {
               "bg": "--color-gray-300"

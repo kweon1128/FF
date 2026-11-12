@@ -9,13 +9,13 @@ import {
   Eye,
   Lock,
   LockOpen,
-  Trash2,
   type LucideIcon,
 } from 'lucide-react'
 import { BOARD_DEFAULTS, type BoardStyle, type Pos } from './lib/api'
 import { arrange, gapOf, setGap, type Arrange, type Placed } from './lib/arrange'
+import { ColorSwatch } from './ColorPicker'
 import { Section } from './Inspector'
-import { Button, inputClass } from './ui'
+import { inputClass } from './ui'
 
 export const MIN_BOARD_WIDTH = 240
 export const MAX_BOARD_WIDTH = 1600
@@ -77,7 +77,7 @@ export function NumberField({
       }`}
     >
       <span
-        className={`shrink-0 text-xs text-ink-faint select-none ${fixed ? '' : 'cursor-ew-resize'}`}
+        className={`shrink-0 text-sm text-ink-faint select-none ${fixed ? '' : 'cursor-ew-resize'}`}
         onPointerDown={(e) => {
           if (fixed) return
           e.preventDefault()
@@ -118,7 +118,7 @@ export function NumberField({
   )
 }
 
-/** 색 칸. 왼쪽 견본을 누르면 색 선택 창이 열리고, 오른쪽에는 #rrggbb를 직접 적는다. */
+/** 색 칸. 왼쪽 견본을 누르면 옆에 색 선택 창이 열리고, 오른쪽에는 #rrggbb를 직접 적는다. */
 function ColorField({ label, value, onCommit }: { label: string; value: string | null; onCommit: (value: string) => void }) {
   const [draft, setDraft] = useState(value ?? '')
   // 색 선택 창에서 끄는 동안에도 창이 닫히지 않도록, 값이 바뀌면 칸을 새로 만들지 않고 적힌 글자만 맞춘다.
@@ -132,18 +132,7 @@ function ColorField({ label, value, onCommit }: { label: string; value: string |
 
   return (
     <span className="flex items-center gap-2">
-      <span
-        className="relative size-8 shrink-0 overflow-hidden rounded-md border border-hairline focus-within:border-selection"
-        style={{ background: value ?? undefined }}
-      >
-        <input
-          type="color"
-          aria-label={`${label} 고르기`}
-          value={value ?? '#ffffff'}
-          onChange={(e) => onCommit(e.target.value)}
-          className="absolute inset-0 size-full cursor-pointer opacity-0"
-        />
-      </span>
+      <ColorSwatch label={`${label} 고르기`} value={value} fallback="#ffffff" onChange={onCommit} />
       <input
         aria-label={label}
         className={`${inputClass} font-mono`}
@@ -161,11 +150,9 @@ function ColorField({ label, value, onCommit }: { label: string; value: string |
 export function ImageInspector({
   picked,
   onMove,
-  onDelete,
 }: {
   picked: Placed[]
   onMove: (moves: Record<string, Partial<Pos>>) => void
-  onDelete: () => void
 }) {
   const many = picked.length > 1
   const all = (patch: Partial<Pos>) => onMove(Object.fromEntries(picked.map((b) => [b.id, patch])))
@@ -190,12 +177,6 @@ export function ImageInspector({
           />
           <NumberField tag="H" label="높이 (너비에 맞춰 정해져요)" value={shared(picked.map((b) => b.h))} readOnly />
         </div>
-      </Section>
-      <Section>
-        <Button variant="danger" className="-ml-2" onClick={onDelete}>
-          <Trash2 size={16} strokeWidth={1.5} />
-          {many ? `${picked.length}개 삭제` : '삭제'}
-        </Button>
       </Section>
     </div>
   )
@@ -238,7 +219,7 @@ export function BoardInspector({
   return (
     <div>
       <Section>
-        <div className="flex items-center">
+        <div className="flex items-center gap-1">
           <h2 className="min-w-0 flex-1 truncate font-[650]">{many ? `판 ${picked.length}개 선택됨` : `${titles[picked[0].id]} 판`}</h2>
           <button
             type="button"
@@ -263,7 +244,7 @@ export function BoardInspector({
       </Section>
 
       <Section title="위치">
-        <p className="mb-1 text-xs font-[550] text-ink-faint">정렬</p>
+        <p className="mb-1 text-sm font-[550] text-ink-faint">정렬</p>
         <div className="mb-3 flex gap-0.5">
           {ALIGN.map(({ action, label, icon: Icon }, i) => (
             <button
@@ -282,7 +263,7 @@ export function BoardInspector({
             </button>
           ))}
         </div>
-        <p className="mb-1 text-xs font-[550] text-ink-faint">위치</p>
+        <p className="mb-1 text-sm font-[550] text-ink-faint">위치</p>
         <div className="grid grid-cols-2 gap-2">
           <NumberField tag="X" label="가로 위치" value={x} readOnly={anyLocked} onCommit={(v) => all(() => ({ x: v }))} />
           <NumberField tag="Y" label="세로 위치" value={y} readOnly={anyLocked} onCommit={(v) => all(() => ({ y: v }))} />
@@ -290,7 +271,7 @@ export function BoardInspector({
       </Section>
 
       <Section title="배치">
-        <p className="mb-1 text-xs font-[550] text-ink-faint">크기</p>
+        <p className="mb-1 text-sm font-[550] text-ink-faint">크기</p>
         <div className="grid grid-cols-2 gap-2">
           <NumberField
             tag="W"
@@ -302,7 +283,7 @@ export function BoardInspector({
         </div>
         {many && (
           <>
-            <p className="mt-3 mb-1 text-xs font-[550] text-ink-faint">간격</p>
+            <p className="mt-3 mb-1 text-sm font-[550] text-ink-faint">간격</p>
             <div className="grid grid-cols-2 gap-2">
               <NumberField
                 tag="가로"

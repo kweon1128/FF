@@ -45,7 +45,7 @@ const SECTIONS: { title?: string; items: Item[] }[] = [
   },
 ]
 
-const ROW = 'flex h-8 w-full items-center gap-2 rounded-md px-2 text-left'
+const ROW = 'flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-base'
 const IDLE = 'text-ink-soft hover:bg-hover hover:text-ink'
 
 export function Nav({
@@ -78,7 +78,7 @@ export function Nav({
     <nav className="w-[220px] shrink-0 overflow-y-auto border-r border-hairline p-2">
       {SECTIONS.map((section, i) => (
         <div key={i}>
-          {section.title && <p className="px-2 pt-3 pb-1 text-xs font-[550] text-ink-faint">{section.title}</p>}
+          {section.title && <p className="px-2 pt-3 pb-1 text-sm font-[550] text-ink-faint">{section.title}</p>}
           <div className="space-y-0.5">
             {section.items.map(({ id, label, icon: Icon }) => {
               const selected = id === screen

@@ -6,9 +6,10 @@ const GROUPS: { title: string; keys: [string, string][] }[] = [
     keys: [
       ['Ctrl+Z / Ctrl+Shift+Z', '되돌리기 / 다시 실행'],
       ['Ctrl+C / Ctrl+V', '값 복사 / 붙여넣기 (사진은 캔버스에 놓임)'],
+      ['Ctrl+Alt+C / Ctrl+Alt+V', '속성 복사 / 붙여넣기'],
       ['Ctrl+D', '복제'],
-      ['Ctrl+R, 더블클릭', '이름 바꾸기 (오른쪽 패널의 이름 칸으로 이동)'],
-      ['Ctrl+] / Ctrl+[', '값의 순서를 뒤로 / 앞으로'],
+      ['Ctrl+R, 더블클릭', '이름 바꾸기 (여러 개면 번호 다시 매기기)'],
+      ['Ctrl+] / Ctrl+[', '값의 순서를 뒤로 / 앞으로 (목록을 통째로 골랐으면 목록을 아래 / 위로)'],
       ['I', '스포이드로 색 찍기'],
       ['Delete, Backspace', '삭제'],
     ],
