@@ -137,11 +137,17 @@ export function ffApi(): Plugin {
           typeof boards === 'object' &&
           Object.entries(boards).every(
             ([id, p]: [string, any]) =>
-              /^[a-z]+$/.test(id) && Number.isFinite(p?.x) && Number.isFinite(p?.y),
+              /^[a-z]+$/.test(id) &&
+              Number.isFinite(p?.x) &&
+              Number.isFinite(p?.y) &&
+              (p.w === undefined || Number.isFinite(p.w)),
           )
         if (!valid) throw new HttpError(400, '저장할 수 없는 위치 값이에요.')
         const clean = Object.fromEntries(
-          Object.entries(boards).map(([id, p]: [string, any]) => [id, { x: Math.round(p.x), y: Math.round(p.y) }]),
+          Object.entries(boards).map(([id, p]: [string, any]) => [
+            id,
+            { x: Math.round(p.x), y: Math.round(p.y), ...(p.w === undefined ? {} : { w: Math.round(p.w) }) },
+          ]),
         )
         await fs.writeFile(file, JSON.stringify({ boards: clean }, null, 2) + '\n', 'utf-8')
         return send(res, 200, { ok: true })

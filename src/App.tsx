@@ -24,9 +24,12 @@ import {
   shortName,
   type Kind,
   type ScreenId,
+  type TokenScreenId,
 } from './lib/catalog'
 import { STATES, freshName, newComp, newSize, newVariant, normalize, renameRef, type Cell, type Comp } from './lib/components'
-import { Canvas } from './Canvas'
+import type { Placed } from './lib/arrange'
+import { BoardInspector } from './BoardInspector'
+import { BOARD_WIDTH, Canvas, defaultPos } from './Canvas'
 import { ComponentInspector } from './ComponentInspector'
 import { ComponentScreen } from './ComponentScreen'
 import { Inspector, MultiInspector } from './Inspector'
@@ -109,6 +112,8 @@ export function App() {
   // 선택한 기본 값의 이름들. Shift를 누른 채 누르면 여러 개가 담긴다.
   const [selected, setSelected] = useState<string[]>([])
   // 컴포넌트 화면에서 보고 있는 컴포넌트와 선택한 칸들.
+  // 전체 보기에서 선택한 판들.
+  const [selectedBoards, setSelectedBoards] = useState<string[]>([])
   const [compIndex, setCompIndex] = useState(0)
   const [cells, setCells] = useState<Cell[]>([])
   // 다른 항목을 고를 때만 올린다. 이름을 바꿀 때는 그대로 두어 입력 중인 칸이 유지되게 한다.
@@ -136,6 +141,7 @@ export function App() {
       await Promise.all([flushTokens(), flushComps()])
       history.current = { undo: [], redo: [], at: 0 }
       setSystem(name)
+      setSelectedBoards([])
       setSelected([])
       setCells([])
       setCompIndex(0)
@@ -313,14 +319,20 @@ export function App() {
     })
   }
 
-  function moveBoards(moved: Record<string, Pos>) {
+  /** 판의 자리나 너비를 바꾼다. 적지 않은 값은 그대로 둔다. */
+  function moveBoards(moved: Record<string, Partial<Pos>>) {
     if (!system) return
     record()
-    saveBoards({ ...boards, ...moved })
+    const next = { ...boards }
+    for (const [id, patch] of Object.entries(moved)) {
+      next[id] = { ...(boards[id] ?? defaultPos(TOKEN_SCREEN_IDS.indexOf(id as TokenScreenId))), ...patch }
+    }
+    saveBoards(next)
   }
 
   function changeScreen(id: ScreenId) {
     setScreen(id)
+    setSelectedBoards([])
     select([])
     setCells([])
   }
@@ -427,6 +439,16 @@ export function App() {
   const commonKind = selectedKinds.every((k) => k === selectedKinds[0]) ? (selectedKinds[0] ?? null) : null
   const ready = !loadError && systems !== null && system !== null
 
+  // 선택한 판들의 자리와 크기. 높이는 내용에 따라 정해지므로 화면에서 잰다.
+  const pickedBoards: Placed[] =
+    screen === 'canvas'
+      ? selectedBoards.map((id) => {
+          const pos = boards[id] ?? defaultPos(TOKEN_SCREEN_IDS.indexOf(id as TokenScreenId))
+          const h = document.querySelector<HTMLElement>(`[data-board="${id}"]`)?.offsetHeight ?? 0
+          return { id, x: pos.x, y: pos.y, w: pos.w ?? BOARD_WIDTH, h }
+        })
+      : []
+
   return (
     <div className="flex h-full flex-col">
       <TopBar
@@ -459,6 +481,8 @@ export function App() {
               positions={boards}
               selectedItems={selected}
               onSelectItems={select}
+              selectedBoards={selectedBoards}
+              onSelectBoards={setSelectedBoards}
               onMove={moveBoards}
               boards={TOKEN_SCREEN_IDS.map((id) => ({
                 id,
@@ -564,6 +588,12 @@ export function App() {
                   setCompIndex(0)
                 })
               }
+            />
+          ) : pickedBoards.length > 0 && selectedTokens.length === 0 ? (
+            <BoardInspector
+              picked={pickedBoards}
+              titles={Object.fromEntries(TOKEN_SCREEN_IDS.map((id) => [id, TOKEN_SCREENS[id].title]))}
+              onMove={moveBoards}
             />
           ) : selectedTokens.length === 1 && commonKind ? (
             <Inspector

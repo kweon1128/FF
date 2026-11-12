@@ -20,7 +20,8 @@ export const createSystem = (name: string) =>
 export const getTokens = (system: string) =>
   request<{ tokens: Token[]; file: string }>(`/api/systems/${encodeURIComponent(system)}/tokens`)
 
-export type Pos = { x: number; y: number }
+/** 판의 자리. w는 너비를 바꾼 판에만 있다. */
+export type Pos = { x: number; y: number; w?: number }
 
 export const getCanvas = (system: string) =>
   request<{ boards: Record<string, Pos> }>(`/api/systems/${encodeURIComponent(system)}/canvas`)

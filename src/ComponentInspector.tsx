@@ -3,7 +3,7 @@ import { Trash2 } from 'lucide-react'
 import { DynamicIcon, iconNames } from 'lucide-react/dynamic'
 import type { Token } from './lib/api'
 import { KINDS, SLUG, shortName, type Kind } from './lib/catalog'
-import { STATES, cellLabel, type Cell, type Colors, type Comp, type IconPos, type Size } from './lib/components'
+import { cellLabel, type Cell, type Colors, type Comp, type IconPos, type Size } from './lib/components'
 import { isIconName } from './ComponentScreen'
 import { Section } from './Inspector'
 import { Button, Chip, Field, inputClass } from './ui'
@@ -183,7 +183,6 @@ export function ComponentInspector({
   const single = cells.length === 1
   const variant = cell ? comp.variants[cell.v] : undefined
   const size = cell ? comp.sizes[cell.s] : undefined
-  const state = cell ? STATES.find((s) => s.id === cell.state)! : undefined
 
   function setColor(key: keyof Colors, name: string | undefined) {
     if (!cell || !variant) return
@@ -204,6 +203,10 @@ export function ComponentInspector({
   const field = { tokens }
   const colorEmpty = cell && cell.state !== 'default' ? '기본 상태를 따름' : '없음'
 
+  const colors = cell && variant ? variant.states[cell.state] : undefined
+  const common = (patch: Partial<Comp>) => onChange({ ...comp, ...patch })
+
+  // 구역은 피그마의 순서를 따른다: 배치, 모양, 채우기, 테두리, 글자, 아이콘. 그 아래에 이름과 삭제를 둔다.
   return (
     <div>
       <Section>
@@ -213,43 +216,112 @@ export function ComponentInspector({
             ? '칸을 누르면 그 종류와 크기도 고칠 수 있어요.'
             : single
               ? cellLabel(comp, cell)
-              : `${cells.length}칸 선택됨 · 색과 크기 값이 모두에 적용돼요`}
+              : `${cells.length}칸 선택됨`}
         </p>
+        {cell && (
+          <p className="mt-1 text-xs text-ink-faint">
+            색은 선택한 상태에, 여백과 글자 크기는 선택한 크기에, 나머지는 컴포넌트 전체에 적용돼요.
+          </p>
+        )}
       </Section>
 
-      {cell && variant && state && (
-        <Section title={single ? `색 · ${variant.name} · ${state.label}` : `색 · ${cells.length}칸`}>
+      {cell && size && (
+        <Section title="배치">
           <div className="space-y-3">
-            <TokenField
-              {...field}
-              label="바탕색"
-              kind={KINDS.color}
-              empty={colorEmpty}
-              value={variant.states[cell.state].bg}
-              onChange={(n) => setColor('bg', n)}
-            />
-            <TokenField
-              {...field}
-              label="글자색"
-              kind={KINDS.color}
-              empty={colorEmpty}
-              value={variant.states[cell.state].text}
-              onChange={(n) => setColor('text', n)}
-            />
+            <div className="grid grid-cols-2 gap-2">
+              <TokenField {...field} label="좌우 여백" kind={KINDS.space} value={size.padX} onChange={(padX) => setSize({ padX })} />
+              <TokenField {...field} label="위아래 여백" kind={KINDS.space} value={size.padY} onChange={(padY) => setSize({ padY })} />
+            </div>
+            <TokenField {...field} label="아이콘과 글자 사이" kind={KINDS.space} value={size.gap} onChange={(gap) => setSize({ gap })} />
+          </div>
+        </Section>
+      )}
+
+      <Section title="모양">
+        <TokenField {...field} label="모서리" kind={KINDS.radius} value={comp.radius} onChange={(radius) => common({ radius })} />
+      </Section>
+
+      {colors && (
+        <Section title="채우기">
+          <TokenField
+            {...field}
+            label="바탕색"
+            kind={KINDS.color}
+            empty={colorEmpty}
+            value={colors.bg}
+            onChange={(n) => setColor('bg', n)}
+          />
+        </Section>
+      )}
+
+      <Section title="테두리">
+        <div className="space-y-3">
+          {colors && (
             <TokenField
               {...field}
               label="테두리색"
               kind={KINDS.color}
               empty={colorEmpty}
-              value={variant.states[cell.state].border}
+              value={colors.border}
               onChange={(n) => setColor('border', n)}
             />
-            {!comp.borderWidth && (
-              <p className="text-xs text-ink-faint">테두리는 아래 공통의 테두리 굵기를 골라야 보여요.</p>
+          )}
+          <TokenField
+            {...field}
+            label="굵기"
+            kind={KINDS.border}
+            value={comp.borderWidth}
+            onChange={(borderWidth) => common({ borderWidth })}
+          />
+          {colors && !comp.borderWidth && <p className="text-xs text-ink-faint">굵기를 골라야 테두리가 보여요.</p>}
+        </div>
+      </Section>
+
+      <Section title="글자">
+        <div className="space-y-3">
+          {colors && (
+            <TokenField
+              {...field}
+              label="글자색"
+              kind={KINDS.color}
+              empty={colorEmpty}
+              value={colors.text}
+              onChange={(n) => setColor('text', n)}
+            />
+          )}
+          <TokenField {...field} label="글꼴" kind={KINDS.font} value={comp.font} onChange={(font) => common({ font })} />
+          <div className="grid grid-cols-2 gap-2">
+            <TokenField {...field} label="굵기" kind={KINDS.weight} value={comp.weight} onChange={(weight) => common({ weight })} />
+            {cell && size && (
+              <TokenField {...field} label="크기" kind={KINDS.size} value={size.textSize} onChange={(textSize) => setSize({ textSize })} />
             )}
           </div>
-        </Section>
-      )}
+          <Field label="미리보기 글자">
+            <input className={inputClass} value={comp.label} onChange={(e) => common({ label: e.target.value })} />
+          </Field>
+        </div>
+      </Section>
+
+      <Section title="아이콘">
+        <div className="space-y-3">
+          <div role="group" aria-label="아이콘 위치" className="flex rounded-md bg-hover p-0.5">
+            {ICON_POSITIONS.map(({ id, label }) => (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={comp.iconPos === id}
+                onClick={() => common({ iconPos: id })}
+                className={`h-7 flex-1 rounded-sm text-sm leading-none font-[550] outline-selection focus-visible:outline-2 ${
+                  comp.iconPos === id ? 'border border-hairline bg-canvas text-ink' : 'text-ink-soft hover:text-ink'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {comp.iconPos !== 'none' && <IconPicker value={comp.icon} onChange={(icon) => common({ icon })} />}
+        </div>
+      </Section>
 
       {cell && single && variant && (
         <Section title="종류">
@@ -270,23 +342,15 @@ export function ComponentInspector({
         </Section>
       )}
 
-      {cell && size && (
+      {cell && single && size && (
         <Section title="크기">
-          <div className="space-y-3">
-            {single && (
-              <NameField
-                label="이름"
-                value={size.name}
-                taken={comp.sizes.map((s) => s.name)}
-                onCommit={(name) => setSize({ name })}
-              />
-            )}
-            <TokenField {...field} label="좌우 여백" kind={KINDS.space} value={size.padX} onChange={(padX) => setSize({ padX })} />
-            <TokenField {...field} label="위아래 여백" kind={KINDS.space} value={size.padY} onChange={(padY) => setSize({ padY })} />
-            <TokenField {...field} label="글자 크기" kind={KINDS.size} value={size.textSize} onChange={(textSize) => setSize({ textSize })} />
-            <TokenField {...field} label="아이콘과 글자 사이" kind={KINDS.space} value={size.gap} onChange={(gap) => setSize({ gap })} />
-          </div>
-          {single && comp.sizes.length > 1 && (
+          <NameField
+            label="이름"
+            value={size.name}
+            taken={comp.sizes.map((s) => s.name)}
+            onCommit={(name) => setSize({ name })}
+          />
+          {comp.sizes.length > 1 && (
             <Button variant="danger" className="mt-2 -ml-2" onClick={() => onDeleteSize(cell.s)}>
               <Trash2 size={16} strokeWidth={1.5} />
               크기 삭제
@@ -295,52 +359,9 @@ export function ComponentInspector({
         </Section>
       )}
 
-      <Section title="공통">
-        <div className="space-y-3">
-          <Field label="미리보기 글자">
-            <input
-              className={inputClass}
-              value={comp.label}
-              onChange={(e) => onChange({ ...comp, label: e.target.value })}
-            />
-          </Field>
-          <TokenField {...field} label="글꼴" kind={KINDS.font} value={comp.font} onChange={(font) => onChange({ ...comp, font })} />
-          <TokenField {...field} label="굵기" kind={KINDS.weight} value={comp.weight} onChange={(weight) => onChange({ ...comp, weight })} />
-          <TokenField {...field} label="모서리" kind={KINDS.radius} value={comp.radius} onChange={(radius) => onChange({ ...comp, radius })} />
-          <TokenField
-            {...field}
-            label="테두리 굵기"
-            kind={KINDS.border}
-            value={comp.borderWidth}
-            onChange={(borderWidth) => onChange({ ...comp, borderWidth })}
-          />
-        </div>
-      </Section>
-
-      <Section title="아이콘">
-        <div className="space-y-3">
-          <div role="group" aria-label="아이콘 위치" className="flex rounded-md bg-hover p-0.5">
-            {ICON_POSITIONS.map(({ id, label }) => (
-              <button
-                key={id}
-                type="button"
-                aria-pressed={comp.iconPos === id}
-                onClick={() => onChange({ ...comp, iconPos: id })}
-                className={`h-7 flex-1 rounded-sm text-sm leading-none font-[550] outline-selection focus-visible:outline-2 ${
-                  comp.iconPos === id ? 'border border-hairline bg-canvas text-ink' : 'text-ink-soft hover:text-ink'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          {comp.iconPos !== 'none' && <IconPicker value={comp.icon} onChange={(icon) => onChange({ ...comp, icon })} />}
-        </div>
-      </Section>
-
       <Section title="컴포넌트">
         <div className="space-y-3">
-          <NameField label="이름" value={comp.name} taken={otherNames} onCommit={(name) => onChange({ ...comp, name })} />
+          <NameField label="이름" value={comp.name} taken={otherNames} onCommit={(name) => common({ name })} />
           <div>
             <p className="mb-1 text-xs font-[550] text-ink-faint">저장 위치</p>
             <Chip>{file}</Chip>

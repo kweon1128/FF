@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react'
 import { Minus, Plus } from 'lucide-react'
 import type { Pos } from './lib/api'
+import { arrange, type Arrange, type Placed } from './lib/arrange'
 import { HANDLE } from './TokenScreen'
 
 export const BOARD_WIDTH = 560
@@ -66,6 +67,8 @@ export function Canvas({
   positions,
   selectedItems,
   onSelectItems,
+  selectedBoards,
+  onSelectBoards: setSelectedBoards,
   onMove,
 }: {
   viewKey: string
@@ -74,6 +77,8 @@ export function Canvas({
   /** 선택한 항목(기본 값)의 이름들. 항목은 data-token 속성으로 찾는다. */
   selectedItems: string[]
   onSelectItems: (names: string[]) => void
+  selectedBoards: string[]
+  onSelectBoards: (ids: string[]) => void
   /** 움직인 판들의 새 위치. */
   onMove: (moved: Record<string, Pos>) => void
 }) {
@@ -82,7 +87,7 @@ export function Canvas({
   const justDragged = useRef(false)
   const [view, setView] = useState<View>(() => loadView(viewKey))
   const [live, setLive] = useState<Record<string, Pos> | null>(null)
-  const [selectedBoards, setSelectedBoards] = useState<string[]>([])
+  const [hovered, setHovered] = useState<string | null>(null)
   const [marquee, setMarquee] = useState<Box | null>(null)
   const [space, setSpace] = useState(false)
   const [panning, setPanning] = useState(false)
@@ -148,7 +153,8 @@ export function Canvas({
     }
   }, [])
 
-  const posOf = (id: string, index: number) => live?.[id] ?? positions[id] ?? defaultPos(index)
+  const posOf = (id: string, index: number): Pos => ({ ...(positions[id] ?? defaultPos(index)), ...live?.[id] })
+  const widthOf = (id: string) => positions[id]?.w ?? BOARD_WIDTH
 
   /** 주어진 요소들이 모두 보이도록 화면을 맞춘다. */
   function fitTo(elements: HTMLElement[], maxZoom: number) {
@@ -215,63 +221,32 @@ export function Canvas({
     if (!mod && !e.altKey && (e.code === 'Minus' || e.code === 'NumpadSubtract')) return zoomBy(1 / 1.25)
 
     // 여기부터는 선택한 판을 움직이는 단축키.
-    const picked = selectedBoards.map((id) => {
+    const picked: Placed[] = selectedBoards.map((id) => {
       const p = posOf(id, boards.findIndex((b) => b.id === id))
       const h = el.querySelector<HTMLElement>(`[data-board="${id}"]`)?.offsetHeight ?? 0
-      return { id, x: p.x, y: p.y, h }
+      return { id, x: p.x, y: p.y, w: widthOf(id), h }
     })
     if (picked.length === 0) return
-    const move = (place: (b: (typeof picked)[number], i: number) => Partial<Pos>) =>
-      onMove(Object.fromEntries(picked.map((b, i) => [b.id, { x: b.x, y: b.y, ...place(b, i) }])))
 
     // 방향키: 1px씩, Shift를 누르면 10px씩.
     const arrow = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.code]
     if (arrow && !mod && !e.altKey) {
       done()
       const step = e.shiftKey ? 10 : 1
-      return move((b) => ({ x: b.x + arrow[0] * step, y: b.y + arrow[1] * step }))
+      return onMove(Object.fromEntries(picked.map((b) => [b.id, { x: b.x + arrow[0] * step, y: b.y + arrow[1] * step }])))
     }
 
-    if (!e.altKey || picked.length < 2) return
-    const minX = Math.min(...picked.map((b) => b.x))
-    const maxX = Math.max(...picked.map((b) => b.x))
-    const top = Math.min(...picked.map((b) => b.y))
-    const bottom = Math.max(...picked.map((b) => b.y + b.h))
-
-    if (e.shiftKey || mod) {
-      // 간격 맞춤(Alt+Shift+H/V, 피그마의 윈도우 키. Ctrl+Alt도 받는다): 양 끝의 판은 그대로 두고 그 사이를 고르게 나눈다.
-      if (picked.length < 3) return
-      if (e.code === 'KeyH') {
-        done()
-        picked.sort((a, b) => a.x - b.x)
-        move((_, i) => ({ x: minX + ((maxX - minX) * i) / (picked.length - 1) }))
-      } else if (e.code === 'KeyV') {
-        done()
-        picked.sort((a, b) => a.y - b.y)
-        const gap = (bottom - top - picked.reduce((sum, b) => sum + b.h, 0)) / (picked.length - 1)
-        let y = top
-        move((b) => {
-          const here = y
-          y += b.h + gap
-          return { y: here }
-        })
-      }
-      return
-    }
-
-    // 정렬: 판의 너비는 모두 같으므로 가로 방향은 x만 맞추면 된다.
-    const align: Record<string, (b: (typeof picked)[number]) => Partial<Pos>> = {
-      KeyA: () => ({ x: minX }),
-      KeyD: () => ({ x: maxX }),
-      KeyH: () => ({ x: (minX + maxX) / 2 }),
-      KeyW: () => ({ y: top }),
-      KeyS: (b) => ({ y: bottom - b.h }),
-      KeyV: (b) => ({ y: (top + bottom) / 2 - b.h / 2 }),
-    }
-    if (align[e.code]) {
-      done()
-      move(align[e.code])
-    }
+    if (!e.altKey) return
+    // Alt+글자는 정렬, Alt+Shift+H/V(피그마의 윈도우 키. Ctrl+Alt도 받는다)는 간격 고르게.
+    const spread = e.shiftKey || mod
+    const keys: Record<string, Arrange> = spread
+      ? { KeyH: 'spreadX', KeyV: 'spreadY' }
+      : { KeyA: 'left', KeyD: 'right', KeyH: 'centerX', KeyW: 'top', KeyS: 'bottom', KeyV: 'centerY' }
+    const action = keys[e.code]
+    if (!action) return
+    done()
+    const moves = arrange(action, picked)
+    if (moves) onMove(moves)
   }
 
   useEffect(() => {
@@ -290,7 +265,11 @@ export function Canvas({
 
   function onPointerDown(e: PointerEvent<HTMLDivElement>) {
     const target = e.target as HTMLElement
-    const handle = target.closest<HTMLElement>('[data-board-handle]')
+    // 판은 제목이나 안쪽 여백을 잡고 옮긴다. 판 안의 항목(버튼)은 잡는 곳이 아니다.
+    const grip = target.closest('button, input')
+      ? null
+      : (target.closest<HTMLElement>('[data-board-handle]')?.dataset.boardHandle ??
+        target.closest<HTMLElement>('[data-board]')?.dataset.board)
     const additive = e.shiftKey || e.ctrlKey || e.metaKey
 
     if (e.button === 1 || (e.button === 0 && space)) {
@@ -298,9 +277,9 @@ export function Canvas({
       setPanning(true)
       e.preventDefault()
       capture(e)
-    } else if (e.button === 0 && handle) {
-      // 판 제목: 누르면 그 판을 선택하고, 끌면 선택한 판들이 함께 움직인다.
-      const id = handle.dataset.boardHandle!
+    } else if (e.button === 0 && grip) {
+      // 누르면 그 판을 선택하고, 끌면 선택한 판들이 함께 움직인다.
+      const id = grip
       const has = selectedBoards.includes(id)
       e.preventDefault()
       if (additive) {
@@ -424,24 +403,15 @@ export function Canvas({
       onClick={(e) => {
         if (space) return
         const target = e.target as HTMLElement
-        if (target.closest('[data-board-handle], [data-canvas-tools]')) return
+        if (target.closest('[data-canvas-tools]')) return
         const additive = e.shiftKey || e.ctrlKey || e.metaKey
         if (target.closest('button, input')) {
           // 항목을 눌러 고르면 판 선택은 푼다(Shift로 더하는 중이면 그대로 둔다).
           if (!additive && selectedBoards.length) setSelectedBoards([])
           return
         }
-        // 판의 여백을 누르면 그 판을 선택한다.
-        const boardId = target.closest<HTMLElement>('[data-board]')?.dataset.board
-        if (boardId) {
-          const has = selectedBoards.includes(boardId)
-          if (additive) setSelectedBoards(has ? selectedBoards.filter((b) => b !== boardId) : [...selectedBoards, boardId])
-          else {
-            setSelectedBoards([boardId])
-            if (selectedItems.length) onSelectItems([])
-          }
-          return
-        }
+        // 판의 제목과 여백은 누르는 순간 이미 선택을 처리했다.
+        if (target.closest('[data-board-handle], [data-board]')) return
         // 캔버스 바탕을 누르면 선택을 모두 푼다.
         if (additive) return
         if (selectedItems.length) onSelectItems([])
@@ -456,10 +426,16 @@ export function Canvas({
           const pos = posOf(board.id, i)
           const isSelected = selectedBoards.includes(board.id)
           return (
-            <div key={board.id} className="absolute" style={{ left: pos.x, top: pos.y, width: BOARD_WIDTH }}>
+            <div
+              key={board.id}
+              className="absolute"
+              style={{ left: pos.x, top: pos.y, width: widthOf(board.id) }}
+              onPointerOver={(e) => setHovered((e.target as HTMLElement).closest('button, input') ? null : board.id)}
+              onPointerLeave={() => setHovered(null)}
+            >
               <div
                 data-board-handle={board.id}
-                className={`mb-1.5 inline-block cursor-grab text-xs active:cursor-grabbing ${
+                className={`mb-1.5 inline-block text-xs ${
                   isSelected ? 'font-[550] text-selection' : 'text-ink-faint hover:text-ink'
                 }`}
               >
@@ -468,7 +444,7 @@ export function Canvas({
               <div
                 data-board={board.id}
                 className={`relative rounded-lg border border-hairline bg-canvas p-6 -outline-offset-1 outline-selection ${
-                  isSelected ? 'outline-1' : ''
+                  hovered === board.id && !marquee ? 'outline-2' : isSelected ? 'outline-1' : ''
                 }`}
               >
                 {board.content}
