@@ -15,8 +15,11 @@ function NameField({
   label,
   value,
   taken,
+  rename,
   onCommit,
 }: {
+  /** Ctrl+R이나 더블클릭으로 이 칸에 커서를 옮길 때 찾는 이름. */
+  rename?: string
   label: string
   value: string
   taken: string[]
@@ -38,6 +41,7 @@ function NameField({
     <Field label={label} error={error}>
       <input
         className={inputClass}
+        data-rename={rename}
         value={draft}
         onChange={(e) => {
           setDraft(e.target.value)
@@ -325,6 +329,7 @@ export function ComponentInspector({
         <Section title="종류">
           <NameField
             label="이름"
+            rename="variant"
             value={variant.name}
             taken={comp.variants.map((v) => v.name)}
             onCommit={(name) =>
@@ -350,6 +355,7 @@ export function ComponentInspector({
         <Section title="크기">
           <NameField
             label="이름"
+            rename="size"
             value={size.name}
             taken={comp.sizes.map((s) => s.name)}
             onCommit={(name) => setSize({ name })}

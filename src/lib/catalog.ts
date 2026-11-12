@@ -30,7 +30,6 @@ export type Kind = {
   addLabel: string
   valueLabel: string
   emptyTitle: string
-  emptyBody: string
   /** 줄 목록 대신 네모 칸 격자로 보여 준다. */
   tiles?: boolean
 }
@@ -48,7 +47,6 @@ const color: Kind = {
   addLabel: '색 추가',
   valueLabel: '색 값',
   emptyTitle: '첫 색 목록을 만들어 보세요',
-  emptyBody: 'primary, gray처럼 목록을 만들고 그 안에 색을 단계별로 추가해요.',
 }
 
 const font: Kind = {
@@ -60,7 +58,6 @@ const font: Kind = {
   addLabel: '글꼴 추가',
   valueLabel: '글꼴 이름',
   emptyTitle: '글꼴 종류가 아직 없어요',
-  emptyBody: '본문용, 제목용처럼 쓰임새별로 추가해 보세요.',
 }
 
 const size: Kind = {
@@ -72,7 +69,6 @@ const size: Kind = {
   addLabel: '크기 추가',
   valueLabel: '크기',
   emptyTitle: '글자 크기가 아직 없어요',
-  emptyBody: 'sm, base, lg처럼 단계별로 추가해 보세요.',
 }
 
 const weight: Kind = {
@@ -84,7 +80,6 @@ const weight: Kind = {
   addLabel: '굵기 추가',
   valueLabel: '굵기',
   emptyTitle: '굵기가 아직 없어요',
-  emptyBody: 'regular, bold처럼 추가해 보세요.',
 }
 
 const leading: Kind = {
@@ -96,7 +91,6 @@ const leading: Kind = {
   addLabel: '줄 높이 추가',
   valueLabel: '줄 높이',
   emptyTitle: '줄 높이가 아직 없어요',
-  emptyBody: 'tight, normal처럼 추가해 보세요.',
 }
 
 const tracking: Kind = {
@@ -108,7 +102,6 @@ const tracking: Kind = {
   addLabel: '글자 사이 추가',
   valueLabel: '글자 사이 간격',
   emptyTitle: '글자 사이 값이 아직 없어요',
-  emptyBody: 'tight, wide처럼 추가해 보세요.',
 }
 
 const space: Kind = {
@@ -120,7 +113,6 @@ const space: Kind = {
   addLabel: '간격 추가',
   valueLabel: '길이',
   emptyTitle: '첫 간격을 추가해 보세요',
-  emptyBody: '여백과 사이 간격에 쓸 길이를 단계별로 정해요.',
 }
 
 const radius: Kind = {
@@ -132,7 +124,6 @@ const radius: Kind = {
   addLabel: '모서리 추가',
   valueLabel: '둥글기',
   emptyTitle: '첫 모서리 값을 추가해 보세요',
-  emptyBody: '버튼, 카드 등에 쓸 둥글기를 단계별로 정해요.',
   tiles: true,
 }
 
@@ -145,7 +136,6 @@ const border: Kind = {
   addLabel: '테두리 굵기 추가',
   valueLabel: '굵기',
   emptyTitle: '첫 테두리 굵기를 추가해 보세요',
-  emptyBody: '컴포넌트의 테두리에 쓸 굵기를 정해요.',
 }
 
 const shadow: Kind = {
@@ -157,7 +147,6 @@ const shadow: Kind = {
   addLabel: '그림자 추가',
   valueLabel: '그림자',
   emptyTitle: '그림자가 아직 없어요',
-  emptyBody: 'sm, md, lg처럼 떠 있는 정도별로 추가해 보세요.',
   tiles: true,
 }
 
@@ -170,7 +159,6 @@ const opacity: Kind = {
   addLabel: '투명도 추가',
   valueLabel: '투명도 (0~1)',
   emptyTitle: '투명도가 아직 없어요',
-  emptyBody: '비활성, 덮개처럼 쓰임새별로 추가해 보세요.',
   tiles: true,
 }
 
@@ -183,7 +171,6 @@ const blur: Kind = {
   addLabel: '흐림 추가',
   valueLabel: '흐림 정도',
   emptyTitle: '흐림 값이 아직 없어요',
-  emptyBody: '배경을 흐리게 할 때 쓸 정도를 추가해 보세요.',
   tiles: true,
 }
 
@@ -196,7 +183,6 @@ const breakpoint: Kind = {
   addLabel: '화면 폭 기준 추가',
   valueLabel: '폭',
   emptyTitle: '화면 폭 기준이 아직 없어요',
-  emptyBody: '모바일, 태블릿, PC를 나누는 폭을 추가해 보세요.',
 }
 
 const container: Kind = {
@@ -208,7 +194,6 @@ const container: Kind = {
   addLabel: '최대 너비 추가',
   valueLabel: '너비',
   emptyTitle: '최대 너비가 아직 없어요',
-  emptyBody: '본문이나 창이 넓어질 수 있는 한계를 추가해 보세요.',
 }
 
 const aspect: Kind = {
@@ -220,7 +205,6 @@ const aspect: Kind = {
   addLabel: '비율 추가',
   valueLabel: '가로 / 세로',
   emptyTitle: '비율이 아직 없어요',
-  emptyBody: '이미지와 영상에 쓸 가로세로 비율을 추가해 보세요.',
   tiles: true,
 }
 
@@ -233,7 +217,6 @@ const z: Kind = {
   addLabel: '겹치는 순서 추가',
   valueLabel: '순서 (클수록 위)',
   emptyTitle: '겹치는 순서가 아직 없어요',
-  emptyBody: '드롭다운, 확인 창처럼 위에 뜨는 것의 순서를 추가해 보세요.',
 }
 
 const duration: Kind = {
@@ -245,7 +228,6 @@ const duration: Kind = {
   addLabel: '움직임 시간 추가',
   valueLabel: '시간',
   emptyTitle: '움직임 시간이 아직 없어요',
-  emptyBody: 'fast, normal, slow처럼 추가해 보세요.',
 }
 
 const ease: Kind = {
@@ -257,7 +239,6 @@ const ease: Kind = {
   addLabel: '움직임 흐름 추가',
   valueLabel: '속도 곡선',
   emptyTitle: '움직임 흐름이 아직 없어요',
-  emptyBody: '천천히 시작하거나 천천히 멈추는 흐름을 추가해 보세요.',
 }
 
 export const KINDS = {
@@ -313,9 +294,9 @@ export const TOKEN_SCREENS: Record<TokenScreenId, { title: string; kinds: Kind[]
   motion: { title: '움직임', kinds: [duration, ease] },
 }
 
-export const PLACEHOLDER_SCREENS: Record<PlaceholderScreenId, { title: string; body: string }> = {
-  layouts: { title: '화면 구조', body: '블록을 쌓아 페이지 구조를 짜는 화면이에요.' },
-  assets: { title: '아이콘·이미지', body: '프로젝트의 아이콘과 이미지를 모아 보는 화면이에요.' },
+export const PLACEHOLDER_SCREENS: Record<PlaceholderScreenId, { title: string }> = {
+  layouts: { title: '화면 구조' },
+  assets: { title: '아이콘·이미지' },
 }
 
 export const TOKEN_SCREEN_IDS = Object.keys(TOKEN_SCREENS) as TokenScreenId[]

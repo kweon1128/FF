@@ -51,13 +51,27 @@ export const BOARD_DEFAULTS: Required<BoardStyle> = {
 /** 판의 자리와 모양. w는 너비를 바꾼 판에만 있다. */
 export type Pos = { x: number; y: number; w?: number } & BoardStyle
 
-export const getCanvas = (system: string) =>
-  request<{ boards: Record<string, Pos> }>(`/api/systems/${encodeURIComponent(system)}/canvas`)
+/** 캔버스에 붙인 사진 하나. file은 디자인 시스템 폴더의 images/ 안에 있는 파일 이름. */
+export type CanvasImage = { file: string; x: number; y: number; w: number; h: number }
 
-export const putCanvas = (system: string, boards: Record<string, Pos>) =>
+export const getCanvas = (system: string) =>
+  request<{ boards: Record<string, Pos>; images: Record<string, CanvasImage> }>(
+    `/api/systems/${encodeURIComponent(system)}/canvas`,
+  )
+
+export const imageUrl = (system: string, file: string) => `/api/systems/${encodeURIComponent(system)}/images/${file}`
+
+export const uploadImage = (system: string, image: Blob) =>
+  request<{ file: string }>(`/api/systems/${encodeURIComponent(system)}/images`, {
+    method: 'POST',
+    headers: { 'Content-Type': image.type },
+    body: image,
+  })
+
+export const putCanvas = (system: string, boards: Record<string, Pos>, images: Record<string, CanvasImage>) =>
   request<{ ok: true }>(`/api/systems/${encodeURIComponent(system)}/canvas`, {
     method: 'PUT',
-    body: JSON.stringify({ boards }),
+    body: JSON.stringify({ boards, images }),
   })
 
 export const getComponents = (system: string) =>

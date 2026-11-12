@@ -1,7 +1,8 @@
 // 전체 보기: 모든 기본 값을 판으로 펼쳐 놓고 자유롭게 이동하며 보는 넓은 화면.
 // 휠은 이동, Ctrl+휠은 확대·축소, 스페이스+끌기는 화면 이동.
 // 그냥 끌면 영역 선택(항목은 걸치면, 판은 통째로 들어오면 선택), 판 제목을 끌면 선택한 판들이 함께 이동.
-// 판을 끌 때는 다른 판의 가장자리와 가운데에 붙고(Ctrl을 누르면 붙지 않는다), Shift를 누르면 가로나 세로로만 움직인다.
+// 끄는 중에 마우스가 화면 가장자리에 닿거나 밖으로 나가면 화면이 그쪽으로 따라 움직인다.
+// 판을 끌 때는 다른 판의 가장자리와 가운데, 그리고 옆 판들과 간격이 같아지는 자리에 붙고(Ctrl을 누르면 붙지 않는다), Shift를 누르면 가로나 세로로만 움직인다.
 
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from 'react'
 import { Lock, Minus, Plus } from 'lucide-react'
@@ -20,6 +21,16 @@ const GLIDE_MS = 300
 const FIT_PADDING = 48
 /** 끌 때 이 거리(화면 px) 안으로 들어오면 다른 판에 붙는다. */
 const SNAP = 6
+/** 끄는 중에 마우스가 가장자리에서 이 거리 안으로 오거나 밖으로 나가면 화면이 따라 움직인다. */
+const EDGE = 32
+/** 따라 움직이는 빠르기. 이 거리만큼 더 나가야 가장 빨라지고, 그 전에는 천천히 움직인다(나간 거리의 제곱에 비례). */
+const EDGE_RAMP = 170
+const EDGE_MAX = 28
+/** 가장자리를 d만큼 넘어섰을 때 한 장면에 움직이는 px. */
+const edgeSpeed = (d: number) => Math.max(0.5, EDGE_MAX * Math.min(1, d / EDGE_RAMP) ** 2)
+
+/** 끄는 중에 마지막으로 본 마우스의 자리와 누르고 있던 키. */
+type Point = { clientX: number; clientY: number; shiftKey: boolean; ctrlKey: boolean; metaKey: boolean }
 
 type Rect = { x: number; y: number; w: number; h: number }
 /** 붙었을 때 보이는 안내선, 또는 거리를 재는 선. */
@@ -43,8 +54,54 @@ function snapAxis(lo: number, size: number, others: [number, number][], toleranc
   return best
 }
 
+/** 한 축에서 본 판 하나. lo·size는 그 축, cross는 반대 축에서 차지하는 자리. */
+type Span = { lo: number; size: number; cross: number; crossSize: number }
+
+/**
+ * 간격 맞춤. 움직이는 것이 양옆 판의 한가운데에 오거나, 옆에 나란히 놓인 두 판의 간격과 같은 간격이 되는 자리를 찾는다.
+ * gaps는 같아진 간격들의 [시작, 끝].
+ */
+function snapGap(me: Span, others: Span[], tolerance: number) {
+  // 반대 축에서 겹치는(옆에 나란히 있는) 판만 본다.
+  const beside = (a: Span, b: Span) => a.cross < b.cross + b.crossSize && a.cross + a.crossSize > b.cross
+  const row = others.filter((o) => beside(o, me))
+  const end = (s: Span) => s.lo + s.size
+  const lastBefore = (edge: number, list: Span[]) =>
+    list.filter((o) => end(o) <= edge + tolerance).sort((a, b) => end(b) - end(a))[0] as Span | undefined
+  const firstAfter = (edge: number, list: Span[]) =>
+    list.filter((o) => o.lo >= edge - tolerance).sort((a, b) => a.lo - b.lo)[0] as Span | undefined
+
+  const before = lastBefore(me.lo, row)
+  const after = firstAfter(end(me), row)
+  const options: { at: number; gaps: [number, number][] }[] = []
+  if (before && after && after.lo - end(before) >= me.size) {
+    const at = (end(before) + after.lo - me.size) / 2
+    options.push({ at, gaps: [[end(before), at], [at + me.size, after.lo]] })
+  }
+  if (before) {
+    const prev = lastBefore(before.lo, row.filter((o) => o !== before))
+    if (prev && before.lo > end(prev)) {
+      const gap = before.lo - end(prev)
+      options.push({ at: end(before) + gap, gaps: [[end(prev), before.lo], [end(before), end(before) + gap]] })
+    }
+  }
+  if (after) {
+    const next = firstAfter(end(after), row.filter((o) => o !== after))
+    if (next && next.lo > end(after)) {
+      const gap = next.lo - end(after)
+      options.push({ at: after.lo - gap - me.size, gaps: [[after.lo - gap, after.lo], [end(after), next.lo]] })
+    }
+  }
+  const best = options.sort((a, b) => Math.abs(a.at - me.lo) - Math.abs(b.at - me.lo))[0]
+  return best && Math.abs(best.at - me.lo) <= tolerance ? { shift: best.at - me.lo, gaps: best.gaps } : null
+}
+
 type View = { x: number; y: number; z: number }
 type Board = { id: string; title: string; content: ReactNode }
+/** 캔버스에 붙인 사진. 판처럼 선택하고 옮기며, 꼭짓점을 끌어 크기를 바꾼다. */
+type Picture = { id: string; src: string; x: number; y: number; w: number; h: number }
+const CORNERS = ['nw', 'ne', 'sw', 'se'] as const
+const MIN_PICTURE = 16
 type Box = { left: number; top: number; right: number; bottom: number }
 
 type Drag =
@@ -58,6 +115,16 @@ type Drag =
       /** 움직이는 판들을 감싼 상자와, 붙을 수 있는 나머지 판들. */
       box: Rect | null
       others: Rect[]
+      moved: boolean
+    }
+  | {
+      type: 'resize'
+      startX: number
+      startY: number
+      id: string
+      corner: (typeof CORNERS)[number]
+      from: Rect
+      next?: Record<string, Pos>
       moved: boolean
     }
   | {
@@ -98,6 +165,7 @@ function loadView(key: string): View {
 export function Canvas({
   viewKey,
   boards,
+  images,
   positions,
   selectedItems,
   onSelectItems,
@@ -108,6 +176,7 @@ export function Canvas({
 }: {
   viewKey: string
   boards: Board[]
+  images: Picture[]
   positions: Record<string, Pos>
   /** 선택한 항목(기본 값)의 이름들. 항목은 data-token 속성으로 찾는다. */
   selectedItems: string[]
@@ -129,6 +198,10 @@ export function Canvas({
   const [space, setSpace] = useState(false)
   const [panning, setPanning] = useState(false)
   const [guides, setGuides] = useState<Guide[]>([])
+  // 끌기를 시작했을 때의 보기 위치와, 끄는 중의 마지막 마우스 자리. 끄는 동안 화면이 따라 움직인 만큼을 셈할 때 쓴다.
+  const dragView = useRef<View>(view)
+  const lastPoint = useRef<Point | null>(null)
+  const panLoop = useRef(0)
   // Alt를 누르고 있는 동안 선택한 판과 마우스를 올린 판 사이의 거리를 보여 준다.
   const [alt, setAlt] = useState(false)
   const [over, setOver] = useState<string | null>(null)
@@ -203,8 +276,14 @@ export function Canvas({
     }
   }, [])
 
-  const posOf = (id: string, index: number): Pos => ({ ...(positions[id] ?? defaultPos(index)), ...live?.[id] })
-  const widthOf = (id: string) => positions[id]?.w ?? BOARD_WIDTH
+  const pictureOf = (id: string) => images.find((p) => p.id === id)
+  const posOf = (id: string, index: number): Pos => {
+    const picture = pictureOf(id)
+    return { ...(picture ? { x: picture.x, y: picture.y } : (positions[id] ?? defaultPos(index))), ...live?.[id] }
+  }
+  const widthOf = (id: string) => live?.[id]?.w ?? pictureOf(id)?.w ?? positions[id]?.w ?? BOARD_WIDTH
+  /** 캔버스에 놓인 모든 것(판과 사진)의 id. */
+  const allIds = [...boards.map((b) => b.id), ...images.map((p) => p.id)]
   const isLocked = (id: string) => !!positions[id]?.locked
   const isHidden = (id: string) => !!positions[id]?.hidden
 
@@ -281,7 +360,7 @@ export function Canvas({
     if (e.code === 'Escape') return setSelectedBoards([])
     if (mod && !e.altKey && e.code === 'KeyA') {
       done()
-      return setSelectedBoards(boards.map((b) => b.id).filter((id) => !isHidden(id)))
+      return setSelectedBoards(allIds.filter((id) => !isHidden(id)))
     }
 
     // 잠그기(Ctrl+Shift+L)와 숨기기(Ctrl+Shift+H)
@@ -364,6 +443,14 @@ export function Canvas({
   }
 
   function onPointerDown(e: PointerEvent<HTMLDivElement>) {
+    beginDrag(e)
+    if (!drag.current) return
+    dragView.current = view
+    lastPoint.current = null
+    followPointer()
+  }
+
+  function beginDrag(e: PointerEvent<HTMLDivElement>) {
     const target = e.target as HTMLElement
     // 판은 제목이나 안쪽 여백을 잡고 옮긴다. 판 안의 항목(버튼)은 잡는 곳이 아니다.
     const grip = target.closest('button, input')
@@ -371,6 +458,23 @@ export function Canvas({
       : (target.closest<HTMLElement>('[data-board-handle]')?.dataset.boardHandle ??
         target.closest<HTMLElement>('[data-board]')?.dataset.board)
     const additive = e.shiftKey || e.ctrlKey || e.metaKey
+
+    const knob = e.button === 0 && !space ? target.closest<HTMLElement>('[data-resize]') : null
+    const resized = knob ? pictureOf(knob.dataset.resizeId ?? '') : undefined
+    if (knob && resized) {
+      // 사진의 꼭짓점을 끌면 비율을 지킨 채 크기가 바뀐다.
+      drag.current = {
+        type: 'resize',
+        startX: e.clientX,
+        startY: e.clientY,
+        id: resized.id,
+        corner: knob.dataset.resize as (typeof CORNERS)[number],
+        from: { x: resized.x, y: resized.y, w: resized.w, h: resized.h },
+        moved: false,
+      }
+      e.preventDefault()
+      return
+    }
 
     if (e.button === 1 || (e.button === 0 && space)) {
       drag.current = { type: 'pan', startX: e.clientX, startY: e.clientY, view, moved: false }
@@ -402,7 +506,7 @@ export function Canvas({
         startY: e.clientY,
         start,
         box: moving.length ? bound(moving) : null,
-        others: rects(boards.map((b) => b.id).filter((b) => !ids.includes(b))),
+        others: rects(allIds.filter((b) => !ids.includes(b))),
         moved: false,
       }
     } else if (e.button === 0) {
@@ -419,6 +523,40 @@ export function Canvas({
   }
 
   function onPointerMove(e: PointerEvent<HTMLDivElement>) {
+    lastPoint.current = { clientX: e.clientX, clientY: e.clientY, shiftKey: e.shiftKey, ctrlKey: e.ctrlKey, metaKey: e.metaKey }
+    applyDrag(lastPoint.current, () => capture(e))
+  }
+
+  /** 끄는 동안 마우스가 가장자리 가까이 가거나 밖으로 나가면, 그쪽으로 화면을 계속 옮긴다. */
+  function followPointer() {
+    cancelAnimationFrame(panLoop.current)
+    const tick = () => {
+      const d = drag.current
+      const el = root.current
+      if (!d || !el) return
+      const p = lastPoint.current
+      if (p && d.moved && d.type !== 'pan') {
+        const r = el.getBoundingClientRect()
+        const push = (at: number, lo: number, hi: number) =>
+          at < lo + EDGE ? edgeSpeed(lo + EDGE - at) : at > hi - EDGE ? -edgeSpeed(at - (hi - EDGE)) : 0
+        const vx = push(p.clientX, r.left, r.right)
+        const vy = push(p.clientY, r.top, r.bottom)
+        if (vx || vy) setView((v) => ({ ...v, x: v.x + vx, y: v.y + vy }))
+      }
+      panLoop.current = requestAnimationFrame(tick)
+    }
+    panLoop.current = requestAnimationFrame(tick)
+  }
+  useEffect(() => () => cancelAnimationFrame(panLoop.current), [])
+
+  // 끄는 중에 화면이 움직이면, 마우스는 그대로여도 끌리는 것의 자리를 다시 셈한다.
+  useEffect(() => {
+    const d = drag.current
+    if (d?.moved && d.type !== 'pan' && lastPoint.current) applyDrag(lastPoint.current)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view])
+
+  function applyDrag(e: Point, grab?: () => void) {
     const d = drag.current
     const el = root.current
     if (!d || !el) return
@@ -426,15 +564,26 @@ export function Canvas({
     const dy = e.clientY - d.startY
     if (!d.moved && Math.abs(dx) + Math.abs(dy) > DRAG_START) {
       d.moved = true
-      if (d.type !== 'pan') capture(e)
+      if (d.type !== 'pan') grab?.()
     }
     if (!d.moved) return
+    // 끌기를 시작한 뒤로 화면이 따라 움직인 거리. 캔버스에서 보면 그만큼 더 끈 셈이다.
+    const px = view.x - dragView.current.x
+    const py = view.y - dragView.current.y
 
     if (d.type === 'pan') {
       setView({ ...d.view, x: d.view.x + dx, y: d.view.y + dy })
+    } else if (d.type === 'resize') {
+      const left = d.corner.endsWith('w')
+      const top = d.corner.startsWith('n')
+      const w = Math.max(MIN_PICTURE, d.from.w + ((dx - px) / view.z) * (left ? -1 : 1))
+      const h = (w * d.from.h) / d.from.w
+      // 잡은 꼭짓점의 맞은편 꼭짓점은 제자리에 둔다.
+      d.next = { [d.id]: { x: left ? d.from.x + d.from.w - w : d.from.x, y: top ? d.from.y + d.from.h - h : d.from.y, w } }
+      setLive(d.next)
     } else if (d.type === 'board') {
-      let mx = dx / view.z
-      let my = dy / view.z
+      let mx = (dx - px) / view.z
+      let my = (dy - py) / view.z
       // Shift를 누르면 더 많이 움직인 쪽으로만 움직인다.
       const free = { x: !e.shiftKey || Math.abs(mx) >= Math.abs(my), y: !e.shiftKey || Math.abs(mx) < Math.abs(my) }
       if (!free.x) mx = 0
@@ -444,11 +593,26 @@ export function Canvas({
       if (d.box && !e.ctrlKey && !e.metaKey) {
         const tolerance = SNAP / view.z
         const near = (a: number, b: number) => Math.abs(a - b) < 0.5
-        const sx = free.x ? snapAxis(d.box.x + mx, d.box.w, d.others.map((o) => [o.x, o.w]), tolerance) : null
-        const sy = free.y ? snapAxis(d.box.y + my, d.box.h, d.others.map((o) => [o.y, o.h]), tolerance) : null
-        if (sx) mx += sx.shift
-        if (sy) my += sy.shift
+        let sx = free.x ? snapAxis(d.box.x + mx, d.box.w, d.others.map((o) => [o.x, o.w]), tolerance) : null
+        let sy = free.y ? snapAxis(d.box.y + my, d.box.h, d.others.map((o) => [o.y, o.h]), tolerance) : null
+        // 양옆 판과 간격이 같아지는 자리에도 붙는다. 가장자리 맞춤과 둘 다 가까우면 더 가까운 쪽을 따른다.
+        const spanX = (r: Rect): Span => ({ lo: r.x, size: r.w, cross: r.y, crossSize: r.h })
+        const spanY = (r: Rect): Span => ({ lo: r.y, size: r.h, cross: r.x, crossSize: r.w })
+        const moved = { ...d.box, x: d.box.x + mx, y: d.box.y + my }
+        let gx = free.x ? snapGap(spanX(moved), d.others.map(spanX), tolerance) : null
+        let gy = free.y ? snapGap(spanY(moved), d.others.map(spanY), tolerance) : null
+        if (gx && sx && Math.abs(sx.shift) < Math.abs(gx.shift)) gx = null
+        if (gy && sy && Math.abs(sy.shift) < Math.abs(gy.shift)) gy = null
+        if (gx) sx = null
+        if (gy) sy = null
+        mx += gx?.shift ?? sx?.shift ?? 0
+        my += gy?.shift ?? sy?.shift ?? 0
         const now = { ...d.box, x: d.box.x + mx, y: d.box.y + my }
+        // 같아진 간격마다 선을 긋고 그 간격을 숫자로 적는다.
+        for (const [from, to] of gx?.gaps ?? [])
+          lines.push({ x: from, y: now.y + now.h / 2, len: to - from, vertical: false, label: String(Math.round(to - from)) })
+        for (const [from, to] of gy?.gaps ?? [])
+          lines.push({ x: now.x + now.w / 2, y: from, len: to - from, vertical: true, label: String(Math.round(to - from)) })
         if (sx) {
           const hit = d.others.filter((o) => [o.x, o.x + o.w / 2, o.x + o.w].some((v) => near(v, sx.at)))
           const span = bound([now, ...hit])
@@ -465,10 +629,11 @@ export function Canvas({
       setLive(d.next)
     } else {
       const box: Box = {
-        left: Math.min(d.startX, e.clientX),
-        top: Math.min(d.startY, e.clientY),
-        right: Math.max(d.startX, e.clientX),
-        bottom: Math.max(d.startY, e.clientY),
+        // 시작한 자리는 캔버스에 붙어 있으므로 화면이 움직인 만큼 함께 옮긴다.
+        left: Math.min(d.startX + px, e.clientX),
+        top: Math.min(d.startY + py, e.clientY),
+        right: Math.max(d.startX + px, e.clientX),
+        bottom: Math.max(d.startY + py, e.clientY),
       }
       const origin = el.getBoundingClientRect()
       setMarquee({
@@ -498,6 +663,7 @@ export function Canvas({
     const d = drag.current
     if (!d) return
     drag.current = null
+    cancelAnimationFrame(panLoop.current)
     setPanning(false)
     setMarquee(null)
     setGuides([])
@@ -506,7 +672,7 @@ export function Canvas({
     } catch {
       // 이미 풀려 있으면 그대로 둔다.
     }
-    if (d.type === 'board' && d.next) onMove(d.next)
+    if ((d.type === 'board' || d.type === 'resize') && d.next) onMove(d.next)
     setLive(null)
     // 끌기가 끝난 직후에 따라오는 클릭은 선택을 바꾸지 않도록 막는다.
     if (d.moved) {
@@ -647,11 +813,47 @@ export function Canvas({
           )
         })}
 
-        {/* 붙었을 때의 안내선과 거리 재기. 선택과 헷갈리지 않게 빨강을 쓴다(피그마와 같다). */}
+        {/* 붙여넣은 사진. 판보다 위에 그린다. */}
+        {images.map((picture) => {
+          const pos = posOf(picture.id, -1)
+          const w = widthOf(picture.id)
+          const isSelected = selectedBoards.includes(picture.id)
+          return (
+            <div key={picture.id} className="absolute" style={{ left: pos.x, top: pos.y, width: w, height: (w * picture.h) / picture.w }}>
+              <div
+                data-board={picture.id}
+                className={`line-inset size-full ${hovered === picture.id && !marquee ? 'line-2' : isSelected ? 'line-1' : ''}`}
+                style={{ '--edge': '0px' } as CSSProperties}
+                onPointerOver={() => {
+                  setOver(picture.id)
+                  setHovered(picture.id)
+                }}
+                onPointerLeave={() => {
+                  setOver(null)
+                  setHovered(null)
+                }}
+              >
+                <img src={picture.src} alt="" draggable={false} className="block size-full" />
+                {isSelected &&
+                  CORNERS.map((corner) => (
+                    <span
+                      key={corner}
+                      data-resize={corner}
+                      data-resize-id={picture.id}
+                      className={`${HANDLE} ${corner.startsWith('n') ? '-top-[3px]' : '-bottom-[3px]'} ${corner.endsWith('w') ? '-left-[3px]' : '-right-[3px]'}`}
+                      style={{ pointerEvents: 'auto', cursor: corner === 'nw' || corner === 'se' ? 'nwse-resize' : 'nesw-resize' }}
+                    />
+                  ))}
+              </div>
+            </div>
+          )
+        })}
+
+        {/* 붙었을 때의 안내선과 거리 재기. 선택과 헷갈리지 않게 밝은 빨강을 쓴다(피그마와 같다). */}
         {[...guides, ...measures].map((g, i) => (
           <div
             key={i}
-            className="pointer-events-none absolute z-30 bg-danger"
+            className="pointer-events-none absolute z-30 bg-guide"
             style={
               g.vertical
                 ? { left: g.x, top: g.y, width: 'var(--line)', height: g.len }
@@ -659,7 +861,7 @@ export function Canvas({
             }
           >
             {g.label && (
-              <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 [scale:var(--unzoom)] rounded-xs bg-danger px-1 text-xs leading-[18px] font-[550] whitespace-nowrap text-white tabular-nums">
+              <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 [scale:var(--unzoom)] rounded-xs bg-guide px-1 text-xs leading-[18px] font-[550] whitespace-nowrap text-white tabular-nums">
                 {g.label}
               </span>
             )}

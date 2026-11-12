@@ -2,12 +2,15 @@ import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNod
 import { Plus } from 'lucide-react'
 import {
   getCanvas,
+  imageUrl,
   getComponents,
   getTokens,
   listSystems,
   putCanvas,
   putComponents,
   putTokens,
+  uploadImage,
+  type CanvasImage,
   type Pos,
   type Token,
 } from './lib/api'
@@ -42,7 +45,7 @@ import {
 } from './lib/components'
 import { duplicateTokens, fromCss, kindOf, pasteTokens, shiftTokens, toCss } from './lib/tokens'
 import type { Placed } from './lib/arrange'
-import { BoardInspector } from './BoardInspector'
+import { BoardInspector, ImageInspector } from './BoardInspector'
 import { BOARD_WIDTH, Canvas, defaultPos } from './Canvas'
 import { ComponentInspector } from './ComponentInspector'
 import { ComponentScreen } from './ComponentScreen'
@@ -50,7 +53,6 @@ import { Inspector, MultiInspector } from './Inspector'
 import { Nav } from './Nav'
 import { NewSystemForm } from './NewSystem'
 import { Palette, type PaletteItem } from './Palette'
-import { RenameBox, type Renaming } from './Rename'
 import { Shortcuts } from './Shortcuts'
 import { AddGroupButton, KindSections } from './TokenScreen'
 import { TopBar, type SaveStatus } from './TopBar'
@@ -59,8 +61,6 @@ import { Button, EmptyState, Field, Modal, inputClass } from './ui'
 const LAST_SYSTEM_KEY = 'ff.system'
 const SAVE_DELAY = 300
 const COLOR = KINDS.color
-const NAME_RULE = '영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.'
-const NAME_TAKEN = '같은 이름이 이미 있어요.'
 const NOTICE_MS = 2000
 
 /** 입력칸에 글자를 쓰는 중인지. 쓰는 중에는 단축키가 동작하지 않는다. */
@@ -115,7 +115,10 @@ function useSaver<T>(save: (system: string, data: T) => Promise<unknown>, report
 }
 
 /** 되돌리기를 위해 기억해 두는 한 시점의 내용. */
-type Snapshot = { tokens: Token[]; comps: Comp[]; boards: Record<string, Pos> }
+type Snapshot = { tokens: Token[]; comps: Comp[]; boards: Record<string, Pos>; images: Record<string, CanvasImage> }
+
+/** 붙여넣은 사진이 이보다 넓으면 이 너비로 줄여서 놓는다. */
+const PASTED_IMAGE_WIDTH = 800
 
 const HISTORY_LIMIT = 100
 // 이 시간 안에 이어진 변경(글자 입력, 방향키 이동 등)은 한 번의 되돌리기로 묶는다.
@@ -129,6 +132,11 @@ export function App() {
   const [tokens, setTokens] = useState<Token[]>([])
   const [comps, setComps] = useState<Comp[]>([])
   const [boards, setBoards] = useState<Record<string, Pos>>({})
+  // 캔버스에 붙인 사진들. 선택은 판과 함께 selectedBoards에 담는다.
+  const [images, setImages] = useState<Record<string, CanvasImage>>({})
+  // 사진을 올리는 동안 바뀐 내용을 놓치지 않도록 가장 최근 것을 따로 들고 있는다.
+  const latest = useRef({ boards, images })
+  latest.current = { boards, images }
   const [file, setFile] = useState('')
   const [compFile, setCompFile] = useState('')
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -151,7 +159,14 @@ export function App() {
   const [confirm, setConfirm] = useState<Confirm | null>(null)
   // 빠른 실행에서 값을 고르면 그 값이 화면 가운데에 오게 한다.
   const [focusToken, setFocusToken] = useState<string | null>(null)
-  const [renaming, setRenaming] = useState<Renaming | null>(null)
+  // 이름 바꾸기를 청하면 오른쪽 패널의 그 이름 칸으로 커서를 옮긴다. n은 같은 칸을 다시 청해도 동작하게 한다.
+  const [renameAsk, setRenameAsk] = useState<{ what: 'token' | 'variant' | 'size'; n: number } | null>(null)
+  useEffect(() => {
+    if (!renameAsk) return
+    const input = document.querySelector<HTMLInputElement>(`aside [data-rename="${renameAsk.what}"]`)
+    input?.focus()
+    input?.select()
+  }, [renameAsk])
   const [palette, setPalette] = useState(false)
   const [help, setHelp] = useState(false)
   // 메뉴와 패널을 숨기고 가운데만 보는 상태(Ctrl+\).
@@ -212,11 +227,13 @@ export function App() {
         setTokens(data.tokens)
         setFile(data.file)
         setBoards(canvas.boards)
+        setImages(canvas.images ?? {})
         setComps(normalize(components.components))
         setCompFile(components.file)
       } catch (e) {
         setTokens([])
         setBoards({})
+        setImages({})
         setComps([])
         setLoadError(e instanceof Error ? e.message : '불러오지 못했어요.')
       }
@@ -247,18 +264,19 @@ export function App() {
     const h = history.current
     const now = Date.now()
     if (now - h.at > HISTORY_GROUP) {
-      h.undo.push({ tokens, comps, boards })
+      h.undo.push({ tokens, comps, boards, images })
       if (h.undo.length > HISTORY_LIMIT) h.undo.shift()
     }
     h.at = now
     h.redo = []
   }
 
-  function saveBoards(next: Record<string, Pos>) {
+  function saveBoards(next: Record<string, Pos>, nextImages = images) {
     if (!system) return
     setBoards(next)
+    setImages(nextImages)
     setStatus('saving')
-    putCanvas(system, next)
+    putCanvas(system, next, nextImages)
       .then(() => setStatus('saved'))
       .catch((e) => report(e instanceof Error ? e : new Error()))
   }
@@ -267,7 +285,7 @@ export function App() {
   function travel(from: Snapshot[], to: Snapshot[]) {
     const snap = from.pop()
     if (!snap || !system) return
-    to.push({ tokens, comps, boards })
+    to.push({ tokens, comps, boards, images })
     history.current.at = 0
     if (snap.tokens !== tokens) {
       setTokens(snap.tokens)
@@ -277,7 +295,8 @@ export function App() {
       setComps(snap.comps)
       compSaver.queue(system, snap.comps)
     }
-    if (snap.boards !== boards) saveBoards(snap.boards)
+    if (snap.boards !== boards || snap.images !== images) saveBoards(snap.boards, snap.images)
+    setSelectedBoards((ids) => ids.filter((id) => !id.startsWith('img-') || id in snap.images))
     // 없어진 항목은 선택에서 빼고, 편집 패널은 새 값으로 다시 그린다.
     setSelected(selected.filter((name) => snap.tokens.some((t) => t.name === name)))
     const comp = snap.comps[compIndex]
@@ -395,12 +414,20 @@ export function App() {
     if (!system) return
     record()
     const next = { ...boards }
+    const nextImages = { ...images }
     for (const [id, patch] of Object.entries(moved)) {
+      const image = images[id]
+      if (image) {
+        // 사진은 자리와 너비만 바뀐다. 높이는 비율대로 따라온다.
+        const w = patch.w ?? image.w
+        nextImages[id] = { ...image, x: patch.x ?? image.x, y: patch.y ?? image.y, w, h: (image.h * w) / image.w }
+        continue
+      }
       next[id] = { ...(boards[id] ?? defaultPos(TOKEN_SCREEN_IDS.indexOf(id as TokenScreenId))), ...patch }
     }
-    saveBoards(next)
+    saveBoards(next, nextImages)
     // 숨긴 판은 선택에서 뺀다.
-    const gone = Object.keys(moved).filter((id) => moved[id].hidden)
+    const gone = Object.keys(moved).filter((id) => moved[id].hidden && !(id in images))
     if (gone.length) setSelectedBoards((ids) => ids.filter((id) => !gone.includes(id)))
   }
 
@@ -414,6 +441,44 @@ export function App() {
     setSelectedBoards([])
     select([])
     setCells([])
+  }
+
+  /** 붙여넣은 사진을 파일로 저장하고, 지금 보고 있는 화면 가운데에 놓는다. */
+  async function addImage(file: Blob) {
+    if (!system) return
+    try {
+      const [saved, bitmap] = await Promise.all([uploadImage(system, file), createImageBitmap(file)])
+      const scale = Math.min(1, PASTED_IMAGE_WIDTH / bitmap.width)
+      const w = Math.round(bitmap.width * scale)
+      const h = Math.round(bitmap.height * scale)
+      // 캔버스가 기억해 둔 보기 위치로 화면 가운데의 캔버스 좌표를 구한다.
+      const main = document.querySelector('main')
+      let view = { x: 48, y: 48, z: 1 }
+      try {
+        view = { ...view, ...JSON.parse(localStorage.getItem(`ff.view.${system}`) ?? '{}') }
+      } catch {
+        // 기억해 둔 위치가 없으면 기본 위치를 쓴다.
+      }
+      const cx = ((main?.clientWidth ?? 0) / 2 - view.x) / view.z
+      const cy = ((main?.clientHeight ?? 0) / 2 - view.y) / view.z
+      const id = `img-${Date.now().toString(36)}`
+      record()
+      saveBoards(latest.current.boards, {
+        ...latest.current.images,
+        [id]: { file: saved.file, x: Math.round(cx - w / 2), y: Math.round(cy - h / 2), w, h },
+      })
+      select([])
+      setSelectedBoards([id])
+    } catch (e) {
+      notify(e instanceof Error && e.message ? e.message : '사진을 넣지 못했어요.')
+    }
+  }
+
+  /** 캔버스에서 사진을 뺀다. 파일은 남겨 두어 되돌리기로 살릴 수 있다. */
+  function removeImages(ids: string[]) {
+    record()
+    saveBoards(boards, Object.fromEntries(Object.entries(images).filter(([id]) => !ids.includes(id))))
+    setSelectedBoards((picked) => picked.filter((id) => !ids.includes(id)))
   }
 
   /** 값 하나를 선택하고 그 값이 화면 가운데에 오게 이동한다. */
@@ -440,35 +505,23 @@ export function App() {
     setCells([])
   }
 
-  /** 값의 이름을 그 자리에서 고친다(더블클릭, Ctrl+R). */
-  function renameTokenInline(name: string) {
-    const kind = kindOf(name)
-    const el = document.querySelector<HTMLElement>(`[data-token="${CSS.escape(name)}"]`)
-    const anchor = el?.querySelector<HTMLElement>('[data-name]') ?? el
-    if (!kind || !anchor) return
-    setRenaming({
-      rect: anchor.getBoundingClientRect(),
-      value: shortName(kind, name),
-      check: (next) => (!SLUG.test(next) ? NAME_RULE : tokens.some((t) => t.name === kind.prefix + next) ? NAME_TAKEN : null),
-      commit: (next) => {
-        renameToken(name, kind.prefix + next)
-        setSelectionId((n) => n + 1)
-      },
-    })
+  /** 이름 바꾸기(더블클릭, Ctrl+R): 오른쪽 패널의 이름 칸으로 커서를 옮긴다. 패널을 숨겨 두었으면 다시 보인다. */
+  function askRename(what: 'token' | 'variant' | 'size') {
+    setBare(false)
+    setRenameAsk((ask) => ({ what, n: (ask?.n ?? 0) + 1 }))
   }
 
-  function renamePartInline(part: 'variants' | 'sizes', index: number, rect: DOMRect) {
-    if (!comp) return
-    const list: { name: string }[] = comp[part]
-    setRenaming({
-      rect,
-      value: list[index].name,
-      check: (next) => (!SLUG.test(next) ? NAME_RULE : list.some((p) => p.name === next) ? NAME_TAKEN : null),
-      commit: (next) => {
-        changeComp({ ...comp, [part]: list.map((p, i) => (i === index ? { ...p, name: next } : p)) })
-        setSelectionId((n) => n + 1)
-      },
-    })
+  function renameTokenInPanel(name: string) {
+    if (selected.length !== 1 || selected[0] !== name) select([name])
+    askRename('token')
+  }
+
+  /** 종류나 크기의 이름을 더블클릭하면 그 종류(크기)의 칸 하나를 선택하고 패널의 이름 칸으로 간다. */
+  function renamePartInPanel(part: 'variants' | 'sizes', index: number) {
+    const last = cells.at(-1)
+    const cell: Cell = part === 'variants' ? { v: index, s: last?.s ?? 0, state: 'default' } : { v: last?.v ?? 0, s: index, state: 'default' }
+    if (cells.length !== 1 || (part === 'variants' ? last?.v !== index : last?.s !== index)) selectCells([cell])
+    askRename(part === 'variants' ? 'variant' : 'size')
   }
 
   function duplicateVariant(index: number) {
@@ -552,6 +605,12 @@ export function App() {
       e.preventDefault()
       return notify(`값 ${picked.length}개를 복사했어요.`)
     }
+    // 사진을 붙이면 캔버스에 놓는다.
+    const picture = [...(e.clipboardData?.files ?? [])].find((f) => f.type.startsWith('image/'))
+    if (picture) {
+      e.preventDefault()
+      return void addImage(picture)
+    }
     const pasted = fromCss(e.clipboardData?.getData('text/plain') ?? '')
     if (pasted.length === 0) return
     e.preventDefault()
@@ -624,7 +683,7 @@ export function App() {
   onKey.current = (e) => {
     const mod = e.ctrlKey || e.metaKey
     const dialog = document.querySelector('[role="dialog"]')
-    // 글자를 쓰는 중에도 되는 것: 빠른 실행(Ctrl+K), 단축키 목록(Ctrl+Shift+?), 메뉴와 패널 숨기기(Ctrl+\).
+    // 글자를 쓰는 중에도 되는 것: 빠른 실행(Ctrl+K), 단축키 목록(Ctrl+Shift+/), 메뉴와 패널 숨기기(Ctrl+\).
     if (mod && !e.altKey && !dialog) {
       const run = (action: () => void) => {
         e.preventDefault()
@@ -633,6 +692,15 @@ export function App() {
       if (!e.shiftKey && (e.code === 'KeyK' || e.code === 'Slash')) return run(() => setPalette(true))
       if (e.shiftKey && e.code === 'Slash') return run(() => setHelp(true))
       if (!e.shiftKey && e.code === 'Backslash') return run(toggleBare)
+    }
+    // Ctrl+R은 새로 고침으로 쓰지 않는다(실수로 눌러도 화면이 다시 불리지 않게). 하나를 선택했으면 이름 바꾸기다.
+    if (mod && !e.altKey && e.code === 'KeyR') {
+      e.preventDefault()
+      if (e.shiftKey || dialog) return
+      if (screen === 'components') {
+        if (cells.length) renamePartInPanel('variants', cells.at(-1)!.v)
+      } else if (selected.length === 1) renameTokenInPanel(selected[0])
+      return
     }
     if (isTyping(e.target) || dialog) return
 
@@ -648,18 +716,6 @@ export function App() {
     } else if (mod && !e.altKey && !e.shiftKey && e.code === 'KeyD') {
       e.preventDefault()
       duplicate()
-    } else if (mod && !e.altKey && !e.shiftKey && e.code === 'KeyR') {
-      // 하나를 선택했을 때만 이름 바꾸기로 쓴다. 그 밖에는 브라우저의 새로 고침 그대로다.
-      const cell = cells.at(-1)
-      if (screen === 'components' && cell) {
-        const label = document.querySelector<HTMLElement>(`[data-variant-name="${cell.v}"]`)
-        if (!label) return
-        e.preventDefault()
-        renamePartInline('variants', cell.v, label.getBoundingClientRect())
-      } else if (screen !== 'components' && selected.length === 1) {
-        e.preventDefault()
-        renameTokenInline(selected[0])
-      }
     } else if (mod && !e.altKey && (e.code === 'BracketRight' || e.code === 'BracketLeft')) {
       if (screen === 'components' || selected.length === 0) return
       e.preventDefault()
@@ -669,6 +725,12 @@ export function App() {
     } else if (e.code === 'KeyI' && !mod && !e.altKey && !e.shiftKey) {
       if (screen !== 'components') pickColor()
     } else if (e.code === 'Delete' || e.code === 'Backspace') {
+      // 값을 선택하지 않았고 사진을 선택했으면 사진을 지운다(확인 창 없이, 되돌리기로 살릴 수 있다).
+      const pictures = selectedBoards.filter((id) => id in images)
+      if (screen !== 'components' && selected.length === 0 && pictures.length) {
+        e.preventDefault()
+        return removeImages(pictures)
+      }
       if (screen === 'components' || selected.length === 0) return
       e.preventDefault()
       askRemoveTokens(selected)
@@ -698,7 +760,7 @@ export function App() {
     onSelect: pick,
     onAdd: addToken,
     onAddGroup: () => setAddingGroup(true),
-    onRename: renameTokenInline,
+    onRename: renameTokenInPanel,
   }
 
   const colorGroups = new Set(
@@ -713,6 +775,8 @@ export function App() {
   const pickedBoards: Placed[] =
     screen === 'canvas' || isTokenScreen(screen)
       ? selectedBoards.map((id) => {
+          const image = images[id]
+          if (image) return { id, x: image.x, y: image.y, w: image.w, h: image.h }
           const pos = boards[id] ?? defaultPos(TOKEN_SCREEN_IDS.indexOf(id as TokenScreenId))
           const h = document.querySelector<HTMLElement>(`[data-board="${id}"]`)?.offsetHeight ?? 0
           return { id, x: pos.x, y: pos.y, w: pos.w ?? BOARD_WIDTH, h }
@@ -726,7 +790,7 @@ export function App() {
         { id: 's:canvas', group: '화면', label: '전체 보기', run: () => changeScreen('canvas') },
         ...TOKEN_SCREEN_IDS.map((id) => ({ id: `s:${id}`, group: '화면', label: TOKEN_SCREENS[id].title, run: () => changeScreen(id) })),
         ...comps.map((c, i) => ({ id: `c:${i}`, group: '화면', label: c.name, hint: '컴포넌트', run: () => openComp(i) })),
-        { id: 'a:help', group: '명령', label: '단축키 목록', hint: 'Ctrl+Shift+?', run: () => setHelp(true) },
+        { id: 'a:help', group: '명령', label: '단축키 목록', hint: 'Ctrl+Shift+/', run: () => setHelp(true) },
         { id: 'a:bare', group: '명령', label: bare ? '메뉴와 패널 보이기' : '메뉴와 패널 숨기기', hint: 'Ctrl+\\', run: toggleBare },
         { id: 'a:group', group: '명령', label: '색 목록 추가', run: () => setAddingGroup(true) },
         { id: 'a:comp', group: '명령', label: '컴포넌트 추가', run: () => setAddingComp(true) },
@@ -783,6 +847,7 @@ export function App() {
               viewKey={`ff.view.${system}`}
               focus={{ id: isTokenScreen(screen) ? screen : null, token: focusToken, nonce: focusNonce }}
               positions={boards}
+              images={Object.entries(images).map(([id, image]) => ({ ...image, id, src: imageUrl(system, image.file) }))}
               selectedItems={selected}
               onSelectItems={select}
               selectedBoards={selectedBoards}
@@ -818,8 +883,7 @@ export function App() {
               <EmptyState title="불러오지 못했어요" body={loadError} />
             ) : systems === null ? null : !system ? (
               <div className="mx-auto mt-16 w-[360px] rounded-lg border border-hairline bg-canvas p-6">
-                <p className="text-base font-[650]">첫 디자인 시스템을 만들어 보세요</p>
-                <p className="mt-1 mb-4 text-ink-soft">색, 글꼴, 간격을 모아 둘 공간이에요.</p>
+                <p className="mb-4 text-base font-[650]">첫 디자인 시스템을 만들어 보세요</p>
                 <NewSystemForm
                   onCreated={(name) => {
                     setSystems((list) => [...(list ?? []), name].sort())
@@ -836,17 +900,14 @@ export function App() {
                   onSelect={pickCell}
                   onAddVariant={addVariant}
                   onAddSize={addSize}
-                  onRenameVariant={(index, rect) => renamePartInline('variants', index, rect)}
-                  onRenameSize={(index, rect) => renamePartInline('sizes', index, rect)}
+                  onRenameVariant={(index) => renamePartInPanel('variants', index)}
+                  onRenameSize={(index) => renamePartInPanel('sizes', index)}
                 />
               ) : (
                 <div className="mx-auto max-w-[960px]">
                   <h1 className="mb-4 flex h-8 items-center text-base font-[650]">컴포넌트</h1>
                   <div className="rounded-lg border border-hairline bg-canvas">
-                    <EmptyState
-                      title="첫 컴포넌트를 만들어 보세요"
-                      body="버튼, 배지처럼 상자와 글자로 된 컴포넌트를 빈 상자에서부터 만들어요."
-                    >
+                    <EmptyState title="첫 컴포넌트를 만들어 보세요">
                       <Button onClick={() => setAddingComp(true)}>
                         <Plus size={16} strokeWidth={1.5} />
                         컴포넌트 추가
@@ -859,7 +920,7 @@ export function App() {
               <div className="mx-auto max-w-[960px]">
                 <h1 className="mb-4 flex h-8 items-center text-base font-[650]">{PLACEHOLDER_SCREENS[screen].title}</h1>
                 <div className="rounded-lg border border-hairline bg-canvas">
-                  <EmptyState title="다음 단계에서 만들 화면이에요" body={PLACEHOLDER_SCREENS[screen].body} />
+                  <EmptyState title="다음 단계에서 만들 화면이에요" />
                 </div>
               </div>
             ) : null}
@@ -897,6 +958,8 @@ export function App() {
                 })
               }
             />
+          ) : pickedBoards.length > 0 && selectedTokens.length === 0 && pickedBoards.every((b) => b.id in images) ? (
+            <ImageInspector picked={pickedBoards} onMove={moveBoards} onDelete={() => removeImages(pickedBoards.map((b) => b.id))} />
           ) : pickedBoards.length > 0 && selectedTokens.length === 0 ? (
             <BoardInspector
               picked={pickedBoards}
@@ -950,7 +1013,6 @@ export function App() {
         <Modal title="색 목록 추가" onClose={() => setAddingGroup(false)}>
           <NewNameForm
             label="목록 이름"
-            hint="primary, gray처럼 지어요. 첫 색 하나가 함께 만들어져요."
             placeholder="primary"
             existing={colorGroups}
             onCancel={() => setAddingGroup(false)}
@@ -963,7 +1025,6 @@ export function App() {
         <Modal title="컴포넌트 추가" onClose={() => setAddingComp(false)}>
           <NewNameForm
             label="컴포넌트 이름"
-            hint="button, badge처럼 지어요. 빈 상자에서 시작해요."
             placeholder="button"
             existing={new Set(comps.map((c) => c.name))}
             onCancel={() => setAddingComp(false)}
@@ -974,7 +1035,6 @@ export function App() {
 
       {palette && <Palette items={paletteItems} onClose={() => setPalette(false)} />}
       {help && <Shortcuts onClose={() => setHelp(false)} />}
-      {renaming && <RenameBox job={renaming} onClose={() => setRenaming(null)} />}
       {notice && (
         <div
           role="status"
@@ -1003,14 +1063,12 @@ export function App() {
 
 function NewNameForm({
   label,
-  hint,
   placeholder,
   existing,
   onCreate,
   onCancel,
 }: {
   label: string
-  hint: string
   placeholder: string
   existing: Set<string>
   onCreate: (name: string) => void
@@ -1030,7 +1088,7 @@ function NewNameForm({
 
   return (
     <form onSubmit={submit}>
-      <Field label={label} error={error} hint={hint}>
+      <Field label={label} error={error}>
         <input
           autoFocus
           className={inputClass}

@@ -5,9 +5,9 @@ const GROUPS: { title: string; keys: [string, string][] }[] = [
     title: '편집',
     keys: [
       ['Ctrl+Z / Ctrl+Shift+Z', '되돌리기 / 다시 실행'],
-      ['Ctrl+C / Ctrl+V', '값 복사 / 붙여넣기'],
+      ['Ctrl+C / Ctrl+V', '값 복사 / 붙여넣기 (사진은 캔버스에 놓임)'],
       ['Ctrl+D', '복제'],
-      ['Ctrl+R, 더블클릭', '이름 바꾸기'],
+      ['Ctrl+R, 더블클릭', '이름 바꾸기 (오른쪽 패널의 이름 칸으로 이동)'],
       ['Ctrl+] / Ctrl+[', '값의 순서를 뒤로 / 앞으로'],
       ['I', '스포이드로 색 찍기'],
       ['Delete, Backspace', '삭제'],
@@ -47,7 +47,7 @@ const GROUPS: { title: string; keys: [string, string][] }[] = [
       ['Ctrl+0', '100%'],
       ['Ctrl+\\', '메뉴와 패널 숨기기'],
       ['Ctrl+K', '빠른 실행'],
-      ['Ctrl+Shift+?', '단축키 목록'],
+      ['Ctrl+Shift+/', '단축키 목록'],
     ],
   },
   {

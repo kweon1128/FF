@@ -36,7 +36,7 @@ export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGr
             {kind.id === 'color' ? (
               items.length === 0 ? (
                 <div className="rounded-lg border border-hairline bg-canvas">
-                  <EmptyState title={kind.emptyTitle} body={kind.emptyBody}>
+                  <EmptyState title={kind.emptyTitle}>
                     <AddGroupButton onAddGroup={onAddGroup} />
                   </EmptyState>
                 </div>

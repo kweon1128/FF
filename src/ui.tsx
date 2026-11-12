@@ -70,13 +70,14 @@ export function EmptyState({
   children,
 }: {
   title: string
-  body: string
+  /** 오류 내용처럼 꼭 알려야 할 때만 쓴다. 쓰는 법을 설명하는 문구는 넣지 않는다. */
+  body?: string
   children?: ReactNode
 }) {
   return (
     <div className="flex flex-col items-center px-8 py-16 text-center">
       <p className="font-[650]">{title}</p>
-      <p className="mt-1 text-ink-soft">{body}</p>
+      {body && <p className="mt-1 text-ink-soft">{body}</p>}
       {children && <div className="mt-4">{children}</div>}
     </div>
   )

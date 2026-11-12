@@ -97,6 +97,7 @@ export function Inspector({
       className={inputClass}
       value={nameDraft}
       aria-label="이름"
+      data-rename="token"
       onChange={(e) => {
         setNameDraft(e.target.value)
         setNameError(null)

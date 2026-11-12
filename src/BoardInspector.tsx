@@ -9,12 +9,13 @@ import {
   Eye,
   Lock,
   LockOpen,
+  Trash2,
   type LucideIcon,
 } from 'lucide-react'
 import { BOARD_DEFAULTS, type BoardStyle, type Pos } from './lib/api'
 import { arrange, gapOf, setGap, type Arrange, type Placed } from './lib/arrange'
 import { Section } from './Inspector'
-import { inputClass } from './ui'
+import { Button, inputClass } from './ui'
 
 export const MIN_BOARD_WIDTH = 240
 export const MAX_BOARD_WIDTH = 1600
@@ -153,6 +154,50 @@ function ColorField({ label, value, onCommit }: { label: string; value: string |
         onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
       />
     </span>
+  )
+}
+
+/** 캔버스에 붙인 사진을 선택했을 때의 편집 패널. 너비를 고치면 높이는 비율대로 따라온다. */
+export function ImageInspector({
+  picked,
+  onMove,
+  onDelete,
+}: {
+  picked: Placed[]
+  onMove: (moves: Record<string, Partial<Pos>>) => void
+  onDelete: () => void
+}) {
+  const many = picked.length > 1
+  const all = (patch: Partial<Pos>) => onMove(Object.fromEntries(picked.map((b) => [b.id, patch])))
+  return (
+    <div>
+      <Section>
+        <h2 className="font-[650]">{many ? `사진 ${picked.length}개 선택됨` : '사진'}</h2>
+      </Section>
+      <Section title="위치">
+        <div className="grid grid-cols-2 gap-2">
+          <NumberField tag="X" label="가로 위치" value={shared(picked.map((b) => b.x))} onCommit={(x) => all({ x })} />
+          <NumberField tag="Y" label="세로 위치" value={shared(picked.map((b) => b.y))} onCommit={(y) => all({ y })} />
+        </div>
+      </Section>
+      <Section title="크기">
+        <div className="grid grid-cols-2 gap-2">
+          <NumberField
+            tag="W"
+            label="너비"
+            value={shared(picked.map((b) => b.w))}
+            onCommit={(w) => all({ w: clamp(w, 16, 8000) })}
+          />
+          <NumberField tag="H" label="높이 (너비에 맞춰 정해져요)" value={shared(picked.map((b) => b.h))} readOnly />
+        </div>
+      </Section>
+      <Section>
+        <Button variant="danger" className="-ml-2" onClick={onDelete}>
+          <Trash2 size={16} strokeWidth={1.5} />
+          {many ? `${picked.length}개 삭제` : '삭제'}
+        </Button>
+      </Section>
+    </div>
   )
 }
 

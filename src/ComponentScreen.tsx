@@ -54,9 +54,9 @@ export function ComponentScreen({
   onSelect: (cell: Cell, additive: boolean) => void
   onAddVariant: () => void
   onAddSize: () => void
-  /** 종류나 크기의 이름을 더블클릭하면 그 자리에서 고친다. rect는 이름이 적힌 자리. */
-  onRenameVariant: (index: number, rect: DOMRect) => void
-  onRenameSize: (index: number, rect: DOMRect) => void
+  /** 종류나 크기의 이름을 더블클릭하면 오른쪽 패널의 이름 칸으로 간다. */
+  onRenameVariant: (index: number) => void
+  onRenameSize: (index: number) => void
 }) {
   const shown = cells.at(-1) ?? { v: 0, s: 0, state: 'default' as StateId }
 
@@ -75,7 +75,7 @@ export function ComponentScreen({
         {comp.variants.map((variant, v) => (
           <section key={v}>
             <h2 className="mb-2 text-xs font-[550] text-ink-faint">
-              <span data-variant-name={v} onDoubleClick={(e) => onRenameVariant(v, e.currentTarget.getBoundingClientRect())}>
+              <span data-variant-name={v} onDoubleClick={() => onRenameVariant(v)}>
                 {variant.name}
               </span>
             </h2>
@@ -83,7 +83,7 @@ export function ComponentScreen({
               {comp.sizes.map((size, s) => (
                 <div key={s} className="flex items-start gap-3">
                   <span className="flex h-24 w-12 shrink-0 items-center text-xs text-ink-soft">
-                    <span className="truncate" onDoubleClick={(e) => onRenameSize(s, e.currentTarget.getBoundingClientRect())}>
+                    <span className="truncate" onDoubleClick={() => onRenameSize(s)}>
                       {size.name}
                     </span>
                   </span>

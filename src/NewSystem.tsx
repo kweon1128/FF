@@ -32,7 +32,7 @@ export function NewSystemForm({
 
   return (
     <form onSubmit={submit} className="w-full text-left">
-      <Field label="이름" error={error} hint="폴더 이름으로 쓰여요. 영문 소문자, 숫자, 하이픈(-)을 쓸 수 있어요.">
+      <Field label="이름" error={error}>
         <input
           autoFocus
           className={inputClass}

@@ -14,6 +14,8 @@
   --color-selection: #0d99ff;
   --color-selection-soft: #e5f4ff;
   --color-danger: #c5221f;
+  /* 안내선과 거리 재기. 삭제의 빨강보다 밝아서 캔버스 위에서 잘 보인다(피그마의 안내선 색). */
+  --color-guide: #f24822;
   --color-success: #1ea64a;
 
   --font-sans: "SUIT Variable", SUIT, Pretendard, system-ui, sans-serif;

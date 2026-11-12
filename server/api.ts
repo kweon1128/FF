@@ -16,6 +16,12 @@ const BOARD_NUMBERS = ['w', 'opacity', 'radius', 'strokeWidth']
 const BOARD_COLORS = ['fill', 'stroke']
 const BOARD_FLAGS = ['locked', 'hidden']
 const HEX_COLOR = /^#[0-9a-f]{6}$/i
+// 캔버스에 붙인 사진. 파일은 시스템 폴더의 images/ 에 둔다.
+const IMAGES_DIR = 'images'
+const IMAGE_ID = /^img-[a-z0-9]+$/
+const IMAGE_FILE = /^[a-z0-9]+\.(png|jpg|webp|gif)$/
+const IMAGE_TYPES: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif' }
+const IMAGE_LIMIT = 20 * 1024 * 1024
 const EMPTY_TOKENS = `/* FF가 관리하는 디자인 값입니다. @theme 안의 값은 FF에서 고칠 수 있습니다. */\n@theme {\n}\n`
 
 class HttpError extends Error {
@@ -41,6 +47,17 @@ async function readJson(req: IncomingMessage): Promise<any> {
   } catch {
     throw new HttpError(400, '요청 내용을 읽지 못했어요.')
   }
+}
+
+async function readBytes(req: IncomingMessage, limit: number): Promise<Buffer> {
+  const chunks: Buffer[] = []
+  let size = 0
+  for await (const chunk of req) {
+    size += (chunk as Buffer).length
+    if (size > limit) throw new HttpError(413, '사진이 너무 커요. 20MB까지 넣을 수 있어요.')
+    chunks.push(chunk as Buffer)
+  }
+  return Buffer.concat(chunks)
 }
 
 export function ffApi(): Plugin {
@@ -129,14 +146,15 @@ export function ffApi(): Plugin {
 
       if (method === 'GET') {
         try {
-          return send(res, 200, { boards: JSON.parse(await fs.readFile(file, 'utf-8')).boards ?? {} })
+          const saved = JSON.parse(await fs.readFile(file, 'utf-8'))
+          return send(res, 200, { boards: saved.boards ?? {}, images: saved.images ?? {} })
         } catch {
-          return send(res, 200, { boards: {} })
+          return send(res, 200, { boards: {}, images: {} })
         }
       }
 
       if (method === 'PUT') {
-        const { boards } = await readJson(req)
+        const { boards, images = {} } = await readJson(req)
         const valid =
           boards &&
           typeof boards === 'object' &&
@@ -149,7 +167,20 @@ export function ffApi(): Plugin {
               BOARD_COLORS.every((key) => p[key] === undefined || HEX_COLOR.test(String(p[key]))) &&
               BOARD_FLAGS.every((key) => p[key] === undefined || typeof p[key] === 'boolean'),
           )
-        if (!valid) throw new HttpError(400, '저장할 수 없는 위치 값이에요.')
+        const validImages =
+          images &&
+          typeof images === 'object' &&
+          Object.entries(images).every(
+            ([id, p]: [string, any]) =>
+              IMAGE_ID.test(id) && IMAGE_FILE.test(String(p?.file)) && ['x', 'y', 'w', 'h'].every((key) => Number.isFinite(p[key])),
+          )
+        if (!valid || !validImages) throw new HttpError(400, '저장할 수 없는 위치 값이에요.')
+        const cleanImages = Object.fromEntries(
+          Object.entries(images).map(([id, p]: [string, any]) => [
+            id,
+            { file: p.file, x: Math.round(p.x), y: Math.round(p.y), w: Math.max(1, Math.round(p.w)), h: Math.max(1, Math.round(p.h)) },
+          ]),
+        )
         const clean = Object.fromEntries(
           Object.entries(boards).map(([id, p]: [string, any]) => [
             id,
@@ -163,8 +194,43 @@ export function ffApi(): Plugin {
             },
           ]),
         )
-        await fs.writeFile(file, JSON.stringify({ boards: clean }, null, 2) + '\n', 'utf-8')
+        const body = Object.keys(cleanImages).length ? { boards: clean, images: cleanImages } : { boards: clean }
+        await fs.writeFile(file, JSON.stringify(body, null, 2) + '\n', 'utf-8')
         return send(res, 200, { ok: true })
+      }
+    }
+
+    // 캔버스에 붙인 사진: 올리기와 내려받기
+    if (parts.length >= 3 && parts[2] === 'images') {
+      const name = decodeURIComponent(parts[1])
+      await tokensPath(name) // 시스템이 있는지 확인
+      const dir = path.join(systemDir(name), IMAGES_DIR)
+
+      if (parts.length === 3 && method === 'POST') {
+        const ext = IMAGE_TYPES[String(req.headers['content-type'] ?? '').split(';')[0]]
+        if (!ext) throw new HttpError(400, 'PNG, JPG, WebP, GIF 사진만 넣을 수 있어요.')
+        const bytes = await readBytes(req, IMAGE_LIMIT)
+        if (bytes.length === 0) throw new HttpError(400, '빈 사진이에요.')
+        const saved = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}.${ext}`
+        await fs.mkdir(dir, { recursive: true })
+        await fs.writeFile(path.join(dir, saved), bytes)
+        return send(res, 201, { file: saved })
+      }
+
+      if (parts.length === 4 && method === 'GET') {
+        const wanted = decodeURIComponent(parts[3])
+        if (!IMAGE_FILE.test(wanted)) throw new HttpError(404, '사진을 찾지 못했어요.')
+        let bytes: Buffer
+        try {
+          bytes = await fs.readFile(path.join(dir, wanted))
+        } catch {
+          throw new HttpError(404, '사진을 찾지 못했어요.')
+        }
+        const ext = wanted.split('.').pop()
+        res.statusCode = 200
+        res.setHeader('Content-Type', Object.keys(IMAGE_TYPES).find((type) => IMAGE_TYPES[type] === ext)!)
+        res.setHeader('Cache-Control', 'max-age=31536000, immutable')
+        return res.end(bytes)
       }
     }
 
