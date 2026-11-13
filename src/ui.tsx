@@ -134,7 +134,7 @@ export function Modal({
 }: {
   title: string
   /** 내용이 많은 창(단축키 목록)은 넓게 연다. */
-  wide?: boolean | 'xl'
+  wide?: boolean | 'lg' | 'xl'
   onClose: () => void
   children: ReactNode
 }) {
@@ -154,7 +154,7 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={`${wide === 'xl' ? 'w-[1440px]' : wide ? 'w-[720px]' : 'w-[360px]'} max-w-[calc(100vw-48px)] rounded-lg border border-hairline bg-canvas p-6 shadow-dialog`}
+        className={`${wide === 'xl' ? 'w-[1440px]' : wide === 'lg' ? 'w-[1160px]' : wide ? 'w-[720px]' : 'w-[360px]'} max-w-[calc(100vw-48px)] rounded-lg border border-hairline bg-canvas p-6 shadow-dialog`}
       >
         <h2 className="mb-4 text-base font-[650]">{title}</h2>
         {children}

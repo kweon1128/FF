@@ -190,3 +190,66 @@ export function stepUp(tokens: Token[], name: string | undefined) {
     .sort((a, b) => parseFloat(a.value) - parseFloat(b.value))
   return bigger[0]?.name ?? name
 }
+
+// ── 글자 크기 한 벌 ───────────────────────────────────
+
+/** 단계 사이의 간격. 본문보다 큰 단계가 한 단계마다 몇 배씩 커지는지. */
+export type Spread = 'tight' | 'normal' | 'wide'
+export const SPREADS: { id: Spread; label: string; ratio: number }[] = [
+  { id: 'tight', label: '촘촘', ratio: 1.125 },
+  { id: 'normal', label: '보통', ratio: 1.2 },
+  { id: 'wide', label: '크게', ratio: 1.25 },
+]
+/** 한 벌을 만들 때 고를 수 있는 본문 크기의 범위(px). */
+export const BASE_MIN = 13
+export const BASE_MAX = 18
+
+/**
+ * 본문 크기와 간격으로 글자 크기 한 벌(xs부터 3xl까지 일곱 단계)을 만든다. 줄 높이도 leading의 방식으로 함께 정한다.
+ * 본문보다 큰 단계는 한 단계마다 간격의 배수만큼 커지고 가까운 정수 px에 맞춘다. 짝수로 몰지 않는다(고른 배수를 그대로 따르기 위해서다).
+ * 글자 크기가 홀수면 짝수인 줄 높이 안에서 반 픽셀 치우치는데, 그 정도는 창의 위아래 여백 숫자로 확인한다.
+ * 본문보다 작은 단계는 본문의 7/8, 3/4이다. 작은 글자는 간격을 벌려도 더 작아지면 안 읽히므로 간격과 관계없이 정한다.
+ */
+/** 줄 높이를 정하는 방식. 본문 크기에서의 배수와 큰 제목(32px 이상)에서의 배수. 그 사이의 크기는 둘 사이를 고르게 잇는다. */
+export type Leading = 'snug' | 'normal' | 'loose'
+export const LEADINGS: { id: Leading; label: string; body: number; heading: number }[] = [
+  { id: 'snug', label: '좁게', body: 1.35, heading: 1.15 },
+  { id: 'normal', label: '보통', body: 1.5, heading: 1.25 },
+  { id: 'loose', label: '넓게', body: 1.65, heading: 1.35 },
+]
+
+/**
+ * 그 크기의 줄 높이(px). 항상 짝수 px이다. 줄 높이가 짝수여야 글자와 아이콘이 줄의 한가운데에 놓인다.
+ * 글자가 클수록 배수를 줄인다. 큰 글자는 같은 배수로 띄우면 줄 사이가 휑해 보인다.
+ * 16px 이하는 본문 배수, 32px 이상은 제목 배수이고 그 사이는 고르게 잇는다. 딱 중간에 걸리면 작은 쪽 짝수로 내린다(14px × 1.5 = 21 → 20).
+ */
+export function lineFor(px: number, leading: Leading) {
+  const rule = LEADINGS.find((l) => l.id === leading)!
+  const t = Math.max(0, Math.min(1, (px - 16) / 16))
+  const ratio = rule.body + (rule.heading - rule.body) * t
+  // 글자보다 적어도 2px은 높아야 줄이 겹치지 않는다.
+  return Math.max(Math.ceil((px + 2) / 2) * 2, Math.round((px * ratio - 0.01) / 2) * 2)
+}
+
+export function sizeScale(base: number, spread: Spread, leading: Leading = 'normal', odd = true): { name: string; size: string; line: string }[] {
+  const ratio = SPREADS.find((s) => s.id === spread)!.ratio
+  // odd가 거짓이면 모든 단계를 짝수 px에 맞춘다. 본문 크기는 고른 그대로 둔다.
+  const snap = (n: number) => (odd ? Math.round(n) : Math.round(n / 2) * 2)
+  const above = (n: number) => (odd ? n + 1 : n + (n % 2 ? 1 : 2))
+  const below = (n: number) => (odd ? n - 1 : n - (n % 2 ? 1 : 2))
+  // 작은 단계는 본문보다, 그리고 서로보다 작아야 한다.
+  const sm = Math.min(snap(base * 0.875), below(base))
+  const xs = Math.min(snap(base * 0.75), below(sm))
+  const sizes: [string, number][] = [
+    ['xs', xs],
+    ['sm', sm],
+    ['base', base],
+  ]
+  let prev = base
+  for (const [i, name] of ['lg', 'xl', '2xl', '3xl'].entries()) {
+    // 고른 배수를 따르고 가까운 정수(또는 짝수) px로 맞춘다. 앞 단계보다는 커야 한다.
+    prev = Math.max(snap(base * ratio ** (i + 1)), above(prev))
+    sizes.push([name, prev])
+  }
+  return sizes.map(([name, px]) => ({ name, size: `${px}px`, line: `${lineFor(px, leading)}px` }))
+}

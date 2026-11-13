@@ -12,7 +12,7 @@ const SLOTS = 3
 const LOCAL = '내 컴퓨터'
 const SYSTEM = '이 시스템의 글꼴'
 /** 창을 열었을 때의 본문 글자 크기(px). 모양의 차이가 잘 보이도록 실제 본문보다 조금 크게 시작한다. */
-const SIZE_START = 17
+const SIZE_START = 16
 /** 견본의 본문 글자 크기를 바꿔 볼 수 있는 범위(px). 본문으로 실제 쓰이는 크기다. 12px 아래는 보조 글자, 20px 위는 제목의 영역이다. */
 const SIZE_MIN = 12
 const SIZE_MAX = 20

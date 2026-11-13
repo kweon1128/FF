@@ -67,6 +67,7 @@ import { Nav } from './Nav'
 import { NewGroupForm } from './NewGroup'
 import { NewSoloForm } from './NewSolo'
 import { NewFontForm, SampleContext } from './NewFont'
+import { NewSizesForm } from './NewSizes'
 import { nextPreset, nextSizeName, nextVariantName, stepUp } from './lib/presets'
 import { CATALOG, loadCatalog, loadSystemFonts } from './lib/fonts'
 import { NewSystemForm } from './NewSystem'
@@ -259,6 +260,7 @@ export function App() {
   const [addingSolo, setAddingSolo] = useState(false)
   const [addingRole, setAddingRole] = useState(false)
   const [addingFont, setAddingFont] = useState(false)
+  const [makingSizes, setMakingSizes] = useState(false)
   // 추천 글꼴을 쓰는 글꼴 종류가 있으면, 깔려 있지 않아도 판과 패널의 견본이 그 글꼴로 그려지게 불러온다.
   const usesCatalog = tokens.some((t) => FONT.matches(t.name) && CATALOG.some((f) => t.value.includes(f.family)))
   useEffect(() => {
@@ -691,6 +693,27 @@ export function App() {
   function addFont(name: string, value: string) {
     setAddingFont(false)
     insert({ name: FONT.prefix + name, value }, (t) => FONT.matches(t.name))
+  }
+
+  /**
+   * 글자 크기 한 벌을 넣는다. 같은 이름의 크기와 줄 높이는 새 값으로 바뀌고, 한 벌에 없는 이름의 크기는 그대로 남는다.
+   * 한 벌은 작은 것부터 차례로, 지금 글자 크기들이 있던 자리(없으면 글꼴 종류 뒤)에 놓는다.
+   */
+  function makeSizes(steps: { name: string; size: string; line: string }[]) {
+    setMakingSizes(false)
+    const made = steps.flatMap((s) => [
+      { name: SIZE.prefix + s.name, value: s.size },
+      { name: lineName(SIZE.prefix + s.name), value: s.line },
+    ])
+    const names = new Set(made.map((t) => t.name))
+    const first = tokens.findIndex((t) => t.name.startsWith(SIZE.prefix))
+    const rest = tokens.filter((t) => !names.has(t.name))
+    const at =
+      first === -1
+        ? tokens.findLastIndex((t) => FONT.matches(t.name)) + 1 || tokens.length
+        : tokens.slice(0, first).filter((t) => !names.has(t.name)).length
+    commit([...rest.slice(0, at), ...made, ...rest.slice(at)])
+    select(steps.map((s) => SIZE.prefix + s.name))
   }
 
   function renameToken(from: string, to: string) {
@@ -1304,6 +1327,7 @@ export function App() {
     selected,
     onSelect: pick,
     onAdd: addToken,
+    onMakeSizes: () => setMakingSizes(true),
     onAddGroup: () => setAddingGroup(true),
     onRename: renameTokenInPanel,
     emptyGroups: keptGroups,
@@ -1387,6 +1411,7 @@ export function App() {
         { id: 'a:group', group: '명령', label: '색 목록 추가', run: () => setAddingGroup(true) },
         { id: 'a:role', group: '명령', label: '의미 색 추가', run: () => setAddingRole(true) },
         { id: 'a:font', group: '명령', label: '글꼴 종류 추가', run: () => setAddingFont(true) },
+        { id: 'a:sizes', group: '명령', label: '글자 크기 한 벌 만들기', run: () => setMakingSizes(true) },
         { id: 'a:comp', group: '명령', label: '컴포넌트 추가', run: () => setAddingComp(true) },
         { id: 'a:system', group: '명령', label: '새 디자인 시스템', run: () => setCreating(true) },
         ...(systems ?? [])
@@ -1736,6 +1761,17 @@ export function App() {
       {addingRole && (
         <Modal title="의미 색 추가" onClose={() => setAddingRole(false)}>
           <NewRoleForm tokens={tokens} onCancel={() => setAddingRole(false)} onCreate={addRole} />
+        </Modal>
+      )}
+
+      {makingSizes && (
+        <Modal title="글자 크기 한 벌 만들기" wide="lg" onClose={() => setMakingSizes(false)}>
+          <NewSizesForm
+            existing={new Set(tokens.filter((t) => SIZE.matches(t.name)).map((t) => shortName(SIZE, t.name)))}
+            fonts={tokens.filter((t) => FONT.matches(t.name)).map((t) => ({ name: shortName(FONT, t.name), value: t.value }))}
+            onCancel={() => setMakingSizes(false)}
+            onCreate={makeSizes}
+          />
         </Modal>
       )}
 

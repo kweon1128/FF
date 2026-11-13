@@ -1,5 +1,5 @@
 import { useRef, useState, type CSSProperties, type MouseEvent } from 'react'
-import { ChevronsDownUp, ChevronsUpDown, Plus, RotateCcw } from 'lucide-react'
+import { ChevronsDownUp, ChevronsUpDown, Plus, RotateCcw, Rows3 } from 'lucide-react'
 import type { Token } from './lib/api'
 import { groupOf, lineName, shortName, type Kind } from './lib/catalog'
 import { isApprox, showColor } from './lib/color'
@@ -39,13 +39,15 @@ export type SectionProps = {
   onMoveRole: (name: string, before: string | null) => void
   /** 의미 색의 역할 묶음을 끌어서 다른 자리에 놓는다. */
   onMoveRoleGroup: (use: RoleUse, before: RoleUse | null) => void
+  /** 글자 크기 한 벌을 만드는 창을 연다. */
+  onMakeSizes?: () => void
 }
 
 /** Shift, Ctrl, Cmd 중 하나를 누른 채 누르면 여러 개 선택이다. */
 export const isAdditive = (e: MouseEvent) => e.shiftKey || e.ctrlKey || e.metaKey
 
 /** 한 화면에 속한 종류들을 차례로 그린다. 전체 보기의 판 안에서도 그대로 쓴다. */
-export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGroup, onRename, onSelectGroup, emptyGroups, pickedGroup, onPickGroup, folded, onReorderGroup, rolesFolded, onMoveRole, onMoveRoleGroup }: SectionProps & { kinds: Kind[] }) {
+export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGroup, onRename, onSelectGroup, emptyGroups, pickedGroup, onPickGroup, folded, onReorderGroup, rolesFolded, onMoveRole, onMoveRoleGroup, onMakeSizes }: SectionProps & { kinds: Kind[] }) {
   const single = kinds.length === 1
   return (
     <div className="space-y-8">
@@ -58,7 +60,18 @@ export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGr
         const lineOf = kind.id === 'size' ? (name: string) => tokens.find((t) => t.name === lineName(name))?.value : undefined
         return (
           <section key={kind.id}>
-            {!single && <h2 className="mb-2 font-[650]">{kind.title}</h2>}
+            {!single &&
+              (kind.id === 'size' && onMakeSizes ? (
+                // 글자 크기는 낱개보다 한 벌로 정하는 것이라, 묶음 제목 옆에 한 벌을 만드는 버튼을 둔다.
+                <div className="mb-2 flex h-6 items-center justify-between">
+                  <h2 className="font-[650]">{kind.title}</h2>
+                  <Button variant="ghost" onClick={onMakeSizes}>
+                    <Rows3 size={16} strokeWidth={1.5} />한 벌 만들기
+                  </Button>
+                </div>
+              ) : (
+                <h2 className="mb-2 font-[650]">{kind.title}</h2>
+              ))}
             {kind.id === 'color' ? (
               // 색이 하나도 없어도 "예외 색" 목록은 처음부터 있다. 목록은 판 오른쪽 위의 "목록 추가"로 만든다.
               <ColorGroups {...list} onSelectGroup={onSelectGroup} emptyGroups={emptyGroups} pickedGroup={pickedGroup} onPickGroup={onPickGroup} folded={folded} onReorderGroup={onReorderGroup} onAddGroup={onAddGroup} />
