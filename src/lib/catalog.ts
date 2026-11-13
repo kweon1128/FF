@@ -3,6 +3,7 @@
 
 export type PreviewType =
   | 'color'
+  | 'role'
   | 'font'
   | 'size'
   | 'weight'
@@ -32,21 +33,55 @@ export type Kind = {
   emptyTitle: string
   /** 줄 목록 대신 네모 칸 격자로 보여 준다. */
   tiles?: boolean
+  /** 이제 쓰지 않는 종류. 파일에 그 값이 있을 때만 보여 주고, 새로 추가하지는 못한다. */
+  legacy?: boolean
 }
+
+/**
+ * 글자 크기에 묶인 줄 높이의 변수 이름. --text-sm의 줄 높이는 --text-sm--line-height다(Tailwind의 규칙).
+ * 이렇게 묶어 두면 text-sm만 써도 줄 높이가 함께 따라온다.
+ */
+export const lineName = (sizeName: string) => `${sizeName}--line-height`
 
 export const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/
 
 const starts = (prefix: string) => (n: string) => n.startsWith(prefix)
 
+/** 다른 색을 가리키는 값. var(--color-blue-600)처럼 색 변수 하나를 그대로 가리킨다. */
+export const COLOR_REF = /^var\(\s*(--color-[a-z0-9-]+)\s*\)$/
+
+/**
+ * 의미 색의 이름들. 의미 색과 단계 색은 이름이 똑같이 --color-로 시작해서 이름만으로는 가릴 수 없고,
+ * 값이 다른 색을 가리키는지로 가린다. 값 목록이 바뀔 때마다 App이 markRoles로 다시 알려 준다.
+ */
+const roleNames = new Set<string>()
+
+export function markRoles(tokens: { name: string; value: string }[]) {
+  roleNames.clear()
+  for (const t of tokens) if (t.name.startsWith('--color-') && COLOR_REF.test(t.value)) roleNames.add(t.name)
+}
+
 const color: Kind = {
   id: 'color',
   title: '색상',
   prefix: '--color-',
-  matches: starts('--color-'),
+  matches: (n) => n.startsWith('--color-') && !roleNames.has(n),
   defaultValue: '#888888',
   addLabel: '색 추가',
   valueLabel: '색 값',
   emptyTitle: '첫 색 목록을 만들어 보세요',
+}
+
+/** 의미 색. 실제로 쓰는 색에 쓰임새의 이름을 붙인 것으로, 색상 판의 색 하나를 가리킨다. */
+const role: Kind = {
+  id: 'role',
+  title: '의미 색',
+  prefix: '--color-',
+  matches: (n) => roleNames.has(n),
+  defaultValue: '',
+  addLabel: '의미 색 추가',
+  valueLabel: '가리키는 색',
+  emptyTitle: '의미 색이 아직 없어요',
 }
 
 const font: Kind = {
@@ -87,7 +122,9 @@ const leading: Kind = {
   title: '줄 높이',
   prefix: '--leading-',
   matches: starts('--leading-'),
-  defaultValue: '1.5',
+  // 줄 높이는 글자 크기에 묶어 px로 정한다. 따로 떨어진 줄 높이 목록은 예전 파일에 남아 있을 때만 보인다.
+  legacy: true,
+  defaultValue: '24px',
   addLabel: '줄 높이 추가',
   valueLabel: '줄 높이',
   emptyTitle: '줄 높이가 아직 없어요',
@@ -243,6 +280,7 @@ const ease: Kind = {
 
 export const KINDS = {
   color,
+  role,
   font,
   size,
   weight,
@@ -264,7 +302,7 @@ export const KINDS = {
 
 export const ALL_KINDS: Kind[] = Object.values(KINDS)
 
-export type TokenScreenId = 'color' | 'type' | 'spacing' | 'radius' | 'border' | 'effect' | 'layout' | 'motion'
+export type TokenScreenId = 'color' | 'role' | 'type' | 'spacing' | 'radius' | 'border' | 'effect' | 'layout' | 'motion'
 export type PlaceholderScreenId = 'layouts' | 'assets'
 export type ScreenId = 'canvas' | 'components' | TokenScreenId | PlaceholderScreenId
 
@@ -292,6 +330,8 @@ export const TOKEN_SCREENS: Record<TokenScreenId, { title: string; kinds: Kind[]
   effect: { title: '효과', kinds: [shadow, opacity, blur] },
   layout: { title: '화면 크기', kinds: [breakpoint, container, aspect, z] },
   motion: { title: '움직임', kinds: [duration, ease] },
+  // 나중에 생긴 판이라 맨 뒤에 둔다. 앞의 판들은 순서대로 기본 자리가 정해져 있어서, 사이에 끼우면 모두 밀린다.
+  role: { title: '의미 색', kinds: [role] },
 }
 
 export const PLACEHOLDER_SCREENS: Record<PlaceholderScreenId, { title: string }> = {

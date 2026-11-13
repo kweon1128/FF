@@ -8,16 +8,22 @@ import { useEffect, useRef, useState, type CSSProperties, type PointerEvent, typ
 import { Lock, Minus, Plus } from 'lucide-react'
 import { BOARD_DEFAULTS, type Pos } from './lib/api'
 import { arrange, type Arrange, type Placed } from './lib/arrange'
+import { TOKEN_SCREEN_IDS } from './lib/catalog'
 import { HANDLE } from './TokenScreen'
 
 export const BOARD_WIDTH = 560
 /** 색상 판은 한 줄에 색 11개(50~950)와 추가 칸이 들어가도록 넓게 시작한다. */
 export const COLOR_BOARD_WIDTH = 1380
 /** 너비를 따로 고치지 않은 판의 너비. */
-export const defaultWidth = (id: string) => (id === 'color' ? COLOR_BOARD_WIDTH : BOARD_WIDTH)
+/** 의미 색 판은 한 줄에 색, 이름, 설명, 예시가 나란히 들어가야 해서 넓다. */
+export const ROLE_BOARD_WIDTH = 960
+export const defaultWidth = (id: string) => (id === 'color' ? COLOR_BOARD_WIDTH : id === 'role' ? ROLE_BOARD_WIDTH : BOARD_WIDTH)
 const BOARD_GAP = 80
 const MIN_ZOOM = 0.1
-const MAX_ZOOM = 4
+const MAX_ZOOM = 16
+/** 1px 격자는 이 비율부터 보인다. 그보다 작으면 선이 너무 촘촘해 면처럼 보인다(피그마와 같다). */
+const GRID_ZOOM = 8
+const GRID_KEY = 'ff.pixelGrid'
 const DRAG_START = 3
 /** 메뉴를 눌러 판으로 이동할 때 걸리는 시간. */
 const GLIDE_MS = 300
@@ -154,6 +160,8 @@ const holds = (outer: Box, inner: Box) =>
   inner.left >= outer.left && inner.right <= outer.right && inner.top >= outer.top && inner.bottom <= outer.bottom
 
 export function defaultPos(index: number): Pos {
+  // 의미 색 판은 색상 판 바로 왼쪽에 둔다. 나중에 생긴 판이라, 이미 놓여 있는 다른 판들의 자리를 밀지 않으려는 것이다.
+  if (TOKEN_SCREEN_IDS[index] === 'role') return { x: -(ROLE_BOARD_WIDTH + BOARD_GAP), y: 0 }
   // 맨 앞의 색상 판이 넓은 만큼 그 뒤의 판들을 밀어 둔다.
   return { x: index * (BOARD_WIDTH + BOARD_GAP) + (index > 0 ? COLOR_BOARD_WIDTH - BOARD_WIDTH : 0), y: 0 }
 }
@@ -201,6 +209,22 @@ export function Canvas({
   const [live, setLive] = useState<Record<string, Pos> | null>(null)
   const [hovered, setHovered] = useState<string | null>(null)
   const [marquee, setMarquee] = useState<Box | null>(null)
+  // 1px 격자를 켰는지(Ctrl+'). 보는 방식일 뿐이라 브라우저에 기억한다.
+  const [grid, setGrid] = useState(() => {
+    try {
+      return localStorage.getItem(GRID_KEY) === 'true'
+    } catch {
+      return false
+    }
+  })
+  function toggleGrid() {
+    setGrid(!grid)
+    try {
+      localStorage.setItem(GRID_KEY, String(!grid))
+    } catch {
+      // 기억하지 못해도 켜고 끄는 데는 문제가 없다.
+    }
+  }
   const [space, setSpace] = useState(false)
   const [panning, setPanning] = useState(false)
   const [guides, setGuides] = useState<Guide[]>([])
@@ -287,7 +311,8 @@ export function Canvas({
     const picture = pictureOf(id)
     return { ...(picture ? { x: picture.x, y: picture.y } : (positions[id] ?? defaultPos(index))), ...live?.[id] }
   }
-  const widthOf = (id: string) => live?.[id]?.w ?? pictureOf(id)?.w ?? positions[id]?.w ?? defaultWidth(id)
+  // 판의 너비는 판마다 정해져 있고 바꿀 수 없다(예전에 바꿔 저장해 둔 너비도 쓰지 않는다). 사진만 너비가 바뀐다.
+  const widthOf = (id: string) => live?.[id]?.w ?? pictureOf(id)?.w ?? defaultWidth(id)
   /** 캔버스에 놓인 모든 것(판과 사진)의 id. */
   const allIds = [...boards.map((b) => b.id), ...images.map((p) => p.id)]
   const isLocked = (id: string) => !!positions[id]?.locked
@@ -300,6 +325,65 @@ export function Canvas({
     const p = posOf(id, boards.findIndex((b) => b.id === id))
     return { x: p.x, y: p.y + n.offsetTop, w: n.offsetWidth, h: n.offsetHeight }
   }
+
+  // 판이 길어지면(값을 추가하는 등) 그 아래에 있던 판과 사진을 밀어내 겹치지 않게 한다.
+  // 원래 간격이 80px보다 좁았으면 그 간격 그대로, 넓었으면 80px까지 좁아진 뒤부터 민다. 밀린 것이 또 다른 것에 닿으면 이어서 민다.
+  // 판이 다시 짧아져도 끌어올리지 않는다. 잠근 판은 밀지 않는다.
+  const heights = useRef(new Map<string, number>())
+  const pushBelow = useRef<(grown: { id: string; old: number }[]) => void>(() => {})
+  pushBelow.current = (grown) => {
+    const boxes = allIds.flatMap((id) => {
+      const r = isHidden(id) ? null : rectOf(id)
+      return r ? [{ id, ...r }] : []
+    })
+    const moved: Record<string, { y: number }> = {}
+    const done = new Set(grown.map((g) => g.id))
+    // 길어진 판마다: 예전 아랫변과 지금 아랫변.
+    const queue = grown.flatMap((g) => {
+      const a = boxes.find((b) => b.id === g.id)
+      return a ? [{ x: a.x, w: a.w, oldBottom: a.y + g.old, newBottom: a.y + a.h }] : []
+    })
+    for (let a = queue.shift(); a; a = queue.shift()) {
+      for (const b of boxes) {
+        if (done.has(b.id) || isLocked(b.id)) continue
+        // 좌우로 걸쳐 있고, 길어지기 전에 아래에 있던 것만 민다(이미 겹쳐 있던 것은 일부러 겹친 것으로 보고 그대로 둔다).
+        if (b.x >= a.x + a.w || b.x + b.w <= a.x) continue
+        const gap = b.y - a.oldBottom
+        if (gap < -0.5) continue
+        const top = Math.round(a.newBottom + Math.min(gap, BOARD_GAP))
+        if (b.y >= top) continue
+        const dy = top - b.y
+        done.add(b.id)
+        moved[b.id] = { y: posOf(b.id, boards.findIndex((x) => x.id === b.id)).y + dy }
+        queue.push({ x: b.x, w: b.w, oldBottom: b.y + b.h, newBottom: top + b.h })
+      }
+    }
+    if (Object.keys(moved).length) onMove(moved)
+  }
+  const boardIds = boards.filter((b) => !isHidden(b.id)).map((b) => b.id).join(' ')
+  useEffect(() => {
+    const el = root.current
+    if (!el) return
+    const observer = new ResizeObserver((entries) => {
+      const grown: { id: string; old: number }[] = []
+      for (const entry of entries) {
+        const node = entry.target as HTMLElement
+        const id = node.dataset.board
+        if (!id) continue
+        const now = node.offsetHeight
+        const old = heights.current.get(id)
+        heights.current.set(id, now)
+        // 처음 잰 높이는 기준일 뿐이다. 그 뒤로 길어졌을 때만 민다.
+        if (old !== undefined && now > old + 0.5) grown.push({ id, old })
+      }
+      if (grown.length) pushBelow.current(grown)
+    })
+    for (const id of boardIds.split(' ')) {
+      const node = id && el.querySelector<HTMLElement>(`[data-board="${CSS.escape(id)}"]`)
+      if (node) observer.observe(node)
+    }
+    return () => observer.disconnect()
+  }, [boardIds])
 
   /** 주어진 요소들이 모두 보이도록 화면을 맞춘다. */
   function fitTo(elements: HTMLElement[], maxZoom: number) {
@@ -361,6 +445,12 @@ export function Canvas({
     if (!el || typing || document.querySelector('[role="dialog"]')) return
     const mod = e.ctrlKey || e.metaKey
     const done = () => e.preventDefault()
+
+    // 1px 격자 켜고 끄기 (피그마의 Ctrl+')
+    if (mod && !e.altKey && !e.shiftKey && e.code === 'Quote') {
+      done()
+      return toggleGrid()
+    }
 
     // 선택
     if (e.code === 'Escape') return setSelectedBoards([])
@@ -582,8 +672,8 @@ export function Canvas({
     } else if (d.type === 'resize') {
       const left = d.corner.endsWith('w')
       const top = d.corner.startsWith('n')
-      const w = Math.max(MIN_PICTURE, d.from.w + ((dx - px) / view.z) * (left ? -1 : 1))
-      const h = (w * d.from.h) / d.from.w
+      const w = Math.round(Math.max(MIN_PICTURE, d.from.w + ((dx - px) / view.z) * (left ? -1 : 1)))
+      const h = Math.round((w * d.from.h) / d.from.w)
       // 잡은 꼭짓점의 맞은편 꼭짓점은 제자리에 둔다.
       d.next = { [d.id]: { x: left ? d.from.x + d.from.w - w : d.from.x, y: top ? d.from.y + d.from.h - h : d.from.y, w } }
       setLive(d.next)
@@ -631,7 +721,8 @@ export function Canvas({
         }
       }
       setGuides(lines)
-      d.next = Object.fromEntries(Object.entries(d.start).map(([id, p]) => [id, { ...p, x: p.x + mx, y: p.y + my }]))
+      // 자리는 항상 정수 px에 맞춘다. 확대하거나 축소한 채로 끌면 움직인 거리가 소수가 되기 때문이다.
+      d.next = Object.fromEntries(Object.entries(d.start).map(([id, p]) => [id, { ...p, x: Math.round(p.x + mx), y: Math.round(p.y + my) }]))
       setLive(d.next)
     } else {
       const box: Box = {
@@ -650,13 +741,16 @@ export function Canvas({
       })
 
       // 항목은 영역에 걸치면, 판은 영역 안에 통째로 들어오면 선택한다.
-      const items = [...el.querySelectorAll<HTMLElement>('[data-token]')]
-        .filter((n) => touches(n.getBoundingClientRect(), box))
-        .map((n) => n.dataset.token!)
       const inside = [...el.querySelectorAll<HTMLElement>('[data-board]')]
         .filter((n) => holds(box, n.getBoundingClientRect()))
         .map((n) => n.dataset.board!)
         .filter((id) => !isLocked(id))
+      // 판이 통째로 잡히면 판만 선택하고 그 안의 항목은 따로 선택하지 않는다(피그마에서 틀을 통째로 잡으면 틀이 선택되는 것과 같다).
+      // 그래야 오른쪽 패널도 판을 기준으로 뜬다.
+      const items = [...el.querySelectorAll<HTMLElement>('[data-token]')]
+        .filter((n) => touches(n.getBoundingClientRect(), box))
+        .filter((n) => !inside.includes(n.closest<HTMLElement>('[data-board]')?.dataset.board ?? ''))
+        .map((n) => n.dataset.token!)
 
       const nextItems = union(d.baseItems, items)
       const nextBoards = union(d.baseBoards, inside)
@@ -946,6 +1040,20 @@ export function Canvas({
           </div>
         ))}
       </div>
+
+      {/* 1px 격자. 캔버스의 1px마다 선을 그어 판과 그 안의 내용 위에 겹친다. 크게 확대했을 때만 보인다. */}
+      {grid && view.z >= GRID_ZOOM && (
+        <div
+          data-pixel-grid
+          className="pointer-events-none absolute inset-0 z-10"
+          style={{
+            backgroundImage:
+              'linear-gradient(to right, rgb(0 0 0 / 0.06) 1px, transparent 1px), linear-gradient(to bottom, rgb(0 0 0 / 0.06) 1px, transparent 1px)',
+            backgroundSize: `${view.z}px ${view.z}px`,
+            backgroundPosition: `${view.x}px ${view.y}px`,
+          }}
+        />
+      )}
 
       {marquee && (
         <div

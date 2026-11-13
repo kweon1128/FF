@@ -277,9 +277,9 @@ export function BoardInspector({
         <div className="grid grid-cols-2 gap-2">
           <NumberField
             tag="W"
-            label={`너비 (${MIN_BOARD_WIDTH}~${MAX_BOARD_WIDTH})`}
+            label="너비 (판마다 정해져 있어요)"
             value={w}
-            onCommit={(v) => all(() => ({ w: Math.min(MAX_BOARD_WIDTH, Math.max(MIN_BOARD_WIDTH, Math.round(v))) }))}
+            readOnly
           />
           <NumberField tag="H" label="높이 (내용에 따라 정해져요)" value={h} readOnly />
         </div>

@@ -60,6 +60,19 @@
   }
 }
 
+/*
+  점선 테두리. 브라우저의 기본 점선(border-style: dashed)은 1px 굵기에서 너무 촘촘해서, 6px 긋고 5px 띄우는 점선을 바탕 그림으로 직접 그린다.
+  선은 상자의 가장자리 한가운데를 지나는 2px 선이고 바깥쪽 절반은 잘려서 1px로 보인다. 색은 hairline(#e6e6e6).
+  dash-box는 모서리 6px(rounded-md), dash-box-lg는 8px(rounded-lg) 상자에 쓴다. 마우스를 올렸을 때 없애려면 hover:bg-none.
+*/
+@utility dash-box {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25'%3E%3Crect width='100%25' height='100%25' rx='6' fill='none' stroke='%23e6e6e6' stroke-width='2' stroke-dasharray='6 5'/%3E%3C/svg%3E");
+}
+
+@utility dash-box-lg {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25'%3E%3Crect width='100%25' height='100%25' rx='8' fill='none' stroke='%23e6e6e6' stroke-width='2' stroke-dasharray='6 5'/%3E%3C/svg%3E");
+}
+
 /* 선을 두를 항목에 붙인다. 겹친 사각형의 기준이 된다. */
 @utility line-inset {
   position: relative;

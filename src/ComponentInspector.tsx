@@ -4,6 +4,7 @@ import { DynamicIcon, iconNames } from 'lucide-react/dynamic'
 import type { Token } from './lib/api'
 import { KINDS, SLUG, shortName, type Kind } from './lib/catalog'
 import { showColor } from './lib/color'
+import { refOf, resolveColor } from './lib/roles'
 import { cellLabel, type Cell, type Colors, type Comp, type IconPos, type Size } from './lib/components'
 import { isIconName } from './ComponentScreen'
 import { Section } from './Inspector'
@@ -72,35 +73,51 @@ function TokenField({
   onChange: (name: string | undefined) => void
 }) {
   const options = tokens.filter((t) => kind.matches(t.name))
-  const current = options.find((t) => t.name === value)
+  // 색 칸에서는 의미 색도 고를 수 있다. 쓰임새에 이름을 붙여 둔 색이라 단계 색보다 먼저 보여 준다.
+  const roles = kind.id === 'color' ? tokens.filter((t) => KINDS.role.matches(t.name)) : []
+  const current = [...roles, ...options].find((t) => t.name === value)
   const missing = value !== undefined && !current
+  const plain = (t: Token) => (
+    <option key={t.name} value={t.name}>
+      {shortName(kind, t.name)} · {kind.id === 'color' ? showColor(t.value) : t.value}
+    </option>
+  )
 
   return (
     <Field
       label={label}
       error={missing ? '고른 값이 기본 값에서 없어졌어요. 다시 골라 주세요.' : null}
-      hint={options.length === 0 ? `${kind.title} 값을 먼저 만들어 주세요.` : undefined}
+      hint={options.length + roles.length === 0 ? `${kind.title} 값을 먼저 만들어 주세요.` : undefined}
     >
       <span className="flex items-center gap-2">
         {kind.id === 'color' && (
           <span
             className="size-8 shrink-0 rounded-md border border-hairline"
-            style={{ background: current ? swatchBackground(current.value) : undefined }}
+            style={{ background: current ? swatchBackground(resolveColor(tokens, current.value) ?? 'transparent') : undefined }}
           />
         )}
         <select
           className={`${inputClass} min-w-0 ${missing ? 'border-danger' : ''}`}
           value={value ?? ''}
-          disabled={options.length === 0 && !missing}
+          disabled={options.length + roles.length === 0 && !missing}
           onChange={(e) => onChange(e.target.value || undefined)}
         >
           <option value="">{empty}</option>
           {missing && <option value={value}>{shortName(kind, value)} (없어짐)</option>}
-          {options.map((t) => (
-            <option key={t.name} value={t.name}>
-              {shortName(kind, t.name)} · {kind.id === 'color' ? showColor(t.value) : t.value}
-            </option>
-          ))}
+          {roles.length > 0 && (
+            <optgroup label="의미 색">
+              {roles.map((t) => (
+                <option key={t.name} value={t.name}>
+                  {shortName(kind, t.name)} · {(refOf(t.value) ?? t.value).replace(kind.prefix, '')}
+                </option>
+              ))}
+            </optgroup>
+          )}
+          {roles.length > 0 ? (
+            <optgroup label="색상">{options.map(plain)}</optgroup>
+          ) : (
+            options.map(plain)
+          )}
         </select>
       </span>
     </Field>

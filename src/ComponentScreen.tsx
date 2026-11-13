@@ -3,7 +3,7 @@ import { Plus } from 'lucide-react'
 import { DynamicIcon, iconNames, type IconName } from 'lucide-react/dynamic'
 import type { Token } from './lib/api'
 import { STATES, cellLabel, cellStyle, type Cell, type Comp, type StateId } from './lib/components'
-import { ADD_TILE, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
+import { ADD_TILE, ADD_TILE_LG, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
 
 export const isIconName = (name: string | undefined): name is IconName =>
   !!name && (iconNames as string[]).includes(name)
@@ -133,7 +133,7 @@ export function ComponentScreen({
           type="button"
           aria-label="종류 추가"
           onClick={onAddVariant}
-          className={`${ADD_TILE} h-24 w-full rounded-lg`}
+          className={`${ADD_TILE_LG} h-24 w-full`}
         >
           <Plus size={16} strokeWidth={1.5} />
         </button>

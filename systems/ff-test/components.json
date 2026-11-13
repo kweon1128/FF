@@ -62,9 +62,6 @@
           "padY": "--spacing-3",
           "textSize": "--text-base",
           "gap": "--spacing-2"
-        },
-        {
-          "name": "new"
         }
       ]
     }

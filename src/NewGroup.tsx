@@ -92,6 +92,7 @@ export function NewGroupForm({
           <span className="flex items-center gap-2">
             <ColorSwatch
               label="색 고르기"
+              preview
               value={typedColor ?? suggestedColor}
               onChange={(hex) => {
                 setColor(hex)

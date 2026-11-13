@@ -19,6 +19,8 @@ import {
 import {
   ALL_KINDS,
   KINDS,
+  lineName,
+  markRoles,
   PLACEHOLDER_SCREENS,
   SLUG,
   TOKEN_SCREENS,
@@ -46,31 +48,41 @@ import {
   type Colors,
   type Comp,
 } from './lib/components'
-import { isColor, showColor, toHex, toOklch } from './lib/color'
+import { contrast, hexToLch, isColor, lchToHex, showColor, toHex, toOklch } from './lib/color'
 import { SCALE_STEPS, grayOf, makeScale } from './lib/scale'
-import { adoptColors, duplicateTokens, kindOf, pasteName, pasteTokens, scanCss, shiftTokens, toCss } from './lib/tokens'
+import { adoptColors, defaultColorOrder, duplicateTokens, kindOf, lineOf, pasteName, pasteTokens, scanCss, shiftTokens, suggestLine, toCss, withLine } from './lib/tokens'
 import type { Placed } from './lib/arrange'
 import { BatchRename } from './BatchRename'
 import { BoardInspector, ImageInspector } from './BoardInspector'
 import { Canvas, defaultPos, defaultWidth } from './Canvas'
+import { NewRoleForm, RoleInspector } from './Roles'
+import { defaultRoleOrder, moveRole, moveRoleGroup, refOf, refTo, resolveColor, roleGroups, surroundings, type RoleUse } from './lib/roles'
+import { onFilesChanged } from './lib/watch'
 import { SwatchContext } from './ColorPicker'
+import { PreviewFontContext } from './ColorUses'
 import { ComponentInspector } from './ComponentInspector'
 import { ComponentScreen } from './ComponentScreen'
 import { Inspector, MultiInspector } from './Inspector'
 import { Nav } from './Nav'
 import { NewGroupForm } from './NewGroup'
 import { NewSoloForm } from './NewSolo'
+import { NewFontForm, SampleContext } from './NewFont'
+import { nextPreset, nextSizeName, nextVariantName, stepUp } from './lib/presets'
+import { CATALOG, loadCatalog, loadSystemFonts } from './lib/fonts'
 import { NewSystemForm } from './NewSystem'
 import { Palette, type PaletteItem } from './Palette'
 import { PasteDialog, type PasteJob } from './PasteDialog'
 import { Shortcuts } from './Shortcuts'
-import { AddColorButtons, KindSections } from './TokenScreen'
+import { AddColorButtons, FoldButton, KindSections, ResetButton } from './TokenScreen'
 import { TopBar, type SaveStatus } from './TopBar'
 import { Button, EmptyState, Field, Modal, inputClass } from './ui'
 
 const LAST_SYSTEM_KEY = 'ff.system'
 const SAVE_DELAY = 300
 const COLOR = KINDS.color
+const ROLE = KINDS.role
+const FONT = KINDS.font
+const SIZE = KINDS.size
 
 /** 색 값을 파일에 저장하는 형식(oklch)으로 맞춘다. #, rgb, hsl로 적힌 색만 바꾸고, 나머지는 그대로 둔다. */
 function storeColors(tokens: Token[]): Token[] {
@@ -173,6 +185,8 @@ export function App() {
   const [systems, setSystems] = useState<string[] | null>(null)
   const [system, setSystem] = useState<string | null>(null)
   const [tokens, setTokens] = useState<Token[]>([])
+  // 의미 색과 단계 색은 값으로 가린다. 값 목록이 바뀌면 종류를 가리는 기준도 함께 바뀌어야 하므로 그릴 때마다 맞춘다.
+  markRoles(tokens)
   const [comps, setComps] = useState<Comp[]>([])
   const [boards, setBoards] = useState<Record<string, Pos>>({})
   // 캔버스에 붙인 사진들. 선택은 판과 함께 selectedBoards에 담는다.
@@ -191,6 +205,25 @@ export function App() {
       setFolded(false)
     }
   }, [system])
+
+  // 의미 색 판을 접었는지. 접으면 설명과 예시를 숨기고 색과 이름만 보여 준다. 색상 판과 따로 기억한다.
+  const [rolesFolded, setRolesFolded] = useState(false)
+  useEffect(() => {
+    try {
+      setRolesFolded(localStorage.getItem(`ff.rolesFolded.${system}`) === 'true')
+    } catch {
+      setRolesFolded(false)
+    }
+  }, [system])
+
+  function toggleRolesFold() {
+    setRolesFolded(!rolesFolded)
+    try {
+      localStorage.setItem(`ff.rolesFolded.${system}`, String(!rolesFolded))
+    } catch {
+      // 저장소를 못 쓰면 접은 상태를 기억하지 않는다.
+    }
+  }
 
   function toggleFold() {
     setFolded(!folded)
@@ -224,6 +257,17 @@ export function App() {
   const [addingFirst, setAddingFirst] = useState<string | null>(null)
   // 예외 색(white, black 등)을 만드는 창이 떠 있는지.
   const [addingSolo, setAddingSolo] = useState(false)
+  const [addingRole, setAddingRole] = useState(false)
+  const [addingFont, setAddingFont] = useState(false)
+  // 추천 글꼴을 쓰는 글꼴 종류가 있으면, 깔려 있지 않아도 판과 패널의 견본이 그 글꼴로 그려지게 불러온다.
+  const usesCatalog = tokens.some((t) => FONT.matches(t.name) && CATALOG.some((f) => t.value.includes(f.family)))
+  useEffect(() => {
+    if (usesCatalog) loadCatalog()
+  }, [usesCatalog])
+  // 시스템을 열면 그 시스템의 글꼴(fonts.css)을 화면에 불러온다.
+  useEffect(() => {
+    if (system) void loadSystemFonts(system)
+  }, [system])
   // 붙여넣기 전에 정할 것이 있을 때(이름이 같은 값, 읽지 못한 값) 띄우는 창의 내용.
   const [pasting, setPasting] = useState<PasteJob | null>(null)
   // FF에서 마지막으로 복사한 글자. 이것을 그대로 붙이는 것은 복제하려는 것이므로 덮어쓸지 묻지 않는다.
@@ -418,18 +462,16 @@ export function App() {
 
   // 서버가 "이 디자인 시스템의 파일이 밖에서 바뀌었다"고 알려 오면 다시 불러온다. 파일 여러 개가 한꺼번에 바뀌어도 한 번만 한다.
   useEffect(() => {
-    const hot = import.meta.hot
-    if (!hot) return
     let timer = 0
-    const onChanged = (data: { system: string }) => {
-      if (data.system !== systemNow.current) return
+    const stop = onFilesChanged((data) => {
+      // 글꼴을 불러오는 코드(fonts.css)는 값이 아니라서 다시 불러올 것이 없다. 글꼴 쪽에서 따로 읽는다.
+      if (data.system !== systemNow.current || data.file === 'fonts.css') return
       window.clearTimeout(timer)
       timer = window.setTimeout(() => reload.current('changed'), 150)
-    }
-    hot.on('ff:changed', onChanged)
+    })
     return () => {
       window.clearTimeout(timer)
-      hot.off('ff:changed', onChanged)
+      stop()
     }
   }, [])
 
@@ -522,6 +564,7 @@ export function App() {
   function commit(next: Token[]) {
     if (!system) return
     record()
+    markRoles(next)
     // 어떤 길로 들어온 색이든(새로 만든 기본 색, 스포이드, 붙여넣기) 저장할 때는 oklch로 맞춘다.
     const stored = storeColors(next)
     setTokens(stored)
@@ -566,10 +609,12 @@ export function App() {
   }
 
   function addToken(kind: Kind, group?: string) {
-    const names = new Set(tokens.map((t) => t.name))
-
     // 예외 색은 이름을 정해야 하므로 바로 만들지 않고 이름과 색을 묻는다.
     if (kind.id === 'color' && !group) return setAddingSolo(true)
+    // 의미 색은 이름과 가리키는 색을 정해야 만들 수 있다.
+    if (kind.id === 'role') return setAddingRole(true)
+    // 글꼴 종류는 이름과 글꼴을 정해야 한다. 글꼴 이름은 틀려도 조용히 다른 글꼴로 보이므로 목록에서 고르게 한다.
+    if (kind.id === 'font') return setAddingFont(true)
 
     if (kind.id === 'color' && group) {
       const inGroup = (t: Token) => kind.matches(t.name) && groupOf(shortName(kind, t.name)) === group
@@ -603,9 +648,17 @@ export function App() {
       return select([added.name])
     }
 
-    let name = `${kind.prefix}new`
-    for (let i = 2; names.has(name); i++) name = `${kind.prefix}new${i}`
-    insert({ name, value: kind.defaultValue }, (t) => kind.matches(t.name))
+    // 아무 이름(new)과 고정된 값이 아니라, 지금 있는 것 다음에 올 단계가 이름과 값을 갖추고 생긴다(base 다음은 lg 18px).
+    const next = nextPreset(kind, tokens)
+    const name = kind.prefix + next.name
+    if (kind.id === 'size') {
+      // 글자 크기는 줄 높이와 한 쌍으로 만든다. 다른 크기의 줄 높이 뒤에 놓이도록 --text-로 시작하는 마지막 줄 뒤에 넣는다.
+      const line = suggestLine(next.value)
+      const at = tokens.findLastIndex((t) => t.name.startsWith(kind.prefix)) + 1 || tokens.length
+      commit([...tokens.slice(0, at), { name, value: next.value }, ...(line ? [{ name: lineName(name), value: line }] : []), ...tokens.slice(at)])
+      return select([name])
+    }
+    insert({ name, value: next.value }, (t) => kind.matches(t.name))
   }
 
   /** 새 색 목록을 만든다. 첫 색의 단계와 색은 만드는 창에서 정한다. scale이면 그 색을 기준으로 50~950을 모두 만든다. */
@@ -620,8 +673,30 @@ export function App() {
     select(made.map((t) => t.name))
   }
 
+  /** 이름이 바뀐 색을 가리키던 의미 색이 새 이름을 따라가게 한다. */
+  function followRefs(list: Token[], renames: Record<string, string>) {
+    return list.map((t) => {
+      const ref = refOf(t.value)
+      return ref && renames[ref] ? { ...t, value: refTo(renames[ref]) } : t
+    })
+  }
+
+  /** 의미 색을 만든다. ref는 가리키는 색의 변수 이름, note는 주석에 적을 역할과 설명. */
+  function addRole(name: string, ref: string, note: string) {
+    setAddingRole(false)
+    insert({ name, value: refTo(ref), note }, (t) => ROLE.matches(t.name))
+  }
+
+  /** 글꼴 종류를 만든다. value는 맨 앞 글꼴과 대체 글꼴을 이은 font-family 값. */
+  function addFont(name: string, value: string) {
+    setAddingFont(false)
+    insert({ name: FONT.prefix + name, value }, (t) => FONT.matches(t.name))
+  }
+
   function renameToken(from: string, to: string) {
-    commit(tokens.map((t) => (t.name === from ? { ...t, name: to } : t)))
+    // 글자 크기의 이름을 바꾸면 묶인 줄 높이도 따라간다.
+    const pair: Record<string, string> = SIZE.matches(from) ? { [from]: to, [lineName(from)]: lineName(to) } : { [from]: to }
+    commit(followRefs(tokens.map((t) => (pair[t.name] ? { ...t, name: pair[t.name] } : t)), { [from]: to }))
     setSelected([to])
     // 이 값을 가리키던 컴포넌트도 새 이름을 따라가게 한다.
     if (JSON.stringify(comps).includes(`"${from}"`)) commitComps(renameRef(comps, from, to))
@@ -630,7 +705,9 @@ export function App() {
   /** 여러 값의 이름을 한 번에 바꾼다. 그 값을 가리키던 컴포넌트도 새 이름을 따라간다. */
   function renameMany(renames: Record<string, string>) {
     setBatch(false)
-    commit(tokens.map((t) => (renames[t.name] ? { ...t, name: renames[t.name] } : t)))
+    const pairs = { ...renames }
+    for (const [from, to] of Object.entries(renames)) if (SIZE.matches(from)) pairs[lineName(from)] = lineName(to)
+    commit(followRefs(tokens.map((t) => (pairs[t.name] ? { ...t, name: pairs[t.name] } : t)), renames))
     // 이름이 서로 맞바뀌어도 꼬이지 않도록 한 번에 훑으며 바꾼다.
     const next: Comp[] = JSON.parse(JSON.stringify(comps), (_, v) => (typeof v === 'string' && renames[v] ? renames[v] : v))
     if (JSON.stringify(next) !== JSON.stringify(comps)) commitComps(normalize(next))
@@ -729,7 +806,9 @@ export function App() {
   }
 
   function removeTokens(names: string[]) {
-    const rest = tokens.filter((t) => !names.includes(t.name))
+    // 글자 크기를 지우면 묶인 줄 높이도 함께 지운다.
+    const gone = new Set([...names, ...names.filter((n) => SIZE.matches(n)).map(lineName)])
+    const rest = tokens.filter((t) => !gone.has(t.name))
     commit(rest)
     // 색을 하나씩 지우다가 목록이 비면 목록은 빈 채로 남겨 둔다(다시 채울 수 있게).
     // 한 번에 색을 둘 이상 지워서 비운 것은 목록을 통째로 지우려는 것이므로 목록도 함께 없앤다.
@@ -748,12 +827,14 @@ export function App() {
 
   /** 값을 지운다. 컴포넌트가 쓰고 있는 값이 섞여 있을 때만 먼저 묻고, 아니면 바로 지운다(되돌리기로 살릴 수 있다). */
   function askRemoveTokens(names: string[]) {
-    const used = names.filter((n) => usesOf(comps, n).length > 0)
+    // 함께 지우는 의미 색은 빼고, 남는 의미 색 가운데 이 값을 가리키는 것들.
+    const rolesOf = (n: string) => tokens.filter((t) => !names.includes(t.name) && refOf(t.value) === n).map((t) => shortName(ROLE, t.name))
+    const used = names.filter((n) => usesOf(comps, n).length > 0 || rolesOf(n).length > 0)
     if (used.length === 0) return removeTokens(names)
-    const users = [...new Set(used.flatMap((n) => usesOf(comps, n).map((u) => u.name)))]
+    const users = [...new Set(used.flatMap((n) => [...usesOf(comps, n).map((u) => u.name), ...rolesOf(n)]))]
     const kind = ALL_KINDS.find((k) => k.matches(used[0]))
     setConfirm({
-      title: used.length === 1 ? '컴포넌트에서 쓰고 있는 값이에요' : `컴포넌트에서 쓰고 있는 값이 ${used.length}개 있어요`,
+      title: used.length === 1 ? '쓰고 있는 값이에요' : `쓰고 있는 값이 ${used.length}개 있어요`,
       body: (
         <>
           <span className="font-[550] text-ink">{users.join(', ')}</span>에서{' '}
@@ -777,12 +858,15 @@ export function App() {
     record()
     const next = { ...boards }
     const nextImages = { ...images }
-    for (const [id, patch] of Object.entries(moved)) {
+    for (const [id, raw] of Object.entries(moved)) {
+      // 어떤 길로 옮기든(끌기, 정렬, 간격 맞춤, 패널의 숫자) 자리와 너비는 정수 px에 맞춘다.
+      const patch = { ...raw }
+      for (const key of ['x', 'y', 'w'] as const) if (patch[key] !== undefined) patch[key] = Math.round(patch[key]!)
       const image = images[id]
       if (image) {
         // 사진은 자리와 너비만 바뀐다. 높이는 비율대로 따라온다.
         const w = patch.w ?? image.w
-        nextImages[id] = { ...image, x: patch.x ?? image.x, y: patch.y ?? image.y, w, h: (image.h * w) / image.w }
+        nextImages[id] = { ...image, x: patch.x ?? image.x, y: patch.y ?? image.y, w, h: Math.round((image.h * w) / image.w) }
         continue
       }
       next[id] = { ...(boards[id] ?? defaultPos(TOKEN_SCREEN_IDS.indexOf(id as TokenScreenId))), ...patch }
@@ -1049,15 +1133,19 @@ export function App() {
 
   function addVariant() {
     if (!comp) return
-    const name = freshName(comp.variants.map((v) => v.name))
+    // 이름은 primary, secondary, ghost, danger의 순서로 붙는다.
+    const name = nextVariantName(comp.variants.map((v) => v.name))
     changeComp({ ...comp, variants: [...comp.variants, newVariant(name)] })
     selectCells([{ v: comp.variants.length, s: 0, state: 'default' }])
   }
 
   function addSize() {
     if (!comp) return
-    const name = freshName(comp.sizes.map((s) => s.name))
-    changeComp({ ...comp, sizes: [...comp.sizes, newSize(name)] })
+    // 이름은 sm, md, lg, xl의 순서로 붙고, 값은 마지막 크기의 여백과 글자 크기를 한 단계씩 키운 것이다(더 큰 값이 없으면 그대로).
+    const name = nextSizeName(comp.sizes.map((s) => s.name))
+    const last = comp.sizes.at(-1)
+    const size = { ...newSize(name), padX: stepUp(tokens, last?.padX), padY: stepUp(tokens, last?.padY), textSize: stepUp(tokens, last?.textSize), gap: last?.gap }
+    changeComp({ ...comp, sizes: [...comp.sizes, size] })
     selectCells([{ v: cells.at(-1)?.v ?? 0, s: comp.sizes.length, state: 'default' }])
   }
 
@@ -1227,6 +1315,9 @@ export function App() {
       setPickedGroup(group)
     },
     onReorderGroup: reorderGroup,
+    rolesFolded,
+    onMoveRole: (name: string, before: string | null) => commit(moveRole(tokens, name, before)),
+    onMoveRoleGroup: (use: RoleUse, before: RoleUse | null) => commit(moveRoleGroup(tokens, use, before)),
     onSelectGroup: (names: string[], additive: boolean, rename: boolean) => {
       setSelectedBoards([])
       select(additive ? [...selected, ...names.filter((n) => !selected.includes(n))] : names)
@@ -1267,9 +1358,22 @@ export function App() {
           if (image) return { id, x: image.x, y: image.y, w: image.w, h: image.h }
           const pos = boards[id] ?? defaultPos(TOKEN_SCREEN_IDS.indexOf(id as TokenScreenId))
           const h = document.querySelector<HTMLElement>(`[data-board="${id}"]`)?.offsetHeight ?? 0
-          return { id, x: pos.x, y: pos.y, w: pos.w ?? defaultWidth(id), h }
+          return { id, x: pos.x, y: pos.y, w: defaultWidth(id), h }
         })
       : []
+
+  // "원래대로": 판 안의 순서를 기본으로 돌려놓은 모습. 지금과 같으면 돌릴 것이 없으므로 null이다.
+  // 색상 판은 회색 목록을 먼저, 색깔 있는 목록을 무지개 순서로 놓고, 목록 안의 색은 번호 순서(50→950)로 놓는다.
+  const sameOrder = (next: Token[]) => next.every((t, i) => t === tokens[i])
+  const colorsSorted = (() => {
+    const next = defaultColorOrder(tokens)
+    return sameOrder(next) ? null : next
+  })()
+  // 의미 색 판은 묶음을 글자, 바탕, 테두리, 버튼 순서로, 묶음 안은 가리키는 색을 기준으로 놓는다(무채색 먼저).
+  const rolesSorted = (() => {
+    const next = defaultRoleOrder(tokens)
+    return sameOrder(next) ? null : next
+  })()
 
   // 빠른 실행에 나오는 것들: 화면, 컴포넌트, 값, 명령.
   const paletteItems: PaletteItem[] = !palette
@@ -1281,6 +1385,8 @@ export function App() {
         { id: 'a:help', group: '명령', label: '단축키 목록', hint: 'Ctrl+Shift+/', run: () => setHelp(true) },
         { id: 'a:bare', group: '명령', label: bare ? '메뉴와 패널 보이기' : '메뉴와 패널 숨기기', hint: 'Ctrl+\\', run: toggleBare },
         { id: 'a:group', group: '명령', label: '색 목록 추가', run: () => setAddingGroup(true) },
+        { id: 'a:role', group: '명령', label: '의미 색 추가', run: () => setAddingRole(true) },
+        { id: 'a:font', group: '명령', label: '글꼴 종류 추가', run: () => setAddingFont(true) },
         { id: 'a:comp', group: '명령', label: '컴포넌트 추가', run: () => setAddingComp(true) },
         { id: 'a:system', group: '명령', label: '새 디자인 시스템', run: () => setCreating(true) },
         ...(systems ?? [])
@@ -1299,13 +1405,70 @@ export function App() {
         }),
       ]
 
-  // 색 선택 창 아래에 견본으로 보여 줄, 이 디자인 시스템의 색들(같은 색은 한 번만).
-  const swatches = [
-    ...new Set(tokens.filter((t) => COLOR.matches(t.name)).map((t) => toHex(t.value)).filter((hex): hex is string => hex !== null)),
-  ]
+  // "쓰인 모습" 견본의 글자에 쓸 글꼴. 글꼴 판에 값이 있으면 맨 앞의 것을 쓰고, 없으면 FF의 글꼴 그대로 둔다.
+  const previewFont = tokens.find((t) => KINDS.font.matches(t.name))?.value
+  // 글꼴 견본이 따르는 값: 이 시스템의 글자 크기와 줄 높이(작은 것부터), 기본 글자색과 바탕색.
+  const px = (value: string) => parseFloat(value) * (value.trim().endsWith('rem') ? 16 : 1)
+  const around = surroundings(tokens)
+  const baseInk = toHex(around.ink)?.slice(0, 7) ?? '#000000'
+  const baseSurface = toHex(around.surface)?.slice(0, 7) ?? '#ffffff'
+  // 견본의 색을 한 번에 바꾸는 조합들. 같은 조합은 한 번만.
+  const roleHex = (t: Token) => toHex(resolveColor(tokens, t.value) ?? '')?.slice(0, 7)
+  const rolesOf = (use: RoleUse) => roleGroups(tokens).find((g) => g.use === use)?.items ?? []
+  // 조합은 넷까지. 서로 조건이 다른 것만 둔다: 높은 대비의 밝은 바탕, 높은 대비의 짙은 바탕, 색이 있는 글자, 낮은 대비.
+  const named = (use: RoleUse) => rolesOf(use).flatMap((t) => ((hex) => (hex ? [{ short: shortName(ROLE, t.name), hex }] : []))(roleHex(t)))
+  const vivid = (hex: string) => hexToLch(hex).c >= 0.08
+  const readable = (hex: string) => hex !== baseInk && contrast(hex, baseSurface) >= 2
+  const everyRole = (['fill', 'border', 'text', 'surface'] as const).flatMap(named)
+  // 색 글자는 하나만. 브랜드 색처럼 쓰이는 이름을 먼저 찾고, 없으면 버튼 역할의 색, 그래도 없으면 아무 선명한 색.
+  const colored = everyRole.filter((r) => vivid(r.hex) && readable(r.hex))
+  const accent =
+    ['primary', 'brand', 'accent', 'selection', 'link'].flatMap((n) => colored.filter((r) => r.short === n))[0] ??
+    colored.find((r) => named('fill').some((f) => f.short === r.short)) ??
+    colored[0]
+  // 옅은 글자도 하나만. 글자 역할의 회색 가운데 기본 바탕에서 가장 옅게 보이는 것. 획이 가는 글꼴은 여기서 먼저 안 읽힌다.
+  const faint = named('text')
+    .filter((r) => !vivid(r.hex) && readable(r.hex))
+    .sort((x, y) => contrast(x.hex, baseSurface) - contrast(y.hex, baseSurface))[0]
+  // 옅은 글자는 완전한 회색이 아니라 파란 기운이 도는 회색이다(oklch 색조 250°, 선명함 0.06). 밝기는 그 회색 그대로라 대비는 낮은 채로다.
+  // 여러 색조를 늘어놓고 견주어 고른 색이다.
+  const faintInk = faint ? lchToHex({ l: hexToLch(faint.hex).l, c: 0.06, h: (250 * Math.PI) / 180 }) : null
+  const samplePairs = [
+    { name: '기본', ink: baseInk, surface: baseSurface },
+    // 짙은 바탕의 밝은 글자는 같은 굵기라도 더 굵고 번져 보인다.
+    { name: '뒤집기', ink: baseSurface, surface: baseInk },
+    // 색은 정해 둔 그대로 쓴다. 글자로는 조금 밝더라도 더 짙은 단계로 바꾸지 않는다.
+    ...(accent ? [{ name: accent.short, ink: accent.hex, surface: baseSurface }] : []),
+    ...(faintInk ? [{ name: '옅은 글자', ink: faintInk, surface: baseSurface }] : []),
+  ].filter((p, i, all) => all.findIndex((q) => q.ink === p.ink && q.surface === p.surface) === i)
+  const sampleLook = {
+    sizes: tokens
+      .filter((t) => SIZE.matches(t.name) && Number.isFinite(px(t.value)))
+      .sort((a, b) => px(a.value) - px(b.value))
+      .map((t) => ({ size: t.value, line: lineOf(tokens, t.name) ?? suggestLine(t.value) ?? 'normal' })),
+    ink: baseInk,
+    surface: baseSurface,
+    pairs: samplePairs,
+  }
+
+  // 색 선택 창 아래에 견본으로 보여 줄, 이 디자인 시스템의 색들. 색상 판처럼 목록마다 한 줄이고, 예외 색은 맨 아래 줄이다.
+  const swatchRows = new Map<string, { name: string; hex: string }[]>()
+  for (const t of tokens) {
+    const hex = COLOR.matches(t.name) ? toHex(t.value) : null
+    if (!hex) continue
+    const short = shortName(COLOR, t.name)
+    const group = groupOf(short)
+    swatchRows.set(group, [...(swatchRows.get(group) ?? []), { name: short, hex }])
+  }
+  const soloRow = swatchRows.get('')
+  swatchRows.delete('')
+  if (soloRow) swatchRows.set('', soloRow)
+  const swatches = [...swatchRows].map(([group, colors]) => ({ group, colors }))
 
   return (
     <SwatchContext.Provider value={swatches}>
+    <PreviewFontContext.Provider value={previewFont}>
+    <SampleContext.Provider value={sampleLook}>
     <div className="flex h-full flex-col">
       {!bare && <TopBar
         systems={systems ?? []}
@@ -1360,7 +1523,21 @@ export function App() {
                   <>
                     {id === 'color' && (
                       <div className="mb-4 flex justify-end">
-                        <AddColorButtons onAddGroup={sectionProps.onAddGroup} folded={folded} onToggleFold={toggleFold} />
+                        <AddColorButtons
+                          onAddGroup={sectionProps.onAddGroup}
+                          folded={folded}
+                          onToggleFold={toggleFold}
+                          reset={{ run: colorsSorted ? () => commit(colorsSorted) : undefined }}
+                        />
+                      </div>
+                    )}
+                    {id === 'role' && (
+                      <div className="mb-4 flex justify-end gap-2">
+                        <ResetButton
+                          title="묶음과 그 안의 색을 기본 순서로 돌려놓아요"
+                          onReset={rolesSorted ? () => commit(rolesSorted) : undefined}
+                        />
+                        <FoldButton folded={rolesFolded} title="설명과 예시를 모두 숨기거나 보여요" onToggle={toggleRolesFold} />
                       </div>
                     )}
                     <KindSections kinds={TOKEN_SCREENS[id].kinds} {...sectionProps} />
@@ -1478,6 +1655,18 @@ export function App() {
               titles={Object.fromEntries(TOKEN_SCREEN_IDS.map((id) => [id, TOKEN_SCREENS[id].title]))}
               onMove={moveBoards}
             />
+          ) : selectedTokens.length === 1 && commonKind?.id === 'role' ? (
+            <RoleInspector
+              key={selectionId}
+              token={selectedTokens[0]}
+              tokens={tokens}
+              file={file}
+              uses={usesOf(comps, selectedTokens[0].name)}
+              onOpenComponent={openComp}
+              onRename={(to) => renameToken(selectedTokens[0].name, to)}
+              onChange={(patch) => commit(tokens.map((t) => (t.name === selectedTokens[0].name ? { ...t, ...patch } : t)))}
+              onCopy={(text) => copyText(text, '코드를 복사했어요.')}
+            />
           ) : selectedTokens.length === 1 && commonKind ? (
             <Inspector
               key={selectionId}
@@ -1491,8 +1680,12 @@ export function App() {
               }
               uses={usesOf(comps, selectedTokens[0].name)}
               onOpenComponent={openComp}
+              roles={tokens.filter((t) => refOf(t.value) === selectedTokens[0].name).map((t) => t.name)}
+              onOpenToken={goToken}
               onCopy={(text) => copyText(text, '코드를 복사했어요.')}
               onPickColor={pickColor}
+              line={SIZE.matches(selectedTokens[0].name) ? (lineOf(tokens, selectedTokens[0].name) ?? null) : undefined}
+              onLine={(value) => commit(withLine(tokens, selectedTokens[0].name, value))}
               scaleMissing={scaleOf(selectedTokens[0].name)?.missing.length ?? null}
               onMakeScale={() => fillScale(selectedTokens[0].name)}
             />
@@ -1536,6 +1729,22 @@ export function App() {
             existing={new Set([...colorGroups, ...tokens.filter((t) => COLOR.matches(t.name)).map((t) => shortName(COLOR, t.name))])}
             onCancel={() => setAddingSolo(false)}
             onCreate={addSolo}
+          />
+        </Modal>
+      )}
+
+      {addingRole && (
+        <Modal title="의미 색 추가" onClose={() => setAddingRole(false)}>
+          <NewRoleForm tokens={tokens} onCancel={() => setAddingRole(false)} onCreate={addRole} />
+        </Modal>
+      )}
+
+      {addingFont && (
+        <Modal title="글꼴 종류 추가" wide="xl" onClose={() => setAddingFont(false)}>
+          <NewFontForm
+            existing={new Set(tokens.filter((t) => FONT.matches(t.name)).map((t) => shortName(FONT, t.name)))}
+            onCancel={() => setAddingFont(false)}
+            onCreate={addFont}
           />
         </Modal>
       )}
@@ -1600,6 +1809,8 @@ export function App() {
         </Modal>
       )}
     </div>
+    </SampleContext.Provider>
+    </PreviewFontContext.Provider>
     </SwatchContext.Provider>
   )
 }

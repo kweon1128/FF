@@ -60,6 +60,7 @@ export function NewSoloForm({
         <span className="flex items-center gap-2">
           <ColorSwatch
             label="색 고르기"
+            preview
             value={typed ?? suggested}
             onChange={(hex) => {
               setColor(hex)

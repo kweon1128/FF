@@ -1,9 +1,12 @@
 import { useRef, useState, type CSSProperties, type MouseEvent } from 'react'
-import { ChevronsDownUp, ChevronsUpDown, Plus } from 'lucide-react'
+import { ChevronsDownUp, ChevronsUpDown, Plus, RotateCcw } from 'lucide-react'
 import type { Token } from './lib/api'
-import { groupOf, shortName, type Kind } from './lib/catalog'
+import { groupOf, lineName, shortName, type Kind } from './lib/catalog'
 import { isApprox, showColor } from './lib/color'
+import { shownFont } from './lib/fonts'
 import { SCALE_STEPS } from './lib/scale'
+import type { RoleUse } from './lib/roles'
+import { RoleList } from './Roles'
 import { Button, swatchBackground } from './ui'
 
 const SAMPLE = '다람쥐 헌 쳇바퀴에 타고파 Aa 123'
@@ -30,29 +33,41 @@ export type SectionProps = {
   onReorderGroup: (group: string, before: string | null) => void
   /** 색상 판을 접었는지. 접으면 색 견본 아래의 이름과 값 글자를 모두 숨기고 색만 보여 준다. */
   folded: boolean
+  /** 의미 색 판을 접었는지. 접으면 설명과 예시를 숨기고 색과 이름만 보여 준다. */
+  rolesFolded: boolean
+  /** 의미 색을 끌어서 같은 묶음 안의 다른 자리에 놓는다. before는 그 앞에 놓일 색(묶음의 맨 끝이면 null). */
+  onMoveRole: (name: string, before: string | null) => void
+  /** 의미 색의 역할 묶음을 끌어서 다른 자리에 놓는다. */
+  onMoveRoleGroup: (use: RoleUse, before: RoleUse | null) => void
 }
 
 /** Shift, Ctrl, Cmd 중 하나를 누른 채 누르면 여러 개 선택이다. */
 export const isAdditive = (e: MouseEvent) => e.shiftKey || e.ctrlKey || e.metaKey
 
 /** 한 화면에 속한 종류들을 차례로 그린다. 전체 보기의 판 안에서도 그대로 쓴다. */
-export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGroup, onRename, onSelectGroup, emptyGroups, pickedGroup, onPickGroup, folded, onReorderGroup }: SectionProps & { kinds: Kind[] }) {
+export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGroup, onRename, onSelectGroup, emptyGroups, pickedGroup, onPickGroup, folded, onReorderGroup, rolesFolded, onMoveRole, onMoveRoleGroup }: SectionProps & { kinds: Kind[] }) {
   const single = kinds.length === 1
   return (
     <div className="space-y-8">
       {kinds.map((kind) => {
         const items = tokens.filter((t) => kind.matches(t.name))
         const list = { kind, items, selected, onSelect, onAdd, onRename }
+        // 이제 쓰지 않는 종류(따로 떨어진 줄 높이)는 파일에 값이 남아 있을 때만 보여 준다.
+        if (kind.legacy && items.length === 0) return null
+        // 글자 크기의 줄에는 묶인 줄 높이를 함께 보여 준다.
+        const lineOf = kind.id === 'size' ? (name: string) => tokens.find((t) => t.name === lineName(name))?.value : undefined
         return (
           <section key={kind.id}>
             {!single && <h2 className="mb-2 font-[650]">{kind.title}</h2>}
             {kind.id === 'color' ? (
               // 색이 하나도 없어도 "예외 색" 목록은 처음부터 있다. 목록은 판 오른쪽 위의 "목록 추가"로 만든다.
               <ColorGroups {...list} onSelectGroup={onSelectGroup} emptyGroups={emptyGroups} pickedGroup={pickedGroup} onPickGroup={onPickGroup} folded={folded} onReorderGroup={onReorderGroup} onAddGroup={onAddGroup} />
+            ) : kind.id === 'role' ? (
+              <RoleList {...list} all={tokens} folded={rolesFolded} onSelectGroup={onSelectGroup} onMove={onMoveRole} onMoveGroup={onMoveRoleGroup} />
             ) : kind.tiles ? (
               <TileGrid {...list} />
             ) : (
-              <RowList {...list} />
+              <RowList {...list} lineOf={lineOf} />
             )}
           </section>
         )
@@ -61,25 +76,44 @@ export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGr
   )
 }
 
-/** 색상 판의 버튼들. 글자 접기와 목록 추가. */
+/** 판을 접고 펴는 버튼. 판 오른쪽 위에 둔다. */
+export function FoldButton({ folded, title, onToggle }: { folded: boolean; title: string; onToggle: () => void }) {
+  return (
+    <Button variant="ghost" aria-pressed={folded} title={title} onClick={onToggle}>
+      {folded ? <ChevronsUpDown size={16} strokeWidth={1.5} /> : <ChevronsDownUp size={16} strokeWidth={1.5} />}
+      {folded ? '펼치기' : '접기'}
+    </Button>
+  )
+}
+
+/** 판 안의 순서를 기본으로 돌려놓는 버튼. 이미 기본 순서면(onReset이 없으면) 누를 수 없다. */
+export function ResetButton({ title, onReset }: { title: string; onReset?: () => void }) {
+  return (
+    <Button variant="ghost" title={title} disabled={!onReset} onClick={onReset}>
+      <RotateCcw size={16} strokeWidth={1.5} />
+      원래대로
+    </Button>
+  )
+}
+
+/** 색상 판의 버튼들. 순서 원래대로, 글자 접기, 목록 추가. */
 export function AddColorButtons({
   onAddGroup,
   folded,
   onToggleFold,
+  reset,
 }: {
   onAddGroup: () => void
   /** 색상 판을 접었는지. onToggleFold가 있을 때만 접기 버튼을 보여 준다. */
   folded?: boolean
   onToggleFold?: () => void
+  /** 순서를 기본으로 돌려놓는다. show가 참일 때만 버튼을 보여 주고, run이 없으면 이미 기본 순서라 누를 수 없다. */
+  reset?: { run?: () => void }
 }) {
   return (
     <span className="flex gap-2">
-      {onToggleFold && (
-        <Button variant="ghost" aria-pressed={folded} title="색 아래의 이름과 값 글자를 모두 숨기거나 보여요" onClick={onToggleFold}>
-          {folded ? <ChevronsUpDown size={16} strokeWidth={1.5} /> : <ChevronsDownUp size={16} strokeWidth={1.5} />}
-          {folded ? '펼치기' : '접기'}
-        </Button>
-      )}
+      {reset && <ResetButton title="목록과 그 안의 색을 기본 순서로 돌려놓아요" onReset={reset.run} />}
+      {onToggleFold && <FoldButton folded={!!folded} title="색 아래의 이름과 값 글자를 모두 숨기거나 보여요" onToggle={onToggleFold} />}
       <Button onClick={onAddGroup}>
         <Plus size={16} strokeWidth={1.5} />
         목록 추가
@@ -139,8 +173,11 @@ export const OUTLINE = 'line-inset outline-selection'
 export const SELECTED = 'line-1'
 export const HOVER = 'hover:line-2 focus-visible:line-2'
 
+// 항목을 추가하는 상자. 점선 테두리 안에 + 아이콘만 둔다. 마우스를 올리면 점선이 사라지고 옅은 회색 바탕이 된다.
 export const ADD_TILE =
-  'flex items-center justify-center rounded-md border border-dashed border-hairline bg-canvas text-ink-faint outline-selection hover:border-transparent hover:bg-hover hover:text-ink focus-visible:line-1'
+  'flex items-center justify-center rounded-md dash-box bg-canvas text-ink-faint outline-selection [--edge:0px] hover:bg-hover hover:bg-none hover:text-ink focus-visible:line-1'
+/** 모서리가 8px인 항목(네모 칸 격자, 컴포넌트의 종류) 옆에 놓는 추가 상자. */
+export const ADD_TILE_LG = ADD_TILE.replace('rounded-md dash-box', 'rounded-lg dash-box-lg')
 
 function ColorGroups({
   kind,
@@ -200,20 +237,8 @@ function ColorGroups({
           <span className={`grid grid-cols-12 gap-x-3 ${folded ? 'gap-y-3' : 'gap-y-4'}`}>
             {SCALE_STEPS.map((step) => (
               <span key={step}>
-                {/* 점선은 직접 그린다. 브라우저의 기본 점선은 1px 굵기에서 너무 촘촘하다. 6px 긋고 5px 띄운다. */}
-                <span className="relative block h-16 rounded-md bg-canvas group-hover:bg-hover">
-                  <svg aria-hidden className="absolute inset-0 size-full overflow-visible">
-                    <rect
-                      x="0.5"
-                      y="0.5"
-                      rx="5.5"
-                      fill="none"
-                      strokeDasharray="6 5"
-                      className="stroke-hairline group-hover:stroke-transparent"
-                      style={{ width: 'calc(100% - 1px)', height: 'calc(100% - 1px)' }}
-                    />
-                  </svg>
-                </span>
+                {/* 추가 칸과 같은 점선 상자. */}
+                <span className="block h-16 rounded-md dash-box bg-canvas group-hover:bg-hover group-hover:bg-none" />
                 {!folded && <span className="mt-1.5 block text-sm text-ink-faint">{step}</span>}
               </span>
             ))}
@@ -390,44 +415,66 @@ function TileGrid({ kind, items, selected, onSelect, onAdd, onRename }: ListProp
           </button>
         )
       })}
-      <button type="button" aria-label={kind.addLabel} onClick={() => onAdd(kind)} className={`${ADD_TILE} min-h-[138px] rounded-lg`}>
+      <button type="button" aria-label={kind.addLabel} onClick={() => onAdd(kind)} className={`${ADD_TILE_LG} min-h-[138px]`}>
         <Plus size={16} strokeWidth={1.5} />
       </button>
     </div>
   )
 }
 
-function RowList({ kind, items, selected, onSelect, onAdd, onRename }: ListProps) {
+function RowList({ kind, items, selected, onSelect, onAdd, onRename, lineOf }: ListProps & { lineOf?: (name: string) => string | undefined }) {
+  // 값이 긴 종류는 이름·값과 견본을 위아래로 쌓는다.
+  const stacked = kind.id === 'font'
   return (
     <div className="space-y-0.5 rounded-lg border border-hairline bg-canvas p-1">
       {items.map((t) => {
         const short = shortName(kind, t.name)
         const isSelected = selected.includes(t.name)
+        const line = lineOf?.(t.name)
+        // 글자 크기는 줄 높이와 한 쌍으로 적는다(14px / 20px).
+        // 글꼴 종류는 대체 글꼴을 뺀 글꼴 이름만 적는다.
+        const shown = stacked ? shownFont(t.value) : line ? `${t.value} / ${line}` : t.value
         return (
           <button
             key={t.name}
             type="button"
             data-token={t.name}
             aria-pressed={isSelected}
-            aria-label={`${short} ${t.value}`}
+            aria-label={`${short} ${shown}`}
             onClick={(e) => onSelect(t.name, isAdditive(e))}
                   onDoubleClick={() => onRename(t.name)}
-            className={`group relative flex w-full items-center gap-4 rounded-md px-3 py-2.5 text-left select-none ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
+            className={`group relative w-full rounded-md px-3 py-2.5 text-left select-none ${stacked ? 'block' : 'flex items-center gap-4'} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
           >
-            <span className="w-28 shrink-0">
-              <span data-name className="block truncate text-sm text-ink-soft">{short}</span>
-              <span className="block truncate font-mono text-sm text-ink-faint">{t.value}</span>
-            </span>
-            <span className="min-w-0 flex-1 overflow-hidden">
-              <RowSample kind={kind} value={t.value} />
-            </span>
-            {isSelected && selected.length === 1 && <SelectionLabel name={short} value={t.value} />}
+            {stacked ? (
+              // 글꼴 종류는 이름과 글꼴 이름을 한 줄 전체에 쓰고, 견본은 그 아래에 둔다. 글꼴 이름은 좁은 칸에 넣으면 잘린다.
+              <>
+                <span data-name className="block text-sm text-ink-soft">{short}</span>
+                {/* 다른 줄의 값(14px)보다 작게 12px로 적어 견본 문장이 주인공이 되게 한다. */}
+                <span className="block font-mono text-xs leading-4 break-words text-ink-faint">{shown}</span>
+                <span className="mt-2 block overflow-hidden">
+                  <RowSample kind={kind} value={t.value} />
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="w-28 shrink-0">
+                  <span data-name className="block truncate text-sm text-ink-soft">{short}</span>
+                  <span className="block truncate font-mono text-sm text-ink-faint">{shown}</span>
+                </span>
+                <span className="min-w-0 flex-1 overflow-hidden">
+                  <RowSample kind={kind} value={t.value} line={line} />
+                </span>
+              </>
+            )}
+            {isSelected && selected.length === 1 && <SelectionLabel name={short} value={shown} />}
           </button>
         )
       })}
-      <button type="button" aria-label={kind.addLabel} onClick={() => onAdd(kind)} className={`${ADD_TILE} h-10 w-full`}>
-        <Plus size={16} strokeWidth={1.5} />
-      </button>
+      {!kind.legacy && (
+        <button type="button" aria-label={kind.addLabel} onClick={() => onAdd(kind)} className={`${ADD_TILE} h-10 w-full`}>
+          <Plus size={16} strokeWidth={1.5} />
+        </button>
+      )}
     </div>
   )
 }
@@ -442,12 +489,20 @@ function MovingDot({ style }: { style: CSSProperties }) {
   )
 }
 
-function RowSample({ kind, value }: { kind: Kind; value: string }) {
+function RowSample({ kind, value, line }: { kind: Kind; value: string; line?: string }) {
   switch (kind.id) {
     case 'font':
       return <span className="block truncate text-lg" style={{ fontFamily: value }}>{SAMPLE}</span>
     case 'size':
-      return <span className="block truncate leading-tight" style={{ fontSize: value }}>{SAMPLE}</span>
+      // 줄 높이가 묶여 있으면 두 줄로 써서 줄 사이가 보이게 한다. 줄 높이는 한 줄로는 보이지 않는다.
+      return line ? (
+        <span className="block" style={{ fontSize: value, lineHeight: line }}>
+          <span className="block truncate">{SAMPLE}</span>
+          <span className="block truncate">{SAMPLE}</span>
+        </span>
+      ) : (
+        <span className="block truncate leading-tight" style={{ fontSize: value }}>{SAMPLE}</span>
+      )
     case 'weight':
       return <span className="block truncate text-lg" style={{ fontWeight: value }}>{SAMPLE}</span>
     case 'leading':

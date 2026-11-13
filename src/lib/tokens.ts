@@ -1,8 +1,8 @@
 // 기본 값 목록을 다루는 계산: 복제, 붙여넣기, 순서 바꾸기, 글자로 주고받기.
 
 import type { Token } from './api'
-import { ALL_KINDS, SLUG, groupOf, shortName } from './catalog'
-import { isColor } from './color'
+import { ALL_KINDS, COLOR_REF, KINDS, SLUG, groupOf, lineName, shortName } from './catalog'
+import { isColor, toHex, toOklch } from './color'
 
 export const kindOf = (name: string) => ALL_KINDS.find((k) => k.matches(name)) ?? null
 
@@ -27,14 +27,19 @@ export function copyName(name: string, taken: Set<string>) {
 export function duplicateTokens(tokens: Token[], names: string[]) {
   const taken = new Set(tokens.map((t) => t.name))
   const added: string[] = []
+  const after = new Map<string, Token[]>()
   const next = tokens.flatMap((t) => {
     if (!names.includes(t.name)) return [t]
     const name = copyName(t.name, taken)
     taken.add(name)
     added.push(name)
-    return [t, { name, value: t.value }]
+    // 글자 크기를 복제하면 묶인 줄 높이도 함께 복제한다. 원래 크기와 그 줄 높이 사이에 끼지 않게, 복제한 쌍은 원래 줄 높이 뒤에 놓는다.
+    const line = tokens.find((l) => l.name === lineName(t.name))
+    if (!line) return [t, { ...t, name }]
+    after.set(line.name, [{ ...t, name }, { ...line, name: lineName(name) }])
+    return [t]
   })
-  return { next, added }
+  return { next: next.flatMap((t) => [t, ...(after.get(t.name) ?? [])]), added }
 }
 
 /** 고른 값을 같은 묶음 안에서 한 칸 뒤(1)나 앞(-1)으로 옮긴다. */
@@ -116,7 +121,8 @@ export function pasteTokens(tokens: Token[], pasted: Token[], intoGroup: string 
   for (const p of pasted) {
     const kind = kindOf(p.name)
     if (!kind) continue
-    let name = pasteName(p.name, intoGroup)
+    // 다른 색을 가리키는 값(의미 색)은 목록에 속하지 않으므로 이름을 그대로 둔다.
+    let name = COLOR_REF.test(p.value) ? p.name : pasteName(p.name, intoGroup)
     if (taken.has(name) && overwrite) {
       const at = next.findIndex((t) => t.name === name)
       next[at] = { name, value: p.value }
@@ -142,4 +148,66 @@ export function stepValue(value: string, dir: 1 | -1, big: boolean): string | nu
   const step = (decimals ? 0.1 : 1) * (big ? 10 : 1)
   const next = Number(m[1]) + dir * step
   return `${Number(next.toFixed(Math.max(decimals, 1))).toString()}${m[2]}`
+}
+
+/** 이보다 선명한 색이 하나도 없는 목록은 무채색(회색) 목록으로 본다. */
+const NEUTRAL_CHROMA = 0.04
+
+/**
+ * 색상 판의 순서를 기본으로 돌려놓는다.
+ * 목록은 회색 목록을 먼저, 색깔 있는 목록을 무지개 순서(빨강, 주황, 노랑, 초록, 파랑, 보라)로 놓는다.
+ * 목록 안의 색은 번호 순서(50→950)이고 번호가 아닌 이름은 뒤에 그대로 둔다. 예외 색은 맨 뒤에 지금 순서 그대로 둔다.
+ */
+export function defaultColorOrder(tokens: Token[]): Token[] {
+  const color = KINDS.color
+  const colors = tokens.filter((t) => color.matches(t.name))
+  const listOf = (t: Token) => groupOf(shortName(color, t.name))
+  const step = (t: Token) => {
+    const n = Number(shortName(color, t.name).slice(listOf(t).length + 1))
+    return listOf(t) && Number.isFinite(n) ? n : Infinity
+  }
+  // 목록의 색조는 그 목록에서 가장 선명한 색의 것으로 본다(옅은 단계는 색조가 흔들린다).
+  const hueOf = (list: Token[]) => {
+    let best = { c: 0, h: 0 }
+    for (const t of list) {
+      const hex = toHex(t.value)
+      const m = hex && /^oklch\([\d.]+ ([\d.]+) ([\d.]+)/.exec(toOklch(hex.slice(0, 7)))
+      if (m && Number(m[1]) > best.c) best = { c: Number(m[1]), h: Number(m[2]) }
+    }
+    return best.c < NEUTRAL_CHROMA ? -1 : best.h
+  }
+  const names = [...new Set(colors.map(listOf))].filter(Boolean)
+  const lists = names.map((name) => {
+    const list = colors.filter((t) => listOf(t) === name)
+    return { hue: hueOf(list), list: [...list].sort((a, b) => step(a) - step(b)) }
+  })
+  const sorted = [...lists.sort((a, b) => a.hue - b.hue).flatMap((l) => l.list), ...colors.filter((t) => listOf(t) === '')]
+  let k = 0
+  return tokens.map((t) => (color.matches(t.name) ? sorted[k++] : t))
+}
+
+/** 글자 크기에 묶인 줄 높이. 없으면 undefined. */
+export function lineOf(tokens: Token[], sizeName: string) {
+  return tokens.find((t) => t.name === lineName(sizeName))?.value
+}
+
+/**
+ * 글자 크기에 어울리는 줄 높이(px). 줄 높이는 배수가 아니라 px로 정하고 4의 배수에 맞춘다.
+ * 그래야 어떤 글꼴을 넣어도 줄의 높이가 같고, 아이콘이나 체크박스가 줄의 한가운데에 놓인다.
+ * 작은 글자는 약 1.45배, 24px부터는 약 1.25배다(12→16, 14→20, 16→24, 20→28, 24→32).
+ * 크기가 px나 rem이 아니면 null.
+ */
+export function suggestLine(size: string) {
+  const m = /^(\d*\.?\d+)(px|rem)$/.exec(size.trim())
+  if (!m) return null
+  const px = Number(m[1]) * (m[2] === 'rem' ? 16 : 1)
+  return `${Math.max(4, Math.round((px * (px >= 24 ? 1.25 : 1.45)) / 4) * 4)}px`
+}
+
+/** 글자 크기에 묶인 줄 높이를 바꾼다. 없으면 그 크기 바로 뒤에 넣고, value가 null이면 지운다. */
+export function withLine(tokens: Token[], sizeName: string, value: string | null) {
+  const name = lineName(sizeName)
+  if (value === null) return tokens.filter((t) => t.name !== name)
+  if (tokens.some((t) => t.name === name)) return tokens.map((t) => (t.name === name ? { ...t, value } : t))
+  return tokens.flatMap((t) => (t.name === sizeName ? [t, { name, value }] : [t]))
 }

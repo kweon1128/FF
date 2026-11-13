@@ -8,6 +8,7 @@ import {
   Monitor,
   Palette,
   Plus,
+  Tags,
   Ruler,
   Sparkles,
   Square,
@@ -26,6 +27,7 @@ const SECTIONS: { title?: string; items: Item[] }[] = [
     title: '기본 값',
     items: [
       { id: 'color', label: '색상', icon: Palette },
+      { id: 'role', label: '의미 색', icon: Tags },
       { id: 'type', label: '글꼴', icon: Type },
       { id: 'spacing', label: '간격', icon: Ruler },
       { id: 'radius', label: '모서리', icon: SquareRoundCorner },

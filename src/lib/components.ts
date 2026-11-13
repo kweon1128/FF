@@ -3,6 +3,8 @@
 
 import type { CSSProperties } from 'react'
 import type { Token } from './api'
+import { lineName } from './catalog'
+import { refOf, resolveColor } from './roles'
 
 export const STATES = [
   { id: 'default', label: '기본' },
@@ -127,7 +129,11 @@ export function renameRef(comps: Comp[], from: string, to: string): Comp[] {
 
 /** 한 칸(종류 · 크기 · 상태)의 실제 모양. 가리키는 값이 없어졌으면 정하지 않은 것으로 본다. */
 export function cellStyle(comp: Comp, cell: Cell, tokens: Token[]): CSSProperties {
-  const value = (name: Ref) => (name ? tokens.find((t) => t.name === name)?.value : undefined)
+  // 의미 색은 다른 색을 가리키는 값이라, 가리키는 색을 따라가 실제 색을 쓴다(FF 화면에는 사용자의 변수가 선언되어 있지 않다).
+  const value = (name: Ref) => {
+    const raw = name ? tokens.find((t) => t.name === name)?.value : undefined
+    return raw && refOf(raw) ? (resolveColor(tokens, raw) ?? undefined) : raw
+  }
   const variant = comp.variants[cell.v] ?? comp.variants[0]
   const size = comp.sizes[cell.s] ?? comp.sizes[0]
   const base = variant.states.default
@@ -150,7 +156,8 @@ export function cellStyle(comp: Comp, cell: Cell, tokens: Token[]): CSSPropertie
     fontFamily: value(comp.font),
     fontWeight: value(comp.weight),
     fontSize: value(size.textSize),
-    lineHeight: 1.2,
+    // 줄 높이는 글자 크기에 묶인 px 값을 쓴다. 그래야 글꼴을 바꿔도 버튼의 높이가 같다. 묶인 값이 없을 때만 1.2배다.
+    lineHeight: (size.textSize && value(lineName(size.textSize))) || 1.2,
     whiteSpace: 'nowrap',
   }
 }
@@ -213,6 +220,8 @@ export function compCss(comp: Comp): string {
       rule(`${base}--${s.name}`, [
         ['padding', s.padX || s.padY ? `${v(s.padY) ?? '0'} ${v(s.padX) ?? '0'}` : undefined],
         ['font-size', v(s.textSize)],
+        // 글자 크기에 묶인 줄 높이. 묶인 값이 없는 크기면 기본 규칙의 1.2배가 그대로 쓰인다.
+        ['line-height', s.textSize ? `var(${lineName(s.textSize)}, 1.2)` : undefined],
         ['gap', v(s.gap)],
       ]),
     ),

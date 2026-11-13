@@ -1,3 +1,76 @@
 /* FF가 관리하는 디자인 값입니다. @theme 안의 값은 FF에서 고칠 수 있습니다. */
 @theme {
+  --color-gray-50: oklch(0.97558 0.00264 106.448);
+  --color-gray-100: oklch(0.95815 0 0);
+  --color-gray-200: oklch(0.92494 0 0);
+  --color-gray-300: oklch(0.7826 0 0);
+  --color-gray-400: oklch(0.66655 0 0);
+  --color-gray-500: oklch(0.56241 0 0);
+  --color-gray-600: oklch(0.47478 0 0);
+  --color-gray-700: oklch(0.41654 0 0);
+  --color-gray-800: oklch(0.35232 0 0);
+  --color-gray-900: oklch(0.30118 0 0);
+  --color-gray-950: oklch(0.22645 0 0);
+  --color-red-50: oklch(0.97517 0.01217 29.869);
+  --color-red-100: oklch(0.93975 0.03031 27.752);
+  --color-red-200: oklch(0.88345 0.06166 28.268);
+  --color-red-300: oklch(0.80716 0.10775 28.045);
+  --color-red-400: oklch(0.705 0.18219 27.706);
+  --color-red-500: oklch(0.61276 0.1974 28.044);
+  --color-red-600: oklch(0.53179 0.19761 27.905);
+  --color-red-700: oklch(0.45229 0.18121 27.861);
+  --color-red-800: oklch(0.38549 0.15759 28.051);
+  --color-red-900: oklch(0.32503 0.13303 28.441);
+  --color-red-950: oklch(0.24662 0.09907 27.927);
+  --color-orange-50: oklch(0.9771 0.01151 37.422);
+  --color-orange-100: oklch(0.94354 0.02872 33.675);
+  --color-orange-200: oklch(0.89291 0.05704 34.374);
+  --color-orange-300: oklch(0.82113 0.09968 33.76);
+  --color-orange-400: oklch(0.72677 0.1683 33.343);
+  --color-orange-500: oklch(0.64237 0.21229 33.724);
+  --color-orange-600: oklch(0.55923 0.20482 33.283);
+  --color-orange-700: oklch(0.47667 0.17298 33.643);
+  --color-orange-800: oklch(0.40368 0.14954 32.851);
+  --color-orange-900: oklch(0.343 0.13115 31.676);
+  --color-orange-950: oklch(0.26026 0.10541 29.667);
+  --color-green-50: oklch(0.97541 0.01992 150.106);
+  --color-green-100: oklch(0.94308 0.04437 148.272);
+  --color-green-200: oklch(0.89083 0.07798 148.733);
+  --color-green-300: oklch(0.81785 0.1194 148.57);
+  --color-green-400: oklch(0.7232 0.158 148.541);
+  --color-green-500: oklch(0.63632 0.17207 148.501);
+  --color-green-600: oklch(0.55326 0.15626 148.657);
+  --color-green-700: oklch(0.47265 0.1353 148.43);
+  --color-green-800: oklch(0.40164 0.11546 148.265);
+  --color-green-900: oklch(0.34039 0.09925 147.718);
+  --color-green-950: oklch(0.25871 0.07802 146.47);
+  --color-blue-50: oklch(0.95926 0.02175 239.425);
+  --color-blue-100: oklch(0.9314 0.03457 248.199);
+  --color-blue-200: oklch(0.86837 0.06593 249.281);
+  --color-blue-300: oklch(0.78337 0.11303 249.447);
+  --color-blue-400: oklch(0.66984 0.18275 249.224);
+  --color-blue-500: oklch(0.58537 0.16094 249.315);
+  --color-blue-600: oklch(0.50871 0.14281 249.684);
+  --color-blue-700: oklch(0.43515 0.12254 249.805);
+  --color-blue-800: oklch(0.36963 0.10468 250.018);
+  --color-blue-900: oklch(0.31287 0.08943 250.367);
+  --color-blue-950: oklch(0.23983 0.07438 253.186);
+  --color-white: oklch(1 0 0);
+  --color-black: oklch(0 0 0);
+  --color-ink: var(--color-black); /* 글자: 제목, 본문, 입력한 값 */
+  --color-ink-soft: var(--color-gray-600); /* 글자: 선택되지 않은 메뉴 항목, 보조 설명 */
+  --color-ink-faint: var(--color-gray-500); /* 글자: 묶음 이름, 입력칸 이름표. 이보다 옅은 글자는 쓰지 않는다 */
+  --color-on-primary: var(--color-white); /* 글자: 주요 버튼 위의 글자 */
+  --color-danger: var(--color-red-600); /* 글자: 삭제 버튼, 잘못된 입력의 안내 */
+  --color-success: var(--color-green-500); /* 글자: 저장됨 표시 */
+  --color-canvas: var(--color-white); /* 바탕: 왼쪽 메뉴, 오른쪽 패널, 상단 바, 판 */
+  --color-workspace: var(--color-gray-50); /* 바탕: 가운데 작업 영역 */
+  --color-hover: var(--color-gray-100); /* 바탕: 마우스를 올린 줄, 선택된 메뉴 항목, 값 이름표 */
+  --color-selection-soft: var(--color-blue-50); /* 바탕: 선택된 줄 */
+  --color-hairline: var(--color-gray-200); /* 테두리: 패널 사이의 선, 입력칸과 버튼의 테두리 */
+  --color-hairline-soft: var(--color-gray-100); /* 테두리: 패널 안에서 묶음을 나누는 옅은 선 */
+  --color-guide: var(--color-orange-500); /* 테두리: 판을 끌 때의 맞춤 안내선, 간격 표시 */
+  --color-selection: var(--color-blue-400); /* 테두리: 선택과 포커스 표시 전용. 버튼 바탕이나 장식으로 쓰지 않는다 */
+  --color-primary: var(--color-black); /* 버튼: 주요 버튼. 한 화면에 하나만 둔다 */
+  --font-sans: "SUIT Variable", system-ui, sans-serif;
 }

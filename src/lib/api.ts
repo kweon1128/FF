@@ -1,4 +1,5 @@
-export type Token = { name: string; value: string }
+/** note는 파일에서 값과 같은 줄 뒤에 붙은 주석. 의미 색의 역할과 설명이 여기에 들어 있다. */
+export type Token = { name: string; value: string; note?: string }
 
 /** 저장하려는데 그 사이에 파일이 FF 밖에서(AI나 편집기로) 바뀌어 있어 쓰지 않았다는 뜻. 다시 불러와야 한다. */
 export class ConflictError extends Error {}

@@ -24,6 +24,25 @@ const IMAGE_ID = /^img-[a-z0-9]+$/
 const IMAGE_FILE = /^[a-z0-9]+\.(png|jpg|webp|gif)$/
 const IMAGE_TYPES: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif' }
 const IMAGE_LIMIT = 20 * 1024 * 1024
+// 글꼴을 불러오는 코드. AI나 사람이 직접 고치는 파일이고, FF는 읽어서 화면에 불러오기만 한다(추천 글꼴을 고르면 한 줄을 덧붙인다).
+const FONTS_FILE = 'fonts.css'
+// 글꼴 파일을 직접 넣는 폴더.
+const FONTS_DIR = 'fonts'
+const FONT_FILE = /^[A-Za-z0-9][A-Za-z0-9._ -]*\.(woff2|woff|ttf|otf)$/
+const FONT_TYPES: Record<string, string> = { woff2: 'font/woff2', woff: 'font/woff', ttf: 'font/ttf', otf: 'font/otf' }
+const FONT_URL = /^https:\/\/[^\s'"()\\]+$/
+const EMPTY_FONTS = `/*
+  이 디자인 시스템이 쓰는 글꼴을 불러오는 코드입니다. FF가 이 파일을 읽어 글꼴을 화면에 불러옵니다.
+
+  글꼴을 추가하는 방법 (셋 중 하나)
+  1. 웹 글꼴 주소:  @import url('https://...');   ← 반드시 파일 맨 위, 다른 규칙보다 앞에 둡니다.
+  2. 배포처가 준 코드:  @font-face { font-family: '이름'; src: url('https://...') format('woff2'); }
+  3. 글꼴 파일:  파일을 이 폴더의 fonts/ 에 넣고  @font-face { font-family: '이름'; src: url('./fonts/파일.woff2') format('woff2'); }
+
+  여기에 적은 font-family 이름이 FF의 "글꼴 종류 추가" 창에 "이 시스템의 글꼴"로 나타납니다.
+  글꼴을 실제로 쓰려면 tokens.css 에 --font-sans: '이름', system-ui, sans-serif; 처럼 적습니다(FF의 창에서 골라도 됩니다).
+*/
+`
 const EMPTY_TOKENS = `/* FF가 관리하는 디자인 값입니다. @theme 안의 값은 FF에서 고칠 수 있습니다. */\n@theme {\n}\n`
 
 class HttpError extends Error {
@@ -63,7 +82,7 @@ async function readBytes(req: IncomingMessage, limit: number): Promise<Buffer> {
 }
 
 /** FF가 지켜보는 파일들. 이 파일이 FF 밖에서(AI나 편집기로) 바뀌면 화면에 알린다. */
-const WATCHED = [TOKENS_FILE, CANVAS_FILE, COMPONENTS_FILE]
+const WATCHED = [TOKENS_FILE, CANVAS_FILE, COMPONENTS_FILE, FONTS_FILE]
 const CHANGED = '파일이 FF 밖에서 바뀌었어요.'
 
 const hash = (content: string) => createHash('sha1').update(content).digest('hex')
@@ -268,6 +287,57 @@ export function ffApi(): Plugin {
         res.statusCode = 200
         res.setHeader('Content-Type', Object.keys(IMAGE_TYPES).find((type) => IMAGE_TYPES[type] === ext)!)
         res.setHeader('Cache-Control', 'max-age=31536000, immutable')
+        return res.end(bytes)
+      }
+    }
+
+    // 글꼴을 불러오는 코드(fonts.css)와 글꼴 파일(fonts/)
+    if (parts.length >= 3 && parts[2] === 'fonts') {
+      const name = decodeURIComponent(parts[1])
+      await tokensPath(name) // 시스템이 있는지 확인
+      const file = path.join(systemDir(name), FONTS_FILE)
+
+      if (parts.length === 3 && method === 'GET') {
+        let css = ''
+        try {
+          css = await fs.readFile(file, 'utf-8')
+        } catch {
+          // 아직 글꼴을 넣은 적이 없는 시스템이다.
+        }
+        return send(res, 200, { css, file: `systems/${name}/${FONTS_FILE}` })
+      }
+
+      // 글꼴을 불러오는 주소 한 줄을 덧붙인다. 이미 있으면 그대로 둔다.
+      if (parts.length === 3 && method === 'POST') {
+        const { url: href } = await readJson(req)
+        if (typeof href !== 'string' || !FONT_URL.test(href)) throw new HttpError(400, '글꼴 주소를 읽지 못했어요.')
+        let css = EMPTY_FONTS
+        try {
+          css = await fs.readFile(file, 'utf-8')
+        } catch {
+          // 파일이 없으면 안내 주석과 함께 새로 만든다.
+        }
+        if (css.includes(href)) return send(res, 200, { ok: true, css })
+        // @import는 다른 규칙보다 앞에 있어야 한다. 맨 위의 주석과 이미 있는 @import들 바로 뒤에 넣는다.
+        const head = /^(?:\s|\/\*[\s\S]*?\*\/|@import\s+(?:url\([^)]*\)|"[^"]*"|'[^']*')[^;]*;)*/.exec(css)![0]
+        const eol = css.includes('\r\n') ? '\r\n' : '\n'
+        const before = head.trimEnd()
+        const next = `${before}${before ? eol : ''}@import url('${href}');${eol}${css.slice(head.length)}`
+        await save(file, next, undefined)
+        return send(res, 200, { ok: true, css: next })
+      }
+
+      if (parts.length === 4 && method === 'GET') {
+        const wanted = decodeURIComponent(parts[3])
+        if (!FONT_FILE.test(wanted)) throw new HttpError(404, '글꼴 파일을 찾지 못했어요.')
+        let bytes: Buffer
+        try {
+          bytes = await fs.readFile(path.join(systemDir(name), FONTS_DIR, wanted))
+        } catch {
+          throw new HttpError(404, '글꼴 파일을 찾지 못했어요.')
+        }
+        res.statusCode = 200
+        res.setHeader('Content-Type', FONT_TYPES[wanted.split('.').pop()!.toLowerCase()] ?? 'application/octet-stream')
         return res.end(bytes)
       }
     }

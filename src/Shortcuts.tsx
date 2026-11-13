@@ -46,6 +46,7 @@ const GROUPS: { title: string; keys: [string, string][] }[] = [
       ['Ctrl+휠, +, -', '확대 / 축소'],
       ['Shift+1 / Shift+2', '전체 / 선택한 것에 맞춤'],
       ['Ctrl+0', '100%'],
+      ["Ctrl+'", '1px 격자 켜기 / 끄기 (800% 이상에서 보임)'],
       ['Ctrl+\\', '메뉴와 패널 숨기기'],
       ['Ctrl+K', '빠른 실행'],
       ['Ctrl+Shift+/', '단축키 목록'],

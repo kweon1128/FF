@@ -1,7 +1,10 @@
 // tokens.css 안의 @theme 블록을 읽고 쓴다.
 // @theme 바깥의 내용은 건드리지 않는다. 블록 안의 주석은 붙어 있던 값을 따라 보존한다.
 
-export type Token = { name: string; value: string }
+/** note는 값과 같은 줄 뒤에 붙은 주석의 내용. 의미 색의 역할과 설명을 여기에 적는다. */
+export type Token = { name: string; value: string; note?: string }
+
+const inner = (comment: string) => comment.slice(2, -2).trim()
 
 const THEME_START = /@theme\b[^{;]*\{/
 
@@ -20,11 +23,14 @@ function findTheme(css: string) {
 export function parseTokens(css: string): Token[] {
   const theme = findTheme(css)
   if (!theme) return []
-  const body = css.slice(theme.open, theme.close).replace(/\/\*[\s\S]*?\*\//g, '')
+  const raw = css.slice(theme.open, theme.close)
+  const { notes } = readNotes(raw)
+  const body = raw.replace(/\/\*[\s\S]*?\*\//g, '')
   const tokens: Token[] = []
   const declaration = /(--[A-Za-z0-9_-]+)\s*:\s*([^;{}]+);/g
   for (const m of body.matchAll(declaration)) {
-    tokens.push({ name: m[1], value: m[2].trim().replace(/\s+/g, ' ') })
+    const after = notes.get(m[1])?.after[0]
+    tokens.push({ name: m[1], value: m[2].trim().replace(/\s+/g, ' '), ...(after ? { note: inner(after) } : {}) })
   }
   return tokens
 }
@@ -60,7 +66,10 @@ export function writeTokens(css: string, tokens: Token[]): string {
       .map((t) => {
         const note = notes.get(t.name)
         const before = (note?.before ?? []).map((c: string) => `  ${c}\n`).join('')
-        const after = (note?.after ?? []).map((c: string) => ` ${c}`).join('')
+        // note를 보내지 않은 값은 붙어 있던 주석을 그대로 둔다. 보냈고 내용이 달라졌으면 그것으로 바꾼다(비우면 지운다).
+        const kept: string[] = note?.after ?? []
+        const same = t.note === undefined || (kept[0] !== undefined && inner(kept[0]) === t.note)
+        const after = same ? kept.map((c) => ` ${c}`).join('') : t.note ? ` /* ${t.note} */` : ''
         return `${before}  ${t.name}: ${t.value};${after}\n`
       })
       .join('') + tail.map((c) => `  ${c}\n`).join('')
@@ -73,7 +82,9 @@ export function writeTokens(css: string, tokens: Token[]): string {
 
 export function isValidToken(token: unknown): token is Token {
   if (!token || typeof token !== 'object') return false
-  const { name, value } = token as Record<string, unknown>
+  const { name, value, note } = token as Record<string, unknown>
+  // 주석 안에 주석을 끝내는 기호나 줄바꿈이 들어가면 파일이 깨진다.
+  if (note !== undefined && (typeof note !== 'string' || /\*\/|[\n\r]/.test(note))) return false
   return (
     typeof name === 'string' &&
     typeof value === 'string' &&

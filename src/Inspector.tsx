@@ -1,11 +1,14 @@
 import { useState, type ReactNode } from 'react'
-import { Copy, PencilLine, Pipette, Rows3 } from 'lucide-react'
+import { ChevronDown, ChevronRight, Copy, PencilLine, Pipette, Rows3, Type } from 'lucide-react'
 import type { Token } from './lib/api'
 import { SLUG, groupOf, shortName, type Kind } from './lib/catalog'
-import { asHex, contrast, isApprox, showColor, toHex, toOklch } from './lib/color'
+import { asHex, isApprox, showColor, toHex, toOklch } from './lib/color'
 import { stepValue } from './lib/tokens'
 import { ColorSwatch } from './ColorPicker'
-import { Button, Chip, Field, inputClass } from './ui'
+import { ColorUses } from './ColorUses'
+import { FontSample, NewFontForm } from './NewFont'
+import { parseFontValue, shownFont, weightsOf } from './lib/fonts'
+import { Button, Chip, Field, Modal, inputClass } from './ui'
 
 type Props = {
   token: Token
@@ -17,16 +20,23 @@ type Props = {
   /** 이 값을 쓰는 컴포넌트와 그 자리들. */
   uses: { index: number; name: string; where: string[] }[]
   onOpenComponent: (index: number) => void
+  /** 이 색을 가리키는 의미 색들의 변수 이름. */
+  roles: string[]
+  onOpenToken: (name: string) => void
   /** 글자를 클립보드에 복사한다. */
   onCopy: (text: string) => void
   /** 화면에서 색을 찍는다(스포이드). 색 값에서만 쓴다. */
   onPickColor: () => void
+  /** 글자 크기에 묶인 줄 높이. 글자 크기일 때만 준다(없으면 null). */
+  line?: string | null
+  /** 줄 높이를 바꾼다. null이면 지운다. */
+  onLine?: (value: string | null) => void
   /** 이 색을 기준으로 50~950 단계를 만들 수 있으면, 아직 없는 단계의 수. 만들 수 없는 색이면 null. */
   scaleMissing: number | null
   onMakeScale: () => void
 }
 
-const ICON_BUTTON =
+export const ICON_BUTTON =
   'flex size-8 shrink-0 items-center justify-center rounded-md text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2'
 
 const HEX6 = /^#[0-9a-f]{6}$/i
@@ -45,6 +55,60 @@ export function Section({ title, children }: { title?: string; children: ReactNo
   )
 }
 
+export const CODE_OPEN = 'ff.codeOpen'
+const USES_OPEN = 'ff.usesOpen'
+
+/**
+ * 접어 두는 구역. 제목 줄을 누르면 펼쳐지고 다시 누르면 접힌다. 처음 상태는 startOpen으로 정한다(안 주면 접힘).
+ * 패널은 값을 고를 때마다 새로 만들어지므로, 펼친 상태를 브라우저에 기억해 다른 값을 골라도 그대로 둔다.
+ */
+export function FoldSection({
+  title,
+  storageKey,
+  startOpen = false,
+  children,
+}: {
+  title: string
+  storageKey: string
+  startOpen?: boolean
+  children: ReactNode
+}) {
+  const [open, setOpen] = useState(() => {
+    try {
+      const saved = localStorage.getItem(storageKey)
+      return saved === null ? startOpen : saved === '1'
+    } catch {
+      return startOpen
+    }
+  })
+  function toggle() {
+    const next = !open
+    setOpen(next)
+    try {
+      localStorage.setItem(storageKey, next ? '1' : '0')
+    } catch {
+      // 기억하지 못해도 접고 펴는 데는 문제가 없다.
+    }
+  }
+  const Arrow = open ? ChevronDown : ChevronRight
+  return (
+    <section className="border-b border-hairline last:border-b-0">
+      <h3>
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={toggle}
+          className="flex h-11 w-full items-center gap-1 px-4 text-sm font-[650] outline-selection hover:bg-hover focus-visible:outline-2 focus-visible:-outline-offset-2"
+        >
+          <span className="flex-1 text-left">{title}</span>
+          <Arrow size={16} strokeWidth={1.5} className="text-ink-soft" />
+        </button>
+      </h3>
+      {open && <div className="px-4 pt-1 pb-3">{children}</div>}
+    </section>
+  )
+}
+
 /** 오른쪽 편집 패널. 선택한 값이 바뀌면 key로 새로 만들어져 입력 중이던 내용이 초기화된다. */
 export function Inspector({
   token,
@@ -55,13 +119,20 @@ export function Inspector({
   onValue,
   uses,
   onOpenComponent,
+  roles,
+  onOpenToken,
   onCopy,
   onPickColor,
+  line,
+  onLine,
   scaleMissing,
   onMakeScale,
 }: Props) {
   const short = shortName(kind, token.name)
   const isColor = kind.id === 'color'
+  const isFont = kind.id === 'font'
+  // 글꼴을 견주어 고르는 창을 열었는지.
+  const [pickingFont, setPickingFont] = useState(false)
   const initialGroup = isColor ? groupOf(short) : ''
   const initialName = initialGroup ? short.slice(initialGroup.length + 1) : short
 
@@ -72,6 +143,19 @@ export function Inspector({
   // 색은 파일에 oklch로 저장하지만, 여기서는 읽고 쓰기 쉬운 #으로 보여 주고 받는다.
   const [valueDraft, setValueDraft] = useState(kind.id === 'color' ? showColor(token.value) : token.value)
   const [valueError, setValueError] = useState<string | null>(null)
+  const [lineDraft, setLineDraft] = useState(line ?? '')
+  const [lineError, setLineError] = useState<string | null>(null)
+
+  /** 줄 높이는 px로만 받는다. 숫자만 적으면 px를 붙이고, 비우면 묶인 줄 높이를 지운다. */
+  function changeLine(raw: string) {
+    setLineDraft(raw)
+    const next = raw.trim()
+    setLineError(null)
+    if (!next) return onLine?.(null)
+    const m = /^(\d*\.?\d+)(px)?$/.exec(next)
+    if (!m || Number(m[1]) <= 0) return setLineError('px로 적어 주세요. 예: 20px')
+    onLine?.(`${m[1]}px`)
+  }
 
   function commitName() {
     const group = groupDraft.trim()
@@ -99,6 +183,9 @@ export function Inspector({
     // #을 빼고 여섯 자리만 적어도 색으로 받는다.
     onValue(isColor ? toOklch(asHex(next) ?? next) : next)
   }
+
+  // 견본에 쓸 색. 칸에 적는 중인 값이 색으로 읽히면 그것을 바로 보여 주고, 아니면 저장된 값을 쓴다.
+  const liveColor = isColor ? (asHex(valueDraft) ?? toHex(token.value)) : null
 
   const nameInput = (
     <input
@@ -150,8 +237,14 @@ export function Inspector({
       </Section>
 
       <Section title={kind.valueLabel}>
-        <span className="flex items-center gap-2">
-          {isColor && <ColorSwatch label="색 고르기" value={valueDraft} alpha onChange={changeValue} />}
+        {/* 글꼴 종류는 값을 직접 적지 않는다. 정한 글꼴의 이름만 보여 주고, 바꾸는 것은 아래의 "글꼴 고르기"로 한다. 대체 글꼴까지 든 전체 값은 코드 구역에 있다. */}
+        {isFont && (
+          <p data-font-name className="truncate text-sm leading-8">
+            {shownFont(valueDraft)}
+          </p>
+        )}
+        <span className={isFont ? 'hidden' : 'flex items-center gap-2'}>
+          {isColor && <ColorSwatch label="색 고르기" value={valueDraft} alpha preview onChange={changeValue} />}
           <input
             aria-label={kind.valueLabel}
             className={`${inputClass} ${valueError ? 'border-danger focus:border-danger' : ''}`}
@@ -179,6 +272,43 @@ export function Inspector({
           )}
         </span>
         {valueError && <span className="mt-1 block text-sm text-danger">{valueError}</span>}
+        {line !== undefined && (
+          <div className="mt-2">
+            <Field label="줄 높이" error={lineError}>
+              <input
+                className={`${inputClass} ${lineError ? 'border-danger focus:border-danger' : ''}`}
+                value={lineDraft}
+                onChange={(e) => changeLine(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
+                  const next = stepValue(lineDraft, e.key === 'ArrowUp' ? 1 : -1, e.shiftKey)
+                  if (next === null) return
+                  e.preventDefault()
+                  changeLine(next)
+                }}
+              />
+            </Field>
+          </div>
+        )}
+        {isFont && (
+          <Button variant="ghost" className="-ml-2" onClick={() => setPickingFont(true)}>
+            <Type size={16} strokeWidth={1.5} />
+            글꼴 고르기
+          </Button>
+        )}
+        {pickingFont && (
+          <Modal title={`${short}의 글꼴`} wide="xl" onClose={() => setPickingFont(false)}>
+            <NewFontForm
+              existing={new Set()}
+              edit={{ name: short, value: valueDraft }}
+              onCancel={() => setPickingFont(false)}
+              onCreate={(_, value) => {
+                setPickingFont(false)
+                changeValue(value)
+              }}
+            />
+          </Modal>
+        )}
         {scaleMissing !== null && (
           <Button
             variant="ghost"
@@ -197,9 +327,22 @@ export function Inspector({
         )}
       </Section>
 
-      {isColor && <Contrast value={token.value} />}
+      {/* 색을 고르거나 고치는 동안 그 색이 실제로 쓰인 모습을 바로 보여 준다. 적는 중인 값이 색이면 그것을, 아니면 저장된 값을 쓴다. */}
+      {isColor && liveColor && (
+        <FoldSection title="쓰인 모습" storageKey={USES_OPEN} startOpen>
+          {/* 이름이 500 같은 단계면 그 단계를 기준으로 올림·누름 색을 계산한다. */}
+          <ColorUses color={liveColor} step={Number(initialName)} />
+        </FoldSection>
+      )}
 
-      <Section title="코드">
+      {/* 글꼴도 색처럼 쓰인 모습을 보여 준다. 값을 적는 동안 바로 따라 바뀐다. */}
+      {isFont && (
+        <FoldSection title="쓰인 모습" storageKey={USES_OPEN} startOpen>
+          <FontSample family={valueDraft} weights={weightsOf(parseFontValue(valueDraft).font)} className="rounded-md p-3 shadow-[inset_0_0_0_1px_rgb(0_0_0/0.08)]" />
+        </FoldSection>
+      )}
+
+      <FoldSection title="코드" storageKey={CODE_OPEN}>
         <div className="space-y-2">
           <div>
             <p className="mb-1 text-sm font-[550] text-ink-faint">변수 이름</p>
@@ -218,7 +361,7 @@ export function Inspector({
               </button>
             </span>
           </div>
-          {isColor && (
+          {(isColor || isFont) && (
             <div>
               <p className="mb-1 text-sm font-[550] text-ink-faint">저장된 값</p>
               <span className="flex items-center gap-1">
@@ -229,7 +372,7 @@ export function Inspector({
                   <Copy size={16} strokeWidth={1.5} />
                 </button>
               </span>
-              {isApprox(token.value) && (
+              {isColor && isApprox(token.value) && (
                 <p className="mt-1 text-sm text-ink-faint">화면이 낼 수 없는 선명한 색이라, 위의 # 값은 가장 가까운 색이에요.</p>
               )}
             </div>
@@ -239,13 +382,25 @@ export function Inspector({
             <Chip>{file}</Chip>
           </div>
         </div>
-      </Section>
+      </FoldSection>
 
       <Section title="쓰이는 곳">
-        {uses.length === 0 ? (
-          <p className="text-sm text-ink-faint">이 값을 쓰는 컴포넌트가 아직 없어요.</p>
+        {uses.length === 0 && roles.length === 0 ? (
+          <p className="text-sm text-ink-faint">이 값을 쓰는 곳이 아직 없어요.</p>
         ) : (
           <div className="space-y-2">
+            {/* 이 색을 가리키는 의미 색. 누르면 의미 색 판의 그 색으로 간다. */}
+            {roles.map((name) => (
+              <button
+                key={name}
+                type="button"
+                onClick={() => onOpenToken(name)}
+                className="-ml-2 flex h-8 max-w-full items-center rounded-md px-2 font-[550] outline-selection hover:bg-hover focus-visible:outline-2"
+              >
+                <span className="truncate">{name.slice(kind.prefix.length)}</span>
+                <span className="ml-1.5 shrink-0 text-sm font-normal text-ink-faint">의미 색</span>
+              </button>
+            ))}
             {uses.map((u) => (
               <div key={u.index}>
                 <button
@@ -263,42 +418,6 @@ export function Inspector({
         )}
       </Section>
     </div>
-  )
-}
-
-/**
- * 색의 대비. 이 색을 바탕으로 썼을 때 흰 글자와 검은 글자가 얼마나 읽히는지 보여 준다.
- * AI가 고른 색이 실제로 쓸 만한지 사람이 확인하는 자리다. 반투명한 색은 뒤 배경에 따라 달라지므로 보여 주지 않는다.
- */
-function Contrast({ value }: { value: string }) {
-  const hex = toHex(value)
-  if (hex?.length !== 7) return null
-  const rows = [
-    { name: '흰 글자', ink: '#ffffff' },
-    { name: '검은 글자', ink: '#000000' },
-  ].map((row) => ({ ...row, ratio: contrast(hex, row.ink) }))
-  // 읽기 기준(WCAG): 4.5 이상이면 본문도 읽힌다. 3 이상이면 큰 글자와 아이콘만. 그 아래는 쓰기 어렵다.
-  const verdict = (ratio: number) => (ratio >= 4.5 ? '읽기 좋음' : ratio >= 3 ? '큰 글자만' : '읽기 어려움')
-  return (
-    <Section title="대비">
-      <div className="space-y-2">
-        {rows.map((row) => (
-          <div key={row.name} className="flex items-center gap-2">
-            <span
-              className="flex size-8 shrink-0 items-center justify-center rounded-md text-sm font-[650] shadow-[inset_0_0_0_1px_rgb(0_0_0/0.1)]"
-              style={{ background: hex, color: row.ink }}
-            >
-              가
-            </span>
-            <span className="min-w-0 flex-1">{row.name}</span>
-            <span className="tabular-nums">{row.ratio.toFixed(1)} : 1</span>
-            <span className={`w-[68px] shrink-0 text-right text-sm ${row.ratio >= 4.5 ? 'text-success' : row.ratio >= 3 ? 'text-ink-soft' : 'text-danger'}`}>
-              {verdict(row.ratio)}
-            </span>
-          </div>
-        ))}
-      </div>
-    </Section>
   )
 }
 

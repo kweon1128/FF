@@ -4,6 +4,7 @@
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type PointerEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { Pipette } from 'lucide-react'
+import { ColorUses } from './ColorUses'
 import { swatchBackground } from './ui'
 
 /** #rrggbb 또는 투명도가 붙은 #rrggbbaa */
@@ -11,8 +12,9 @@ const HEX = /^#[0-9a-f]{6}([0-9a-f]{2})?$/i
 const WIDTH = 248
 const GAP = 8
 
-/** 색 선택 창 아래에 견본으로 보여 줄 색들(이 디자인 시스템의 색 값). App이 넣어 준다. */
-export const SwatchContext = createContext<string[]>([])
+/** 색 선택 창 아래에 견본으로 보여 줄 색들(이 디자인 시스템의 색). 목록마다 한 줄이다. App이 넣어 준다. */
+export type SwatchRow = { group: string; colors: { name: string; hex: string }[] }
+export const SwatchContext = createContext<SwatchRow[]>([])
 
 type Hsv = { h: number; s: number; v: number }
 
@@ -70,6 +72,7 @@ function Panel({
   opener,
   value,
   alpha: allowAlpha,
+  preview,
   onChange,
   onClose,
 }: {
@@ -80,12 +83,17 @@ function Panel({
   value: string
   /** 투명도를 고를 수 있는지. 아니면 항상 불투명한 #rrggbb만 낸다. */
   alpha: boolean
+  /** 고르는 색이 실제로 쓰인 모습을 창 안에 함께 보여 줄지. 끄는 동안 바로 따라 바뀐다. */
+  preview: boolean
   onChange: (hex: string) => void
   onClose: () => void
 }) {
   const box = useRef<HTMLDivElement>(null)
   const all = useContext(SwatchContext)
-  const swatches = allowAlpha ? all : all.filter((c) => c.length === 7)
+  // 투명도를 받지 않는 자리에서는 반투명한 색을 뺀다. 그래서 비게 된 줄은 보여 주지 않는다.
+  const swatches = all
+    .map((row) => ({ ...row, colors: (row.colors ?? []).filter((c) => allowAlpha || c.hex.length === 7) }))
+    .filter((row) => row.colors.length > 0)
   const rgb = value.slice(0, 7)
   const a = allowAlpha ? alphaOf(value) : 1
   // 색조는 따로 들고 있는다. 회색이나 검정으로 가도 고르던 색조가 빨강으로 튀지 않게 한다.
@@ -257,23 +265,35 @@ function Panel({
         )}
       </div>
 
+      {/* 고르는 중인 색이 버튼, 글자, 테두리, 옅은 배경으로 쓰이면 어떤지. 색을 끄는 동안 함께 바뀐다. */}
+      {preview && (
+        <div className="mt-3 border-t border-hairline pt-3">
+          <ColorUses color={value} compact />
+        </div>
+      )}
+
       {swatches.length > 0 && (
         <div className="mt-3 border-t border-hairline pt-3">
           <p className="mb-2 text-xs font-[550] text-ink-faint">이 디자인 시스템의 색</p>
-          <div className="grid max-h-24 grid-cols-10 gap-1 overflow-y-auto">
-            {swatches.map((color) => (
-              <button
-                key={color}
-                type="button"
-                title={color}
-                aria-label={color}
-                aria-pressed={color === value}
-                onClick={() => onChange(color)}
-                className={`aspect-square rounded-sm border outline-selection focus-visible:outline-2 ${
-                  color === value ? 'border-selection' : 'border-hairline hover:border-ink-faint'
-                }`}
-                style={{ background: swatchBackground(color, 6) }}
-              />
+          {/* 색상 판처럼 목록마다 한 줄. 한 줄에 11칸이라 50부터 950까지가 한 줄에 들어가고, 줄끼리 같은 단계가 위아래로 맞는다. */}
+          <div className="max-h-40 space-y-1 overflow-y-auto">
+            {swatches.map((row) => (
+              <div key={row.group} data-swatch-row={row.group} className="grid grid-cols-11 gap-1">
+                {row.colors.map((color) => (
+                  <button
+                    key={color.name}
+                    type="button"
+                    title={`${color.name} · ${color.hex}`}
+                    aria-label={color.name}
+                    aria-pressed={color.hex === value}
+                    onClick={() => onChange(color.hex)}
+                    className={`aspect-square rounded-sm border outline-selection focus-visible:outline-2 ${
+                      color.hex === value ? 'border-selection' : 'border-hairline hover:border-ink-faint'
+                    }`}
+                    style={{ background: swatchBackground(color.hex, 6) }}
+                  />
+                ))}
+              </div>
             ))}
           </div>
         </div>
@@ -292,6 +312,7 @@ export function ColorSwatch({
   value,
   fallback = '#888888',
   alpha = false,
+  preview = false,
   onChange,
 }: {
   label: string
@@ -299,6 +320,8 @@ export function ColorSwatch({
   fallback?: string
   /** 투명도 막대를 보여 줄지. 켜면 반투명 색을 #rrggbbaa로 낸다. */
   alpha?: boolean
+  /** 색 선택 창 안에 그 색이 쓰인 모습을 함께 보여 줄지. 디자인 시스템의 색을 고를 때 켠다(판의 채우기·테두리 색에는 켜지 않는다). */
+  preview?: boolean
   onChange: (hex: string) => void
 }) {
   const [anchor, setAnchor] = useState<DOMRect | null>(null)
@@ -322,6 +345,7 @@ export function ColorSwatch({
           opener={button.current}
           value={hex ? (alpha ? hex : hex.slice(0, 7)) : fallback}
           alpha={alpha}
+          preview={preview}
           onChange={onChange}
           onClose={() => setAnchor(null)}
         />

@@ -1,0 +1,12 @@
+/*
+  이 디자인 시스템이 쓰는 글꼴을 불러오는 코드입니다. FF가 이 파일을 읽어 글꼴을 화면에 불러옵니다.
+
+  글꼴을 추가하는 방법 (셋 중 하나)
+  1. 웹 글꼴 주소:  @import url('https://...');   ← 반드시 파일 맨 위, 다른 규칙보다 앞에 둡니다.
+  2. 배포처가 준 코드:  @font-face { font-family: '이름'; src: url('https://...') format('woff2'); }
+  3. 글꼴 파일:  파일을 이 폴더의 fonts/ 에 넣고  @font-face { font-family: '이름'; src: url('./fonts/파일.woff2') format('woff2'); }
+
+  여기에 적은 font-family 이름이 FF의 "글꼴 종류 추가" 창에 "이 시스템의 글꼴"로 나타납니다.
+  글꼴을 실제로 쓰려면 tokens.css 에 --font-sans: '이름', system-ui, sans-serif; 처럼 적습니다(FF의 창에서 골라도 됩니다).
+*/
+@import url('https://cdn.jsdelivr.net/gh/sun-typeface/SUIT@2/fonts/variable/woff2/SUIT-Variable.css');
