@@ -3,7 +3,7 @@
 
 import type { CSSProperties } from 'react'
 import type { Token } from './api'
-import { lineName } from './catalog'
+import { lineName, trackName } from './catalog'
 import { refOf, resolveColor } from './roles'
 import { suggestLine } from './tokens'
 
@@ -165,6 +165,8 @@ export function cellStyle(comp: Comp, cell: Cell, tokens: Token[]): CSSPropertie
     fontSize: value(size.textSize),
     // 줄 높이는 글자 크기에 묶인 px 값을 쓴다. 그래야 글꼴을 바꿔도 버튼의 높이가 같다. 묶인 값이 없으면 크기에서 계산한 px 값이고(lineFallback), 글자 크기를 고르지 않았으면 정하지 않는다.
     lineHeight: (size.textSize && value(lineName(size.textSize))) || lineFallback(value(size.textSize)),
+    // 글자 사이도 글자 크기에 묶인 값을 따른다. 묶인 값이 없으면 글꼴이 정한 그대로다.
+    letterSpacing: size.textSize ? value(trackName(size.textSize)) : undefined,
     whiteSpace: 'nowrap',
   }
 }
@@ -229,6 +231,8 @@ export function compCss(comp: Comp, tokens: Token[]): string {
         ['font-size', v(s.textSize)],
         // 글자 크기에 묶인 줄 높이. 묶인 값이 없는 크기면 그 크기에서 계산한 px 값(lineFallback)이 쓰인다.
         ['line-height', s.textSize ? `var(${[lineName(s.textSize), lineFallback(sizeOf(s.textSize))].filter(Boolean).join(', ')})` : undefined],
+        // 글자 크기에 묶인 글자 사이. 묶인 값이 없는 크기면 글꼴이 정한 그대로(normal)다.
+        ['letter-spacing', s.textSize ? `var(${trackName(s.textSize)}, normal)` : undefined],
         ['gap', v(s.gap)],
       ]),
     ),

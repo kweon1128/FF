@@ -2,7 +2,7 @@ import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type
 import { Check as CheckIcon, Minus, Plus } from 'lucide-react'
 import { PreviewFontContext } from './ColorUses'
 import { shownFont } from './lib/fonts'
-import { BASE_MAX, BASE_MIN, LEADINGS, SPREADS, lineFor, sizeScale, type Leading, type Spread } from './lib/presets'
+import { BASE_MAX, BASE_MIN, LEADINGS, SPREADS, lineFor, sizeScale, trackFor, type Leading, type SizeStep, type Spread } from './lib/presets'
 import { Button, UnitInput } from './ui'
 
 /** 위아래 여백을 잴 때 기준으로 삼는 글자. 받침이 없는 글자와 있는 글자가 섞여 한글의 평균적인 높이를 낸다. */
@@ -59,7 +59,7 @@ const SAMPLES: Record<string, { use: string; text: string }> = {
   '2xl': { use: '구역 제목', text: '계정과 보안' },
   xl: { use: '카드·창 제목', text: '비밀번호 바꾸기' },
   lg: { use: '소제목', text: '새 비밀번호' },
-  base: { use: '본문', text: '영문과 숫자를 섞어 8자 이상으로 정해 주세요.' },
+  base: { use: '본문', text: '영문과 숫자를 섞어 8자 이상으로' },
   sm: { use: '버튼·입력칸·설명', text: '저장하기 · 이메일 주소를 입력하세요' },
   xs: { use: '이름표·캡션', text: '필수 · 3분 전에 바꿈 · NEW' },
 }
@@ -115,7 +115,7 @@ export function NewSizesForm({
   fonts?: { name: string; value: string }[]
   /** 이미 있는 글자 크기의 이름들. 같은 이름은 새 값으로 바뀐다. */
   existing: Set<string>
-  onCreate: (steps: { name: string; size: string; line: string }[]) => void
+  onCreate: (steps: SizeStep[]) => void
   onCancel: () => void
 }) {
   const firstFont = useContext(PreviewFontContext)
@@ -130,10 +130,16 @@ export function NewSizesForm({
   // 규칙이 낸 크기 대신 직접 정한 크기(px). 단계의 이름으로 찾는다. 본문 크기나 단계 사이를 바꾸면 모두 지운다(크기를 정하는 규칙이 바뀌었으므로 처음부터 다시 정한다). 줄 높이를 바꿀 때는 남긴다.
   const [custom, setCustom] = useState<Record<string, number>>({})
   // 규칙대로의 한 벌. 직접 정한 크기가 있으면 그 단계만 바꾸고, 줄 높이는 그 크기에 맞춰 다시 낸다.
-  const ruled = useMemo(() => sizeScale(base, spread, leading), [base, spread, leading])
+  // 큰 글자의 글자 사이를 좁힐지. 끄면 글자 사이는 묶지 않는다(글꼴이 정한 그대로).
+  const [tighten, setTighten] = useState(true)
+  const ruled = useMemo(() => sizeScale(base, spread, leading, tighten), [base, spread, leading, tighten])
   const steps = useMemo(
-    () => ruled.map((s) => (custom[s.name] && s.name !== 'base' ? { ...s, size: `${custom[s.name]}px`, line: `${lineFor(custom[s.name], leading)}px` } : s)),
-    [ruled, custom, leading],
+    () =>
+      ruled.map((s) => {
+        const px = s.name !== 'base' ? custom[s.name] : undefined
+        return px ? { ...s, size: `${px}px`, line: `${lineFor(px, leading)}px`, track: tighten ? trackFor(px) : null } : s
+      }),
+    [ruled, custom, leading, tighten],
   )
   const changeBase = (px: number) => {
     setBase(px)
@@ -259,6 +265,29 @@ export function NewSizesForm({
             ))}
           </div>
         </div>
+        {/* 글자 사이를 글자 크기에 묶을지. 큰 글자일수록 좁힌다. 16px 이하의 글자는 어느 쪽을 골라도 글꼴이 정한 그대로다. */}
+        <div>
+          <p className={LABEL}>글자 사이</p>
+          <div role="radiogroup" aria-label="글자 사이" className="grid grid-cols-2 gap-1 rounded-md bg-hover p-1">
+            {[
+              { on: false, label: '그대로' },
+              { on: true, label: '큰 글자 좁게' },
+            ].map((o) => (
+              <button
+                key={o.label}
+                type="button"
+                role="radio"
+                aria-checked={o.on === tighten}
+                onClick={() => setTighten(o.on)}
+                className={`h-6 rounded-sm text-sm outline-selection focus-visible:outline-2 ${
+                  o.on === tighten ? 'bg-canvas font-[550] text-ink shadow-[0_0_0_1px_var(--color-hairline)]' : 'text-ink-soft hover:text-ink'
+                }`}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        </div>
         {/* 위의 것들은 만들어지는 값을 정하고, 이것은 보기만 바꾼다. 그래서 구분선 아래 맨 끝에 둔다.
             견본을 그리는 글꼴. 글꼴 종류가 둘 이상이면 고를 수 있다. 글꼴마다 글자가 줄 안에 앉는 자리가 달라서, 글꼴을 바꾸면 오른쪽의 위아래 여백 숫자가 달라진다. */}
         {fonts.length > 0 && (
@@ -298,7 +327,7 @@ export function NewSizesForm({
             <div key={s.name} data-step={s.name} className="flex items-center gap-3">
               <span className="w-8 shrink-0 font-mono text-xs text-ink-faint">{s.name}</span>
               {/* 크기는 단계마다 직접 고칠 수 있다(본문은 왼쪽의 본문 크기로 정한다). 줄 높이는 고친 크기에 맞춰 따라온다. */}
-              <span className="flex w-28 shrink-0 items-center font-mono text-xs whitespace-nowrap text-ink-faint">
+              <span className="flex w-44 shrink-0 items-center font-mono text-xs whitespace-nowrap text-ink-faint">
                 {s.name === 'base' ? (
                   // 칸이 있는 줄과 글자가 같은 자리에 오도록 칸의 여백과 테두리만큼 띄운다.
                   <span className="flex gap-1 border border-transparent px-1">
@@ -315,7 +344,10 @@ export function NewSizesForm({
                     onChange={(px) => setSize(s.name, px)}
                   />
                 )}
-                <span className="pl-1">/ {s.line}</span>
+                <span className="pl-1">
+                  / {s.line}
+                  {s.track && ` / ${s.track}`}
+                </span>
               </span>
               {/* 이 크기가 흔히 쓰이는 곳. */}
               <span data-use className="w-28 shrink-0 text-xs whitespace-nowrap text-ink-soft">{SAMPLES[s.name].use}</span>
@@ -325,7 +357,7 @@ export function NewSizesForm({
                 <span
                   data-line={s.name}
                   className="block w-fit max-w-full truncate bg-selection/35"
-                  style={{ fontFamily: font, fontSize: s.size, lineHeight: s.line, fontWeight: weightOf(s.name) }}
+                  style={{ fontFamily: font, fontSize: s.size, lineHeight: s.line, letterSpacing: s.track ?? undefined, fontWeight: weightOf(s.name) }}
                 >
                   {SAMPLES[s.name].text}
                 </span>
@@ -350,7 +382,7 @@ export function NewSizesForm({
         <div data-paragraph className="mt-2 flex gap-3 rounded-md border border-hairline px-4 py-3">
           <span className="w-8 shrink-0 font-mono text-xs text-ink-faint">base</span>
           {/* 위 견본의 줄과 글자가 같은 자리에 오도록 같은 짜임으로 적는다. */}
-          <span className="flex w-28 shrink-0 font-mono text-xs whitespace-nowrap text-ink-faint">
+          <span className="flex w-44 shrink-0 font-mono text-xs whitespace-nowrap text-ink-faint">
             <span className="flex gap-1 border-x border-transparent px-1">
               <span>{parseFloat(baseStep.size)}</span>
               <span>px</span>
@@ -359,7 +391,7 @@ export function NewSizesForm({
           </span>
           <span className="w-28 shrink-0 text-xs whitespace-nowrap text-ink-soft">본문 문단</span>
           <span className="flex min-w-0 flex-1 items-start" style={{ height: PARAGRAPH_SLOT }}>
-            <span className="line-clamp-3 max-w-[34em]" style={{ fontFamily: font, fontSize: baseStep.size, lineHeight: baseStep.line }}>
+            <span className="line-clamp-3 max-w-[34em]" style={{ fontFamily: font, fontSize: baseStep.size, lineHeight: baseStep.line, letterSpacing: baseStep.track ?? undefined }}>
               {PARAGRAPH}
             </span>
           </span>
@@ -377,7 +409,7 @@ export function NewSizesForm({
                   <span
                     data-box
                     className={`inline-flex items-center ${ex.box}`}
-                    style={{ fontFamily: font, fontSize: step.size, lineHeight: step.line, fontWeight: ex.weight, height: parseFloat(step.line) + ex.pad * 2 }}
+                    style={{ fontFamily: font, fontSize: step.size, lineHeight: step.line, letterSpacing: step.track ?? undefined, fontWeight: ex.weight, height: parseFloat(step.line) + ex.pad * 2 }}
                   >
                     {ex.icon && <CheckIcon size={16} strokeWidth={2} className="mr-1 shrink-0" />}
                     {/* 글자의 자리는 손대지 않는다. 컴포넌트로 내보낼 때와 같이 줄 상자를 상자 가운데에 놓을 뿐이라, 아래에 적는 숫자가 실제 결과물의 것이다. */}

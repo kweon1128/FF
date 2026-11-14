@@ -31,6 +31,10 @@ type Props = {
   line?: string | null
   /** 줄 높이를 바꾼다. null이면 지운다. */
   onLine?: (value: string | null) => void
+  /** 글자 크기에 묶인 글자 사이(em). 글자 크기일 때만 준다(없으면 null). */
+  track?: string | null
+  /** 묶인 글자 사이를 바꾼다. null이면 지운다. */
+  onTrack?: (value: string | null) => void
   /** 이 색을 기준으로 50~950 단계를 만들 수 있으면, 아직 없는 단계의 수. 만들 수 없는 색이면 null. */
   scaleMissing: number | null
   onMakeScale: () => void
@@ -131,6 +135,8 @@ export function Inspector({
   onPickColor,
   line,
   onLine,
+  track,
+  onTrack,
   scaleMissing,
   onMakeScale,
 }: Props) {
@@ -167,6 +173,27 @@ export function Inspector({
       setLineDraft(digitsOf(line))
       setLineError(null)
     }
+  }
+
+  // 묶인 글자 사이 칸에 적는 숫자(em은 고정). 크기를 바꾸면 따라 바뀌므로 줄 높이처럼 밖에서 바뀐 값을 칸에 옮긴다.
+  const [trackDraft, setTrackDraft] = useState((track ?? '').replace(/em$/, ''))
+  const [trackError, setTrackError] = useState<string | null>(null)
+  const [seenTrack, setSeenTrack] = useState(track)
+  if (track !== seenTrack) {
+    setSeenTrack(track)
+    if ((track ?? '') !== (trackDraft ? `${trackDraft}em` : '')) {
+      setTrackDraft((track ?? '').replace(/em$/, ''))
+      setTrackError(null)
+    }
+  }
+
+  /** 묶인 글자 사이는 em으로만 받는다(음수가 좁게). 비우면 묶인 글자 사이를 지운다. */
+  function changeTrack(next: string) {
+    setTrackDraft(next)
+    setTrackError(null)
+    if (!next) return onTrack?.(null)
+    if (!SIGNED.test(next)) return setTrackError('숫자를 입력해 주세요.')
+    onTrack?.(`${next}em`)
   }
 
   function changeDigits(next: string) {
@@ -305,6 +332,14 @@ export function Inspector({
           <div className="mt-2">
             <Field label="줄 높이" error={lineError}>
               <UnitInput label="줄 높이" digits={lineDraft} unit="px" invalid={!!lineError} onDigits={changeLine} />
+            </Field>
+          </div>
+        )}
+        {/* 글자 크기에 묶인 글자 사이. 비어 있으면 글꼴이 정한 그대로다. */}
+        {track !== undefined && (
+          <div className="mt-2">
+            <Field label="글자 사이" error={trackError}>
+              <UnitInput label="글자 사이" digits={trackDraft} unit="em" placeholder="0" invalid={!!trackError} negative onDigits={changeTrack} />
             </Field>
           </div>
         )}

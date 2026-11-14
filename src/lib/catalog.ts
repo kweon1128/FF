@@ -42,6 +42,10 @@ export type Kind = {
  * 이렇게 묶어 두면 text-sm만 써도 줄 높이가 함께 따라온다.
  */
 export const lineName = (sizeName: string) => `${sizeName}--line-height`
+/** 글자 크기에 묶인 글자 사이(자간)의 변수 이름. --text-xl의 글자 사이는 --text-xl--letter-spacing이다(Tailwind의 규칙). */
+export const trackName = (sizeName: string) => `${sizeName}--letter-spacing`
+/** 글자 크기에 묶여 함께 다니는 값들의 이름. 크기의 이름을 바꾸거나 복제하거나 지우면 이 값들도 따라간다. */
+export const boundNames = (sizeName: string) => [lineName(sizeName), trackName(sizeName)]
 
 export const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/
 

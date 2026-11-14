@@ -19,7 +19,9 @@ import {
 import {
   ALL_KINDS,
   KINDS,
+  boundNames,
   lineName,
+  trackName,
   markRoles,
   PLACEHOLDER_SCREENS,
   SLUG,
@@ -50,7 +52,7 @@ import {
 } from './lib/components'
 import { contrast, hexToLch, isColor, lchToHex, showColor, toHex, toOklch } from './lib/color'
 import { SCALE_STEPS, grayOf, makeScale } from './lib/scale'
-import { adoptColors, defaultColorOrder, duplicateTokens, kindOf, followLine, lineOf, pasteName, pasteTokens, scanCss, shiftTokens, suggestLine, toCss, withLine } from './lib/tokens'
+import { adoptColors, defaultColorOrder, duplicateTokens, kindOf, followLine, followTrack, lineOf, pasteName, pasteTokens, scanCss, shiftTokens, suggestLine, suggestTrack, toCss, trackOf, withLine, withTrack } from './lib/tokens'
 import type { Placed } from './lib/arrange'
 import { BatchRename } from './BatchRename'
 import { BoardInspector, ImageInspector } from './BoardInspector'
@@ -68,7 +70,7 @@ import { NewGroupForm } from './NewGroup'
 import { NewSoloForm } from './NewSolo'
 import { NewFontForm, SampleContext } from './NewFont'
 import { NewSizesForm } from './NewSizes'
-import { nextPreset, nextSizeName, nextVariantName, stepUp } from './lib/presets'
+import { nextPreset, nextSizeName, nextVariantName, stepUp, type SizeStep } from './lib/presets'
 import { CATALOG, loadCatalog, loadSystemFonts } from './lib/fonts'
 import { NewSystemForm } from './NewSystem'
 import { Palette, type PaletteItem } from './Palette'
@@ -654,10 +656,12 @@ export function App() {
     const next = nextPreset(kind, tokens)
     const name = kind.prefix + next.name
     if (kind.id === 'size') {
-      // 글자 크기는 줄 높이와 한 쌍으로 만든다. 다른 크기의 줄 높이 뒤에 놓이도록 --text-로 시작하는 마지막 줄 뒤에 넣는다.
+      // 글자 크기는 줄 높이, 글자 사이와 한 묶음으로 만든다. 다른 크기의 묶인 값 뒤에 놓이도록 --text-로 시작하는 마지막 줄 뒤에 넣는다.
       const line = suggestLine(next.value)
+      const track = suggestTrack(next.value)
       const at = tokens.findLastIndex((t) => t.name.startsWith(kind.prefix)) + 1 || tokens.length
-      commit([...tokens.slice(0, at), { name, value: next.value }, ...(line ? [{ name: lineName(name), value: line }] : []), ...tokens.slice(at)])
+      const bound = [...(line ? [{ name: lineName(name), value: line }] : []), ...(track ? [{ name: trackName(name), value: track }] : [])]
+      commit([...tokens.slice(0, at), { name, value: next.value }, ...bound, ...tokens.slice(at)])
       return select([name])
     }
     insert({ name, value: next.value }, (t) => kind.matches(t.name))
@@ -699,13 +703,15 @@ export function App() {
    * 글자 크기 한 벌을 넣는다. 같은 이름의 크기와 줄 높이는 새 값으로 바뀌고, 한 벌에 없는 이름의 크기는 그대로 남는다.
    * 한 벌은 작은 것부터 차례로, 지금 글자 크기들이 있던 자리(없으면 글꼴 종류 뒤)에 놓는다.
    */
-  function makeSizes(steps: { name: string; size: string; line: string }[]) {
+  function makeSizes(steps: SizeStep[]) {
     setMakingSizes(false)
     const made = steps.flatMap((s) => [
       { name: SIZE.prefix + s.name, value: s.size },
       { name: lineName(SIZE.prefix + s.name), value: s.line },
+      ...(s.track ? [{ name: trackName(SIZE.prefix + s.name), value: s.track }] : []),
     ])
-    const names = new Set(made.map((t) => t.name))
+    // 같은 이름의 크기에 묶여 있던 값은 모두 새 것으로 바꾼다. 새 한 벌에 글자 사이가 없는 단계는 예전의 글자 사이도 지운다.
+    const names = new Set(steps.flatMap((s) => [SIZE.prefix + s.name, ...boundNames(SIZE.prefix + s.name)]))
     const first = tokens.findIndex((t) => t.name.startsWith(SIZE.prefix))
     const rest = tokens.filter((t) => !names.has(t.name))
     const at =
@@ -717,8 +723,10 @@ export function App() {
   }
 
   function renameToken(from: string, to: string) {
-    // 글자 크기의 이름을 바꾸면 묶인 줄 높이도 따라간다.
-    const pair: Record<string, string> = SIZE.matches(from) ? { [from]: to, [lineName(from)]: lineName(to) } : { [from]: to }
+    // 글자 크기의 이름을 바꾸면 묶인 줄 높이와 글자 사이도 따라간다.
+    const pair: Record<string, string> = SIZE.matches(from)
+      ? { [from]: to, [lineName(from)]: lineName(to), [trackName(from)]: trackName(to) }
+      : { [from]: to }
     commit(followRefs(tokens.map((t) => (pair[t.name] ? { ...t, name: pair[t.name] } : t)), { [from]: to }))
     setSelected([to])
     // 이 값을 가리키던 컴포넌트도 새 이름을 따라가게 한다.
@@ -729,7 +737,11 @@ export function App() {
   function renameMany(renames: Record<string, string>) {
     setBatch(false)
     const pairs = { ...renames }
-    for (const [from, to] of Object.entries(renames)) if (SIZE.matches(from)) pairs[lineName(from)] = lineName(to)
+    for (const [from, to] of Object.entries(renames)) {
+      if (!SIZE.matches(from)) continue
+      pairs[lineName(from)] = lineName(to)
+      pairs[trackName(from)] = trackName(to)
+    }
     commit(followRefs(tokens.map((t) => (pairs[t.name] ? { ...t, name: pairs[t.name] } : t)), renames))
     // 이름이 서로 맞바뀌어도 꼬이지 않도록 한 번에 훑으며 바꾼다.
     const next: Comp[] = JSON.parse(JSON.stringify(comps), (_, v) => (typeof v === 'string' && renames[v] ? renames[v] : v))
@@ -829,8 +841,8 @@ export function App() {
   }
 
   function removeTokens(names: string[]) {
-    // 글자 크기를 지우면 묶인 줄 높이도 함께 지운다.
-    const gone = new Set([...names, ...names.filter((n) => SIZE.matches(n)).map(lineName)])
+    // 글자 크기를 지우면 묶인 줄 높이와 글자 사이도 함께 지운다.
+    const gone = new Set([...names, ...names.filter((n) => SIZE.matches(n)).flatMap(boundNames)])
     const rest = tokens.filter((t) => !gone.has(t.name))
     commit(rest)
     // 색을 하나씩 지우다가 목록이 비면 목록은 빈 채로 남겨 둔다(다시 채울 수 있게).
@@ -1707,7 +1719,11 @@ export function App() {
                 // 글자 크기를 바꾸면 묶인 줄 높이도 새 크기에 맞춘다. 손으로 정해 둔 줄 높이(규칙의 값과 다른 것)는 그대로 둔다.
                 const line = SIZE.matches(name) ? lineOf(tokens, name) : undefined
                 const follow = before && line ? followLine(before.value, line, value) : null
-                commit(follow ? withLine(next, name, follow) : next)
+                const lined = follow ? withLine(next, name, follow) : next
+                // 묶인 글자 사이도 규칙대로의 값일 때만 새 크기를 따라간다.
+                const track = SIZE.matches(name) ? trackOf(tokens, name) : undefined
+                const tracked = before && track ? followTrack(before.value, track, value) : undefined
+                commit(tracked === undefined ? lined : withTrack(lined, name, tracked))
               }}
               uses={usesOf(comps, selectedTokens[0].name)}
               onOpenComponent={openComp}
@@ -1717,6 +1733,8 @@ export function App() {
               onPickColor={pickColor}
               line={SIZE.matches(selectedTokens[0].name) ? (lineOf(tokens, selectedTokens[0].name) ?? null) : undefined}
               onLine={(value) => commit(withLine(tokens, selectedTokens[0].name, value))}
+              track={SIZE.matches(selectedTokens[0].name) ? (trackOf(tokens, selectedTokens[0].name) ?? null) : undefined}
+              onTrack={(value) => commit(withTrack(tokens, selectedTokens[0].name, value))}
               scaleMissing={scaleOf(selectedTokens[0].name)?.missing.length ?? null}
               onMakeScale={() => fillScale(selectedTokens[0].name)}
             />

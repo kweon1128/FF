@@ -1,7 +1,7 @@
 import { useRef, useState, type CSSProperties, type MouseEvent } from 'react'
 import { ChevronsDownUp, ChevronsUpDown, Plus, RotateCcw, Rows3 } from 'lucide-react'
 import type { Token } from './lib/api'
-import { groupOf, lineName, shortName, type Kind } from './lib/catalog'
+import { groupOf, lineName, shortName, trackName, type Kind } from './lib/catalog'
 import { isApprox, showColor } from './lib/color'
 import { shownFont } from './lib/fonts'
 import { SCALE_STEPS } from './lib/scale'
@@ -59,6 +59,8 @@ export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGr
         if (kind.legacy && items.length === 0) return null
         // 글자 크기의 줄에는 묶인 줄 높이를 함께 보여 준다.
         const lineOf = kind.id === 'size' ? (name: string) => tokens.find((t) => t.name === lineName(name))?.value : undefined
+        // 묶인 글자 사이도 함께 보여 준다.
+        const trackOf = kind.id === 'size' ? (name: string) => tokens.find((t) => t.name === trackName(name))?.value : undefined
         return (
           <section key={kind.id}>
             {!single &&
@@ -81,7 +83,7 @@ export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGr
             ) : kind.tiles ? (
               <TileGrid {...list} />
             ) : (
-              <RowList {...list} lineOf={lineOf} />
+              <RowList {...list} lineOf={lineOf} trackOf={trackOf} />
             )}
           </section>
         )
@@ -436,7 +438,16 @@ function TileGrid({ kind, items, selected, onSelect, onAdd, onRename }: ListProp
   )
 }
 
-function RowList({ kind, items, selected, onSelect, onAdd, onRename, lineOf }: ListProps & { lineOf?: (name: string) => string | undefined }) {
+function RowList({
+  kind,
+  items,
+  selected,
+  onSelect,
+  onAdd,
+  onRename,
+  lineOf,
+  trackOf,
+}: ListProps & { lineOf?: (name: string) => string | undefined; trackOf?: (name: string) => string | undefined }) {
   // 값이 긴 종류는 이름·값과 견본을 위아래로 쌓는다.
   const stacked = kind.id === 'font'
   return (
@@ -445,9 +456,10 @@ function RowList({ kind, items, selected, onSelect, onAdd, onRename, lineOf }: L
         const short = shortName(kind, t.name)
         const isSelected = selected.includes(t.name)
         const line = lineOf?.(t.name)
-        // 글자 크기는 줄 높이와 한 쌍으로 적는다(14px / 20px).
+        const track = trackOf?.(t.name)
+        // 글자 크기는 묶인 줄 높이, 글자 사이와 함께 적는다(23px / 32px / -0.01em).
         // 글꼴 종류는 대체 글꼴을 뺀 글꼴 이름만 적는다.
-        const shown = stacked ? shownFont(t.value) : line ? `${t.value} / ${line}` : t.value
+        const shown = stacked ? shownFont(t.value) : [t.value, line, track].filter(Boolean).join(' / ')
         return (
           <button
             key={t.name}
@@ -471,12 +483,13 @@ function RowList({ kind, items, selected, onSelect, onAdd, onRename, lineOf }: L
               </>
             ) : (
               <>
-                <span className="w-28 shrink-0">
+                {/* 글자 크기는 값 셋을 한 줄에 적으므로 칸이 넓다. */}
+                <span className={`${kind.id === 'size' ? 'w-48' : 'w-28'} shrink-0`}>
                   <span data-name className="block truncate text-sm text-ink-soft">{short}</span>
                   <span className="block truncate font-mono text-sm text-ink-faint">{shown}</span>
                 </span>
                 <span className="min-w-0 flex-1 overflow-hidden">
-                  <RowSample kind={kind} value={t.value} line={line} />
+                  <RowSample kind={kind} value={t.value} line={line} track={track} />
                 </span>
               </>
             )}
@@ -503,19 +516,19 @@ function MovingDot({ style }: { style: CSSProperties }) {
   )
 }
 
-function RowSample({ kind, value, line }: { kind: Kind; value: string; line?: string }) {
+function RowSample({ kind, value, line, track }: { kind: Kind; value: string; line?: string; track?: string }) {
   switch (kind.id) {
     case 'font':
       return <span className="block truncate text-lg leading-[26px]" style={{ fontFamily: value }}>{SAMPLE}</span>
     case 'size':
       // 줄 높이가 묶여 있으면 두 줄로 써서 줄 사이가 보이게 한다. 줄 높이는 한 줄로는 보이지 않는다.
       return line ? (
-        <span className="block" style={{ fontSize: value, lineHeight: line }}>
+        <span className="block" style={{ fontSize: value, lineHeight: line, letterSpacing: track }}>
           <span className="block truncate">{SAMPLE}</span>
           <span className="block truncate">{SAMPLE}</span>
         </span>
       ) : (
-        <span className="block truncate" style={{ fontSize: value, lineHeight: suggestLine(value) ?? undefined }}>{SAMPLE}</span>
+        <span className="block truncate" style={{ fontSize: value, lineHeight: suggestLine(value) ?? undefined, letterSpacing: track }}>{SAMPLE}</span>
       )
     case 'weight':
       return <span className="block truncate text-lg leading-[26px]" style={{ fontWeight: value }}>{SAMPLE}</span>

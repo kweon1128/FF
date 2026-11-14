@@ -240,12 +240,24 @@ export function lineFor(px: number, leading: Leading) {
 }
 
 /**
+ * 그 크기에 어울리는 글자 사이(em). 큰 글자일수록 좁힌다. 글자가 커지면 글자 사이가 휑해 보이기 때문이다.
+ * 16px 이하는 글꼴이 정한 그대로 두고(null), 32px에서 -0.02em이 되도록 고르게 좁히며 0.005em 단위로 맞춘다(19px -0.005, 23px -0.01, 28px -0.015, 33px -0.02).
+ * 작은 글자는 좁히면 뭉개져서 읽기 어려우므로 손대지 않는다.
+ */
+export function trackFor(px: number): string | null {
+  const t = Math.max(0, Math.min(1, (px - 16) / 16))
+  const em = Math.round((0.02 * t) / 0.005) * 0.005
+  return em > 0 ? `-${Number(em.toFixed(3))}em` : null
+}
+
+/**
  * 본문 크기와 간격으로 글자 크기 한 벌(xs부터 3xl까지 일곱 단계)을 만든다. 줄 높이도 leading의 방식으로 함께 정한다.
  * 본문보다 큰 단계는 한 단계마다 간격의 배수만큼 커지고 가까운 정수 px에 맞춘다. 짝수로 몰지 않고 홀수도 쓴다.
  * 고른 배수를 그대로 따르기 위해서이고, 13px, 15px 같은 홀수 크기는 흔히 쓰인다. 짝수여야 하는 것은 줄 높이다.
  * 본문보다 작은 단계는 본문의 7/8, 3/4이다. 작은 글자는 간격을 벌려도 더 작아지면 안 읽히므로 간격과 관계없이 정한다.
  */
-export function sizeScale(base: number, spread: Spread, leading: Leading = 'normal'): { name: string; size: string; line: string }[] {
+export type SizeStep = { name: string; size: string; line: string; /** 묶인 글자 사이. 글꼴이 정한 그대로 두면 null. */ track: string | null }
+export function sizeScale(base: number, spread: Spread, leading: Leading = 'normal', tighten = true): SizeStep[] {
   const ratio = SPREADS.find((s) => s.id === spread)!.ratio
   // 작은 단계는 본문보다, 그리고 서로보다 작아야 한다.
   const sm = Math.min(Math.round(base * 0.875), base - 1)
@@ -261,5 +273,5 @@ export function sizeScale(base: number, spread: Spread, leading: Leading = 'norm
     prev = Math.max(Math.round(base * ratio ** (i + 1)), prev + 1)
     sizes.push([name, prev])
   }
-  return sizes.map(([name, px]) => ({ name, size: `${px}px`, line: `${lineFor(px, leading)}px` }))
+  return sizes.map(([name, px]) => ({ name, size: `${px}px`, line: `${lineFor(px, leading)}px`, track: tighten ? trackFor(px) : null }))
 }

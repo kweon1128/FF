@@ -1,9 +1,9 @@
 // 기본 값 목록을 다루는 계산: 복제, 붙여넣기, 순서 바꾸기, 글자로 주고받기.
 
 import type { Token } from './api'
-import { ALL_KINDS, COLOR_REF, KINDS, SLUG, groupOf, lineName, shortName } from './catalog'
+import { ALL_KINDS, COLOR_REF, KINDS, SLUG, boundNames, groupOf, lineName, shortName, trackName } from './catalog'
 import { isColor, toHex, toOklch } from './color'
-import { LEADINGS, lineFor } from './presets'
+import { LEADINGS, lineFor, trackFor } from './presets'
 
 export const kindOf = (name: string) => ALL_KINDS.find((k) => k.matches(name)) ?? null
 
@@ -34,10 +34,12 @@ export function duplicateTokens(tokens: Token[], names: string[]) {
     const name = copyName(t.name, taken)
     taken.add(name)
     added.push(name)
-    // 글자 크기를 복제하면 묶인 줄 높이도 함께 복제한다. 원래 크기와 그 줄 높이 사이에 끼지 않게, 복제한 쌍은 원래 줄 높이 뒤에 놓는다.
-    const line = tokens.find((l) => l.name === lineName(t.name))
-    if (!line) return [t, { ...t, name }]
-    after.set(line.name, [{ ...t, name }, { ...line, name: lineName(name) }])
+    // 글자 크기를 복제하면 묶인 줄 높이와 글자 사이도 함께 복제한다. 원래 크기와 묶인 값 사이에 끼지 않게, 복제한 것들은 원래의 마지막 묶인 값 뒤에 놓는다.
+    const from = boundNames(t.name)
+    const to = boundNames(name)
+    const bound = tokens.filter((l) => from.includes(l.name))
+    if (bound.length === 0) return [t, { ...t, name }]
+    after.set(bound[bound.length - 1].name, [{ ...t, name }, ...bound.map((l) => ({ ...l, name: to[from.indexOf(l.name)] }))])
     return [t]
   })
   return { next: next.flatMap((t) => [t, ...(after.get(t.name) ?? [])]), added }
@@ -227,4 +229,32 @@ export function withLine(tokens: Token[], sizeName: string, value: string | null
   if (value === null) return tokens.filter((t) => t.name !== name)
   if (tokens.some((t) => t.name === name)) return tokens.map((t) => (t.name === name ? { ...t, value } : t))
   return tokens.flatMap((t) => (t.name === sizeName ? [t, { name, value }] : [t]))
+}
+
+/** 글자 크기에 묶인 글자 사이. 없으면 undefined. */
+export function trackOf(tokens: Token[], sizeName: string) {
+  return tokens.find((t) => t.name === trackName(sizeName))?.value
+}
+
+/** 글자 크기에 어울리는 글자 사이(em). 크기가 px나 rem이 아니거나 좁힐 필요가 없는 크기면 null. */
+export function suggestTrack(size: string) {
+  const m = /^(\d*\.?\d+)(px|rem)$/.exec(size.trim())
+  return m ? trackFor(Number(m[1]) * (m[2] === 'rem' ? 16 : 1)) : null
+}
+
+/**
+ * 글자 크기를 바꿨을 때 묶인 글자 사이가 따라갈 값. 지금 값이 예전 크기의 규칙대로일 때만 따라간다.
+ * 따라가지 않으면 undefined, 새 크기에서는 좁히지 않는 것이 규칙이면 null(묶인 값을 지운다).
+ */
+export function followTrack(oldSize: string, oldTrack: string, newSize: string): string | null | undefined {
+  return suggestTrack(oldSize) === oldTrack ? suggestTrack(newSize) : undefined
+}
+
+/** 글자 크기에 묶인 글자 사이를 바꾼다. 없으면 그 크기의 줄 높이 뒤(줄 높이도 없으면 크기 바로 뒤)에 넣고, value가 null이면 지운다. */
+export function withTrack(tokens: Token[], sizeName: string, value: string | null) {
+  const name = trackName(sizeName)
+  if (value === null) return tokens.filter((t) => t.name !== name)
+  if (tokens.some((t) => t.name === name)) return tokens.map((t) => (t.name === name ? { ...t, value } : t))
+  const anchor = tokens.some((t) => t.name === lineName(sizeName)) ? lineName(sizeName) : sizeName
+  return tokens.flatMap((t) => (t.name === anchor ? [t, { name, value }] : [t]))
 }
