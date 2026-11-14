@@ -7,34 +7,21 @@ import { Button, Check } from './ui'
 
 /** 위아래 여백을 잴 때 기준으로 삼는 글자. 받침이 없는 글자와 있는 글자가 섞여 한글의 평균적인 높이를 낸다. */
 const INK = '가나다라마바사'
-/** 위아래 여백의 차이가 이보다 크면(px) 눈에 띄게 치우친 것으로 보고 색으로 알린다. */
-const OFF = 1.5
+/**
+ * 글자가 가운데에서 이만큼(px) 넘게 밀려 있으면 눈에 띄게 치우친 것으로 보고 색으로 알린다.
+ * 브라우저는 기준선을 화면 픽셀에 맞추느라 글자를 가운데에서 1px 안쪽으로 밀어 놓는다(대개 위로). 화면 배율에 따라 달라지고 어느 사이트에서나 생기는 일이라, 그 안쪽은 알리지 않는다.
+ */
+const OFF = 1
 /** 견본에서 그 단계를 그리는 굵기. 본문보다 큰 단계는 제목이라 굵게 쓴다. */
 const weightOf = (name: string) => (name === 'base' || name === 'sm' || name === 'xs' ? 400 : 700)
 
-/**
- * 그 글꼴, 굵기, 크기, 줄 높이로 한 줄을 그렸을 때 줄 상자 안에서 한글의 위 여백과 아래 여백(px).
- * 화면 밖에 잠깐 그려서 실제 자리를 잰다. 브라우저가 글자의 기준선을 픽셀에 맞추는 방식까지 그대로 반영된다.
- */
-function gapAt(font: string | undefined, weight: number, size: number, line: number) {
-  const pen = document.createElement('canvas').getContext('2d')
-  const el = document.createElement('span')
-  el.style.cssText = `position:absolute;left:-9999px;top:0;display:block;white-space:nowrap;font-weight:${weight};font-size:${size}px;line-height:${line}px`
-  if (font) el.style.fontFamily = font
-  el.textContent = INK
-  const probe = document.createElement('span')
-  probe.style.cssText = 'display:inline-block;width:0;height:0;vertical-align:baseline'
-  el.appendChild(probe)
-  document.body.appendChild(el)
-  const baseline = probe.getBoundingClientRect().top
-  const rect = el.getBoundingClientRect()
-  const family = getComputedStyle(el).fontFamily
-  el.remove()
-  if (!pen) return { top: 0, bottom: 0 }
-  pen.font = `${weight} 100px ${family}`
-  const ink = pen.measureText(INK)
-  const k = size / 100
-  return { top: baseline - ink.actualBoundingBoxAscent * k - rect.top, bottom: rect.bottom - (baseline + ink.actualBoundingBoxDescent * k) }
+/** 글자가 가운데에서 밀린 양(px). 양수면 위로, 음수면 아래로 밀린 것이다. 위아래 여백의 차이의 절반이다. */
+const shiftOf = (gap: { top: number; bottom: number }) => (gap.bottom - gap.top) / 2
+/** 위 여백, 아래 여백, 그리고 가운데에서 밀린 양을 적은 글. */
+function gapText(gap: { top: number; bottom: number }) {
+  const shift = shiftOf(gap)
+  const where = Math.abs(shift) < 0.05 ? '가운데' : `${shift > 0 ? '위로' : '아래로'} ${Math.abs(shift).toFixed(1)}`
+  return `위 ${gap.top.toFixed(1)} · 아래 ${gap.bottom.toFixed(1)} · ${where}`
 }
 
 const LABEL = 'mb-1 text-sm font-[550] text-ink-faint'
@@ -53,6 +40,9 @@ const EXAMPLES: { id: string; label: string; size: string; weight: number; pad: 
   { id: 'chip', label: '칩', size: 'xs', weight: 500, pad: 4, box: 'rounded-full bg-hover px-2.5', text: '디자인' },
   { id: 'badge', label: '뱃지', size: 'xs', weight: 700, pad: 1, box: 'rounded-sm bg-selection px-1.5 text-white', text: '필수' },
 ]
+
+/** 예시 상자가 놓이는 자리의 높이(px). 가장 큰 상자(본문을 가장 크게, 줄 높이를 가장 넓게 골랐을 때의 가장 여백이 큰 것)의 높이다. */
+const EXAMPLE_SLOT = lineFor(BASE_MAX, LEADINGS[LEADINGS.length - 1].id) + Math.max(...EXAMPLES.map((e) => e.pad)) * 2
 
 /**
  * 단계마다 그 크기가 흔히 쓰이는 곳(use)과, 그 자리에 실제로 놓일 법한 글(text).
@@ -95,40 +85,9 @@ export function NewSizesForm({
   const [leading, setLeading] = useState<Leading>('normal')
   // 홀수 px의 글자 크기를 쓸지. 끄면 모든 단계를 짝수로 맞춘다.
   const [odd, setOdd] = useState(true)
-  // 위아래 여백의 차이가 가장 작은 크기로 다듬을지.
-  const [fit, setFit] = useState(false)
   // 글꼴이 불려 온 뒤에 다시 잰다.
   const [loaded, setLoaded] = useState(0)
-  const steps = useMemo(() => {
-    const raw = sizeScale(base, spread, leading, odd)
-    if (!fit) return raw
-    // 단계마다 한 칸 작은 크기, 그 크기, 한 칸 큰 크기를 실제로 그려 보고, 글자가 줄 가운데에 가장 가깝게 앉는 것을 고른다.
-    // 한 칸은 홀수를 쓰면 1px, 짝수만 쓰면 2px이다. 본문 크기는 고른 그대로 두고, 단계의 순서가 뒤집히지 않는 범위에서만 바꾼다.
-    const px = raw.map((s) => parseFloat(s.size))
-    const jump = odd ? 1 : 2
-    const tuned = [...px]
-    for (let i = 0; i < px.length; i++) {
-      if (raw[i].name === 'base') continue
-      const low = i === 0 ? 8 : tuned[i - 1] + 1
-      const high = i === px.length - 1 ? Infinity : px[i + 1] - 1
-      let best = px[i]
-      let bestOff = Infinity
-      // 원래 크기를 먼저 재서, 차이가 같으면 원래 크기가 남게 한다.
-      for (const size of [px[i], px[i] - jump, px[i] + jump]) {
-        if (size < low || size > high) continue
-        const gap = gapAt(font, weightOf(raw[i].name), size, lineFor(size, leading))
-        const off = Math.abs(gap.top - gap.bottom)
-        if (off < bestOff - 0.05) {
-          best = size
-          bestOff = off
-        }
-      }
-      tuned[i] = best
-    }
-    return raw.map((s, i) => ({ name: s.name, size: `${tuned[i]}px`, line: `${lineFor(tuned[i], leading)}px` }))
-    // loaded: 글꼴이 불려 오면 글자의 자리가 달라지므로 다시 고른다.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [base, spread, leading, odd, fit, font, loaded])
+  const steps = useMemo(() => sizeScale(base, spread, leading, odd), [base, spread, leading, odd])
   const replaced = steps.filter((s) => existing.has(s.name)).length
 
   // 줄 상자 안에서 글자의 위 여백과 아래 여백(px). 화면에 그려진 뒤 실제 자리를 재서 채운다.
@@ -239,13 +198,10 @@ export function NewSizesForm({
             ))}
           </div>
         </div>
-        {/* 크기를 맞추는 방식 둘. */}
-        <div className="space-y-2 text-sm">
+        {/* 크기를 맞추는 방식. */}
+        <div className="text-sm">
           <Check checked={odd} onChange={setOdd}>
             홀수 크기도 쓰기
-          </Check>
-          <Check checked={fit} onChange={setFit}>
-            위아래 차이가 작은 크기로 다듬기
           </Check>
         </div>
         {/* 위의 것들은 만들어지는 값을 정하고, 이것은 보기만 바꾼다. 그래서 구분선 아래 맨 끝에 둔다.
@@ -297,21 +253,21 @@ export function NewSizesForm({
                 <span
                   data-line={s.name}
                   className="block w-fit max-w-full truncate bg-selection/35"
-                  style={{ fontFamily: font, fontSize: s.size, lineHeight: s.line, fontWeight: s.name === 'base' || s.name === 'sm' || s.name === 'xs' ? 400 : 700 }}
+                  style={{ fontFamily: font, fontSize: s.size, lineHeight: s.line, fontWeight: weightOf(s.name) }}
                 >
                   {SAMPLES[s.name].text}
                 </span>
               </span>
-              {/* 줄 상자 안에서 글자의 위 여백과 아래 여백. 둘이 같으면 한가운데다. 차이가 크면 그 글꼴은 이 줄 높이에서 치우쳐 보인다. */}
+              {/* 줄 상자 안에서 글자의 위 여백과 아래 여백, 그리고 글자가 가운데에서 밀린 양. 1px 안쪽으로 밀리는 것은 브라우저가 기준선을 화면 픽셀에 맞추며 생기는 것이라 알리지 않는다. */}
               {gaps[s.name] && (
                 <span
                   data-gap={s.name}
-                  title="줄 상자 안에서 글자의 위 여백, 아래 여백, 둘의 차이(px)"
+                  title="줄 상자 안에서 글자의 위 여백, 아래 여백, 글자가 가운데에서 밀린 양(px)"
                   className={`w-48 shrink-0 text-right font-mono text-xs whitespace-nowrap tabular-nums ${
-                    Math.abs(gaps[s.name].top - gaps[s.name].bottom) >= OFF ? 'text-danger' : 'text-ink-faint'
+                    Math.abs(shiftOf(gaps[s.name])) > OFF ? 'text-danger' : 'text-ink-faint'
                   }`}
                 >
-                  위 {gaps[s.name].top.toFixed(1)} · 아래 {gaps[s.name].bottom.toFixed(1)} · 차이 {Math.abs(gaps[s.name].top - gaps[s.name].bottom).toFixed(1)}
+                  {gapText(gaps[s.name])}
                 </span>
               )}
             </div>
@@ -325,19 +281,22 @@ export function NewSizesForm({
             const gap = gaps[`ex:${ex.id}`]
             return (
               <div key={ex.id}>
-                <span
-                  data-box
-                  className={`inline-flex items-center ${ex.box}`}
-                  style={{ fontFamily: font, fontSize: step.size, lineHeight: step.line, fontWeight: ex.weight, height: parseFloat(step.line) + ex.pad * 2 }}
-                >
-                  {ex.icon && <CheckIcon size={16} strokeWidth={2} className="mr-1.5 shrink-0" />}
-                  <span data-ex={ex.id}>{ex.text}</span>
+                {/* 상자가 놓이는 자리. 높이를 가장 큰 상자에 맞춰 고정해서, 고르는 동안 상자의 높이가 바뀌어도 창이 늘었다 줄었다 하지 않는다. */}
+                <span className="flex items-center" style={{ height: EXAMPLE_SLOT }}>
+                  <span
+                    data-box
+                    className={`inline-flex items-center ${ex.box}`}
+                    style={{ fontFamily: font, fontSize: step.size, lineHeight: step.line, fontWeight: ex.weight, height: parseFloat(step.line) + ex.pad * 2 }}
+                  >
+                    {ex.icon && <CheckIcon size={16} strokeWidth={2} className="mr-1.5 shrink-0" />}
+                    <span data-ex={ex.id}>{ex.text}</span>
+                  </span>
                 </span>
                 <p className="mt-1.5 text-xs text-ink-soft">
                   {ex.label} <span className="font-mono text-ink-faint">{ex.size}</span>
                 </p>
-                <p className={`font-mono text-xs whitespace-nowrap tabular-nums ${gap && Math.abs(gap.top - gap.bottom) >= OFF ? 'text-danger' : 'text-ink-faint'}`}>
-                  {gap ? `위 ${gap.top.toFixed(1)} · 아래 ${gap.bottom.toFixed(1)} · 차이 ${Math.abs(gap.top - gap.bottom).toFixed(1)}` : '\u00a0'}
+                <p className={`font-mono text-xs whitespace-nowrap tabular-nums ${gap && Math.abs(shiftOf(gap)) > OFF ? 'text-danger' : 'text-ink-faint'}`}>
+                  {gap ? gapText(gap) : '\u00a0'}
                 </p>
                 {/* 아이콘과 글자가 같은 높이에 있는지. 글자 모양의 가운데와 아이콘의 가운데가 위아래로 얼마나 벌어졌는지를 적는다. */}
                 {gap?.icon !== undefined && (
