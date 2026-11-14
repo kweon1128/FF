@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Plus } from 'lucide-react'
 import { DynamicIcon, iconNames, type IconName } from 'lucide-react/dynamic'
 import type { Token } from './lib/api'
-import { STATES, cellLabel, cellStyle, type Cell, type Comp, type StateId } from './lib/components'
+import { LABEL_CLASS, STATES, cellLabel, cellStyle, type Cell, type Comp, type StateId } from './lib/components'
 import { ADD_TILE, ADD_TILE_LG, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
 
 export const isIconName = (name: string | undefined): name is IconName =>
@@ -15,7 +15,7 @@ function CompPreview({ comp, cell, tokens }: { comp: Comp; cell: Cell; tokens: T
   return (
     <span style={cellStyle(comp, cell, tokens)}>
       {comp.iconPos === 'before' && icon}
-      {comp.label}
+      <span className={LABEL_CLASS}>{comp.label}</span>
       {comp.iconPos === 'after' && icon}
     </span>
   )

@@ -162,6 +162,14 @@ export function cellStyle(comp: Comp, cell: Cell, tokens: Token[]): CSSPropertie
   }
 }
 
+/**
+ * 컴포넌트 안의 글자를 감싸는 조각의 모양. 글자를 줄 상자가 아니라 글자 모양(대문자 높이에서 기준선까지)을 기준으로 상자 가운데에 놓는다.
+ * 줄 상자를 기준으로 하면 브라우저가 남는 공간을 위아래로 나눌 때 위쪽을 작게 잡아서 글자가 1px 안쪽으로 올라가고, 여백이 작은 뱃지에서는 그것이 눈에 보인다.
+ * 높이를 줄 높이(1lh)로 잡아 두어서 컴포넌트의 높이는 "줄 높이 + 위아래 여백" 그대로다. 이 속성은 글자를 직접 담은 조각에만 듣기 때문에(상자 자체에 주면 듣지 않는다) 글자를 따로 감싼다.
+ * compCss의 `.이름__label` 규칙과 같은 내용이다.
+ */
+export const LABEL_CLASS = 'block h-[1lh] content-center [text-box:trim-both_cap_alphabetic]'
+
 const COMMON_LABELS = { font: '글꼴', weight: '굵기', radius: '모서리', borderWidth: '테두리 굵기' } as const
 const COLOR_LABELS = { bg: '바탕색', text: '글자색', border: '테두리색' } as const
 const SIZE_LABELS = { padX: '좌우 여백', padY: '위아래 여백', textSize: '글자 크기', gap: '아이콘과 글자 사이' } as const
@@ -216,6 +224,14 @@ export function compCss(comp: Comp): string {
       ['line-height', '1.2'],
       ['white-space', 'nowrap'],
     ]),
+    // 글자를 <span class="이름__label">로 감싸면 글자 모양을 기준으로 상자 가운데에 놓인다(LABEL_CLASS와 같은 내용). 감싸지 않은 글자는 줄 상자를 기준으로 놓인다.
+    `/* 글자를 <span class="${comp.name}__label">로 감싸면 위아래 가운데가 글자 모양에 맞춰진다. */\n` +
+      rule(`${base}__label`, [
+        ['display', 'block'],
+        ['height', '1lh'],
+        ['align-content', 'center'],
+        ['text-box', 'trim-both cap alphabetic'],
+      ]),
     ...comp.sizes.map((s) =>
       rule(`${base}--${s.name}`, [
         ['padding', s.padX || s.padY ? `${v(s.padY) ?? '0'} ${v(s.padX) ?? '0'}` : undefined],

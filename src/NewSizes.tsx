@@ -289,7 +289,11 @@ export function NewSizesForm({
                     style={{ fontFamily: font, fontSize: step.size, lineHeight: step.line, fontWeight: ex.weight, height: parseFloat(step.line) + ex.pad * 2 }}
                   >
                     {ex.icon && <CheckIcon size={16} strokeWidth={2} className="mr-1.5 shrink-0" />}
-                    <span data-ex={ex.id}>{ex.text}</span>
+                    {/* 글은 줄 상자가 아니라 글자 모양(대문자 높이에서 기준선까지)을 기준으로 상자 가운데에 놓는다.
+                        줄 상자를 기준으로 하면 브라우저가 남는 공간을 위아래로 나눌 때 위쪽을 작게 잡아서 글자가 1px 안쪽으로 올라가는데, 여백이 작은 뱃지에서는 그것이 눈에 보인다. */}
+                    <span data-ex={ex.id} className="[text-box:trim-both_cap_alphabetic]">
+                      {ex.text}
+                    </span>
                   </span>
                 </span>
                 <p className="mt-1.5 text-xs text-ink-soft">
