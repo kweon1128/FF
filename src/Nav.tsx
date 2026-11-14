@@ -81,11 +81,11 @@ export function Nav({
       {SECTIONS.map((section, i) => (
         <div key={i}>
           {section.title && <p className="px-2 pt-3 pb-1 text-sm font-[550] text-ink-faint">{section.title}</p>}
-          <div className="space-y-0.5">
+          <div className="space-y-1">
             {section.items.map(({ id, label, icon: Icon }) => {
               const selected = id === screen
               return (
-                <div key={id} className="relative space-y-0.5">
+                <div key={id} className="relative space-y-1">
                   <button
                     type="button"
                     aria-current={selected ? 'page' : undefined}

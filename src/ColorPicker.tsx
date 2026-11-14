@@ -199,7 +199,7 @@ function Panel({
             <Pipette size={16} strokeWidth={1.5} />
           </button>
         )}
-        <div className="min-w-0 flex-1 space-y-2.5">
+        <div className="min-w-0 flex-1 space-y-2">
           <div
             {...hue}
             role="slider"

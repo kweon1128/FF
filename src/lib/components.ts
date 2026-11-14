@@ -5,6 +5,7 @@ import type { CSSProperties } from 'react'
 import type { Token } from './api'
 import { lineName } from './catalog'
 import { refOf, resolveColor } from './roles'
+import { suggestLine } from './tokens'
 
 export const STATES = [
   { id: 'default', label: '기본' },
@@ -127,6 +128,12 @@ export function renameRef(comps: Comp[], from: string, to: string): Comp[] {
   }))
 }
 
+/**
+ * 묶인 줄 높이가 없는 글자 크기의 줄 높이. 크기를 추가할 때와 같은 규칙으로 계산한 px 값이다(14px → 20px).
+ * 크기가 px나 rem이 아니라 계산할 수 없으면 정하지 않는다(페이지의 줄 높이를 따른다). 1.2 같은 배수는 쓰지 않는다.
+ */
+export const lineFallback = (size: string | undefined) => (size && suggestLine(size)) || undefined
+
 /** 한 칸(종류 · 크기 · 상태)의 실제 모양. 가리키는 값이 없어졌으면 정하지 않은 것으로 본다. */
 export function cellStyle(comp: Comp, cell: Cell, tokens: Token[]): CSSProperties {
   // 의미 색은 다른 색을 가리키는 값이라, 가리키는 색을 따라가 실제 색을 쓴다(FF 화면에는 사용자의 변수가 선언되어 있지 않다).
@@ -156,19 +163,11 @@ export function cellStyle(comp: Comp, cell: Cell, tokens: Token[]): CSSPropertie
     fontFamily: value(comp.font),
     fontWeight: value(comp.weight),
     fontSize: value(size.textSize),
-    // 줄 높이는 글자 크기에 묶인 px 값을 쓴다. 그래야 글꼴을 바꿔도 버튼의 높이가 같다. 묶인 값이 없을 때만 1.2배다.
-    lineHeight: (size.textSize && value(lineName(size.textSize))) || 1.2,
+    // 줄 높이는 글자 크기에 묶인 px 값을 쓴다. 그래야 글꼴을 바꿔도 버튼의 높이가 같다. 묶인 값이 없으면 크기에서 계산한 px 값이고(lineFallback), 글자 크기를 고르지 않았으면 정하지 않는다.
+    lineHeight: (size.textSize && value(lineName(size.textSize))) || lineFallback(value(size.textSize)),
     whiteSpace: 'nowrap',
   }
 }
-
-/**
- * 컴포넌트 안의 글자를 감싸는 조각의 모양. 글자를 줄 상자가 아니라 글자 모양(대문자 높이에서 기준선까지)을 기준으로 상자 가운데에 놓는다.
- * 줄 상자를 기준으로 하면 브라우저가 남는 공간을 위아래로 나눌 때 위쪽을 작게 잡아서 글자가 1px 안쪽으로 올라가고, 여백이 작은 뱃지에서는 그것이 눈에 보인다.
- * 높이를 줄 높이(1lh)로 잡아 두어서 컴포넌트의 높이는 "줄 높이 + 위아래 여백" 그대로다. 이 속성은 글자를 직접 담은 조각에만 듣기 때문에(상자 자체에 주면 듣지 않는다) 글자를 따로 감싼다.
- * compCss의 `.이름__label` 규칙과 같은 내용이다.
- */
-export const LABEL_CLASS = 'block h-[1lh] content-center [text-box:trim-both_cap_alphabetic]'
 
 const COMMON_LABELS = { font: '글꼴', weight: '굵기', radius: '모서리', borderWidth: '테두리 굵기' } as const
 const COLOR_LABELS = { bg: '바탕색', text: '글자색', border: '테두리색' } as const
@@ -199,7 +198,8 @@ export const cloneVariant = (v: Variant, name: string): Variant => ({
 })
 
 /** 컴포넌트를 CSS로 옮긴다. 값은 모두 기본 값의 변수를 가리킨다. */
-export function compCss(comp: Comp): string {
+export function compCss(comp: Comp, tokens: Token[]): string {
+  const sizeOf = (name: Ref) => (name ? tokens.find((t) => t.name === name)?.value : undefined)
   const v = (name: Ref) => (name ? `var(${name})` : undefined)
   const rule = (selector: string, lines: [string, string | undefined][]) => {
     const body = lines.filter(([, value]) => value).map(([prop, value]) => `  ${prop}: ${value};`)
@@ -221,23 +221,14 @@ export function compCss(comp: Comp): string {
       ['border-radius', v(comp.radius)],
       ['font-family', v(comp.font)],
       ['font-weight', v(comp.weight)],
-      ['line-height', '1.2'],
       ['white-space', 'nowrap'],
     ]),
-    // 글자를 <span class="이름__label">로 감싸면 글자 모양을 기준으로 상자 가운데에 놓인다(LABEL_CLASS와 같은 내용). 감싸지 않은 글자는 줄 상자를 기준으로 놓인다.
-    `/* 글자를 <span class="${comp.name}__label">로 감싸면 위아래 가운데가 글자 모양에 맞춰진다. */\n` +
-      rule(`${base}__label`, [
-        ['display', 'block'],
-        ['height', '1lh'],
-        ['align-content', 'center'],
-        ['text-box', 'trim-both cap alphabetic'],
-      ]),
     ...comp.sizes.map((s) =>
       rule(`${base}--${s.name}`, [
         ['padding', s.padX || s.padY ? `${v(s.padY) ?? '0'} ${v(s.padX) ?? '0'}` : undefined],
         ['font-size', v(s.textSize)],
-        // 글자 크기에 묶인 줄 높이. 묶인 값이 없는 크기면 기본 규칙의 1.2배가 그대로 쓰인다.
-        ['line-height', s.textSize ? `var(${lineName(s.textSize)}, 1.2)` : undefined],
+        // 글자 크기에 묶인 줄 높이. 묶인 값이 없는 크기면 그 크기에서 계산한 px 값(lineFallback)이 쓰인다.
+        ['line-height', s.textSize ? `var(${[lineName(s.textSize), lineFallback(sizeOf(s.textSize))].filter(Boolean).join(', ')})` : undefined],
         ['gap', v(s.gap)],
       ]),
     ),

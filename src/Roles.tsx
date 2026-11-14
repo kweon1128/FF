@@ -80,7 +80,7 @@ export function RoleSample({ use, color, around }: { use: RoleUse; color: string
       const { hover } = statesOf(color)
       const button = (label: string, background: string, opacity?: number) => (
         <span
-          className="flex h-7 items-center rounded-md px-2.5 text-sm leading-none font-[550]"
+          className="flex h-7 items-center rounded-md px-2 text-sm leading-none font-[550]"
           style={{ background, color: inkOn(color), opacity }}
         >
           <span className={TRIM}>{label}</span>
@@ -88,7 +88,7 @@ export function RoleSample({ use, color, around }: { use: RoleUse; color: string
       )
       return frame(
         around.surface,
-        <span className="flex gap-1.5">
+        <span className="flex gap-2">
           {button('기본', color)}
           {button('올림', hover)}
           {button('비활성', color, 0.4)}
@@ -226,7 +226,7 @@ export function RoleList({
                 {ROLE_USES.find((u) => u.id === use)!.label}
               </button>
             </div>
-            <div className={folded ? 'grid grid-cols-3 gap-1 rounded-lg border border-hairline bg-canvas p-1' : 'space-y-0.5 rounded-lg border border-hairline bg-canvas p-1'}>
+            <div className={folded ? 'grid grid-cols-3 gap-1 rounded-lg border border-hairline bg-canvas p-1' : 'space-y-1 rounded-lg border border-hairline bg-canvas p-1'}>
               {list.map((t, i) => {
                 const short = shortName(kind, t.name)
                 const { text } = readNote(t.note, short)
@@ -345,14 +345,14 @@ function RefPicker({ tokens, value, onChange }: { tokens: Token[]; value: string
 /** 네 역할 중 하나를 고르는 전환 버튼. */
 function UsePicker({ value, onChange }: { value: RoleUse; onChange: (use: RoleUse) => void }) {
   return (
-    <div className="grid grid-cols-4 gap-0.5 rounded-md bg-hover p-0.5">
+    <div className="grid grid-cols-4 gap-1 rounded-md bg-hover p-1">
       {ROLE_USES.map((u) => (
         <button
           key={u.id}
           type="button"
           aria-pressed={u.id === value}
           onClick={() => onChange(u.id)}
-          className={`h-7 rounded-sm text-sm outline-selection focus-visible:outline-2 ${
+          className={`h-6 rounded-sm text-sm outline-selection focus-visible:outline-2 ${
             u.id === value ? 'bg-canvas font-[550] text-ink shadow-[0_0_0_1px_var(--color-hairline)]' : 'text-ink-soft hover:text-ink'
           }`}
         >
@@ -410,7 +410,7 @@ export function NewRoleForm({
       {/* 견본 버튼들이 label 안에 있으면 한 번 누를 때 첫 버튼이 함께 눌린다. 그래서 Field를 쓰지 않는다. */}
       <div>
         <p className="mb-1 text-sm font-[550] text-ink-faint">
-          가리키는 색{ref && <span className="ml-1.5 font-mono font-normal text-ink">{refName(ref)}</span>}
+          가리키는 색{ref && <span className="ml-2 font-mono font-normal text-ink">{refName(ref)}</span>}
         </p>
         <RefPicker
           tokens={tokens}
@@ -578,7 +578,7 @@ export function RoleInspector({
                   className="-ml-2 flex h-8 max-w-full items-center rounded-md px-2 font-[550] outline-selection hover:bg-hover focus-visible:outline-2"
                 >
                   <span className="truncate">{u.name}</span>
-                  <span className="ml-1.5 shrink-0 text-sm font-normal text-ink-faint">{u.where.length}곳</span>
+                  <span className="ml-2 shrink-0 text-sm font-normal text-ink-faint">{u.where.length}곳</span>
                 </button>
                 <p className="text-sm text-ink-faint">{u.where.join(', ')}</p>
               </div>

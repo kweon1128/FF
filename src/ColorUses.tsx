@@ -43,7 +43,7 @@ export function inkOn(hex: string) {
  * 줄 상자에서 그 여백을 잘라 내고(대문자 높이에서 기준선까지만 남김) 글자 자체를 가운데에 놓는다.
  */
 export const TRIM = 'block [text-box:trim-both_cap_alphabetic]'
-const BUTTON = 'flex h-7 shrink-0 items-center rounded-md px-2.5 text-sm leading-none font-[550] whitespace-nowrap select-none'
+const BUTTON = 'flex h-7 shrink-0 items-center rounded-md px-2 text-sm leading-none font-[550] whitespace-nowrap select-none'
 const BOX = 'flex h-7 min-w-0 items-center justify-center rounded-md px-2 text-sm leading-none whitespace-nowrap'
 
 /**
@@ -76,7 +76,7 @@ export function ColorUses({ color, step, compact = false }: { color: string; ste
   const font = useContext(PreviewFontContext)
   const { hover, pressed } = statesOf(color, step)
   const pad = compact ? 'p-2' : 'p-3'
-  const gap = compact ? 'space-y-1.5' : 'space-y-2'
+  const gap = compact ? 'space-y-1' : 'space-y-2'
   // 옅은 배경: 이 색을 바탕에 조금만 섞는다. 밝은 쪽은 흰색에 12%, 어두운 쪽은 짙은 바탕에 24%.
   const soft = (surface: string, amount: number): CSSProperties => ({
     background: `color-mix(in oklab, ${color} ${amount}%, ${surface})`,
@@ -94,7 +94,7 @@ export function ColorUses({ color, step, compact = false }: { color: string; ste
     <div className={gap} style={{ fontFamily: font }}>
       {surfaces.map((s) => (
         <div key={s.surface} className={`${gap} ${pad} rounded-md ${s.edge}`} style={{ background: s.surface }}>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-2">
             <LiveButton color={color} hover={hover} pressed={pressed} />
             {/* 비활성: 같은 색을 흐리게. 쓸 수 없는 상태에서도 색이 남는지, 너무 사라지는지 본다. */}
             <span className={BUTTON} style={{ background: color, color: inkOn(color), opacity: DISABLED_OPACITY }}>
@@ -106,7 +106,7 @@ export function ColorUses({ color, step, compact = false }: { color: string; ste
             <p className="truncate text-base font-[650]">큰 글자 가나다 Aa</p>
             <p className="truncate text-xs">작은 글자 가나다라마바사 Aa 123</p>
           </div>
-          <div className="grid grid-cols-2 gap-1.5">
+          <div className="grid grid-cols-2 gap-2">
             <span className={BOX} style={{ border: `1px solid ${color}`, color: s.ink }}>
               <span className={TRIM}>테두리</span>
             </span>

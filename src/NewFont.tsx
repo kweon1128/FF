@@ -171,14 +171,14 @@ export function FontSample({
         })}
       </div>
       {/* 버튼 셋: 주요 버튼(글자색을 바탕으로, 바탕색을 글자로 뒤집음), 보조 버튼(테두리만), 투명 버튼(글자만). 버튼마다 글자가 놓이는 조건이 달라서 함께 본다. */}
-      <div data-controls className="mt-4 flex gap-1.5">
-        <span className="inline-flex h-7 shrink-0 items-center rounded-md px-2.5 font-bold" style={{ fontSize: body.fontSize, background: text, color: back }}>
+      <div data-controls className="mt-4 flex gap-2">
+        <span className="inline-flex h-7 shrink-0 items-center rounded-md px-2 font-bold" style={{ fontSize: body.fontSize, background: text, color: back }}>
           <span className={TRIM} style={centered('저장하기', 700)}>
             저장하기
           </span>
         </span>
         <span
-          className="inline-flex h-7 shrink-0 items-center rounded-md px-2.5 font-semibold"
+          className="inline-flex h-7 shrink-0 items-center rounded-md px-2 font-semibold"
           style={{ fontSize: body.fontSize, border: `1px solid color-mix(in srgb, ${text} 25%, transparent)` }}
         >
           <span className={TRIM} style={centered('취소', 600)}>
@@ -192,16 +192,16 @@ export function FontSample({
         </span>
       </div>
       {/* 둘째 줄: 연한 배경 버튼(글자색을 옅게 깐 바탕), 비활성 버튼(주요 버튼을 흐리게). 옅어진 상태에서도 글자가 읽히는지 본다. */}
-      <div data-controls className="mt-2 flex gap-1.5">
+      <div data-controls className="mt-2 flex gap-2">
         <span
-          className="inline-flex h-7 shrink-0 items-center rounded-md px-2.5 font-semibold"
+          className="inline-flex h-7 shrink-0 items-center rounded-md px-2 font-semibold"
           style={{ fontSize: body.fontSize, background: `color-mix(in srgb, ${text} 10%, transparent)` }}
         >
           <span className={TRIM} style={centered('임시 저장', 600)}>
             임시 저장
           </span>
         </span>
-        <span className="inline-flex h-7 shrink-0 items-center rounded-md px-2.5 font-bold opacity-40" style={{ fontSize: body.fontSize, background: text, color: back }}>
+        <span className="inline-flex h-7 shrink-0 items-center rounded-md px-2 font-bold opacity-40" style={{ fontSize: body.fontSize, background: text, color: back }}>
           <span className={TRIM} style={centered('비활성', 700)}>
             비활성
           </span>
@@ -421,7 +421,7 @@ export function NewFontForm({
     <form ref={form} onSubmit={submit} className="flex gap-6">
       <div className="flex w-56 shrink-0 flex-col">
         <input autoFocus aria-label="글꼴 찾기" className={inputClass} value={query} placeholder="찾기" onChange={(e) => setQuery(e.target.value)} />
-        <div role="listbox" aria-label="글꼴 목록" aria-multiselectable className="mt-1.5 min-h-80 flex-1 basis-0 overflow-y-auto rounded-md border border-hairline p-1">
+        <div role="listbox" aria-label="글꼴 목록" aria-multiselectable className="mt-2 min-h-80 flex-1 basis-0 overflow-y-auto rounded-md border border-hairline p-1">
           {/* 목록에 없는 글꼴은 이름만 적어 넣지 못한다. 불러올 곳을 모르는 글꼴은 견본이 다른 글꼴로 그려져 견주는 뜻이 없기 때문이다. 그런 글꼴은 AI가 찾아서 넣는다. */}
           {groups.size === 0 && (
             <p className="px-2 py-4 text-sm leading-5 text-ink-faint">
@@ -445,7 +445,7 @@ export function NewFontForm({
             세 카드는 한 격자의 줄을 함께 쓴다(이름 한 줄과 견본의 줄들). 마지막 줄이 남는 높이를 차지한다. */}
         <div
           ref={grid}
-          className="grid h-[710px] max-h-[calc(100vh-220px)] grid-cols-3 gap-x-2 overflow-x-hidden overflow-y-auto"
+          className="grid h-[712px] max-h-[calc(100vh-220px)] grid-cols-3 gap-x-2 overflow-x-hidden overflow-y-auto"
           style={{ gridTemplateRows: `repeat(${SAMPLE_ROWS}, auto) 1fr` }}
         >
           {Array.from({ length: SLOTS }, (_, i) => {

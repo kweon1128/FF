@@ -3,7 +3,7 @@ import { Check as CheckIcon, Minus, Plus } from 'lucide-react'
 import { PreviewFontContext } from './ColorUses'
 import { shownFont } from './lib/fonts'
 import { BASE_MAX, BASE_MIN, LEADINGS, SPREADS, lineFor, sizeScale, type Leading, type Spread } from './lib/presets'
-import { Button, Check } from './ui'
+import { Button } from './ui'
 
 /** 위아래 여백을 잴 때 기준으로 삼는 글자. 받침이 없는 글자와 있는 글자가 섞여 한글의 평균적인 높이를 낸다. */
 const INK = '가나다라마바사'
@@ -33,16 +33,22 @@ const STEP_BUTTON =
  * 모두 높이가 정해진 상자 안에 글이 놓이는 것들이라 위아래 가운데가 중요하다.
  */
 const EXAMPLES: { id: string; label: string; size: string; weight: number; pad: number; box: string; text: string; icon?: boolean }[] = [
-  { id: 'button', label: '버튼', size: 'sm', weight: 600, pad: 6, box: 'rounded-md bg-ink px-3 text-white', text: '저장하기' },
+  { id: 'button', label: '버튼', size: 'sm', weight: 600, pad: 8, box: 'rounded-md bg-ink px-3 text-white', text: '저장하기' },
   { id: 'button-lg', label: '큰 버튼', size: 'base', weight: 600, pad: 8, box: 'rounded-md bg-ink px-4 text-white', text: '시작하기' },
-  { id: 'button-icon', label: '아이콘 버튼', size: 'sm', weight: 600, pad: 6, box: 'rounded-md border border-hairline px-3', text: '완료', icon: true },
-  { id: 'input', label: '입력칸', size: 'sm', weight: 400, pad: 8, box: 'w-40 rounded-md border border-hairline px-2.5 text-ink-faint', text: '이메일 주소' },
-  { id: 'chip', label: '칩', size: 'xs', weight: 500, pad: 4, box: 'rounded-full bg-hover px-2.5', text: '디자인' },
-  { id: 'badge', label: '뱃지', size: 'xs', weight: 700, pad: 1, box: 'rounded-sm bg-selection px-1.5 text-white', text: '필수' },
+  { id: 'button-icon', label: '아이콘 버튼', size: 'sm', weight: 600, pad: 8, box: 'rounded-md border border-hairline px-3', text: '완료', icon: true },
+  { id: 'input', label: '입력칸', size: 'sm', weight: 400, pad: 8, box: 'w-40 rounded-md border border-hairline px-3 text-ink-faint', text: '이메일 주소' },
+  { id: 'chip', label: '칩', size: 'xs', weight: 500, pad: 4, box: 'rounded-full bg-hover px-2', text: '디자인' },
+  { id: 'badge', label: '뱃지', size: 'xs', weight: 700, pad: 0, box: 'rounded-sm bg-selection px-1 text-white', text: '필수' },
 ]
 
 /** 예시 상자가 놓이는 자리의 높이(px). 가장 큰 상자(본문을 가장 크게, 줄 높이를 가장 넓게 골랐을 때의 가장 여백이 큰 것)의 높이다. */
 const EXAMPLE_SLOT = lineFor(BASE_MAX, LEADINGS[LEADINGS.length - 1].id) + Math.max(...EXAMPLES.map((e) => e.pad)) * 2
+
+/** 본문 문단의 견본. 단계 견본과 같은 화면(비밀번호 바꾸기)에 나올 설명글이고, 세 줄에 걸치는 길이다. */
+const PARAGRAPH =
+  '비밀번호는 영문과 숫자를 섞어 8자 이상으로 정해 주세요. 다른 서비스에서 쓰는 비밀번호와 같으면 한 곳에서 새어 나갔을 때 여기까지 위험해집니다. 석 달에 한 번쯤 바꾸면 더 안전합니다.'
+/** 본문 문단이 놓이는 자리의 높이(px). 본문을 가장 크게, 줄 높이를 가장 넓게 골랐을 때의 세 줄이다. */
+const PARAGRAPH_SLOT = lineFor(BASE_MAX, LEADINGS[LEADINGS.length - 1].id) * 3
 
 /**
  * 단계마다 그 크기가 흔히 쓰이는 곳(use)과, 그 자리에 실제로 놓일 법한 글(text).
@@ -83,11 +89,10 @@ export function NewSizesForm({
   const [base, setBase] = useState(16)
   const [spread, setSpread] = useState<Spread>('normal')
   const [leading, setLeading] = useState<Leading>('normal')
-  // 홀수 px의 글자 크기를 쓸지. 끄면 모든 단계를 짝수로 맞춘다.
-  const [odd, setOdd] = useState(true)
   // 글꼴이 불려 온 뒤에 다시 잰다.
   const [loaded, setLoaded] = useState(0)
-  const steps = useMemo(() => sizeScale(base, spread, leading, odd), [base, spread, leading, odd])
+  const steps = useMemo(() => sizeScale(base, spread, leading), [base, spread, leading])
+  const baseStep = steps.find((s) => s.name === 'base')!
   const replaced = steps.filter((s) => existing.has(s.name)).length
 
   // 줄 상자 안에서 글자의 위 여백과 아래 여백(px). 화면에 그려진 뒤 실제 자리를 재서 채운다.
@@ -161,7 +166,7 @@ export function NewSizesForm({
         </div>
         <div>
           <p className={LABEL}>단계 사이</p>
-          <div role="radiogroup" aria-label="단계 사이" className="grid grid-cols-3 gap-0.5 rounded-md bg-hover p-0.5">
+          <div role="radiogroup" aria-label="단계 사이" className="grid grid-cols-3 gap-1 rounded-md bg-hover p-1">
             {SPREADS.map((s) => (
               <button
                 key={s.id}
@@ -169,7 +174,7 @@ export function NewSizesForm({
                 role="radio"
                 aria-checked={s.id === spread}
                 onClick={() => setSpread(s.id)}
-                className={`h-7 rounded-sm text-sm outline-selection focus-visible:outline-2 ${
+                className={`h-6 rounded-sm text-sm outline-selection focus-visible:outline-2 ${
                   s.id === spread ? 'bg-canvas font-[550] text-ink shadow-[0_0_0_1px_var(--color-hairline)]' : 'text-ink-soft hover:text-ink'
                 }`}
               >
@@ -181,7 +186,7 @@ export function NewSizesForm({
         {/* 줄 높이를 정하는 방식. 어느 것을 골라도 줄 높이는 짝수 px이고, 글자가 클수록 덜 띄운다. */}
         <div>
           <p className={LABEL}>줄 높이</p>
-          <div role="radiogroup" aria-label="줄 높이" className="grid grid-cols-3 gap-0.5 rounded-md bg-hover p-0.5">
+          <div role="radiogroup" aria-label="줄 높이" className="grid grid-cols-3 gap-1 rounded-md bg-hover p-1">
             {LEADINGS.map((l) => (
               <button
                 key={l.id}
@@ -189,7 +194,7 @@ export function NewSizesForm({
                 role="radio"
                 aria-checked={l.id === leading}
                 onClick={() => setLeading(l.id)}
-                className={`h-7 rounded-sm text-sm outline-selection focus-visible:outline-2 ${
+                className={`h-6 rounded-sm text-sm outline-selection focus-visible:outline-2 ${
                   l.id === leading ? 'bg-canvas font-[550] text-ink shadow-[0_0_0_1px_var(--color-hairline)]' : 'text-ink-soft hover:text-ink'
                 }`}
               >
@@ -197,12 +202,6 @@ export function NewSizesForm({
               </button>
             ))}
           </div>
-        </div>
-        {/* 크기를 맞추는 방식. */}
-        <div className="text-sm">
-          <Check checked={odd} onChange={setOdd}>
-            홀수 크기도 쓰기
-          </Check>
         </div>
         {/* 위의 것들은 만들어지는 값을 정하고, 이것은 보기만 바꾼다. 그래서 구분선 아래 맨 끝에 둔다.
             견본을 그리는 글꼴. 글꼴 종류가 둘 이상이면 고를 수 있다. 글꼴마다 글자가 줄 안에 앉는 자리가 달라서, 글꼴을 바꾸면 오른쪽의 위아래 여백 숫자가 달라진다. */}
@@ -273,8 +272,22 @@ export function NewSizesForm({
             </div>
           ))}
         </div>
+        {/* 본문 크기로 쓴 문단. 줄 높이(좁게 · 보통 · 넓게)의 차이는 한 줄짜리 글이 아니라 줄과 줄 사이에서 보인다.
+            높이는 가장 크고 넓게 골랐을 때의 세 줄에 맞춰 고정하고, 줄의 길이는 글자 수로 잡아서(em) 본문 크기를 바꿔도 같은 자리에서 줄이 바뀐다. */}
+        <div data-paragraph className="mt-2 flex gap-3 rounded-md border border-hairline px-4 py-3">
+          <span className="w-8 shrink-0 font-mono text-xs leading-5 text-ink-faint">base</span>
+          <span className="w-20 shrink-0 font-mono text-xs leading-5 whitespace-nowrap text-ink-faint">
+            {baseStep.size} / {baseStep.line}
+          </span>
+          <span className="w-28 shrink-0 text-xs leading-5 whitespace-nowrap text-ink-soft">본문 문단</span>
+          <span className="flex min-w-0 flex-1 items-start" style={{ height: PARAGRAPH_SLOT }}>
+            <span className="line-clamp-3 max-w-[34em]" style={{ fontFamily: font, fontSize: baseStep.size, lineHeight: baseStep.line }}>
+              {PARAGRAPH}
+            </span>
+          </span>
+        </div>
         {/* 이 크기들이 실제로 들어가는 것들. 높이가 정해진 상자 안에 글이 놓이는 버튼, 칩, 뱃지, 입력칸은 위아래 가운데가 조금만 어긋나도 눈에 띈다.
-            상자의 높이는 그 크기의 줄 높이에 위아래 여백을 더한 것이라, 줄 높이를 바꾸면 함께 바뀐다. 글자의 자리는 글꼴이 정한 그대로다. */}
+            상자의 높이는 그 크기의 줄 높이에 위아래 여백을 더한 것이라, 줄 높이를 바꾸면 함께 바뀐다. */}
         <div data-examples className="mt-2 grid grid-cols-3 items-start gap-x-6 gap-y-3 rounded-md border border-hairline px-4 py-3">
           {EXAMPLES.map((ex) => {
             const step = steps.find((x) => x.name === ex.size)!
@@ -288,15 +301,12 @@ export function NewSizesForm({
                     className={`inline-flex items-center ${ex.box}`}
                     style={{ fontFamily: font, fontSize: step.size, lineHeight: step.line, fontWeight: ex.weight, height: parseFloat(step.line) + ex.pad * 2 }}
                   >
-                    {ex.icon && <CheckIcon size={16} strokeWidth={2} className="mr-1.5 shrink-0" />}
-                    {/* 글은 줄 상자가 아니라 글자 모양(대문자 높이에서 기준선까지)을 기준으로 상자 가운데에 놓는다.
-                        줄 상자를 기준으로 하면 브라우저가 남는 공간을 위아래로 나눌 때 위쪽을 작게 잡아서 글자가 1px 안쪽으로 올라가는데, 여백이 작은 뱃지에서는 그것이 눈에 보인다. */}
-                    <span data-ex={ex.id} className="[text-box:trim-both_cap_alphabetic]">
-                      {ex.text}
-                    </span>
+                    {ex.icon && <CheckIcon size={16} strokeWidth={2} className="mr-1 shrink-0" />}
+                    {/* 글자의 자리는 손대지 않는다. 컴포넌트로 내보낼 때와 같이 줄 상자를 상자 가운데에 놓을 뿐이라, 아래에 적는 숫자가 실제 결과물의 것이다. */}
+                    <span data-ex={ex.id}>{ex.text}</span>
                   </span>
                 </span>
-                <p className="mt-1.5 text-xs text-ink-soft">
+                <p className="mt-2 text-xs text-ink-soft">
                   {ex.label} <span className="font-mono text-ink-faint">{ex.size}</span>
                 </p>
                 <p className={`font-mono text-xs whitespace-nowrap tabular-nums ${gap && Math.abs(shiftOf(gap)) > OFF ? 'text-danger' : 'text-ink-faint'}`}>

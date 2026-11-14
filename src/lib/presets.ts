@@ -205,41 +205,51 @@ export const BASE_MIN = 13
 export const BASE_MAX = 18
 
 /**
- * 본문 크기와 간격으로 글자 크기 한 벌(xs부터 3xl까지 일곱 단계)을 만든다. 줄 높이도 leading의 방식으로 함께 정한다.
- * 본문보다 큰 단계는 한 단계마다 간격의 배수만큼 커지고 가까운 정수 px에 맞춘다. 짝수로 몰지 않는다(고른 배수를 그대로 따르기 위해서다).
- * 글자 크기가 홀수면 짝수인 줄 높이 안에서 반 픽셀 치우치는데, 그 정도는 창의 위아래 여백 숫자로 확인한다.
- * 본문보다 작은 단계는 본문의 7/8, 3/4이다. 작은 글자는 간격을 벌려도 더 작아지면 안 읽히므로 간격과 관계없이 정한다.
+ * 줄 높이를 정하는 방식. 기준은 보통이고, 좁게와 넓게는 보통의 줄 높이에서 10%를 빼거나 더한 것이다(scale).
+ * 세 가지를 따로 계산하지 않고 보통에서 끌어내기 때문에, 어느 크기에서나 좁게 < 보통 < 넓게가 같은 폭으로 나란히 간다(본문 크기에서 2px씩, 큰 제목에서 4px씩).
  */
-/** 줄 높이를 정하는 방식. 본문 크기에서의 배수와 큰 제목(32px 이상)에서의 배수. 그 사이의 크기는 둘 사이를 고르게 잇는다. */
 export type Leading = 'snug' | 'normal' | 'loose'
-export const LEADINGS: { id: Leading; label: string; body: number; heading: number }[] = [
-  { id: 'snug', label: '좁게', body: 1.35, heading: 1.15 },
-  { id: 'normal', label: '보통', body: 1.5, heading: 1.25 },
-  { id: 'loose', label: '넓게', body: 1.65, heading: 1.35 },
+export const LEADINGS: { id: Leading; label: string; scale: number }[] = [
+  { id: 'snug', label: '좁게', scale: 0.9 },
+  { id: 'normal', label: '보통', scale: 1 },
+  { id: 'loose', label: '넓게', scale: 1.1 },
 ]
+/** 보통의 배수. 16px 이하의 글자는 본문 배수, 32px 이상은 제목 배수이고 그 사이는 고르게 잇는다. */
+const BODY_RATIO = 1.5
+const HEADING_RATIO = 1.25
 
 /**
  * 그 크기의 줄 높이(px). 항상 짝수 px이다. 줄 높이가 짝수여야 글자와 아이콘이 줄의 한가운데에 놓인다.
  * 글자가 클수록 배수를 줄인다. 큰 글자는 같은 배수로 띄우면 줄 사이가 휑해 보인다.
- * 16px 이하는 본문 배수, 32px 이상은 제목 배수이고 그 사이는 고르게 잇는다. 딱 중간에 걸리면 작은 쪽 짝수로 내린다(14px × 1.5 = 21 → 20).
+ * 보통은 글자 크기에 배수를 곱해 가까운 짝수로 맞추고, 딱 중간에 걸리면 작은 쪽으로 내린다(14px × 1.5 = 21 → 20).
+ * 좁게와 넓게는 그 값에 scale을 곱해 가까운 짝수로 맞추고, 딱 중간에 걸리면 보통에 가까운 쪽으로 맞춘다(16px이면 22, 24, 26).
+ * 12px 이하의 작은 글자는 배수를 쓰지 않고 글자 크기에 SMALL_EXTRA를 더해 짝수로 올린다(좁게와 보통은 12px → 16px, 11px → 16px, 넓게는 18px).
+ * 작은 글자는 여러 줄 본문보다 칩, 뱃지, 라벨에 쓰이고, 거기서는 12px 글자에 16px 줄이 가장 흔하다(여백 4px을 더하면 높이 24px).
  */
+const SMALL_MAX = 12
+const SMALL_EXTRA: Record<Leading, number> = { snug: 4, normal: 4, loose: 6 }
 export function lineFor(px: number, leading: Leading) {
-  const rule = LEADINGS.find((l) => l.id === leading)!
+  if (px <= SMALL_MAX) return Math.ceil((px + SMALL_EXTRA[leading]) / 2) * 2
+  const { scale } = LEADINGS.find((l) => l.id === leading)!
   const t = Math.max(0, Math.min(1, (px - 16) / 16))
-  const ratio = rule.body + (rule.heading - rule.body) * t
+  const normal = Math.round((px * (BODY_RATIO + (HEADING_RATIO - BODY_RATIO) * t) - 0.01) / 2) * 2
+  // 딱 중간이면 보통 쪽으로: 좁게는 올리고 넓게는 내린다.
+  const scaled = Math.round((normal * scale + (scale < 1 ? 0.01 : -0.01)) / 2) * 2
   // 글자보다 적어도 2px은 높아야 줄이 겹치지 않는다.
-  return Math.max(Math.ceil((px + 2) / 2) * 2, Math.round((px * ratio - 0.01) / 2) * 2)
+  return Math.max(Math.ceil((px + 2) / 2) * 2, scaled)
 }
 
-export function sizeScale(base: number, spread: Spread, leading: Leading = 'normal', odd = true): { name: string; size: string; line: string }[] {
+/**
+ * 본문 크기와 간격으로 글자 크기 한 벌(xs부터 3xl까지 일곱 단계)을 만든다. 줄 높이도 leading의 방식으로 함께 정한다.
+ * 본문보다 큰 단계는 한 단계마다 간격의 배수만큼 커지고 가까운 정수 px에 맞춘다. 짝수로 몰지 않고 홀수도 쓴다.
+ * 고른 배수를 그대로 따르기 위해서이고, 13px, 15px 같은 홀수 크기는 흔히 쓰인다. 짝수여야 하는 것은 줄 높이다.
+ * 본문보다 작은 단계는 본문의 7/8, 3/4이다. 작은 글자는 간격을 벌려도 더 작아지면 안 읽히므로 간격과 관계없이 정한다.
+ */
+export function sizeScale(base: number, spread: Spread, leading: Leading = 'normal'): { name: string; size: string; line: string }[] {
   const ratio = SPREADS.find((s) => s.id === spread)!.ratio
-  // odd가 거짓이면 모든 단계를 짝수 px에 맞춘다. 본문 크기는 고른 그대로 둔다.
-  const snap = (n: number) => (odd ? Math.round(n) : Math.round(n / 2) * 2)
-  const above = (n: number) => (odd ? n + 1 : n + (n % 2 ? 1 : 2))
-  const below = (n: number) => (odd ? n - 1 : n - (n % 2 ? 1 : 2))
   // 작은 단계는 본문보다, 그리고 서로보다 작아야 한다.
-  const sm = Math.min(snap(base * 0.875), below(base))
-  const xs = Math.min(snap(base * 0.75), below(sm))
+  const sm = Math.min(Math.round(base * 0.875), base - 1)
+  const xs = Math.min(Math.round(base * 0.75), sm - 1)
   const sizes: [string, number][] = [
     ['xs', xs],
     ['sm', sm],
@@ -247,8 +257,8 @@ export function sizeScale(base: number, spread: Spread, leading: Leading = 'norm
   ]
   let prev = base
   for (const [i, name] of ['lg', 'xl', '2xl', '3xl'].entries()) {
-    // 고른 배수를 따르고 가까운 정수(또는 짝수) px로 맞춘다. 앞 단계보다는 커야 한다.
-    prev = Math.max(snap(base * ratio ** (i + 1)), above(prev))
+    // 고른 배수를 따르고 가까운 정수 px로 맞춘다. 앞 단계보다는 커야 한다.
+    prev = Math.max(Math.round(base * ratio ** (i + 1)), prev + 1)
     sizes.push([name, prev])
   }
   return sizes.map(([name, px]) => ({ name, size: `${px}px`, line: `${lineFor(px, leading)}px` }))

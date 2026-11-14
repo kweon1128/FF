@@ -73,7 +73,7 @@ export function NumberField({
     // 이름표와 숫자를 한 칸 안에 나란히 둔다. 이름표가 길어도 숫자와 겹치지 않는다.
     <label
       title={label}
-      className={`flex h-8 min-w-0 items-center gap-1.5 rounded-md border border-hairline px-2 focus-within:border-selection ${
+      className={`flex h-8 min-w-0 items-center gap-2 rounded-md border border-hairline px-2 focus-within:border-selection ${
         readOnly ? 'bg-hover' : 'bg-canvas'
       }`}
     >
@@ -247,7 +247,7 @@ export function BoardInspector({
 
       <Section title="위치">
         <p className="mb-1 text-sm font-[550] text-ink-faint">정렬</p>
-        <div className="mb-3 flex gap-0.5">
+        <div className="mb-3 flex gap-1">
           {ALIGN.map(({ action, label, icon: Icon }, i) => (
             <button
               key={action}

@@ -68,11 +68,11 @@ export function Shortcuts({ onClose }: { onClose: () => void }) {
         {GROUPS.map((group) => (
           <section key={group.title}>
             <h3 className="mb-2 text-xs font-[650]">{group.title}</h3>
-            <dl className="space-y-1.5">
+            <dl className="space-y-2">
               {group.keys.map(([key, what]) => (
                 <div key={key} className="flex items-baseline justify-between gap-3">
                   <dt className="text-ink-soft">{what}</dt>
-                  <dd className="shrink-0 rounded-sm bg-hover px-1.5 py-0.5 text-xs">{key}</dd>
+                  <dd className="shrink-0 rounded-sm bg-hover px-1 text-xs">{key}</dd>
                 </div>
               ))}
             </dl>

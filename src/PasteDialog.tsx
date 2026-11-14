@@ -16,7 +16,7 @@ export type PasteJob = {
   into: string | null
 }
 
-const OPTION = 'h-7 flex-1 rounded-sm text-sm leading-none font-[550] outline-selection focus-visible:outline-2'
+const OPTION = 'h-6 flex-1 rounded-sm text-sm leading-none font-[550] outline-selection focus-visible:outline-2'
 
 /**
  * 붙여넣기 창. 이름이 같은 값이 있거나 읽지 못한 값이 있을 때만 뜬다.
@@ -46,7 +46,7 @@ export function PasteDialog({
         {job.conflicts > 0 && (
           <div>
             <p className="mb-1 text-sm font-[550] text-ink-faint">이름이 같은 값 {job.conflicts}개</p>
-            <div role="group" aria-label="이름이 같은 값" className="flex rounded-md bg-hover p-0.5">
+            <div role="group" aria-label="이름이 같은 값" className="flex gap-1 rounded-md bg-hover p-1">
               {[
                 { on: true, label: '덮어쓰기' },
                 { on: false, label: '따로 만들기' },

@@ -3,6 +3,7 @@
 import type { Token } from './api'
 import { ALL_KINDS, COLOR_REF, KINDS, SLUG, groupOf, lineName, shortName } from './catalog'
 import { isColor, toHex, toOklch } from './color'
+import { lineFor } from './presets'
 
 export const kindOf = (name: string) => ALL_KINDS.find((k) => k.matches(name)) ?? null
 
@@ -192,16 +193,16 @@ export function lineOf(tokens: Token[], sizeName: string) {
 }
 
 /**
- * 글자 크기에 어울리는 줄 높이(px). 줄 높이는 배수가 아니라 px로 정하고 4의 배수에 맞춘다.
+ * 글자 크기에 어울리는 줄 높이(px). 줄 높이는 배수가 아니라 px로 정하고 짝수에 맞춘다.
  * 그래야 어떤 글꼴을 넣어도 줄의 높이가 같고, 아이콘이나 체크박스가 줄의 한가운데에 놓인다.
- * 작은 글자는 약 1.45배, 24px부터는 약 1.25배다(12→16, 14→20, 16→24, 20→28, 24→32).
+ * 한 벌을 만들 때의 "보통"과 같은 규칙이다(lineFor. 12→16, 14→20, 16→24, 20→28, 24→32).
  * 크기가 px나 rem이 아니면 null.
  */
 export function suggestLine(size: string) {
   const m = /^(\d*\.?\d+)(px|rem)$/.exec(size.trim())
   if (!m) return null
   const px = Number(m[1]) * (m[2] === 'rem' ? 16 : 1)
-  return `${Math.max(4, Math.round((px * (px >= 24 ? 1.25 : 1.45)) / 4) * 4)}px`
+  return `${lineFor(px, 'normal')}px`
 }
 
 /** 글자 크기에 묶인 줄 높이를 바꾼다. 없으면 그 크기 바로 뒤에 넣고, value가 null이면 지운다. */

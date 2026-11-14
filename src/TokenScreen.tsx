@@ -162,7 +162,7 @@ export function SelectionHandles() {
 /** 선택한 항목 바로 아래에 붙는 파란 이름표(이름 · 값). 주변에 무엇이 있든 가장 위에 겹쳐 보인다. */
 export function SelectionTag({ name, value }: { name: string; value?: string }) {
   return (
-    <span className="pointer-events-none absolute top-full left-1/2 z-20 mt-1.5 origin-top -translate-x-1/2 [scale:var(--unzoom)] rounded-xs bg-selection px-1 text-xs leading-[18px] font-[550] whitespace-nowrap text-white">
+    <span className="pointer-events-none absolute top-full left-1/2 z-20 mt-2 origin-top -translate-x-1/2 [scale:var(--unzoom)] rounded-xs bg-selection px-1 text-xs leading-[18px] font-[550] whitespace-nowrap text-white">
       {value === undefined ? name : `${name} · ${value}`}
     </span>
   )
@@ -252,7 +252,7 @@ function ColorGroups({
               <span key={step}>
                 {/* 추가 칸과 같은 점선 상자. */}
                 <span className="block h-16 rounded-md dash-box bg-canvas group-hover:bg-hover group-hover:bg-none" />
-                {!folded && <span className="mt-1.5 block text-sm text-ink-faint">{step}</span>}
+                {!folded && <span className="mt-2 block text-sm text-ink-faint">{step}</span>}
               </span>
             ))}
           </span>
@@ -353,7 +353,7 @@ function ColorGroups({
                   {/* 접으면 이름과 값 글자를 숨긴다. 색을 고르면 뜨는 파란 이름표로는 여전히 볼 수 있다. */}
                   {!folded && (
                   <span>
-                    <span data-name className="mt-1.5 block truncate text-sm text-ink-soft">
+                    <span data-name className="mt-2 block truncate text-sm text-ink-soft">
                       {group ? short.slice(group.length + 1) : short}
                     </span>
                     <span
@@ -439,7 +439,7 @@ function RowList({ kind, items, selected, onSelect, onAdd, onRename, lineOf }: L
   // 값이 긴 종류는 이름·값과 견본을 위아래로 쌓는다.
   const stacked = kind.id === 'font'
   return (
-    <div className="space-y-0.5 rounded-lg border border-hairline bg-canvas p-1">
+    <div className="space-y-1 rounded-lg border border-hairline bg-canvas p-1">
       {items.map((t) => {
         const short = shortName(kind, t.name)
         const isSelected = selected.includes(t.name)
@@ -456,7 +456,7 @@ function RowList({ kind, items, selected, onSelect, onAdd, onRename, lineOf }: L
             aria-label={`${short} ${shown}`}
             onClick={(e) => onSelect(t.name, isAdditive(e))}
                   onDoubleClick={() => onRename(t.name)}
-            className={`group relative w-full rounded-md px-3 py-2.5 text-left select-none ${stacked ? 'block' : 'flex items-center gap-4'} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
+            className={`group relative w-full rounded-md px-3 py-3 text-left select-none ${stacked ? 'block' : 'flex items-center gap-4'} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
           >
             {stacked ? (
               // 글꼴 종류는 이름과 글꼴 이름을 한 줄 전체에 쓰고, 견본은 그 아래에 둔다. 글꼴 이름은 좁은 칸에 넣으면 잘린다.

@@ -933,7 +933,7 @@ export function Canvas({
             >
               <div
                 data-board-handle={board.id}
-                className={`mb-1.5 inline-flex origin-bottom-left items-center gap-1 align-top [scale:var(--unzoom)] text-xs whitespace-nowrap ${
+                className={`mb-1 inline-flex origin-bottom-left items-center gap-1 align-top [scale:var(--unzoom)] text-xs whitespace-nowrap ${
                   isSelected ? 'font-[550] text-selection' : 'text-ink-faint hover:text-ink'
                 }`}
               >

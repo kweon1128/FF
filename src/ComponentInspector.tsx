@@ -149,7 +149,7 @@ function IconPicker({ value, onChange }: { value: string | undefined; onChange: 
       {results.length === 0 ? (
         <p className="text-sm text-ink-faint">맞는 아이콘이 없어요.</p>
       ) : (
-        <div className="grid grid-cols-6 gap-0.5">
+        <div className="grid grid-cols-6 gap-1">
           {results.map((name) => (
             <button
               key={name}
@@ -241,7 +241,7 @@ export function ComponentInspector({
       <Section>
         <h2 className="font-[650] break-all">{comp.name}</h2>
         {cell && (
-          <p className="mt-0.5 text-sm text-ink-faint">{single ? cellLabel(comp, cell) : `${cells.length}칸 선택됨`}</p>
+          <p className="mt-1 text-sm text-ink-faint">{single ? cellLabel(comp, cell) : `${cells.length}칸 선택됨`}</p>
         )}
       </Section>
 
@@ -324,14 +324,14 @@ export function ComponentInspector({
 
       <Section title="아이콘">
         <div className="space-y-3">
-          <div role="group" aria-label="아이콘 위치" className="flex rounded-md bg-hover p-0.5">
+          <div role="group" aria-label="아이콘 위치" className="flex gap-1 rounded-md bg-hover p-1">
             {ICON_POSITIONS.map(({ id, label }) => (
               <button
                 key={id}
                 type="button"
                 aria-pressed={comp.iconPos === id}
                 onClick={() => common({ iconPos: id })}
-                className={`h-7 flex-1 rounded-sm text-sm leading-none font-[550] outline-selection focus-visible:outline-2 ${
+                className={`h-6 flex-1 rounded-sm text-sm leading-none font-[550] outline-selection focus-visible:outline-2 ${
                   comp.iconPos === id ? 'border border-hairline bg-canvas text-ink' : 'text-ink-soft hover:text-ink'
                 }`}
               >

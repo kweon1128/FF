@@ -398,7 +398,7 @@ export function Inspector({
                 className="-ml-2 flex h-8 max-w-full items-center rounded-md px-2 font-[550] outline-selection hover:bg-hover focus-visible:outline-2"
               >
                 <span className="truncate">{name.slice(kind.prefix.length)}</span>
-                <span className="ml-1.5 shrink-0 text-sm font-normal text-ink-faint">의미 색</span>
+                <span className="ml-2 shrink-0 text-sm font-normal text-ink-faint">의미 색</span>
               </button>
             ))}
             {uses.map((u) => (
@@ -409,7 +409,7 @@ export function Inspector({
                   className="-ml-2 flex h-8 max-w-full items-center rounded-md px-2 font-[550] outline-selection hover:bg-hover focus-visible:outline-2"
                 >
                   <span className="truncate">{u.name}</span>
-                  <span className="ml-1.5 shrink-0 text-sm font-normal text-ink-faint">{u.where.length}곳</span>
+                  <span className="ml-2 shrink-0 text-sm font-normal text-ink-faint">{u.where.length}곳</span>
                 </button>
                 <p className="text-sm text-ink-faint">{u.where.join(', ')}</p>
               </div>

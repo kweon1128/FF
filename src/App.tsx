@@ -1663,7 +1663,7 @@ export function App() {
               }
               onDuplicateVariant={duplicateVariant}
               onDuplicateSize={duplicateSize}
-              onCopyCss={() => copyText(compCss(comp), 'CSS를 복사했어요.')}
+              onCopyCss={() => copyText(compCss(comp, tokens),'CSS를 복사했어요.')}
               onDelete={() =>
                 removePart(() => {
                   commitComps(comps.filter((c) => c !== comp))
