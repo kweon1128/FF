@@ -77,7 +77,8 @@ export const inputClass =
   'h-8 w-full rounded-md border border-hairline bg-canvas px-2 text-sm text-ink outline-none placeholder:text-ink-faint focus:border-selection'
 
 /**
- * 숫자에 단위가 붙는 값의 칸(17px, 0.02em, 200ms). 단위는 숫자 바로 뒤에 붙여 보여 주되 고칠 수 없게 고정하고, 숫자만 고친다.
+ * 숫자에 단위가 붙는 값의 칸(17px, 0.02em, 200ms). 단위는 숫자 바로 뒤에 4px 띄워 보여 주되 고칠 수 없게 고정하고, 숫자만 고친다.
+ * 딱 붙이면 고칠 수 있는 숫자와 고정된 단위가 한 덩어리로 읽힌다.
  * 단위까지 직접 적게 하면 17처럼 숫자만 적었을 때 값이 되지 않고, 단위를 지우다 만 값이 저장된다.
  * 숫자 칸의 폭을 적힌 글자 수에 맞춰서 단위가 숫자에 붙어 다닌다. 칸의 빈 곳을 눌러도 숫자를 고칠 수 있다.
  */
@@ -121,7 +122,7 @@ export function UnitInput({
   // 숫자 칸의 폭(글자 수). 작은 칸은 지우는 동안 줄어들지 않게 한다.
   const chars = Math.max(small ? 2 : 1, digits.length, small ? (placeholder ?? '').length : digits ? 0 : (placeholder ?? '').length)
   return (
-    <label title={title} className={`flex cursor-text items-center border focus-within:border-selection ${box}`}>
+    <label title={title} className={`flex cursor-text items-center gap-1 border focus-within:border-selection ${box}`}>
       <input
         aria-label={label}
         inputMode="decimal"

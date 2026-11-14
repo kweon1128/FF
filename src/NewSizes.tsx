@@ -301,7 +301,10 @@ export function NewSizesForm({
               <span className="flex w-28 shrink-0 items-center font-mono text-xs whitespace-nowrap text-ink-faint">
                 {s.name === 'base' ? (
                   // 칸이 있는 줄과 글자가 같은 자리에 오도록 칸의 여백과 테두리만큼 띄운다.
-                  <span className="border border-transparent px-1">{s.size}</span>
+                  <span className="flex gap-1 border border-transparent px-1">
+                    <span>{parseFloat(s.size)}</span>
+                    <span>px</span>
+                  </span>
                 ) : (
                   <StepSize
                     // 본문 크기나 단계 사이를 바꾸면 칸을 새로 만든다. 적는 중이던 글자가 남지 않게 한다.
@@ -346,8 +349,13 @@ export function NewSizesForm({
             높이는 가장 크고 넓게 골랐을 때의 세 줄에 맞춰 고정하고, 줄의 길이는 글자 수로 잡아서(em) 본문 크기를 바꿔도 같은 자리에서 줄이 바뀐다. */}
         <div data-paragraph className="mt-2 flex gap-3 rounded-md border border-hairline px-4 py-3">
           <span className="w-8 shrink-0 font-mono text-xs text-ink-faint">base</span>
-          <span className="w-28 shrink-0 border-x border-transparent px-1 font-mono text-xs whitespace-nowrap text-ink-faint">
-            {baseStep.size} / {baseStep.line}
+          {/* 위 견본의 줄과 글자가 같은 자리에 오도록 같은 짜임으로 적는다. */}
+          <span className="flex w-28 shrink-0 font-mono text-xs whitespace-nowrap text-ink-faint">
+            <span className="flex gap-1 border-x border-transparent px-1">
+              <span>{parseFloat(baseStep.size)}</span>
+              <span>px</span>
+            </span>
+            <span className="pl-1">/ {baseStep.line}</span>
           </span>
           <span className="w-28 shrink-0 text-xs whitespace-nowrap text-ink-soft">본문 문단</span>
           <span className="flex min-w-0 flex-1 items-start" style={{ height: PARAGRAPH_SLOT }}>
