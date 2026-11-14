@@ -14,10 +14,13 @@ import { HANDLE } from './TokenScreen'
 export const BOARD_WIDTH = 560
 /** 색상 판은 한 줄에 색 11개(50~950)와 추가 칸이 들어가도록 넓게 시작한다. */
 export const COLOR_BOARD_WIDTH = 1380
-/** 너비를 따로 고치지 않은 판의 너비. */
 /** 의미 색 판은 한 줄에 색, 이름, 설명, 예시가 나란히 들어가야 해서 넓다. */
 export const ROLE_BOARD_WIDTH = 960
-export const defaultWidth = (id: string) => (id === 'color' ? COLOR_BOARD_WIDTH : id === 'role' ? ROLE_BOARD_WIDTH : BOARD_WIDTH)
+/** 글꼴 판은 글자 크기의 견본 문장이 가장 큰 단계(한 벌 만들기가 내는 44px)에서도 잘리지 않도록 넓다. */
+export const TYPE_BOARD_WIDTH = 960
+/** 판의 너비. 판마다 정해져 있다. */
+export const defaultWidth = (id: string) =>
+  id === 'color' ? COLOR_BOARD_WIDTH : id === 'role' ? ROLE_BOARD_WIDTH : id === 'type' ? TYPE_BOARD_WIDTH : BOARD_WIDTH
 const BOARD_GAP = 80
 const MIN_ZOOM = 0.1
 const MAX_ZOOM = 16
@@ -162,8 +165,9 @@ const holds = (outer: Box, inner: Box) =>
 export function defaultPos(index: number): Pos {
   // 의미 색 판은 색상 판 바로 왼쪽에 둔다. 나중에 생긴 판이라, 이미 놓여 있는 다른 판들의 자리를 밀지 않으려는 것이다.
   if (TOKEN_SCREEN_IDS[index] === 'role') return { x: -(ROLE_BOARD_WIDTH + BOARD_GAP), y: 0 }
-  // 맨 앞의 색상 판이 넓은 만큼 그 뒤의 판들을 밀어 둔다.
-  return { x: index * (BOARD_WIDTH + BOARD_GAP) + (index > 0 ? COLOR_BOARD_WIDTH - BOARD_WIDTH : 0), y: 0 }
+  // 앞에 놓인 넓은 판(색상, 글꼴)의 너비만큼 그 뒤의 판들을 밀어 둔다.
+  const wider = TOKEN_SCREEN_IDS.slice(0, index).reduce((sum, id) => sum + (id === 'role' ? 0 : defaultWidth(id) - BOARD_WIDTH), 0)
+  return { x: index * (BOARD_WIDTH + BOARD_GAP) + wider, y: 0 }
 }
 
 function loadView(key: string): View {
