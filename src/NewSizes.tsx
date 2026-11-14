@@ -127,7 +127,7 @@ export function NewSizesForm({
   const [leading, setLeading] = useState<Leading>('normal')
   // 글꼴이 불려 온 뒤에 다시 잰다.
   const [loaded, setLoaded] = useState(0)
-  // 규칙이 낸 크기 대신 직접 정한 크기(px). 단계의 이름으로 찾는다. 본문 크기를 바꾸면 모두 지운다(한 벌의 기준이 바뀌었으므로 처음부터 다시 정한다).
+  // 규칙이 낸 크기 대신 직접 정한 크기(px). 단계의 이름으로 찾는다. 본문 크기나 단계 사이를 바꾸면 모두 지운다(크기를 정하는 규칙이 바뀌었으므로 처음부터 다시 정한다). 줄 높이를 바꿀 때는 남긴다.
   const [custom, setCustom] = useState<Record<string, number>>({})
   // 규칙대로의 한 벌. 직접 정한 크기가 있으면 그 단계만 바꾸고, 줄 높이는 그 크기에 맞춰 다시 낸다.
   const ruled = useMemo(() => sizeScale(base, spread, leading), [base, spread, leading])
@@ -137,6 +137,10 @@ export function NewSizesForm({
   )
   const changeBase = (px: number) => {
     setBase(px)
+    setCustom({})
+  }
+  const changeSpread = (next: Spread) => {
+    setSpread(next)
     setCustom({})
   }
   const setSize = (name: string, px: number | null) =>
@@ -225,7 +229,7 @@ export function NewSizesForm({
                 type="button"
                 role="radio"
                 aria-checked={s.id === spread}
-                onClick={() => setSpread(s.id)}
+                onClick={() => changeSpread(s.id)}
                 className={`h-6 rounded-sm text-sm outline-selection focus-visible:outline-2 ${
                   s.id === spread ? 'bg-canvas font-[550] text-ink shadow-[0_0_0_1px_var(--color-hairline)]' : 'text-ink-soft hover:text-ink'
                 }`}
@@ -300,6 +304,8 @@ export function NewSizesForm({
                   <span className="border border-transparent px-1">{s.size}</span>
                 ) : (
                   <StepSize
+                    // 본문 크기나 단계 사이를 바꾸면 칸을 새로 만든다. 적는 중이던 글자가 남지 않게 한다.
+                    key={`${base}:${spread}`}
                     name={s.name}
                     rule={parseFloat(ruled.find((r) => r.name === s.name)!.size)}
                     custom={custom[s.name] ?? null}

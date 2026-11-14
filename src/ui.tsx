@@ -1,7 +1,7 @@
 // FF 도구의 공통 부품. 모양의 기준은 DESIGN.md의 components 항목.
 
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { Check as CheckIcon } from 'lucide-react'
 import { stepValue } from './lib/tokens'
 
@@ -101,7 +101,10 @@ export function UnitInput({
   invalid?: boolean
   /** 음수도 받을지(글자 사이 간격). */
   negative?: boolean
-  /** 견본의 줄 안에 놓는 작은 칸. 고칠 수 있는 자리라는 것이 보이도록 테두리와 흰 바탕을 늘 둔다. */
+  /**
+   * 견본의 줄 안에 놓는 작은 칸. 고칠 수 있는 자리라는 것이 보이도록 테두리와 흰 바탕을 늘 둔다.
+   * 누르면 숫자가 모두 선택되어 바로 새 값을 적을 수 있고, 숫자를 지우는 동안에도 칸의 폭이 줄지 않는다(적어도 두 글자, placeholder의 길이).
+   */
   small?: boolean
   /** 숫자를 진하고 굵게 보일지(직접 정한 값). */
   strong?: boolean
@@ -113,6 +116,10 @@ export function UnitInput({
   const box = small
     ? `h-6 rounded-sm bg-canvas px-1 font-mono text-xs hover:border-ink-faint ${invalid ? 'border-danger' : 'border-hairline'}`
     : `h-8 w-full rounded-md bg-canvas px-2 text-sm ${invalid ? 'border-danger focus-within:border-danger' : 'border-hairline'}`
+  // 마우스로 눌러서 고치기 시작했는지. 누른 손을 뗄 때 브라우저가 방금 한 전체 선택을 풀어 버리지 않게 막는 데 쓴다.
+  const picking = useRef(false)
+  // 숫자 칸의 폭(글자 수). 작은 칸은 지우는 동안 줄어들지 않게 한다.
+  const chars = Math.max(small ? 2 : 1, digits.length, small ? (placeholder ?? '').length : digits ? 0 : (placeholder ?? '').length)
   return (
     <label title={title} className={`flex cursor-text items-center border focus-within:border-selection ${box}`}>
       <input
@@ -121,7 +128,16 @@ export function UnitInput({
         placeholder={placeholder}
         className={`bg-transparent tabular-nums outline-none placeholder:text-ink-faint ${small && !strong ? 'text-ink-soft' : 'text-ink'} ${strong ? 'font-[650]' : ''}`}
         // 칸의 폭은 적힌 글자 수만큼이다. 그래야 단위가 숫자 바로 뒤에 온다.
-        style={{ width: `${Math.max(1, (digits || placeholder || '').length)}ch` }}
+        style={{ width: `${chars}ch` }}
+        onFocus={(e) => {
+          if (!small) return
+          e.currentTarget.select()
+          picking.current = true
+        }}
+        onMouseUp={(e) => {
+          if (picking.current) e.preventDefault()
+          picking.current = false
+        }}
         value={digits}
         // 숫자와 소수점(음수를 받으면 맨 앞의 -)만 받는다. 단위를 함께 적거나 붙여 넣어도 숫자만 남는다.
         onChange={(e) => {
@@ -129,8 +145,12 @@ export function UnitInput({
           const sign = negative && raw.trim().startsWith('-') ? '-' : ''
           onDigits(sign + raw.replace(/[^\d.]/g, ''))
         }}
-        onBlur={onBlur}
+        onBlur={() => {
+          picking.current = false
+          onBlur?.()
+        }}
         onKeyDown={(e) => {
+          picking.current = false
           if (e.key === 'Enter') return e.currentTarget.blur()
           // ↑↓로 1씩(소수는 0.1씩, Shift는 10배) 올리고 내린다. 음수를 받지 않으면 0 아래로는 내려가지 않는다.
           if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
