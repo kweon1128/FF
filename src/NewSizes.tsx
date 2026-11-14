@@ -3,7 +3,7 @@ import { Check as CheckIcon, Minus, Plus } from 'lucide-react'
 import { PreviewFontContext } from './ColorUses'
 import { shownFont } from './lib/fonts'
 import { BASE_MAX, BASE_MIN, LEADINGS, SPREADS, lineFor, sizeScale, type Leading, type Spread } from './lib/presets'
-import { Button } from './ui'
+import { Button, UnitInput } from './ui'
 
 /** 위아래 여백을 잴 때 기준으로 삼는 글자. 받침이 없는 글자와 있는 글자가 섞여 한글의 평균적인 높이를 낸다. */
 const INK = '가나다라마바사'
@@ -70,7 +70,7 @@ const SIZE_MAX = 96
 
 /**
  * 견본의 한 줄에서 그 단계의 크기를 고치는 칸. 단위(px)는 칸 밖에 고정해 두고 숫자만 적는다.
- * 규칙이 낸 값은 옅게, 직접 정한 값은 진하게 보인다. 칸을 비우면 규칙의 값으로 돌아간다.
+ * 칸은 테두리가 늘 보여서 고칠 수 있는 자리임을 알 수 있다. 직접 정한 값은 진하고 굵게 보이고, 칸을 비우면 규칙의 값으로 돌아간다.
  */
 function StepSize({ name, rule, custom, onChange }: { name: string; rule: number; custom: number | null; onChange: (px: number | null) => void }) {
   // 적는 중인 글자. 2를 거쳐 24를 적는 동안처럼 아직 값이 되지 못한 것도 칸에는 그대로 보여야 한다.
@@ -82,24 +82,20 @@ function StepSize({ name, rule, custom, onChange }: { name: string; rule: number
     if (px >= SIZE_MIN && px <= SIZE_MAX) onChange(px === rule ? null : px)
   }
   return (
-    <input
-      aria-label={`${name} 크기`}
-      inputMode="numeric"
+    <UnitInput
+      small
+      strong={custom !== null}
+      label={`${name} 크기`}
+      unit="px"
       placeholder={String(rule)}
       title={custom === null ? '숫자를 고치면 이 단계의 크기를 직접 정해요' : `직접 정한 크기예요. 비우면 규칙의 값(${rule}px)으로 돌아가요`}
-      className={`h-6 w-8 rounded-sm border border-transparent bg-transparent pr-1 text-right font-mono text-xs tabular-nums outline-none hover:border-hairline focus:border-selection focus:bg-canvas ${
-        custom === null ? 'text-ink-faint' : 'font-[650] text-ink'
-      }`}
-      value={draft ?? String(custom ?? rule)}
-      onChange={(e) => apply(e.target.value.replace(/\D/g, '').slice(0, 2))}
-      onBlur={() => setDraft(null)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') return e.preventDefault()
-        if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
-        e.preventDefault()
-        const next = (custom ?? rule) + (e.key === 'ArrowUp' ? 1 : -1) * (e.shiftKey ? 10 : 1)
-        apply(String(Math.max(SIZE_MIN, Math.min(SIZE_MAX, next))))
+      digits={draft ?? String(custom ?? rule)}
+      // 정수 두 자리까지만 받는다. ↑↓로 범위를 벗어나면 끝 값에 멈춘다.
+      onDigits={(digits) => {
+        const clean = digits.replace(/\D/g, '')
+        apply(clean && Number(clean) > SIZE_MAX ? String(SIZE_MAX) : clean.slice(0, 2))
       }}
+      onBlur={() => setDraft(null)}
     />
   )
 }
@@ -131,7 +127,7 @@ export function NewSizesForm({
   const [leading, setLeading] = useState<Leading>('normal')
   // 글꼴이 불려 온 뒤에 다시 잰다.
   const [loaded, setLoaded] = useState(0)
-  // 규칙이 낸 크기 대신 직접 정한 크기(px). 단계의 이름으로 찾는다. 본문 크기나 단계 사이를 바꿔도 직접 정한 것은 그대로 둔다.
+  // 규칙이 낸 크기 대신 직접 정한 크기(px). 단계의 이름으로 찾는다. 본문 크기를 바꾸면 모두 지운다(한 벌의 기준이 바뀌었으므로 처음부터 다시 정한다).
   const [custom, setCustom] = useState<Record<string, number>>({})
   // 규칙대로의 한 벌. 직접 정한 크기가 있으면 그 단계만 바꾸고, 줄 높이는 그 크기에 맞춰 다시 낸다.
   const ruled = useMemo(() => sizeScale(base, spread, leading), [base, spread, leading])
@@ -139,6 +135,10 @@ export function NewSizesForm({
     () => ruled.map((s) => (custom[s.name] && s.name !== 'base' ? { ...s, size: `${custom[s.name]}px`, line: `${lineFor(custom[s.name], leading)}px` } : s)),
     [ruled, custom, leading],
   )
+  const changeBase = (px: number) => {
+    setBase(px)
+    setCustom({})
+  }
   const setSize = (name: string, px: number | null) =>
     setCustom((now) => {
       const { [name]: _gone, ...rest } = now
@@ -205,13 +205,13 @@ export function NewSizesForm({
         <div>
           <p className={LABEL}>본문 크기</p>
           <span className="flex h-8 items-center gap-1">
-            <button type="button" aria-label="본문 작게" disabled={base <= BASE_MIN} onClick={() => setBase(base - 1)} className={STEP_BUTTON}>
+            <button type="button" aria-label="본문 작게" disabled={base <= BASE_MIN} onClick={() => changeBase(base - 1)} className={STEP_BUTTON}>
               <Minus size={16} strokeWidth={1.5} />
             </button>
             <span data-base className="w-11 text-center text-sm tabular-nums">
               {base}px
             </span>
-            <button type="button" aria-label="본문 크게" disabled={base >= BASE_MAX} onClick={() => setBase(base + 1)} className={STEP_BUTTON}>
+            <button type="button" aria-label="본문 크게" disabled={base >= BASE_MAX} onClick={() => changeBase(base + 1)} className={STEP_BUTTON}>
               <Plus size={16} strokeWidth={1.5} />
             </button>
           </span>
@@ -294,9 +294,10 @@ export function NewSizesForm({
             <div key={s.name} data-step={s.name} className="flex items-center gap-3">
               <span className="w-8 shrink-0 font-mono text-xs text-ink-faint">{s.name}</span>
               {/* 크기는 단계마다 직접 고칠 수 있다(본문은 왼쪽의 본문 크기로 정한다). 줄 높이는 고친 크기에 맞춰 따라온다. */}
-              <span className="flex w-28 shrink-0 items-center gap-1 font-mono text-xs whitespace-nowrap text-ink-faint">
+              <span className="flex w-28 shrink-0 items-center font-mono text-xs whitespace-nowrap text-ink-faint">
                 {s.name === 'base' ? (
-                  <span className="w-8 pr-1 text-right">{parseFloat(s.size)}</span>
+                  // 칸이 있는 줄과 글자가 같은 자리에 오도록 칸의 여백과 테두리만큼 띄운다.
+                  <span className="border border-transparent px-1">{s.size}</span>
                 ) : (
                   <StepSize
                     name={s.name}
@@ -305,7 +306,7 @@ export function NewSizesForm({
                     onChange={(px) => setSize(s.name, px)}
                   />
                 )}
-                px / {s.line}
+                <span className="pl-1">/ {s.line}</span>
               </span>
               {/* 이 크기가 흔히 쓰이는 곳. */}
               <span data-use className="w-28 shrink-0 text-xs whitespace-nowrap text-ink-soft">{SAMPLES[s.name].use}</span>
@@ -339,7 +340,7 @@ export function NewSizesForm({
             높이는 가장 크고 넓게 골랐을 때의 세 줄에 맞춰 고정하고, 줄의 길이는 글자 수로 잡아서(em) 본문 크기를 바꿔도 같은 자리에서 줄이 바뀐다. */}
         <div data-paragraph className="mt-2 flex gap-3 rounded-md border border-hairline px-4 py-3">
           <span className="w-8 shrink-0 font-mono text-xs text-ink-faint">base</span>
-          <span className="w-28 shrink-0 font-mono text-xs whitespace-nowrap text-ink-faint">
+          <span className="w-28 shrink-0 border-x border-transparent px-1 font-mono text-xs whitespace-nowrap text-ink-faint">
             {baseStep.size} / {baseStep.line}
           </span>
           <span className="w-28 shrink-0 text-xs whitespace-nowrap text-ink-soft">본문 문단</span>

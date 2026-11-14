@@ -3,6 +3,7 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 import { useEffect } from 'react'
 import { Check as CheckIcon } from 'lucide-react'
+import { stepValue } from './lib/tokens'
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
 
@@ -74,6 +75,77 @@ export function Check({
 
 export const inputClass =
   'h-8 w-full rounded-md border border-hairline bg-canvas px-2 text-sm text-ink outline-none placeholder:text-ink-faint focus:border-selection'
+
+/**
+ * 숫자에 단위가 붙는 값의 칸(17px, 0.02em, 200ms). 단위는 숫자 바로 뒤에 붙여 보여 주되 고칠 수 없게 고정하고, 숫자만 고친다.
+ * 단위까지 직접 적게 하면 17처럼 숫자만 적었을 때 값이 되지 않고, 단위를 지우다 만 값이 저장된다.
+ * 숫자 칸의 폭을 적힌 글자 수에 맞춰서 단위가 숫자에 붙어 다닌다. 칸의 빈 곳을 눌러도 숫자를 고칠 수 있다.
+ */
+export function UnitInput({
+  label,
+  digits,
+  unit,
+  invalid = false,
+  negative = false,
+  small = false,
+  strong = false,
+  placeholder,
+  title,
+  onDigits,
+  onBlur,
+}: {
+  label: string
+  /** 칸에 적힌 숫자(단위 없이). */
+  digits: string
+  unit: string
+  invalid?: boolean
+  /** 음수도 받을지(글자 사이 간격). */
+  negative?: boolean
+  /** 견본의 줄 안에 놓는 작은 칸. 고칠 수 있는 자리라는 것이 보이도록 테두리와 흰 바탕을 늘 둔다. */
+  small?: boolean
+  /** 숫자를 진하고 굵게 보일지(직접 정한 값). */
+  strong?: boolean
+  placeholder?: string
+  title?: string
+  onDigits: (digits: string) => void
+  onBlur?: () => void
+}) {
+  const box = small
+    ? `h-6 rounded-sm bg-canvas px-1 font-mono text-xs hover:border-ink-faint ${invalid ? 'border-danger' : 'border-hairline'}`
+    : `h-8 w-full rounded-md bg-canvas px-2 text-sm ${invalid ? 'border-danger focus-within:border-danger' : 'border-hairline'}`
+  return (
+    <label title={title} className={`flex cursor-text items-center border focus-within:border-selection ${box}`}>
+      <input
+        aria-label={label}
+        inputMode="decimal"
+        placeholder={placeholder}
+        className={`bg-transparent tabular-nums outline-none placeholder:text-ink-faint ${small && !strong ? 'text-ink-soft' : 'text-ink'} ${strong ? 'font-[650]' : ''}`}
+        // 칸의 폭은 적힌 글자 수만큼이다. 그래야 단위가 숫자 바로 뒤에 온다.
+        style={{ width: `${Math.max(1, (digits || placeholder || '').length)}ch` }}
+        value={digits}
+        // 숫자와 소수점(음수를 받으면 맨 앞의 -)만 받는다. 단위를 함께 적거나 붙여 넣어도 숫자만 남는다.
+        onChange={(e) => {
+          const raw = e.target.value
+          const sign = negative && raw.trim().startsWith('-') ? '-' : ''
+          onDigits(sign + raw.replace(/[^\d.]/g, ''))
+        }}
+        onBlur={onBlur}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') return e.currentTarget.blur()
+          // ↑↓로 1씩(소수는 0.1씩, Shift는 10배) 올리고 내린다. 음수를 받지 않으면 0 아래로는 내려가지 않는다.
+          if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
+          const next = stepValue(digits || placeholder || '', e.key === 'ArrowUp' ? 1 : -1, e.shiftKey)
+          if (next === null || (!negative && Number(next) < 0)) return
+          e.preventDefault()
+          onDigits(next)
+        }}
+      />
+      <span aria-hidden className={`select-none ${small ? '' : 'text-ink-soft'}`}>
+        {unit}
+      </span>
+    </label>
+  )
+}
 
 export function Field({
   label,

@@ -8,7 +8,7 @@ import { ColorSwatch } from './ColorPicker'
 import { ColorUses } from './ColorUses'
 import { FontSample, NewFontForm } from './NewFont'
 import { parseFontValue, shownFont, weightsOf } from './lib/fonts'
-import { Button, Chip, Field, Modal, inputClass } from './ui'
+import { Button, Chip, Field, Modal, UnitInput, inputClass } from './ui'
 
 type Props = {
   token: Token
@@ -109,41 +109,13 @@ export function FoldSection({
   )
 }
 
-/** 오른쪽 편집 패널. 선택한 값이 바뀌면 key로 새로 만들어져 입력 중이던 내용이 초기화된다. */
-const PX = /^\d*\.?\d+px$/
+/** 숫자 하나에 단위가 붙은 값. 단위는 고정해 두고 숫자만 고친다. */
+const UNIT = /^(-?\d*\.?\d+)(px|rem|em|ms|s|%)$/
 const NUMBER = /^\d*\.?\d+$/
+const SIGNED = /^-?\d*\.?\d+$/
 const digitsOf = (value: string | null | undefined) => (value ?? '').replace(/px$/, '')
 
-/**
- * px로만 정하는 값의 칸. 단위(px)는 칸 오른쪽에 고정해 두고 숫자만 고친다.
- * 단위까지 직접 적게 하면 17처럼 숫자만 적었을 때 값이 되지 않고, 단위를 지우다 만 값이 저장된다.
- */
-function PxInput({ label, digits, invalid, onDigits }: { label: string; digits: string; invalid: boolean; onDigits: (digits: string) => void }) {
-  return (
-    <span className="relative block">
-      <input
-        aria-label={label}
-        inputMode="decimal"
-        className={`${inputClass} pr-8 tabular-nums ${invalid ? 'border-danger focus:border-danger' : ''}`}
-        value={digits}
-        // 숫자와 소수점만 받는다. px를 함께 적거나 붙여 넣어도 숫자만 남는다.
-        onChange={(e) => onDigits(e.target.value.replace(/[^\d.]/g, ''))}
-        onKeyDown={(e) => {
-          // ↑↓로 1씩(Shift는 10씩) 올리고 내린다. 0 아래로는 내려가지 않는다.
-          if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
-          const next = stepValue(digits, e.key === 'ArrowUp' ? 1 : -1, e.shiftKey)
-          if (next === null || Number(next) <= 0) return
-          e.preventDefault()
-          onDigits(next)
-        }}
-      />
-      <span aria-hidden className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-sm text-ink-faint">
-        px
-      </span>
-    </span>
-  )
-}
-
+/** 오른쪽 편집 패널. 선택한 값이 바뀌면 key로 새로 만들어져 입력 중이던 내용이 초기화된다. */
 export function Inspector({
   token,
   kind,
@@ -177,9 +149,13 @@ export function Inspector({
   // 색은 파일에 oklch로 저장하지만, 여기서는 읽고 쓰기 쉬운 #으로 보여 주고 받는다.
   const [valueDraft, setValueDraft] = useState(kind.id === 'color' ? showColor(token.value) : token.value)
   const [valueError, setValueError] = useState<string | null>(null)
-  // 글자 크기가 px 값이면 단위를 고정해 두고 숫자만 고친다. rem이나 clamp()처럼 px가 아닌 값은 적힌 그대로 고친다.
-  const [pxSize] = useState(kind.id === 'size' && PX.test(token.value))
-  const [sizeDigits, setSizeDigits] = useState(digitsOf(token.value))
+  // 값이 숫자 하나에 단위가 붙은 것이면(16px, 0.02em, 200ms) 단위를 고정해 두고 숫자만 고친다. 단위는 지금 값의 것을 그대로 쓴다.
+  // 그림자나 clamp()처럼 그렇지 않은 값, 단위가 없는 값(굵기, 투명도)은 적힌 그대로 고친다.
+  const [unit] = useState(isColor || isFont ? null : (UNIT.exec(token.value)?.[2] ?? null))
+  const [digits, setDigits] = useState(UNIT.exec(token.value)?.[1] ?? '')
+  // 0이나 음수가 될 수 없는 값(글자 크기)과 음수가 되는 값(글자 사이 간격).
+  const positive = kind.id === 'size'
+  const negative = kind.id === 'tracking'
   // 줄 높이 칸에 적는 숫자(px는 고정).
   const [lineDraft, setLineDraft] = useState(digitsOf(line))
   const [lineError, setLineError] = useState<string | null>(null)
@@ -193,11 +169,11 @@ export function Inspector({
     }
   }
 
-  function changeSize(digits: string) {
-    setSizeDigits(digits)
-    if (!NUMBER.test(digits) || Number(digits) <= 0) return setValueError('숫자를 입력해 주세요.')
+  function changeDigits(next: string) {
+    setDigits(next)
+    if (!(negative ? SIGNED : NUMBER).test(next) || (positive && Number(next) <= 0)) return setValueError('숫자를 입력해 주세요.')
     setValueError(null)
-    onValue(`${digits}px`)
+    onValue(`${next}${unit}`)
   }
 
   /** 줄 높이는 px로만 받는다. 비우면 묶인 줄 높이를 지운다. */
@@ -295,8 +271,8 @@ export function Inspector({
             <span className="truncate">{shownFont(valueDraft)}</span>
           </p>
         )}
-        {pxSize && <PxInput label={kind.valueLabel} digits={sizeDigits} invalid={!!valueError} onDigits={changeSize} />}
-        <span className={isFont || pxSize ? 'hidden' : 'flex items-center gap-2'}>
+        {unit && <UnitInput label={kind.valueLabel} digits={digits} unit={unit} invalid={!!valueError} negative={negative} onDigits={changeDigits} />}
+        <span className={isFont || unit ? 'hidden' : 'flex items-center gap-2'}>
           {isColor && <ColorSwatch label="색 고르기" value={valueDraft} alpha preview onChange={changeValue} />}
           <input
             aria-label={kind.valueLabel}
@@ -328,7 +304,7 @@ export function Inspector({
         {line !== undefined && (
           <div className="mt-2">
             <Field label="줄 높이" error={lineError}>
-              <PxInput label="줄 높이" digits={lineDraft} invalid={!!lineError} onDigits={changeLine} />
+              <UnitInput label="줄 높이" digits={lineDraft} unit="px" invalid={!!lineError} onDigits={changeLine} />
             </Field>
           </div>
         )}
