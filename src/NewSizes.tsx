@@ -275,11 +275,11 @@ export function NewSizesForm({
         {/* 본문 크기로 쓴 문단. 줄 높이(좁게 · 보통 · 넓게)의 차이는 한 줄짜리 글이 아니라 줄과 줄 사이에서 보인다.
             높이는 가장 크고 넓게 골랐을 때의 세 줄에 맞춰 고정하고, 줄의 길이는 글자 수로 잡아서(em) 본문 크기를 바꿔도 같은 자리에서 줄이 바뀐다. */}
         <div data-paragraph className="mt-2 flex gap-3 rounded-md border border-hairline px-4 py-3">
-          <span className="w-8 shrink-0 font-mono text-xs leading-5 text-ink-faint">base</span>
-          <span className="w-20 shrink-0 font-mono text-xs leading-5 whitespace-nowrap text-ink-faint">
+          <span className="w-8 shrink-0 font-mono text-xs text-ink-faint">base</span>
+          <span className="w-20 shrink-0 font-mono text-xs whitespace-nowrap text-ink-faint">
             {baseStep.size} / {baseStep.line}
           </span>
-          <span className="w-28 shrink-0 text-xs leading-5 whitespace-nowrap text-ink-soft">본문 문단</span>
+          <span className="w-28 shrink-0 text-xs whitespace-nowrap text-ink-soft">본문 문단</span>
           <span className="flex min-w-0 flex-1 items-start" style={{ height: PARAGRAPH_SLOT }}>
             <span className="line-clamp-3 max-w-[34em]" style={{ fontFamily: font, fontSize: baseStep.size, lineHeight: baseStep.line }}>
               {PARAGRAPH}

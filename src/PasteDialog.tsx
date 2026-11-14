@@ -16,7 +16,7 @@ export type PasteJob = {
   into: string | null
 }
 
-const OPTION = 'h-6 flex-1 rounded-sm text-sm leading-none font-[550] outline-selection focus-visible:outline-2'
+const OPTION = 'h-6 flex-1 rounded-sm text-sm font-[550] outline-selection focus-visible:outline-2'
 
 /**
  * 붙여넣기 창. 이름이 같은 값이 있거나 읽지 못한 값이 있을 때만 뜬다.

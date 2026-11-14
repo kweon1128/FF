@@ -43,8 +43,8 @@ export function inkOn(hex: string) {
  * 줄 상자에서 그 여백을 잘라 내고(대문자 높이에서 기준선까지만 남김) 글자 자체를 가운데에 놓는다.
  */
 export const TRIM = 'block [text-box:trim-both_cap_alphabetic]'
-const BUTTON = 'flex h-7 shrink-0 items-center rounded-md px-2 text-sm leading-none font-[550] whitespace-nowrap select-none'
-const BOX = 'flex h-7 min-w-0 items-center justify-center rounded-md px-2 text-sm leading-none whitespace-nowrap'
+const BUTTON = 'flex h-7 shrink-0 items-center rounded-md px-2 text-sm font-[550] whitespace-nowrap select-none'
+const BOX = 'flex h-7 min-w-0 items-center justify-center rounded-md px-2 text-sm whitespace-nowrap'
 
 /**
  * 실제로 반응하는 버튼. 마우스를 올리면 한 단계 짙은 색, 누르면 두 단계 짙은 색이 된다.

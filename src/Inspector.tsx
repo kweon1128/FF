@@ -239,8 +239,8 @@ export function Inspector({
       <Section title={kind.valueLabel}>
         {/* 글꼴 종류는 값을 직접 적지 않는다. 정한 글꼴의 이름만 보여 주고, 바꾸는 것은 아래의 "글꼴 고르기"로 한다. 대체 글꼴까지 든 전체 값은 코드 구역에 있다. */}
         {isFont && (
-          <p data-font-name className="truncate text-sm leading-8">
-            {shownFont(valueDraft)}
+          <p data-font-name className="flex h-8 items-center text-sm">
+            <span className="truncate">{shownFont(valueDraft)}</span>
           </p>
         )}
         <span className={isFont ? 'hidden' : 'flex items-center gap-2'}>

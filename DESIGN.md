@@ -27,49 +27,49 @@ typography:
     fontFamily: SUIT Variable
     fontSize: 16px
     fontWeight: 650
-    lineHeight: 1.40
+    lineHeight: 24px
     letterSpacing: -0.16px
   heading:
     fontFamily: SUIT Variable
     fontSize: 14px
     fontWeight: 650
-    lineHeight: 1.45
+    lineHeight: 20px
     letterSpacing: -0.07px
   body:
     fontFamily: SUIT Variable
     fontSize: 14px
     fontWeight: 400
-    lineHeight: 1.43
+    lineHeight: 20px
     letterSpacing: 0
   body-strong:
     fontFamily: SUIT Variable
     fontSize: 14px
     fontWeight: 550
-    lineHeight: 1.43
+    lineHeight: 20px
     letterSpacing: 0
   button:
     fontFamily: SUIT Variable
     fontSize: 14px
     fontWeight: 550
-    lineHeight: 1.00
+    lineHeight: 20px
     letterSpacing: 0
   label:
     fontFamily: SUIT Variable
     fontSize: 12px
     fontWeight: 550
-    lineHeight: 1.35
+    lineHeight: 16px
     letterSpacing: 0
   caption:
     fontFamily: SUIT Variable
     fontSize: 12px
     fontWeight: 400
-    lineHeight: 1.35
+    lineHeight: 16px
     letterSpacing: 0
   code:
     fontFamily: ui-monospace
     fontSize: 12px
     fontWeight: 400
-    lineHeight: 1.35
+    lineHeight: 16px
     letterSpacing: 0
 
 rounded:
@@ -321,18 +321,18 @@ FF는 내 프로젝트의 디자인 시스템(색, 글꼴, 간격, 컴포넌트,
 
 | Token | Size | Weight | Line Height | Use |
 |---|---|---|---|---|
-| `{typography.title}` | 16px | 650 | 1.40 | 가운데 영역의 화면 제목 |
-| `{typography.heading}` | 14px | 650 | 1.45 | 편집 패널에서 선택한 항목의 이름, 묶음 제목 |
-| `{typography.body}` | 14px | 400 | 1.43 (20px) | 기본 글자, 메뉴 항목, 입력값 |
-| `{typography.body-strong}` | 14px | 550 | 1.43 (20px) | 선택된 메뉴 항목, 강조할 본문 |
-| `{typography.button}` | 14px | 550 | 1.00 | 모든 버튼 |
-| `{typography.label}` | 12px | 550 | 1.35 | 메뉴 묶음 이름, 입력칸 이름 |
-| `{typography.caption}` | 12px | 400 | 1.35 | 미리보기 아래 설명, 저장 상태 |
-| `{typography.code}` | 12px | 400 | 1.35 | 값 이름, 색 코드, 파일 경로 |
+| `{typography.title}` | 16px | 650 | 24px | 가운데 영역의 화면 제목 |
+| `{typography.heading}` | 14px | 650 | 20px | 편집 패널에서 선택한 항목의 이름, 묶음 제목 |
+| `{typography.body}` | 14px | 400 | 20px | 기본 글자, 메뉴 항목, 입력값 |
+| `{typography.body-strong}` | 14px | 550 | 20px | 선택된 메뉴 항목, 강조할 본문 |
+| `{typography.button}` | 14px | 550 | 20px | 모든 버튼 |
+| `{typography.label}` | 12px | 550 | 16px | 메뉴 묶음 이름, 입력칸 이름 |
+| `{typography.caption}` | 12px | 400 | 16px | 미리보기 아래 설명, 저장 상태 |
+| `{typography.code}` | 12px | 400 | 16px | 값 이름, 색 코드, 파일 경로 |
 
 ### Principles
 - **크기는 세 가지뿐이다.** 16, 14, 12px 외의 크기를 새로 만들지 않는다.
-- **줄 높이는 짝수 px이다.** 14px 글자는 20px, 12px 글자는 16px, 16px 글자는 24px. 줄 높이가 홀수면 16px 아이콘이나 체크박스가 줄의 한가운데에 놓이지 못하고 반 픽셀 어긋난다.
+- **줄 높이는 글자 크기에 묶인 짝수 px이다.** 14px 글자는 20px, 12px 글자는 16px, 16px 글자는 24px. 배수(1.0, 1.25 같은)로 적지 않고, 같은 크기의 글자는 어디에 놓이든 같은 줄 높이를 쓴다. FF가 만들어 주는 글자 크기 한 벌의 "보통"과 같은 규칙이다. 버튼이나 높이 32px짜리 줄처럼 높이가 정해진 자리도 줄 높이를 줄이거나 늘려서 맞추지 않고, 높이는 따로 정한 뒤 그 안에서 가운데에 놓는다. 사용자의 값을 그리는 견본도 같다(18px 견본은 26px, 굵기 숫자 10px은 14px). 줄 높이가 홀수면 16px 아이콘이나 체크박스가 줄의 한가운데에 놓이지 못하고 반 픽셀 어긋난다.
 - **왼쪽 메뉴의 항목은 16px이다.** 색상, 글꼴 같은 메뉴 줄과 컴포넌트 목록은 16px, 그 위의 묶음 이름은 14px이다. 줄 높이는 32px 그대로다.
 - **읽는 글자는 14px이다.** 왼쪽 메뉴의 묶음 이름, 오른쪽 패널(구역 제목, 입력칸 이름표, 코드 표시 포함), 판 안의 값 이름과 값은 모두 14px이다. 같은 크기 안에서의 구분은 굵기와 색(`{colors.ink-faint}`)으로 한다. 12px은 캔버스 위에 덧붙는 것(판 제목, 선택 이름표, 거리 숫자)과 컴포넌트 화면의 칸 설명, 빠른 실행·단축키 목록의 보조 글자에만 쓴다.
 - **위계는 굵기로 나눈다.** 같은 14px에서 400은 본문, 550은 선택과 버튼, 650은 제목이다.

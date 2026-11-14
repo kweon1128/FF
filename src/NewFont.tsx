@@ -161,7 +161,7 @@ export function FontSample({
                 {has ? '가' : '\u00a0'}
               </span>
               <span
-                className={`mx-auto block w-fit border-b font-mono text-[10px] leading-4 ${has ? 'opacity-60' : 'opacity-20'}`}
+                className={`mx-auto block w-fit border-b font-mono text-[10px] leading-[14px] ${has ? 'opacity-60' : 'opacity-20'}`}
                 style={{ borderColor: w === drawn ? 'currentColor' : 'transparent' }}
               >
                 {w}

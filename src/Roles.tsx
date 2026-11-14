@@ -80,7 +80,7 @@ export function RoleSample({ use, color, around }: { use: RoleUse; color: string
       const { hover } = statesOf(color)
       const button = (label: string, background: string, opacity?: number) => (
         <span
-          className="flex h-7 items-center rounded-md px-2 text-sm leading-none font-[550]"
+          className="flex h-7 items-center rounded-md px-2 text-sm font-[550]"
           style={{ background, color: inkOn(color), opacity }}
         >
           <span className={TRIM}>{label}</span>

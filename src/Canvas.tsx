@@ -1030,7 +1030,7 @@ export function Canvas({
                 const { along, aside } = labelPlace(g)
                 return (
                   <span
-                    className="absolute -translate-x-1/2 -translate-y-1/2 [scale:var(--unzoom)] rounded-xs bg-guide px-1 text-xs leading-[18px] font-[550] whitespace-nowrap text-white tabular-nums"
+                    className="absolute -translate-x-1/2 -translate-y-1/2 [scale:var(--unzoom)] rounded-xs bg-guide px-1 text-xs font-[550] whitespace-nowrap text-white tabular-nums"
                     style={g.vertical ? { left: aside, top: along } : { left: along, top: aside }}
                   >
                     {g.label}

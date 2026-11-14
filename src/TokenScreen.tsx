@@ -6,6 +6,7 @@ import { isApprox, showColor } from './lib/color'
 import { shownFont } from './lib/fonts'
 import { SCALE_STEPS } from './lib/scale'
 import type { RoleUse } from './lib/roles'
+import { suggestLine } from './lib/tokens'
 import { RoleList } from './Roles'
 import { Button, swatchBackground } from './ui'
 
@@ -162,7 +163,7 @@ export function SelectionHandles() {
 /** 선택한 항목 바로 아래에 붙는 파란 이름표(이름 · 값). 주변에 무엇이 있든 가장 위에 겹쳐 보인다. */
 export function SelectionTag({ name, value }: { name: string; value?: string }) {
   return (
-    <span className="pointer-events-none absolute top-full left-1/2 z-20 mt-2 origin-top -translate-x-1/2 [scale:var(--unzoom)] rounded-xs bg-selection px-1 text-xs leading-[18px] font-[550] whitespace-nowrap text-white">
+    <span className="pointer-events-none absolute top-full left-1/2 z-20 mt-2 origin-top -translate-x-1/2 [scale:var(--unzoom)] rounded-xs bg-selection px-1 text-xs font-[550] whitespace-nowrap text-white">
       {value === undefined ? name : `${name} · ${value}`}
     </span>
   )
@@ -505,7 +506,7 @@ function MovingDot({ style }: { style: CSSProperties }) {
 function RowSample({ kind, value, line }: { kind: Kind; value: string; line?: string }) {
   switch (kind.id) {
     case 'font':
-      return <span className="block truncate text-lg" style={{ fontFamily: value }}>{SAMPLE}</span>
+      return <span className="block truncate text-lg leading-[26px]" style={{ fontFamily: value }}>{SAMPLE}</span>
     case 'size':
       // 줄 높이가 묶여 있으면 두 줄로 써서 줄 사이가 보이게 한다. 줄 높이는 한 줄로는 보이지 않는다.
       return line ? (
@@ -514,10 +515,10 @@ function RowSample({ kind, value, line }: { kind: Kind; value: string; line?: st
           <span className="block truncate">{SAMPLE}</span>
         </span>
       ) : (
-        <span className="block truncate leading-tight" style={{ fontSize: value }}>{SAMPLE}</span>
+        <span className="block truncate" style={{ fontSize: value, lineHeight: suggestLine(value) ?? undefined }}>{SAMPLE}</span>
       )
     case 'weight':
-      return <span className="block truncate text-lg" style={{ fontWeight: value }}>{SAMPLE}</span>
+      return <span className="block truncate text-lg leading-[26px]" style={{ fontWeight: value }}>{SAMPLE}</span>
     case 'leading':
       return (
         <span className="block" style={{ lineHeight: value }}>
@@ -527,7 +528,7 @@ function RowSample({ kind, value, line }: { kind: Kind; value: string; line?: st
         </span>
       )
     case 'tracking':
-      return <span className="block truncate text-lg" style={{ letterSpacing: value }}>{SAMPLE}</span>
+      return <span className="block truncate text-lg leading-[26px]" style={{ letterSpacing: value }}>{SAMPLE}</span>
     case 'border':
       return <span className="block w-full max-w-60 bg-ink" style={{ height: value }} />
     case 'breakpoint':

@@ -331,7 +331,7 @@ export function ComponentInspector({
                 type="button"
                 aria-pressed={comp.iconPos === id}
                 onClick={() => common({ iconPos: id })}
-                className={`h-6 flex-1 rounded-sm text-sm leading-none font-[550] outline-selection focus-visible:outline-2 ${
+                className={`h-6 flex-1 rounded-sm text-sm font-[550] outline-selection focus-visible:outline-2 ${
                   comp.iconPos === id ? 'border border-hairline bg-canvas text-ink' : 'text-ink-soft hover:text-ink'
                 }`}
               >
