@@ -110,6 +110,40 @@ export function FoldSection({
 }
 
 /** 오른쪽 편집 패널. 선택한 값이 바뀌면 key로 새로 만들어져 입력 중이던 내용이 초기화된다. */
+const PX = /^\d*\.?\d+px$/
+const NUMBER = /^\d*\.?\d+$/
+const digitsOf = (value: string | null | undefined) => (value ?? '').replace(/px$/, '')
+
+/**
+ * px로만 정하는 값의 칸. 단위(px)는 칸 오른쪽에 고정해 두고 숫자만 고친다.
+ * 단위까지 직접 적게 하면 17처럼 숫자만 적었을 때 값이 되지 않고, 단위를 지우다 만 값이 저장된다.
+ */
+function PxInput({ label, digits, invalid, onDigits }: { label: string; digits: string; invalid: boolean; onDigits: (digits: string) => void }) {
+  return (
+    <span className="relative block">
+      <input
+        aria-label={label}
+        inputMode="decimal"
+        className={`${inputClass} pr-8 tabular-nums ${invalid ? 'border-danger focus:border-danger' : ''}`}
+        value={digits}
+        // 숫자와 소수점만 받는다. px를 함께 적거나 붙여 넣어도 숫자만 남는다.
+        onChange={(e) => onDigits(e.target.value.replace(/[^\d.]/g, ''))}
+        onKeyDown={(e) => {
+          // ↑↓로 1씩(Shift는 10씩) 올리고 내린다. 0 아래로는 내려가지 않는다.
+          if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
+          const next = stepValue(digits, e.key === 'ArrowUp' ? 1 : -1, e.shiftKey)
+          if (next === null || Number(next) <= 0) return
+          e.preventDefault()
+          onDigits(next)
+        }}
+      />
+      <span aria-hidden className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-sm text-ink-faint">
+        px
+      </span>
+    </span>
+  )
+}
+
 export function Inspector({
   token,
   kind,
@@ -143,18 +177,36 @@ export function Inspector({
   // 색은 파일에 oklch로 저장하지만, 여기서는 읽고 쓰기 쉬운 #으로 보여 주고 받는다.
   const [valueDraft, setValueDraft] = useState(kind.id === 'color' ? showColor(token.value) : token.value)
   const [valueError, setValueError] = useState<string | null>(null)
-  const [lineDraft, setLineDraft] = useState(line ?? '')
+  // 글자 크기가 px 값이면 단위를 고정해 두고 숫자만 고친다. rem이나 clamp()처럼 px가 아닌 값은 적힌 그대로 고친다.
+  const [pxSize] = useState(kind.id === 'size' && PX.test(token.value))
+  const [sizeDigits, setSizeDigits] = useState(digitsOf(token.value))
+  // 줄 높이 칸에 적는 숫자(px는 고정).
+  const [lineDraft, setLineDraft] = useState(digitsOf(line))
   const [lineError, setLineError] = useState<string | null>(null)
+  // 크기를 바꾸면 묶인 줄 높이가 따라 바뀐다. 밖에서 바뀐 값을 칸에 옮긴다(칸에 적는 중인 값과 같으면 그대로 둔다).
+  const [seenLine, setSeenLine] = useState(line)
+  if (line !== seenLine) {
+    setSeenLine(line)
+    if ((line ?? '') !== (lineDraft ? `${lineDraft}px` : '')) {
+      setLineDraft(digitsOf(line))
+      setLineError(null)
+    }
+  }
 
-  /** 줄 높이는 px로만 받는다. 숫자만 적으면 px를 붙이고, 비우면 묶인 줄 높이를 지운다. */
-  function changeLine(raw: string) {
-    setLineDraft(raw)
-    const next = raw.trim()
+  function changeSize(digits: string) {
+    setSizeDigits(digits)
+    if (!NUMBER.test(digits) || Number(digits) <= 0) return setValueError('숫자를 입력해 주세요.')
+    setValueError(null)
+    onValue(`${digits}px`)
+  }
+
+  /** 줄 높이는 px로만 받는다. 비우면 묶인 줄 높이를 지운다. */
+  function changeLine(digits: string) {
+    setLineDraft(digits)
     setLineError(null)
-    if (!next) return onLine?.(null)
-    const m = /^(\d*\.?\d+)(px)?$/.exec(next)
-    if (!m || Number(m[1]) <= 0) return setLineError('px로 적어 주세요. 예: 20px')
-    onLine?.(`${m[1]}px`)
+    if (!digits) return onLine?.(null)
+    if (!NUMBER.test(digits) || Number(digits) <= 0) return setLineError('숫자를 입력해 주세요.')
+    onLine?.(`${digits}px`)
   }
 
   function commitName() {
@@ -243,7 +295,8 @@ export function Inspector({
             <span className="truncate">{shownFont(valueDraft)}</span>
           </p>
         )}
-        <span className={isFont ? 'hidden' : 'flex items-center gap-2'}>
+        {pxSize && <PxInput label={kind.valueLabel} digits={sizeDigits} invalid={!!valueError} onDigits={changeSize} />}
+        <span className={isFont || pxSize ? 'hidden' : 'flex items-center gap-2'}>
           {isColor && <ColorSwatch label="색 고르기" value={valueDraft} alpha preview onChange={changeValue} />}
           <input
             aria-label={kind.valueLabel}
@@ -275,18 +328,7 @@ export function Inspector({
         {line !== undefined && (
           <div className="mt-2">
             <Field label="줄 높이" error={lineError}>
-              <input
-                className={`${inputClass} ${lineError ? 'border-danger focus:border-danger' : ''}`}
-                value={lineDraft}
-                onChange={(e) => changeLine(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
-                  const next = stepValue(lineDraft, e.key === 'ArrowUp' ? 1 : -1, e.shiftKey)
-                  if (next === null) return
-                  e.preventDefault()
-                  changeLine(next)
-                }}
-              />
+              <PxInput label="줄 높이" digits={lineDraft} invalid={!!lineError} onDigits={changeLine} />
             </Field>
           </div>
         )}

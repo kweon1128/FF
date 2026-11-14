@@ -64,6 +64,46 @@ const SAMPLES: Record<string, { use: string; text: string }> = {
   xs: { use: '이름표·캡션', text: '필수 · 3분 전에 바꿈 · NEW' },
 }
 
+/** 한 단계의 크기로 직접 정할 수 있는 범위(px). */
+const SIZE_MIN = 8
+const SIZE_MAX = 96
+
+/**
+ * 견본의 한 줄에서 그 단계의 크기를 고치는 칸. 단위(px)는 칸 밖에 고정해 두고 숫자만 적는다.
+ * 규칙이 낸 값은 옅게, 직접 정한 값은 진하게 보인다. 칸을 비우면 규칙의 값으로 돌아간다.
+ */
+function StepSize({ name, rule, custom, onChange }: { name: string; rule: number; custom: number | null; onChange: (px: number | null) => void }) {
+  // 적는 중인 글자. 2를 거쳐 24를 적는 동안처럼 아직 값이 되지 못한 것도 칸에는 그대로 보여야 한다.
+  const [draft, setDraft] = useState<string | null>(null)
+  const apply = (digits: string) => {
+    setDraft(digits)
+    if (!digits) return onChange(null)
+    const px = Number(digits)
+    if (px >= SIZE_MIN && px <= SIZE_MAX) onChange(px === rule ? null : px)
+  }
+  return (
+    <input
+      aria-label={`${name} 크기`}
+      inputMode="numeric"
+      placeholder={String(rule)}
+      title={custom === null ? '숫자를 고치면 이 단계의 크기를 직접 정해요' : `직접 정한 크기예요. 비우면 규칙의 값(${rule}px)으로 돌아가요`}
+      className={`h-6 w-8 rounded-sm border border-transparent bg-transparent pr-1 text-right font-mono text-xs tabular-nums outline-none hover:border-hairline focus:border-selection focus:bg-canvas ${
+        custom === null ? 'text-ink-faint' : 'font-[650] text-ink'
+      }`}
+      value={draft ?? String(custom ?? rule)}
+      onChange={(e) => apply(e.target.value.replace(/\D/g, '').slice(0, 2))}
+      onBlur={() => setDraft(null)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') return e.preventDefault()
+        if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
+        e.preventDefault()
+        const next = (custom ?? rule) + (e.key === 'ArrowUp' ? 1 : -1) * (e.shiftKey ? 10 : 1)
+        apply(String(Math.max(SIZE_MIN, Math.min(SIZE_MAX, next))))
+      }}
+    />
+  )
+}
+
 /**
  * 글자 크기 한 벌을 만드는 양식. 글자 크기는 낱개가 아니라 한 벌로 정해야 서로 어울리는지 알 수 있다.
  * 본문 크기와 단계 사이의 간격만 고르면 xs부터 3xl까지 일곱 단계가 줄 높이와 함께 정해진다.
@@ -91,7 +131,19 @@ export function NewSizesForm({
   const [leading, setLeading] = useState<Leading>('normal')
   // 글꼴이 불려 온 뒤에 다시 잰다.
   const [loaded, setLoaded] = useState(0)
-  const steps = useMemo(() => sizeScale(base, spread, leading), [base, spread, leading])
+  // 규칙이 낸 크기 대신 직접 정한 크기(px). 단계의 이름으로 찾는다. 본문 크기나 단계 사이를 바꿔도 직접 정한 것은 그대로 둔다.
+  const [custom, setCustom] = useState<Record<string, number>>({})
+  // 규칙대로의 한 벌. 직접 정한 크기가 있으면 그 단계만 바꾸고, 줄 높이는 그 크기에 맞춰 다시 낸다.
+  const ruled = useMemo(() => sizeScale(base, spread, leading), [base, spread, leading])
+  const steps = useMemo(
+    () => ruled.map((s) => (custom[s.name] && s.name !== 'base' ? { ...s, size: `${custom[s.name]}px`, line: `${lineFor(custom[s.name], leading)}px` } : s)),
+    [ruled, custom, leading],
+  )
+  const setSize = (name: string, px: number | null) =>
+    setCustom((now) => {
+      const { [name]: _gone, ...rest } = now
+      return px === null ? rest : { ...rest, [name]: px }
+    })
   const baseStep = steps.find((s) => s.name === 'base')!
   const replaced = steps.filter((s) => existing.has(s.name)).length
 
@@ -241,8 +293,19 @@ export function NewSizesForm({
           {[...steps].reverse().map((s) => (
             <div key={s.name} data-step={s.name} className="flex items-center gap-3">
               <span className="w-8 shrink-0 font-mono text-xs text-ink-faint">{s.name}</span>
-              <span className="w-20 shrink-0 font-mono text-xs whitespace-nowrap text-ink-faint">
-                {s.size} / {s.line}
+              {/* 크기는 단계마다 직접 고칠 수 있다(본문은 왼쪽의 본문 크기로 정한다). 줄 높이는 고친 크기에 맞춰 따라온다. */}
+              <span className="flex w-28 shrink-0 items-center gap-1 font-mono text-xs whitespace-nowrap text-ink-faint">
+                {s.name === 'base' ? (
+                  <span className="w-8 pr-1 text-right">{parseFloat(s.size)}</span>
+                ) : (
+                  <StepSize
+                    name={s.name}
+                    rule={parseFloat(ruled.find((r) => r.name === s.name)!.size)}
+                    custom={custom[s.name] ?? null}
+                    onChange={(px) => setSize(s.name, px)}
+                  />
+                )}
+                px / {s.line}
               </span>
               {/* 이 크기가 흔히 쓰이는 곳. */}
               <span data-use className="w-28 shrink-0 text-xs whitespace-nowrap text-ink-soft">{SAMPLES[s.name].use}</span>
@@ -276,7 +339,7 @@ export function NewSizesForm({
             높이는 가장 크고 넓게 골랐을 때의 세 줄에 맞춰 고정하고, 줄의 길이는 글자 수로 잡아서(em) 본문 크기를 바꿔도 같은 자리에서 줄이 바뀐다. */}
         <div data-paragraph className="mt-2 flex gap-3 rounded-md border border-hairline px-4 py-3">
           <span className="w-8 shrink-0 font-mono text-xs text-ink-faint">base</span>
-          <span className="w-20 shrink-0 font-mono text-xs whitespace-nowrap text-ink-faint">
+          <span className="w-28 shrink-0 font-mono text-xs whitespace-nowrap text-ink-faint">
             {baseStep.size} / {baseStep.line}
           </span>
           <span className="w-28 shrink-0 text-xs whitespace-nowrap text-ink-soft">본문 문단</span>

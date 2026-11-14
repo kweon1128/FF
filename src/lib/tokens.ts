@@ -3,7 +3,7 @@
 import type { Token } from './api'
 import { ALL_KINDS, COLOR_REF, KINDS, SLUG, groupOf, lineName, shortName } from './catalog'
 import { isColor, toHex, toOklch } from './color'
-import { lineFor } from './presets'
+import { LEADINGS, lineFor } from './presets'
 
 export const kindOf = (name: string) => ALL_KINDS.find((k) => k.matches(name)) ?? null
 
@@ -203,6 +203,22 @@ export function suggestLine(size: string) {
   if (!m) return null
   const px = Number(m[1]) * (m[2] === 'rem' ? 16 : 1)
   return `${lineFor(px, 'normal')}px`
+}
+
+/**
+ * 글자 크기를 바꿨을 때 묶인 줄 높이가 따라갈 값. 지금 줄 높이가 예전 크기의 규칙대로면(보통, 좁게, 넓게 중 하나) 같은 방식으로 새 크기의 줄 높이를 낸다.
+ * 규칙과 다른 줄 높이는 손으로 정한 것으로 보고 건드리지 않는다(null). 크기가 px나 rem이 아니어도 null.
+ */
+export function followLine(oldSize: string, oldLine: string, newSize: string) {
+  const px = (v: string) => {
+    const m = /^(\d*\.?\d+)(px|rem)$/.exec(v.trim())
+    return m ? Number(m[1]) * (m[2] === 'rem' ? 16 : 1) : null
+  }
+  const [from, line, to] = [px(oldSize), px(oldLine), px(newSize)]
+  if (from === null || line === null || to === null) return null
+  // 보통을 먼저 본다. 작은 글자는 좁게와 보통의 줄 높이가 같다.
+  const leading = [...LEADINGS].sort((a, b) => Math.abs(a.scale - 1) - Math.abs(b.scale - 1)).find((l) => lineFor(from, l.id) === line)
+  return leading ? `${lineFor(to, leading.id)}px` : null
 }
 
 /** 글자 크기에 묶인 줄 높이를 바꾼다. 없으면 그 크기 바로 뒤에 넣고, value가 null이면 지운다. */

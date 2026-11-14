@@ -50,7 +50,7 @@ import {
 } from './lib/components'
 import { contrast, hexToLch, isColor, lchToHex, showColor, toHex, toOklch } from './lib/color'
 import { SCALE_STEPS, grayOf, makeScale } from './lib/scale'
-import { adoptColors, defaultColorOrder, duplicateTokens, kindOf, lineOf, pasteName, pasteTokens, scanCss, shiftTokens, suggestLine, toCss, withLine } from './lib/tokens'
+import { adoptColors, defaultColorOrder, duplicateTokens, kindOf, followLine, lineOf, pasteName, pasteTokens, scanCss, shiftTokens, suggestLine, toCss, withLine } from './lib/tokens'
 import type { Placed } from './lib/arrange'
 import { BatchRename } from './BatchRename'
 import { BoardInspector, ImageInspector } from './BoardInspector'
@@ -1700,9 +1700,15 @@ export function App() {
               file={file}
               allNames={tokens.map((t) => t.name)}
               onRename={(to) => renameToken(selectedTokens[0].name, to)}
-              onValue={(value) =>
-                commit(tokens.map((t) => (t.name === selectedTokens[0].name ? { ...t, value } : t)))
-              }
+              onValue={(value) => {
+                const name = selectedTokens[0].name
+                const before = tokens.find((t) => t.name === name)
+                const next = tokens.map((t) => (t.name === name ? { ...t, value } : t))
+                // 글자 크기를 바꾸면 묶인 줄 높이도 새 크기에 맞춘다. 손으로 정해 둔 줄 높이(규칙의 값과 다른 것)는 그대로 둔다.
+                const line = SIZE.matches(name) ? lineOf(tokens, name) : undefined
+                const follow = before && line ? followLine(before.value, line, value) : null
+                commit(follow ? withLine(next, name, follow) : next)
+              }}
               uses={usesOf(comps, selectedTokens[0].name)}
               onOpenComponent={openComp}
               roles={tokens.filter((t) => refOf(t.value) === selectedTokens[0].name).map((t) => t.name)}
