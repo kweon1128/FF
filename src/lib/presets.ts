@@ -203,9 +203,35 @@ export const SPREADS: { id: Spread; label: string; ratio: number }[] = [
   { id: 'normal', label: '보통', ratio: 1.2 },
   { id: 'wide', label: '크게', ratio: 1.25 },
 ]
-/** 한 벌을 만들 때 고를 수 있는 본문 크기의 범위(px). */
+/**
+ * 한 벌을 만들 때 고를 수 있는 본문 크기의 범위(px).
+ * 아래는 13이다. 그보다 작으면 본문으로 읽기 힘들고, 두 단계 아래인 xs가 쓸 수 없는 크기로 내려간다.
+ * 위는 20이다. 읽는 것이 중심인 서비스(블로그, 뉴스, 문서)는 19~20px까지 쓴다. 글꼴 종류 추가 창의 견본도 20px까지 보여 준다.
+ */
 export const BASE_MIN = 13
-export const BASE_MAX = 18
+export const BASE_MAX = 20
+/**
+ * 한 벌을 만들 때 고를 수 있는 단계 사이. 본문보다 큰 단계가 한 단계마다 커지는 배수(ratio)에 이름을 붙인 다섯 칸이고, 처음은 보통(1.2)이다.
+ * 창에서는 배수의 숫자가 아니라 이름을 보여 준다. 1.2라는 숫자는 뜻을 아는 사람에게만 읽히고, 고르는 사람이 알고 싶은 것은 촘촘한지 큰지다.
+ * 가장 촘촘한 1.075는 정보가 빽빽한 도구, 가장 큰 1.325는 읽는 화면이나 대비가 큰 화면에 쓴다. 그보다 크면 가장 큰 단계가 본문의 세 배를 넘어 제목으로 쓰기 어렵다.
+ */
+export const SPREAD_STEPS: { ratio: number; label: string }[] = [
+  { ratio: 1.075, label: '아주 촘촘' },
+  { ratio: 1.125, label: '촘촘' },
+  { ratio: 1.2, label: '보통' },
+  { ratio: 1.25, label: '크게' },
+  { ratio: 1.325, label: '아주 크게' },
+]
+export const SPREAD_START = 1.2
+/**
+ * 한 벌에서 본문보다 큰 단계의 수. 본문 아래의 둘(xs, sm)과 본문을 더하면 전체는 5단계에서 9단계다. 처음은 넷(전체 7단계, 3xl까지)이다.
+ * 둘보다 적으면 제목이 한 가지 크기뿐이라 위계를 만들 수 없다(보조 설명, 버튼, 본문, 카드 제목, 화면 제목이 최소다).
+ * 여섯보다 많으면 쓰임새가 겹친다. 3xl부터는 모두 크게 내세우는 숫자나 문구이고, 셋(3xl, 4xl, 5xl)이면 충분히 나뉜다. 제품 화면을 다루는 시스템은 대개 7~9단계다. 더 필요하면 만든 뒤 판에서 추가한다.
+ */
+export const UPS_MIN = 2
+export const UPS_MAX = 6
+export const UPS_START = 4
+const UP_NAMES = ['lg', 'xl', '2xl', '3xl', '4xl', '5xl']
 
 /**
  * 줄 높이를 정하는 방식. 기준은 보통이고, 좁게와 넓게는 보통의 줄 높이에서 10%를 빼거나 더한 것이다(scale).
@@ -226,20 +252,37 @@ const HEADING_RATIO = 1.25
  * 글자가 클수록 배수를 줄인다. 큰 글자는 같은 배수로 띄우면 줄 사이가 휑해 보인다.
  * 보통은 글자 크기에 배수를 곱해 가까운 짝수로 맞추고, 딱 중간에 걸리면 작은 쪽으로 내린다(14px × 1.5 = 21 → 20).
  * 좁게와 넓게는 그 값에 scale을 곱해 가까운 짝수로 맞추고, 딱 중간에 걸리면 보통에 가까운 쪽으로 맞춘다(16px이면 22, 24, 26).
- * 12px 이하의 작은 글자는 배수를 쓰지 않고 글자 크기에 SMALL_EXTRA를 더해 짝수로 올린다(좁게와 보통은 12px → 16px, 11px → 16px, 넓게는 18px).
+ * 13px 이하의 작은 글자는 배수를 쓰지 않고 글자 크기에 SMALL_EXTRA를 더해 짝수로 올린다(좁게와 보통은 13px → 18px, 12px → 16px, 11px → 16px. 넓게는 2px씩 더).
+ * 경계가 13px인 것은 작은 크기의 줄 높이가 고르게 올라가게 하려는 것이다(12 → 16, 13 → 18, 14 → 20, 15 → 22, 16 → 24). 배수로 정하면 13px이 20px이 되어 12px에서 4px이 한 번에 뛰고, 13px과 14px이 같은 줄 높이가 된다.
  * 작은 글자는 여러 줄 본문보다 칩, 뱃지, 라벨에 쓰이고, 거기서는 12px 글자에 16px 줄이 가장 흔하다(여백 4px을 더하면 높이 24px).
  */
-const SMALL_MAX = 12
-const SMALL_EXTRA: Record<Leading, number> = { snug: 4, normal: 4, loose: 6 }
-export function lineFor(px: number, leading: Leading) {
-  if (px <= SMALL_MAX) return Math.ceil((px + SMALL_EXTRA[leading]) / 2) * 2
-  const { scale } = LEADINGS.find((l) => l.id === leading)!
+const SMALL_MAX = 13
+/**
+ * leading은 이름(좁게, 보통, 넓게)이거나, 보통의 줄 높이에 곱하는 배수(scale)다. 한 벌 만들기 창은 본문의 줄 높이를 2px씩 조절하고 그것을 배수로 바꿔 넘긴다.
+ * 작은 글자(13px 이하)는 배수가 0.1 커질 때마다 2px씩 더하고, 보통보다 줄이지는 않는다(넓게 1.1이면 +2px, 좁게 0.9는 보통과 같다).
+ */
+export function lineFor(px: number, leading: Leading | number) {
+  const scale = typeof leading === 'number' ? leading : LEADINGS.find((l) => l.id === leading)!.scale
+  if (px <= SMALL_MAX) {
+    const small = Math.ceil((px + 4) / 2) * 2
+    return Math.max(small, small + 2 * Math.round((scale - 1) * 10))
+  }
   const t = Math.max(0, Math.min(1, (px - 16) / 16))
   const normal = Math.round((px * (BODY_RATIO + (HEADING_RATIO - BODY_RATIO) * t) - 0.01) / 2) * 2
   // 딱 중간이면 보통 쪽으로: 좁게는 올리고 넓게는 내린다.
   const scaled = Math.round((normal * scale + (scale < 1 ? 0.01 : -0.01)) / 2) * 2
   // 글자보다 적어도 2px은 높아야 줄이 겹치지 않는다.
   return Math.max(Math.ceil((px + 2) / 2) * 2, scaled)
+}
+
+/**
+ * 한 벌을 만들 때 고를 수 있는 본문의 줄 높이(px). normal은 보통의 값이고, 2px씩 조절한다.
+ * 아래는 보통보다 2px 낮은 값이다(글자보다 4px은 높게). 더 좁히면 본문보다 작은 글자의 줄이 글자에 붙는다(14px 글자에 16px 줄).
+ * 위는 보통보다 8px 높은 값이다. 더 벌리면 버튼과 칩의 높이가 어색해진다.
+ */
+export function baseLineRange(base: number) {
+  const normal = lineFor(base, 'normal')
+  return { normal, min: Math.min(normal, Math.max(normal - 2, Math.ceil((base + 4) / 2) * 2)), max: normal + 8 }
 }
 
 /**
@@ -254,14 +297,15 @@ export function trackFor(px: number): string | null {
 }
 
 /**
- * 본문 크기와 간격으로 글자 크기 한 벌(xs부터 3xl까지 일곱 단계)을 만든다. 줄 높이도 leading의 방식으로 함께 정한다.
+ * 본문 크기와 간격으로 글자 크기 한 벌을 만든다. 본문 아래로 둘(xs, sm), 본문, 본문 위로 ups개(처음은 넷이라 3xl까지 일곱 단계)다. 줄 높이도 leading의 방식으로 함께 정한다.
  * 본문보다 큰 단계는 한 단계마다 간격의 배수만큼 커지고 가까운 정수 px에 맞춘다. 짝수로 몰지 않고 홀수도 쓴다.
  * 고른 배수를 그대로 따르기 위해서이고, 13px, 15px 같은 홀수 크기는 흔히 쓰인다. 짝수여야 하는 것은 줄 높이다.
  * 본문보다 작은 단계는 본문의 7/8, 3/4이다. 작은 글자는 간격을 벌려도 더 작아지면 안 읽히므로 간격과 관계없이 정한다.
  */
 export type SizeStep = { name: string; size: string; line: string; /** 묶인 글자 사이. 글꼴이 정한 그대로 두면 null. */ track: string | null }
-export function sizeScale(base: number, spread: Spread, leading: Leading = 'normal', tighten = true): SizeStep[] {
-  const ratio = SPREADS.find((s) => s.id === spread)!.ratio
+export function sizeScale(base: number, spread: Spread | number, leading: Leading | number = 'normal', tighten = true, ups = UPS_START): SizeStep[] {
+  // spread는 이름(촘촘, 보통, 크게)이거나 배수 그 자체다.
+  const ratio = typeof spread === 'number' ? spread : SPREADS.find((s) => s.id === spread)!.ratio
   // 작은 단계는 본문보다, 그리고 서로보다 작아야 한다.
   const sm = Math.min(Math.round(base * 0.875), base - 1)
   const xs = Math.min(Math.round(base * 0.75), sm - 1)
@@ -271,7 +315,8 @@ export function sizeScale(base: number, spread: Spread, leading: Leading = 'norm
     ['base', base],
   ]
   let prev = base
-  for (const [i, name] of ['lg', 'xl', '2xl', '3xl'].entries()) {
+  // 본문보다 큰 단계는 ups개다. 크기에 따로 제한을 두지 않는다. 고를 수 있는 값의 끝(본문 20px, 본문 위로 여섯 단계, 단계 사이 1.325배)에서 가장 큰 단계가 108px이고, 그것이 곧 한계다.
+  for (const [i, name] of UP_NAMES.slice(0, Math.max(UPS_MIN, Math.min(UPS_MAX, ups))).entries()) {
     // 고른 배수를 따르고 가까운 정수 px로 맞춘다. 앞 단계보다는 커야 한다.
     prev = Math.max(Math.round(base * ratio ** (i + 1)), prev + 1)
     sizes.push([name, prev])

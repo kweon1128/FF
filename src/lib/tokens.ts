@@ -197,7 +197,7 @@ export function lineOf(tokens: Token[], sizeName: string) {
 /**
  * 글자 크기에 어울리는 줄 높이(px). 줄 높이는 배수가 아니라 px로 정하고 짝수에 맞춘다.
  * 그래야 어떤 글꼴을 넣어도 줄의 높이가 같고, 아이콘이나 체크박스가 줄의 한가운데에 놓인다.
- * 한 벌을 만들 때의 "보통"과 같은 규칙이다(lineFor. 12→16, 14→20, 16→24, 20→28, 24→32).
+ * 한 벌을 만들 때의 "보통"과 같은 규칙이다(lineFor. 12→16, 13→18, 14→20, 16→24, 20→28, 24→32).
  * 크기가 px나 rem이 아니면 null.
  */
 export function suggestLine(size: string) {

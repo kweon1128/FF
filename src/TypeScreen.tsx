@@ -1,6 +1,13 @@
 // 글자의 쓰임새를 한 화면으로 보여 주는 예시(주문 관리 화면).
 // 일정한 견본 문장을 늘어놓는 대신 실제로 쓰이는 자리에 놓아서, 크기와 굵기와 조합을 화면을 보며 판단하게 한다.
 // 의미 글꼴, 글자 크기, 굵기의 한 벌 만들기 창이 함께 쓴다. 자리마다 어떤 모습으로 그릴지는 쓰는 쪽이 정한다.
+//
+// 글과 글 사이의 여백(줄 높이 말고 따로 띄우는 것)은 네 가지뿐이다. 글자 크기 한 벌 만들기 창의 공지 글도 같은 규칙을 쓴다.
+//   0     이름표와 그것이 가리키는 글 (분류 표시 → 숫자, 숫자의 이름표 → 숫자, 날짜 → 제목)
+//   4px   제목이나 글과, 바로 이어지는 글 (제목 → 소개 글 → 본문, 카드 제목 → 작은 본문, 입력칸 → 설명)
+//   16px  같은 묶음 안의 덩어리 사이 (구역 제목 → 탭 → 카드, 카드의 글 → 버튼, 입력칸 → 버튼)
+//   24px  묶음과 묶음 사이
+// 이름표와 입력칸 사이만 4px이다. 입력칸은 테두리가 있는 상자라 0으로 붙이면 이름표가 테두리에 닿는다.
 
 import { createContext, useContext, type CSSProperties, type ComponentType, type ReactNode } from 'react'
 
@@ -14,7 +21,7 @@ export type SlotProps = { use: string; as?: 'span' | 'p' | 'h3'; className?: str
 export function TypeScreen({ T, has = () => true }: { T: ComponentType<SlotProps>; has?: (use: string) => boolean }) {
   return (
     <>
-      <T use="overline" as="p" className="mb-2 text-ink-soft">
+      <T use="overline" as="p" className="text-ink-soft">
         SALES · 2025년 4월
       </T>
       <div className="flex items-end gap-10">
@@ -45,7 +52,7 @@ export function TypeScreen({ T, has = () => true }: { T: ComponentType<SlotProps
         <T use="body-lg" as="p" className="text-ink-soft">
           오늘 들어온 주문과 배송 상태를 한눈에 봅니다.
         </T>
-        <p className="pt-1">
+        <p>
           <T use="body">오늘 들어온 주문은 </T>
           <T use="body-strong">18건</T>
           <T use="body">이고, 그중 3건이 아직 배송 준비 전입니다. 오후 2시 전에 준비를 마치면 당일에 출고됩니다.</T>
@@ -59,7 +66,7 @@ export function TypeScreen({ T, has = () => true }: { T: ComponentType<SlotProps
           </T>
           {/* 고른 항목은 굵기로도 구분한다. 항목마다 바탕이 생길 수 있으므로 4px 띄운다. */}
           {has('tab') && (
-            <div className="mt-2 flex gap-1">
+            <div className="mt-4 flex gap-1">
               <T use="tab-on" className="inline-flex rounded-md bg-hover px-2 py-1">
                 전체
               </T>
@@ -71,7 +78,7 @@ export function TypeScreen({ T, has = () => true }: { T: ComponentType<SlotProps
               </T>
             </div>
           )}
-          <div className="mt-3 rounded-lg border border-hairline p-4">
+          <div className="mt-4 rounded-lg border border-hairline p-4">
             <div className="flex items-baseline justify-between gap-3">
               <T use="title-sm" as="h3">
                 한라봉 선물세트
@@ -83,7 +90,7 @@ export function TypeScreen({ T, has = () => true }: { T: ComponentType<SlotProps
             <T use="body-sm" as="p" className="mt-1 text-ink-soft">
               서울 마포구 · 2상자 · 문 앞에 놓아 주세요
             </T>
-            <div className="mt-2 flex items-center gap-2">
+            <div className="mt-1 flex items-center gap-2">
               <T use="code" className="rounded-sm bg-hover px-1">
                 ORD-0412-0087
               </T>
@@ -109,7 +116,7 @@ export function TypeScreen({ T, has = () => true }: { T: ComponentType<SlotProps
           <T use="title-md" as="h3">
             배송지 고치기
           </T>
-          <div className="mt-3 space-y-3">
+          <div className="mt-4 space-y-4">
             <div>
               <T use="label" as="p" className="mb-1 text-ink-soft">
                 받는 분

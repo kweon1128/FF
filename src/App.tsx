@@ -1871,7 +1871,7 @@ export function App() {
       )}
 
       {makingSizes && (
-        <Modal title="글자 크기 한 벌 만들기" wide="2xl" onClose={() => setMakingSizes(false)}>
+        <Modal title="글자 크기 한 벌 만들기" wide="2xl" tall onClose={() => setMakingSizes(false)}>
           <NewSizesForm
             existing={new Set(tokens.filter((t) => SIZE.matches(t.name)).map((t) => shortName(SIZE, t.name)))}
             fonts={tokens.filter((t) => FONT.matches(t.name)).map((t) => ({ name: shortName(FONT, t.name), value: t.value }))}

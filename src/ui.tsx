@@ -92,6 +92,7 @@ export function UnitInput({
   strong = false,
   placeholder,
   fillOnTab = false,
+  width,
   title,
   onDigits,
   onBlur,
@@ -116,6 +117,11 @@ export function UnitInput({
    * 채우기와 넘어가기가 한 번에 일어나면 무엇이 적혔는지 보기도 전에 칸을 떠나게 된다.
    */
   fillOnTab?: boolean
+  /**
+   * 칸의 폭을 고정한다(w-12 같은 클래스). 숫자는 왼쪽에, 단위는 오른쪽 끝에 놓인다.
+   * 표처럼 같은 칸이 위아래로 줄지어 있을 때 쓴다. 값의 길이에 따라 칸의 폭이 들쭉날쭉하면 줄이 맞지 않는다.
+   */
+  width?: string
   title?: string
   onDigits: (digits: string) => void
   onBlur?: () => void
@@ -131,7 +137,7 @@ export function UnitInput({
   const ghosts = small ? [digits, placeholder ?? ''] : [digits || placeholder || '']
   const font = `tabular-nums ${strong ? 'font-[650]' : ''}`
   return (
-    <label title={title} className={`flex cursor-text items-center gap-1 border focus-within:border-selection ${box}`}>
+    <label title={title} className={`flex cursor-text items-center gap-1 border focus-within:border-selection ${width ? `${width} shrink-0 justify-between` : ''} ${box}`}>
       <span className={`inline-grid ${small ? 'min-w-[2ch]' : 'min-w-[1ch]'} ${font}`}>
         {ghosts.map((text, i) => (
           <span key={i} aria-hidden className="invisible col-start-1 row-start-1 h-0 overflow-hidden pr-px whitespace-pre">
@@ -142,7 +148,8 @@ export function UnitInput({
         aria-label={label}
         inputMode="decimal"
         placeholder={placeholder}
-        className={`col-start-1 row-start-1 w-0 min-w-full bg-transparent outline-none placeholder:text-ink-faint ${font} ${small && !strong ? 'text-ink-soft' : 'text-ink'}`}
+        // 작은 칸은 적힌 값이 회색(ink-soft)이라, 비었을 때 보이는 값(placeholder)을 같은 계열의 회색으로 두면 적힌 값과 구분되지 않는다. 절반으로 더 옅게 한다.
+        className={`col-start-1 row-start-1 w-0 min-w-full bg-transparent outline-none ${small ? 'placeholder:text-ink-faint/50' : 'placeholder:text-ink-faint'} ${font} ${small && !strong ? 'text-ink-soft' : 'text-ink'}`}
         onFocus={(e) => {
           if (!small) return
           e.currentTarget.select()
@@ -240,12 +247,18 @@ export function EmptyState({
 export function Modal({
   title,
   wide,
+  tall = false,
   onClose,
   children,
 }: {
   title: string
   /** 내용이 많은 창(단축키 목록)은 넓게 연다. */
   wide?: boolean | 'lg' | 'xl' | '2xl'
+  /**
+   * 창의 높이를 화면 높이에 맞춰 고정한다(화면 높이 - 48px). 안의 내용이 그 높이를 채운다.
+   * 고르는 값에 따라 내용의 높이가 크게 달라지는 창에 쓴다. 높이가 고정이어야 고르는 동안 창과 아래 버튼이 움직이지 않는다.
+   */
+  tall?: boolean
   onClose: () => void
   children: ReactNode
 }) {
@@ -265,10 +278,10 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={`${wide === '2xl' ? 'w-[1840px]' : wide === 'xl' ? 'w-[1440px]' : wide === 'lg' ? 'w-[1160px]' : wide ? 'w-[720px]' : 'w-[360px]'} max-w-[calc(100vw-48px)] rounded-lg border border-hairline bg-canvas p-6 shadow-dialog`}
+        className={`${wide === '2xl' ? 'w-[1720px]' : wide === 'xl' ? 'w-[1440px]' : wide === 'lg' ? 'w-[1160px]' : wide ? 'w-[720px]' : 'w-[360px]'} ${tall ? 'flex h-[calc(100vh-48px)] flex-col' : 'max-h-[calc(100vh-48px)] overflow-y-auto'} max-w-[calc(100vw-48px)] rounded-lg border border-hairline bg-canvas p-6 shadow-dialog`}
       >
-        <h2 className="mb-4 text-base font-[650]">{title}</h2>
-        {children}
+        <h2 className="mb-4 shrink-0 text-base font-[650]">{title}</h2>
+        {tall ? <div className="min-h-0 flex-1">{children}</div> : children}
       </div>
     </div>
   )
