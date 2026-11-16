@@ -275,3 +275,44 @@ export function sizeScale(base: number, spread: Spread, leading: Leading = 'norm
   }
   return sizes.map(([name, px]) => ({ name, size: `${px}px`, line: `${lineFor(px, leading)}px`, track: tighten ? trackFor(px) : null }))
 }
+
+// ── 굵기 한 벌 ────────────────────────────────────────
+
+/** 굵기가 맡는 쓰임. 본문, 본문 속 강조, 버튼, 선택된 항목, 이름표, 제목. */
+export type WeightRole = 'body' | 'strong' | 'button' | 'selected' | 'label' | 'heading'
+/** 굵기 한 단계. 이름은 Tailwind의 것이라 코드에서 font-medium, font-bold로 바로 쓰인다. use는 흔히 쓰이는 곳, roles는 견본에서 이 단계로 그리는 쓰임들. */
+export type WeightStep = { name: string; weight: number; use: string; roles: WeightRole[] }
+
+/**
+ * 단계 수에 따른 굵기 한 벌. 단계가 적을수록 한 단계가 맡는 쓰임이 많다.
+ * 둘이면 본문과 그 밖의 모든 것, 셋이면 본문 / 버튼과 강조 / 제목, 넷이면 강조와 버튼을 한 단계 더 나눈다.
+ */
+export const WEIGHT_SETS: { count: number; label: string; steps: WeightStep[] }[] = [
+  {
+    count: 2,
+    label: '둘',
+    steps: [
+      { name: 'regular', weight: 400, use: '본문·입력칸', roles: ['body', 'label'] },
+      { name: 'bold', weight: 700, use: '제목·버튼·강조', roles: ['strong', 'button', 'selected', 'heading'] },
+    ],
+  },
+  {
+    count: 3,
+    label: '셋',
+    steps: [
+      { name: 'regular', weight: 400, use: '본문·입력칸', roles: ['body'] },
+      { name: 'medium', weight: 500, use: '버튼·선택·이름표', roles: ['button', 'selected', 'label'] },
+      { name: 'bold', weight: 700, use: '제목·강조', roles: ['strong', 'heading'] },
+    ],
+  },
+  {
+    count: 4,
+    label: '넷',
+    steps: [
+      { name: 'regular', weight: 400, use: '본문·입력칸', roles: ['body'] },
+      { name: 'medium', weight: 500, use: '선택·이름표', roles: ['selected', 'label'] },
+      { name: 'semibold', weight: 600, use: '버튼·강조', roles: ['strong', 'button'] },
+      { name: 'bold', weight: 700, use: '제목', roles: ['heading'] },
+    ],
+  },
+]

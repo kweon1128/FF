@@ -70,6 +70,7 @@ import { NewGroupForm } from './NewGroup'
 import { NewSoloForm } from './NewSolo'
 import { NewFontForm, SampleContext } from './NewFont'
 import { NewSizesForm } from './NewSizes'
+import { NewWeightsForm } from './NewWeights'
 import { nextPreset, nextSizeName, nextVariantName, stepUp, type SizeStep } from './lib/presets'
 import { CATALOG, loadCatalog, loadSystemFonts } from './lib/fonts'
 import { NewSystemForm } from './NewSystem'
@@ -86,6 +87,7 @@ const COLOR = KINDS.color
 const ROLE = KINDS.role
 const FONT = KINDS.font
 const SIZE = KINDS.size
+const WEIGHT = KINDS.weight
 
 /** 색 값을 파일에 저장하는 형식(oklch)으로 맞춘다. #, rgb, hsl로 적힌 색만 바꾸고, 나머지는 그대로 둔다. */
 function storeColors(tokens: Token[]): Token[] {
@@ -263,6 +265,7 @@ export function App() {
   const [addingRole, setAddingRole] = useState(false)
   const [addingFont, setAddingFont] = useState(false)
   const [makingSizes, setMakingSizes] = useState(false)
+  const [makingWeights, setMakingWeights] = useState(false)
   // 추천 글꼴을 쓰는 글꼴 종류가 있으면, 깔려 있지 않아도 판과 패널의 견본이 그 글꼴로 그려지게 불러온다.
   const usesCatalog = tokens.some((t) => FONT.matches(t.name) && CATALOG.some((f) => t.value.includes(f.family)))
   useEffect(() => {
@@ -720,6 +723,24 @@ export function App() {
         : tokens.slice(0, first).filter((t) => !names.has(t.name)).length
     commit([...rest.slice(0, at), ...made, ...rest.slice(at)])
     select(steps.map((s) => SIZE.prefix + s.name))
+  }
+
+  /**
+   * 굵기 한 벌을 넣는다. 같은 이름의 굵기는 새 값으로 바뀌고, 한 벌에 없는 이름의 굵기는 그대로 남는다.
+   * 한 벌은 얇은 것부터 차례로, 지금 굵기들이 있던 자리(없으면 글자 크기 뒤, 그것도 없으면 글꼴 종류 뒤)에 놓는다.
+   */
+  function makeWeights(steps: { name: string; value: string }[]) {
+    setMakingWeights(false)
+    const made = steps.map((s) => ({ name: WEIGHT.prefix + s.name, value: s.value }))
+    const names = new Set(made.map((t) => t.name))
+    const first = tokens.findIndex((t) => WEIGHT.matches(t.name))
+    const rest = tokens.filter((t) => !names.has(t.name))
+    const at =
+      first === -1
+        ? tokens.findLastIndex((t) => t.name.startsWith(SIZE.prefix) || FONT.matches(t.name)) + 1 || tokens.length
+        : tokens.slice(0, first).filter((t) => !names.has(t.name)).length
+    commit([...rest.slice(0, at), ...made, ...rest.slice(at)])
+    select(made.map((t) => t.name))
   }
 
   function renameToken(from: string, to: string) {
@@ -1340,6 +1361,7 @@ export function App() {
     onSelect: pick,
     onAdd: addToken,
     onMakeSizes: () => setMakingSizes(true),
+    onMakeWeights: () => setMakingWeights(true),
     onAddGroup: () => setAddingGroup(true),
     onRename: renameTokenInPanel,
     emptyGroups: keptGroups,
@@ -1424,6 +1446,7 @@ export function App() {
         { id: 'a:role', group: '명령', label: '의미 색 추가', run: () => setAddingRole(true) },
         { id: 'a:font', group: '명령', label: '글꼴 종류 추가', run: () => setAddingFont(true) },
         { id: 'a:sizes', group: '명령', label: '글자 크기 한 벌 만들기', run: () => setMakingSizes(true) },
+        { id: 'a:weights', group: '명령', label: '굵기 한 벌 만들기', run: () => setMakingWeights(true) },
         { id: 'a:comp', group: '명령', label: '컴포넌트 추가', run: () => setAddingComp(true) },
         { id: 'a:system', group: '명령', label: '새 디자인 시스템', run: () => setCreating(true) },
         ...(systems ?? [])
@@ -1795,6 +1818,17 @@ export function App() {
             fonts={tokens.filter((t) => FONT.matches(t.name)).map((t) => ({ name: shortName(FONT, t.name), value: t.value }))}
             onCancel={() => setMakingSizes(false)}
             onCreate={makeSizes}
+          />
+        </Modal>
+      )}
+
+      {makingWeights && (
+        <Modal title="굵기 한 벌 만들기" wide="lg" onClose={() => setMakingWeights(false)}>
+          <NewWeightsForm
+            existing={new Set(tokens.filter((t) => WEIGHT.matches(t.name)).map((t) => shortName(WEIGHT, t.name)))}
+            fonts={tokens.filter((t) => FONT.matches(t.name)).map((t) => ({ name: shortName(FONT, t.name), value: t.value }))}
+            onCancel={() => setMakingWeights(false)}
+            onCreate={makeWeights}
           />
         </Modal>
       )}

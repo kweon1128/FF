@@ -42,13 +42,15 @@ export type SectionProps = {
   onMoveRoleGroup: (use: RoleUse, before: RoleUse | null) => void
   /** 글자 크기 한 벌을 만드는 창을 연다. */
   onMakeSizes?: () => void
+  /** 굵기 한 벌을 만드는 창을 연다. */
+  onMakeWeights?: () => void
 }
 
 /** Shift, Ctrl, Cmd 중 하나를 누른 채 누르면 여러 개 선택이다. */
 export const isAdditive = (e: MouseEvent) => e.shiftKey || e.ctrlKey || e.metaKey
 
 /** 한 화면에 속한 종류들을 차례로 그린다. 전체 보기의 판 안에서도 그대로 쓴다. */
-export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGroup, onRename, onSelectGroup, emptyGroups, pickedGroup, onPickGroup, folded, onReorderGroup, rolesFolded, onMoveRole, onMoveRoleGroup, onMakeSizes }: SectionProps & { kinds: Kind[] }) {
+export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGroup, onRename, onSelectGroup, emptyGroups, pickedGroup, onPickGroup, folded, onReorderGroup, rolesFolded, onMoveRole, onMoveRoleGroup, onMakeSizes, onMakeWeights }: SectionProps & { kinds: Kind[] }) {
   const single = kinds.length === 1
   return (
     <div className="space-y-8">
@@ -64,11 +66,11 @@ export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGr
         return (
           <section key={kind.id}>
             {!single &&
-              (kind.id === 'size' && onMakeSizes ? (
-                // 글자 크기는 낱개보다 한 벌로 정하는 것이라, 묶음 제목 옆에 한 벌을 만드는 버튼을 둔다.
+              ((kind.id === 'size' && onMakeSizes) || (kind.id === 'weight' && onMakeWeights) ? (
+                // 글자 크기와 굵기는 낱개보다 한 벌로 정하는 것이라, 묶음 제목 옆에 한 벌을 만드는 버튼을 둔다.
                 <div className="mb-2 flex h-6 items-center justify-between">
                   <h2 className="font-[650]">{kind.title}</h2>
-                  <Button variant="ghost" onClick={onMakeSizes}>
+                  <Button variant="ghost" onClick={kind.id === 'size' ? onMakeSizes : onMakeWeights}>
                     <Rows3 size={16} strokeWidth={1.5} />한 벌 만들기
                   </Button>
                 </div>
