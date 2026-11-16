@@ -392,7 +392,7 @@ export function Inspector({
           </Button>
         )}
         {pickingFont && (
-          <Modal title={`${short}의 글꼴`} wide="xl" onClose={() => setPickingFont(false)}>
+          <Modal title={`${short}의 글꼴`} wide="xl" tall onClose={() => setPickingFont(false)}>
             <NewFontForm
               existing={new Set()}
               edit={{ name: short, value: valueDraft }}

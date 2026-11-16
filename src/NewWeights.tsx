@@ -5,6 +5,7 @@ import { shownWeight } from './NewFont'
 import { parseFontValue, shownFont, weightsOf } from './lib/fonts'
 import { WEIGHT_SETS, type WeightRole, type WeightStep } from './lib/presets'
 import { SetNotice, StepName, nameProblem } from './StepName'
+import { useUndo } from './lib/useUndo'
 import { PlainScreen } from './TypeScreen'
 import { Button } from './ui'
 
@@ -133,6 +134,14 @@ export function NewWeightsForm({
   )
   const type = { fontFamily: font, fontSize: 16, lineHeight: '24px' }
 
+  // 창 안에서 고르고 고친 것을 Ctrl+Z로 되돌리고 Ctrl+Shift+Z로 다시 실행한다.
+  useUndo({ count, custom, names, fontName }, (s) => {
+    setCount(s.count)
+    setCustom(s.custom)
+    setNames(s.names)
+    setFontName(s.fontName)
+  })
+
   function submit(e: FormEvent) {
     e.preventDefault()
     if (problem) return
@@ -182,7 +191,9 @@ export function NewWeightsForm({
   )
 
   return (
-    <form onSubmit={submit} className="flex gap-6">
+    // 아래의 버튼 줄은 두 열 아래에 창의 폭을 다 써서 놓인다. 다른 창들처럼 "원래대로"가 창의 왼쪽 끝에 온다.
+    <form onSubmit={submit}>
+      <div className="flex gap-6">
       <div className="w-56 shrink-0 space-y-4">
         <div>
           <p className={LABEL}>단계 수</p>
@@ -274,9 +285,11 @@ export function NewWeightsForm({
         </div>
         {/* 이 굵기들이 실제 화면에 놓인 모습. 쓰임마다 맡은 단계의 굵기로 그린다. 굵기는 혼자가 아니라 옆의 글과 함께 놓였을 때 판단할 수 있다.
             이 안은 사용자의 글꼴을 보여 주는 미리보기라, FF 도구의 글자 규칙을 따르지 않는다. */}
-        <div data-uses className="mt-2 rounded-md border border-hairline bg-canvas px-6 py-4 text-ink">
-          <PlainScreen looks={looks} groups={groups} hot={hot} onHot={setHot} />
+        <div data-uses className="mt-2 rounded-md border border-hairline bg-canvas p-6 text-ink">
+          <PlainScreen short looks={looks} groups={groups} hot={hot} onHot={setHot} />
         </div>
+      </div>
+      </div>
         <div className="mt-3 flex items-center justify-end gap-2">
           {/* 바꾼 것을 모두 처음으로 돌린다. 글자 크기 한 벌 만들기와 같은 자리다. 바꾼 것이 없으면 꺼져 있다. */}
           <Button variant="ghost" className="mr-auto" disabled={!changed} title="단계 수와 직접 고친 값을 모두 처음으로 돌려요" onClick={reset}>
@@ -298,7 +311,6 @@ export function NewWeightsForm({
             만들기
           </Button>
         </div>
-      </div>
     </form>
   )
 }

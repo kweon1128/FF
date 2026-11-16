@@ -74,14 +74,15 @@
   --color-primary: var(--color-black); /* 버튼: 주요 버튼. 한 화면에 하나만 둔다 */
   --font-sans: "SUIT Variable", system-ui, sans-serif;
   --font-display: "Pretendard Variable", system-ui, sans-serif;
-  --text-xs: 13px;
-  --text-xs--line-height: 20px;
+  --text-xs: 12px;
+  --text-xs--line-height: 16px;
   --text-sm: 14px;
   --text-sm--line-height: 20px;
   --text-base: 16px;
   --text-base--line-height: 24px;
   --text-lg: 19px;
   --text-lg--line-height: 28px;
+  --text-lg--letter-spacing: -0.005em;
   --text-xl: 23px;
   --text-xl--line-height: 32px;
   --text-xl--letter-spacing: -0.01em;
@@ -91,7 +92,14 @@
   --text-3xl: 33px;
   --text-3xl--line-height: 42px;
   --text-3xl--letter-spacing: -0.02em;
+  --text-4xl: 40px;
+  --text-4xl--line-height: 50px;
+  --text-4xl--letter-spacing: -0.02em;
+  --text-5xl: 48px;
+  --text-5xl--line-height: 60px;
+  --text-5xl--letter-spacing: -0.02em;
   --font-weight-regular: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
+  --font-weight-bold: 700;
 }

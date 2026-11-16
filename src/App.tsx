@@ -1888,7 +1888,7 @@ export function App() {
       )}
 
       {makingTypes && (
-        <Modal title="의미 글꼴 한 벌 만들기" wide="xl" onClose={() => setMakingTypes(false)}>
+        <Modal title="의미 글꼴 한 벌 만들기" wide="xl" tall onClose={() => setMakingTypes(false)}>
           <NewTypesForm tokens={tokens} users={usersOfKind(STYLE)} onCancel={() => setMakingTypes(false)} onCreate={makeTypes} />
         </Modal>
       )}
@@ -1906,7 +1906,7 @@ export function App() {
       )}
 
       {addingFont && (
-        <Modal title="글꼴 종류 추가" wide="xl" onClose={() => setAddingFont(false)}>
+        <Modal title="글꼴 종류 추가" wide="xl" tall onClose={() => setAddingFont(false)}>
           <NewFontForm
             existing={new Set(tokens.filter((t) => FONT.matches(t.name)).map((t) => shortName(FONT, t.name)))}
             onCancel={() => setAddingFont(false)}

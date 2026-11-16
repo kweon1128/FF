@@ -3,10 +3,12 @@
 // 일정한 견본 문장을 늘어놓는 대신 실제로 쓰이는 자리에 놓고 보여 줘서, 이 조합을 쓸지 말지를 화면을 보며 판단하게 한다.
 
 import { createContext, useContext, useState, type FormEvent } from 'react'
+import { RotateCcw } from 'lucide-react'
 import type { Token } from './lib/api'
 import { KINDS, shortName, trackName, type Kind } from './lib/catalog'
 import { lookOf, missingForTypes, readType, typeCandidates, writeType, type TypeParts } from './lib/types'
 import { SetNotice, StepName, nameProblem } from './StepName'
+import { useUndo } from './lib/useUndo'
 import { TypeScreen, type SlotProps } from './TypeScreen'
 import { styleOf } from './Types'
 import { Button } from './ui'
@@ -23,11 +25,24 @@ const WEIGHT = KINDS.weight
 type Row = { key: string; on: boolean; name: string; note: string; parts: TypeParts; track?: string }
 
 /**
- * 목록의 순서. 오른쪽 화면 예시에서 위에서 아래로 처음 나오는 차례와 같다. 그래야 목록과 화면을 나란히 훑으며 견줄 수 있다.
- * 만든 뒤 판에 놓이는 순서는 이것이 아니라 내세우기 → 제목 → 본문 → 그 밖의 차례다.
+ * 목록의 묶음과 순서. 같은 식구끼리 묶고 이름표를 붙이며, 묶음 안에서는 큰 것부터 놓는다.
+ * 화면 예시에 나오는 차례를 따르지 않는다. 그러면 title-lg와 title-md 사이에 본문이 끼는 식으로 식구가 흩어진다. 화면과의 짝은 마우스를 올리면 이어지는 표시가 맡는다.
+ * 어느 묶음에도 없는 것은 맨 아래 "그 밖"에 모인다.
  */
-const SCREEN_ORDER = ['overline', 'caption', 'display-lg', 'display', 'title-lg', 'body-lg', 'body', 'body-strong', 'title-md', 'title-sm', 'numeric', 'body-sm', 'code', 'button-sm', 'button', 'label', 'button-lg', 'quote']
-const screenRank = (key: string) => (SCREEN_ORDER.indexOf(key) + 1 || SCREEN_ORDER.length + 1)
+const GROUPS: [label: string, keys: string[]][] = [
+  ['제목', ['display-lg', 'display', 'title-lg', 'title-md', 'title-sm']],
+  ['본문', ['body-lg', 'body', 'body-strong', 'body-sm', 'quote']],
+  ['보조', ['caption', 'overline', 'label']],
+  ['버튼', ['button-lg', 'button', 'button-sm']],
+  ['숫자·코드', ['numeric', 'code']],
+]
+const GROUPED = new Set(GROUPS.flatMap(([, keys]) => keys))
+/** 줄들을 묶음으로 나눈다. 빈 묶음은 빼고, 묶음 안의 순서는 GROUPS에 적힌 대로다. */
+function grouped(rows: Row[]): [label: string, list: Row[]][] {
+  const made = GROUPS.map(([label, keys]): [string, Row[]] => [label, keys.flatMap((key) => rows.filter((r) => r.key === key))])
+  made.push(['그 밖', rows.filter((r) => !GROUPED.has(r.key))])
+  return made.filter(([, list]) => list.length > 0)
+}
 
 const PICK = 'h-6 min-w-0 rounded-sm border border-hairline bg-canvas px-1 text-xs text-ink-soft outline-none focus:border-selection disabled:opacity-40'
 
@@ -78,18 +93,25 @@ export function NewTypesForm({
   onCreate: (made: Token[]) => void
   onCancel: () => void
 }) {
-  const [rows, setRows] = useState<Row[]>(() =>
-    typeCandidates(tokens).map(({ on, token, track }) => ({
+  // 처음 열었을 때의 후보들. "원래대로"가 돌아갈 곳이다.
+  const [first] = useState<Row[]>(() =>
+    typeCandidates(tokens).map(({ token, track }) => ({
       key: shortName(STYLE, token.name),
-      on,
+      // 처음에는 모든 후보가 켜져 있다. 다 놓인 화면을 먼저 보고 안 쓸 것을 끄는 쪽이, 흐린 것들 사이에서 쓸 것을 찾아 켜는 쪽보다 쉽다.
+      on: true,
       name: shortName(STYLE, token.name),
       note: token.note ?? '',
       parts: readType(token.value)!,
       track,
     })),
   )
+  const [rows, setRows] = useState(first)
+  // 처음과 달라진 것이 있는지(쓸지 말지, 이름, 가리키는 값).
+  const changed = JSON.stringify(rows) !== JSON.stringify(first)
   // 마우스를 올린 조합. 목록의 줄과 화면 예시의 자리를 서로 짚어 준다.
   const [hot, setHot] = useState<string | null>(null)
+  // 창 안에서 고르고 고친 것(쓸지 말지, 이름, 가리키는 값)을 Ctrl+Z로 되돌리고 Ctrl+Shift+Z로 다시 실행한다.
+  useUndo(rows, setRows)
   const names = new Set(tokens.map((t) => t.name))
   const missing = missingForTypes(tokens)
 
@@ -142,11 +164,18 @@ export function NewTypesForm({
 
   return (
     <ScreenContext.Provider value={{ rows, tokens, hot, setHot, toggle: (key) => patch(key, { on: !rows.find((r) => r.key === key)?.on }) }}>
-      <form onSubmit={submit}>
-        <div className="flex items-stretch gap-6">
+      {/* 창의 높이는 화면에 맞춰 고정되어 있다(Modal의 tall). 목록이 길면 목록만 스크롤되고, 아래 버튼 줄은 늘 보인다. */}
+      <form onSubmit={submit} className="flex h-full flex-col">
+        <div className="flex min-h-0 flex-1 items-stretch gap-6">
           {/* 후보 조합들. 쓸 것에 표시하고, 이름과 가리키는 값을 고친다. */}
-          <div className="w-[660px] shrink-0 space-y-1">
-            {[...rows].sort((a, b) => screenRank(a.key) - screenRank(b.key)).map((r) => (
+          <div data-list className="w-[676px] shrink-0 overflow-y-auto [scrollbar-gutter:stable]">
+            {grouped(rows).map(([label, list]) => (
+            <div key={label} data-group={label} className="first:[&>p]:pt-0">
+              {/* 묶음의 이름표. 글꼴 종류 추가 창의 목록과 같은 모양이다. */}
+              <p className="px-2 pt-2 pb-1 text-xs leading-4 font-[550] text-ink-faint">{label}</p>
+              {/* 마우스를 올린 줄의 바탕이 서로 닿지 않게 줄 사이를 4px 띄운다. */}
+              <div className="space-y-1">
+            {list.map((r) => (
               <div
                 key={r.key}
                 data-row={r.key}
@@ -180,15 +209,23 @@ export function NewTypesForm({
                 {pick(r, WEIGHT, 'weight', '굵기', 'w-28', (t) => `${shortName(WEIGHT, t.name)} · ${t.value}`)}
               </div>
             ))}
+              </div>
+            </div>
+            ))}
           </div>
 
           {/* 그 조합들로 짠 화면 하나. 이 안은 사용자의 글꼴을 보여 주는 미리보기라, FF 도구의 글자 규칙을 따르지 않는다. */}
-          <div data-screen className="min-w-0 flex-1 overflow-hidden rounded-lg border border-hairline bg-canvas p-6 text-ink">
+          <div data-screen className="min-w-0 flex-1 overflow-y-auto rounded-lg border border-hairline bg-canvas p-6 text-ink">
             <TypeScreen T={T} has={has} />
           </div>
         </div>
 
-        <div className="mt-3 flex items-center justify-end gap-2">
+        <div className="mt-3 flex shrink-0 items-center justify-end gap-2">
+          {/* 바꾼 것을 모두 처음으로 돌린다. 다른 한 벌 만들기 창들과 같은 자리다. 바꾼 것이 없으면 꺼져 있다. */}
+          <Button variant="ghost" className="mr-auto" disabled={!changed} title="쓸지 말지와 고친 이름, 값을 모두 처음으로 돌려요" onClick={() => setRows(first)}>
+            <RotateCcw size={16} strokeWidth={1.5} />
+            원래대로
+          </Button>
           {/* 이미 있는 조합이 새 값으로 바뀌는 것은 되돌리기 전에 알아야 하는 일이라 알린다. */}
           {problem ? (
             <span role="alert" className="mr-1 text-sm text-danger">

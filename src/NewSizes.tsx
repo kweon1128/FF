@@ -4,6 +4,7 @@ import { PreviewFontContext } from './ColorUses'
 import { shownFont } from './lib/fonts'
 import { BASE_MAX, BASE_MIN, SPREAD_START, SPREAD_STEPS, UPS_MAX, UPS_MIN, UPS_START, baseLineRange, lineFor, sizeScale, trackFor, type SizeStep } from './lib/presets'
 import { SetNotice, StepName, nameProblem } from './StepName'
+import { useUndo } from './lib/useUndo'
 import { Button, UnitInput } from './ui'
 
 /** 위아래 여백을 잴 때 기준으로 삼는 글자. 받침이 없는 글자와 있는 글자가 섞여 한글의 평균적인 높이를 낸다. */
@@ -490,6 +491,20 @@ export function NewSizesForm({
     }
     setGaps(next)
   }, [steps, font, loaded])
+
+  // 창 안에서 고르고 고친 것을 Ctrl+Z로 되돌리고 Ctrl+Shift+Z로 다시 실행한다. 설정, 직접 고친 값, 이름, 견본의 글꼴이 모두 들어간다.
+  useUndo({ base, leading, ups, spread, tighten, custom, lines, tracks, names, fontName }, (s) => {
+    setBase(s.base)
+    setLeading(s.leading)
+    setUps(s.ups)
+    setSpread(s.spread)
+    setTighten(s.tighten)
+    setCustom(s.custom)
+    setLines(s.lines)
+    setTracks(s.tracks)
+    setNames(s.names)
+    setFontName(s.fontName)
+  })
 
   function submit(e: FormEvent) {
     e.preventDefault()

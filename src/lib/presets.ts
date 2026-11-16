@@ -301,14 +301,18 @@ export function trackFor(px: number): string | null {
  * 본문보다 큰 단계는 한 단계마다 간격의 배수만큼 커지고 가까운 정수 px에 맞춘다. 짝수로 몰지 않고 홀수도 쓴다.
  * 고른 배수를 그대로 따르기 위해서이고, 13px, 15px 같은 홀수 크기는 흔히 쓰인다. 짝수여야 하는 것은 줄 높이다.
  * 본문보다 작은 단계는 본문의 7/8, 3/4이다. 작은 글자는 간격을 벌려도 더 작아지면 안 읽히므로 간격과 관계없이 정한다.
+ * 가장 작은 단계는 11px 아래로 내려가지 않는다. 10px의 한글은 획이 붙어 읽기 어렵고, 보조 설명과 작은 버튼처럼 읽어야 하는 글이 이 단계를 쓴다.
+ * 그래서 본문 13px에서는 12px, 11px이 된다(바닥이 없으면 11px, 10px). 본문이 14px 이상이면 바닥에 닿지 않아 그대로다.
  */
+/** 한 벌의 가장 작은 단계가 내려갈 수 있는 바닥(px). */
+export const SIZE_FLOOR = 11
 export type SizeStep = { name: string; size: string; line: string; /** 묶인 글자 사이. 글꼴이 정한 그대로 두면 null. */ track: string | null }
 export function sizeScale(base: number, spread: Spread | number, leading: Leading | number = 'normal', tighten = true, ups = UPS_START): SizeStep[] {
   // spread는 이름(촘촘, 보통, 크게)이거나 배수 그 자체다.
   const ratio = typeof spread === 'number' ? spread : SPREADS.find((s) => s.id === spread)!.ratio
   // 작은 단계는 본문보다, 그리고 서로보다 작아야 한다.
-  const sm = Math.min(Math.round(base * 0.875), base - 1)
-  const xs = Math.min(Math.round(base * 0.75), sm - 1)
+  const xs = Math.max(SIZE_FLOOR, Math.min(Math.round(base * 0.75), base - 2))
+  const sm = Math.max(xs + 1, Math.min(Math.round(base * 0.875), base - 1))
   const sizes: [string, number][] = [
     ['xs', xs],
     ['sm', sm],

@@ -130,12 +130,13 @@ const px = (value: string) => {
  * step은 본문 크기(16px에 가장 가까운 크기)에서 몇 단계 위아래인지, weight는 어느 굵기에 가까운 것을 고를지다.
  * 정해진 값이 아니라 지금 있는 크기와 굵기 가운데에서 고르므로, 어떤 한 벌을 만들어 두었든 그 안에서 짝이 지어진다.
  */
-const SET: { name: string; note: string; step: number; weight: number; heading?: boolean; mono?: boolean; off?: boolean; strict?: boolean; loose?: boolean; track?: string }[] = [
+const SET: { name: string; note: string; step: number; weight: number; heading?: boolean; mono?: boolean; off?: boolean; needs?: number; heavier?: boolean; loose?: boolean; track?: string }[] = [
   // off는 처음에는 빼 두는 후보다. 모든 서비스가 쓰는 것은 아니어서, 한 벌을 만드는 창에서 화면을 보고 고르게 한다.
-  // strict는 그만큼 큰 크기가 실제로 있을 때만 내는 후보다(없으면 아래 단계와 똑같아진다).
+  // needs는 본문보다 큰 단계가 그만큼 있을 때만 내는 후보다(없으면 아래 후보와 크기가 똑같아진다).
+  // heavier는 바라는 굵기가 없을 때 가까운 쪽이 아니라 더 굵은 쪽을 고르는 후보다. 버튼의 글자는 본문보다 굵어야 눌리는 것으로 보인다.
   // loose는 줄 높이를 크기의 것보다 넓게, track은 글자 사이를 직접 정하는 후보다.
-  { name: 'display-lg', note: '가장 크게 내세우는 자리', step: 5, weight: 700, heading: true, off: true, strict: true },
-  { name: 'display', note: '크게 내세우는 숫자나 문구', step: 4, weight: 700, heading: true, off: true },
+  { name: 'display-lg', note: '가장 크게 내세우는 자리', step: 5, weight: 700, heading: true, off: true, needs: 5 },
+  { name: 'display', note: '크게 내세우는 숫자나 문구', step: 4, weight: 700, heading: true, off: true, needs: 4 },
   { name: 'title-lg', note: '화면의 제목', step: 3, weight: 600, heading: true },
   { name: 'title-md', note: '구역의 제목', step: 2, weight: 600, heading: true },
   { name: 'title-sm', note: '카드와 창의 제목', step: 1, weight: 600, heading: true },
@@ -149,9 +150,9 @@ const SET: { name: string; note: string; step: number; weight: number; heading?:
   // 영어 대문자 표시라면 글자 사이를 넓히지만, 한글은 넓히면 흩어져 보여서 크기와 굵기만으로 구분한다.
   { name: 'overline', note: '제목 위의 분류 표시', step: -2, weight: 600, off: true },
   { name: 'label', note: '입력칸의 이름표', step: -1, weight: 500 },
-  { name: 'button-lg', note: '큰 버튼', step: 0, weight: 500, off: true },
-  { name: 'button', note: '버튼', step: -1, weight: 500 },
-  { name: 'button-sm', note: '작은 버튼', step: -2, weight: 500, off: true },
+  { name: 'button-lg', note: '큰 버튼', step: 0, weight: 500, off: true, heavier: true },
+  { name: 'button', note: '버튼', step: -1, weight: 500, heavier: true },
+  { name: 'button-sm', note: '작은 버튼', step: -2, weight: 500, off: true, heavier: true },
   { name: 'numeric', note: '금액과 통계의 숫자', step: 1, weight: 600, off: true },
   { name: 'code', note: '주문 번호 같은 고정폭 글자', step: -1, weight: 400, mono: true, off: true },
 ]
@@ -177,9 +178,22 @@ export function typeCandidates(tokens: Token[]): { on: boolean; token: Token; tr
   const body = named('sans', 'body', 'base', 'text') ?? fonts.find((t) => !/mono|code/.test(t.name)) ?? fonts[0]
   // 제목 글꼴: display, heading 같은 이름이 있으면 그것, 없으면 본문 글꼴.
   const heading = named('display', 'heading', 'title') ?? body
-  const base = sizes.reduce((best, t, i) => (Math.abs(px(t.value) - 16) < Math.abs(px(sizes[best].value) - 16) ? i : best), 0)
+  // 본문 크기: base라는 이름이 있으면 그것, 없으면 16px에 가장 가까운 크기. 크기만 보고 고르면 본문을 18px이나 20px로 잡은 한 벌에서 작은 단계가 본문으로 잡힌다.
+  const named16 = sizes.reduce((best, t, i) => (Math.abs(px(t.value) - 16) < Math.abs(px(sizes[best].value) - 16) ? i : best), 0)
+  const namedBase = sizes.findIndex((t) => t.name === SIZE.prefix + 'base')
+  const base = namedBase !== -1 ? namedBase : named16
+  // 본문보다 큰 단계의 수. 한 벌의 단계 수(5에서 9)에 따라 2에서 6이다.
+  const ups = sizes.length - 1 - base
+  // 제목 셋은 위에서부터 채운다. 큰 단계가 셋 넘게 있으면 +3, +2, +1이고, 모자라면 있는 가장 큰 단계부터 한 칸씩 내려온다(본문 크기 아래로는 가지 않는다).
+  // 정해진 칸에 그대로 놓으면 단계가 적은 한 벌에서 화면 제목과 구역 제목이 같은 크기가 된다.
+  const titleTop = Math.min(3, ups)
+  const stepOf = (s: (typeof SET)[number]) =>
+    s.name === 'title-lg' ? titleTop : s.name === 'title-md' ? Math.max(0, titleTop - 1) : s.name === 'title-sm' ? Math.max(0, titleTop - 2) : s.name === 'display-lg' ? ups : s.step
   const sizeAt = (step: number) => sizes[Math.min(sizes.length - 1, Math.max(0, base + step))]
   const weightNear = (want: number) => weights.reduce((best, t) => (Math.abs(Number(t.value) - want) < Math.abs(Number(best.value) - want) ? t : best))
+  // 더 굵은 쪽을 고르는 후보: 바라는 굵기가 있으면 그것, 없으면 그보다 굵은 것 가운데 가장 가까운 것, 그것도 없으면 가장 가까운 것.
+  const weightUp = (want: number) =>
+    weights.filter((t) => Number(t.value) >= want).sort((a, b) => Number(a.value) - Number(b.value))[0] ?? weightNear(want)
   // 고정폭 글꼴: mono, code 같은 이름이 있으면 그것, 없으면 본문 글꼴.
   const mono = fonts.find((t) => /mono|code/.test(t.name)) ?? body
   // 넓은 줄 높이: 한 벌 만들기의 "넓게" 규칙. 그 크기에 묶인 줄 높이와 같거나 좁으면 4px 더 넓힌다.
@@ -188,9 +202,10 @@ export function typeCandidates(tokens: Token[]): { on: boolean; token: Token; tr
     const loose = lineFor(px(size.value), 'loose')
     return `${Number.isFinite(bound) && loose <= bound ? bound + 4 : loose}px`
   }
-  return SET.filter((s) => !s.strict || base + s.step < sizes.length).map((s) => {
-    const size = sizeAt(s.step)
-    const parts: TypeParts = { font: (s.mono ? mono : s.heading ? heading : body).name, size: size.name, weight: weightNear(s.weight).name, ...(s.loose ? { line: looseLine(size) } : {}) }
+  return SET.filter((s) => !s.needs || ups >= s.needs).map((s) => {
+    // 가장 크게 내세우는 자리는 있는 가장 큰 단계를 쓴다(9단계라면 5xl).
+    const size = sizeAt(stepOf(s))
+    const parts: TypeParts = { font: (s.mono ? mono : s.heading ? heading : body).name, size: size.name, weight: (s.heavier ? weightUp(s.weight) : weightNear(s.weight)).name, ...(s.loose ? { line: looseLine(size) } : {}) }
     return { on: !s.off, token: { name: STYLE.prefix + s.name, value: writeType(parts, names), note: s.note }, ...(s.track ? { track: s.track } : {}) }
   })
 }
