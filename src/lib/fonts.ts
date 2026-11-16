@@ -134,24 +134,24 @@ const g = (family: string, type: FontType, group: string, weights: number[], lat
 export const CATALOG: CatalogFont[] = [
   { family: 'Pretendard Variable', type: 'sans', group: '담백한 고딕', weights: range(100, 900), css: 'https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css' },
   { family: 'SUIT Variable', type: 'sans', group: '담백한 고딕', weights: range(100, 900), css: 'https://cdn.jsdelivr.net/gh/sun-typeface/SUIT@2/fonts/variable/woff2/SUIT-Variable.css' },
+  { family: 'Wanted Sans Variable', type: 'sans', group: '담백한 고딕', weights: range(400, 900), css: 'https://cdn.jsdelivr.net/gh/wanteddev/wanted-sans@v1.0.3/packages/wanted-sans/fonts/webfonts/variable/split/WantedSansVariable.min.css' },
   g('Noto Sans KR', 'sans', '담백한 고딕', range(100, 900)),
   g('IBM Plex Sans KR', 'sans', '담백한 고딕', range(100, 700)),
   g('Gothic A1', 'sans', '담백한 고딕', range(100, 900)),
-  g('Nanum Gothic', 'sans', '부드러운 고딕', [400, 700, 800]),
   g('Gowun Dodum', 'sans', '부드러운 고딕', [400]),
-  g('Jua', 'sans', '부드러운 고딕', [400]),
   g('Noto Serif KR', 'serif', '명조', range(200, 900)),
   g('Gowun Batang', 'serif', '명조', [400, 700]),
-  g('Nanum Myeongjo', 'serif', '명조', [400, 700, 800]),
   g('Hahmlet', 'serif', '명조', range(100, 900)),
-  g('Black Han Sans', 'sans', '제목용', [400]),
-  g('Do Hyeon', 'sans', '제목용', [400]),
   g('Inter', 'sans', '영문', range(100, 900), true),
+  g('Geist', 'sans', '영문', range(100, 900), true),
+  g('Figtree', 'sans', '영문', range(300, 900), true),
+  g('Plus Jakarta Sans', 'sans', '영문', range(200, 800), true),
   g('Manrope', 'sans', '영문', range(200, 800), true),
   g('DM Sans', 'sans', '영문', range(100, 900), true),
   g('Space Grotesk', 'sans', '영문', range(300, 700), true),
-  g('Playfair Display', 'serif', '영문', range(400, 900), true),
-  g('Nanum Gothic Coding', 'mono', '고정폭', [400, 700]),
+  g('Instrument Serif', 'serif', '영문', [400], true),
+  g('Fraunces', 'serif', '영문', range(100, 900), true),
+  g('Geist Mono', 'mono', '고정폭', range(100, 900), true),
   g('JetBrains Mono', 'mono', '고정폭', range(100, 800), true),
   g('IBM Plex Mono', 'mono', '고정폭', range(100, 700), true),
 ]
@@ -173,20 +173,33 @@ export function weightsOf(family: string): number[] {
   return found.size > 0 ? [...found].sort((x, y) => x - y) : [400, 700]
 }
 
-/** 추천 글꼴을 이 화면에서 그릴 수 있게 불러온다. 글꼴 파일은 실제로 그려질 때 필요한 것만 내려받는다. 한 번만 한다. */
+/** 글꼴을 불러오는 스타일시트를 한 번만 건다. */
+function addFontLink(href: string) {
+  if ([...document.head.querySelectorAll('link[data-ff-font]')].some((l) => l.getAttribute('href') === href)) return
+  const link = document.createElement('link')
+  link.rel = 'stylesheet'
+  link.href = href
+  link.dataset.ffFont = ''
+  document.head.append(link)
+}
+
+/** 그 추천 글꼴의 모든 굵기를 불러오는 주소. fonts.css에 적는 주소이기도 하다. */
+const fullUrl = (font: CatalogFont) => font.css ?? `https://fonts.googleapis.com/css2?family=${font.google}&display=swap`
+
+/**
+ * 추천 글꼴 목록을 그릴 수 있게 불러온다. 목록에서는 줄마다 그 글꼴로 이름을 한 번 적을 뿐이라 보통 굵기(400)만 청한다.
+ * 모든 글꼴의 모든 굵기를 한꺼번에 청하면 한글 글꼴이 조각마다 굵기별로 나뉘어 있어서 받아야 할 목록만 3MB를 넘는다.
+ * 글꼴 파일은 실제로 그려질 때 필요한 것만 내려받는다.
+ */
 export function loadCatalog() {
-  const urls = [
-    'https://fonts.googleapis.com/css2?' + CATALOG.filter((f) => f.google).map((f) => 'family=' + f.google).join('&') + '&display=swap',
-    ...CATALOG.flatMap((f) => (f.css ? [f.css] : [])),
-  ]
-  for (const href of urls) {
-    if ([...document.head.querySelectorAll('link[data-ff-font]')].some((l) => l.getAttribute('href') === href)) continue
-    const link = document.createElement('link')
-    link.rel = 'stylesheet'
-    link.href = href
-    link.dataset.ffFont = ''
-    document.head.append(link)
-  }
+  addFontLink('https://fonts.googleapis.com/css2?' + CATALOG.filter((f) => f.google).map((f) => 'family=' + f.family.replace(/ /g, '+')).join('&') + '&display=swap')
+  for (const f of CATALOG) if (f.css) addFontLink(f.css)
+}
+
+/** 추천 글꼴 하나를 모든 굵기로 불러온다. 후보로 골랐거나 이 시스템이 쓰고 있는 글꼴에만 부른다. 추천 글꼴이 아니면 아무것도 하지 않는다. */
+export function loadFont(family: string) {
+  const font = CATALOG.find((f) => f.family === family)
+  if (font) addFontLink(fullUrl(font))
 }
 
 /** 글꼴 이름이 아니라 "어떤 글꼴이든"을 뜻하는 일반 이름들. */
@@ -296,7 +309,7 @@ export async function recordFont(family: string) {
   const font = CATALOG.find((f) => f.family === family)
   const name = fontSystem
   if (!font || !name || fontFamilies.includes(family)) return
-  const url = font.css ?? `https://fonts.googleapis.com/css2?family=${font.google}&display=swap`
+  const url = fullUrl(font)
   try {
     await fetch(`/api/systems/${encodeURIComponent(name)}/fonts`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) })
     await loadSystemFonts(name)

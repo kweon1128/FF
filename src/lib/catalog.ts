@@ -5,6 +5,7 @@ export type PreviewType =
   | 'color'
   | 'role'
   | 'font'
+  | 'style'
   | 'size'
   | 'weight'
   | 'leading'
@@ -121,6 +122,21 @@ const weight: Kind = {
   emptyTitle: '굵기가 아직 없어요',
 }
 
+/**
+ * 의미 글꼴. 글꼴 종류, 글자 크기, 굵기 가운데 실제로 쓰는 조합에 쓰임새의 이름을 붙인 것.
+ * 값은 CSS의 font 한 줄(굵기 크기/줄 높이 글꼴)이고, 뒤에 붙는 글자 사이(--type-이름--letter-spacing)는 이 종류에 들지 않는다.
+ */
+const style: Kind = {
+  id: 'style',
+  title: '의미 글꼴',
+  prefix: '--type-',
+  matches: (n) => n.startsWith('--type-') && !n.slice('--type-'.length).includes('--'),
+  defaultValue: '',
+  addLabel: '의미 글꼴 추가',
+  valueLabel: '조합',
+  emptyTitle: '의미 글꼴이 아직 없어요',
+}
+
 const leading: Kind = {
   id: 'leading',
   title: '줄 높이',
@@ -139,6 +155,8 @@ const tracking: Kind = {
   title: '글자 사이',
   prefix: '--tracking-',
   matches: starts('--tracking-'),
+  // 글자 사이(자간)도 줄 높이처럼 글자 크기에 묶어 정한다. 따로 떨어진 목록은 예전 파일에 남아 있을 때만 보인다.
+  legacy: true,
   defaultValue: '0em',
   addLabel: '글자 사이 추가',
   valueLabel: '글자 사이 간격',
@@ -184,7 +202,7 @@ const shadow: Kind = {
   title: '그림자',
   prefix: '--shadow-',
   matches: starts('--shadow-'),
-  defaultValue: '0 4px 16px rgb(0 0 0 / 0.12)',
+  defaultValue: '0 2px 4px rgb(0 0 0 / 0.04), 0 8px 16px rgb(0 0 0 / 0.06)',
   addLabel: '그림자 추가',
   valueLabel: '그림자',
   emptyTitle: '그림자가 아직 없어요',
@@ -276,7 +294,7 @@ const ease: Kind = {
   title: '움직임 흐름',
   prefix: '--ease-',
   matches: starts('--ease-'),
-  defaultValue: 'cubic-bezier(0.4, 0, 0.2, 1)',
+  defaultValue: 'cubic-bezier(0.16, 1, 0.3, 1)',
   addLabel: '움직임 흐름 추가',
   valueLabel: '속도 곡선',
   emptyTitle: '움직임 흐름이 아직 없어요',
@@ -288,6 +306,7 @@ export const KINDS = {
   font,
   size,
   weight,
+  style,
   leading,
   tracking,
   space,
@@ -306,7 +325,7 @@ export const KINDS = {
 
 export const ALL_KINDS: Kind[] = Object.values(KINDS)
 
-export type TokenScreenId = 'color' | 'role' | 'type' | 'spacing' | 'radius' | 'border' | 'effect' | 'layout' | 'motion'
+export type TokenScreenId = 'color' | 'role' | 'style' | 'type' | 'spacing' | 'radius' | 'border' | 'effect' | 'layout' | 'motion'
 export type PlaceholderScreenId = 'layouts' | 'assets'
 export type ScreenId = 'canvas' | 'components' | TokenScreenId | PlaceholderScreenId
 
@@ -336,6 +355,7 @@ export const TOKEN_SCREENS: Record<TokenScreenId, { title: string; kinds: Kind[]
   motion: { title: '움직임', kinds: [duration, ease] },
   // 나중에 생긴 판이라 맨 뒤에 둔다. 앞의 판들은 순서대로 기본 자리가 정해져 있어서, 사이에 끼우면 모두 밀린다.
   role: { title: '의미 색', kinds: [role] },
+  style: { title: '의미 글꼴', kinds: [style] },
 }
 
 export const PLACEHOLDER_SCREENS: Record<PlaceholderScreenId, { title: string }> = {

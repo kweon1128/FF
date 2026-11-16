@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useRef, useState, type FormEvent,
 import { SLUG } from './lib/catalog'
 import { Check, Minus, Plus, X } from 'lucide-react'
 import { ColorSwatch } from './ColorPicker'
-import { CATALOG, FALLBACKS, commonFonts, fontValue, loadCatalog, nameForFont, parseFontValue, inkShift, recordFont, systemFamilies, typeOfFont, weightsOf } from './lib/fonts'
+import { CATALOG, FALLBACKS, commonFonts, fontValue, loadCatalog, loadFont, nameForFont, parseFontValue, inkShift, recordFont, systemFamilies, typeOfFont, weightsOf } from './lib/fonts'
 import { Button, inputClass } from './ui'
 
 /** 한 묶음에서 한 번에 그리는 글꼴의 수. 줄마다 그 글꼴로 그리므로 너무 많으면 느려진다. 더 찾으려면 이름을 적어 좁힌다. */
@@ -253,6 +253,11 @@ export function NewFontForm({
   // 세 자리. 후보를 빼면 그 자리만 비고, 옆의 후보가 당겨지지 않는다. 새 후보는 가장 앞의 빈 자리에 들어간다.
   const [places, setPlaces] = useState<(string | null)[]>(() => Array.from({ length: SLOTS }, (_, i) => (i === 0 && start?.font ? start.font : null)))
   const cands = places.filter((f): f is string => f !== null)
+  // 후보로 고른 글꼴은 모든 굵기로 불러온다. 견본에서 굵기를 바꿔 가며 보기 때문이다. 목록의 나머지 글꼴은 보통 굵기만 불러와 있다.
+  const wanted = cands.join('|')
+  useEffect(() => {
+    for (const family of wanted.split('|')) loadFont(family)
+  }, [wanted])
   // 카드를 좌우로 끌어 자리를 바꾼다. from은 끌기 시작한 자리, over는 지금 놓으면 들어갈 자리, dx는 끈 거리.
   const [drag, setDrag] = useState<{ from: number; over: number; dx: number } | null>(null)
   const grid = useRef<HTMLDivElement>(null)

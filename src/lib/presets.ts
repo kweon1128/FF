@@ -1,5 +1,5 @@
 import type { Token } from './api'
-import { ALL_KINDS, shortName, type Kind } from './catalog'
+import { ALL_KINDS, KINDS, lineName, shortName, trackName, type Kind } from './catalog'
 
 /**
  * 값을 추가할 때 생기는 것. 아무 이름(new)과 고정된 값이 아니라, 지금 있는 것 다음에 올 단계가 이름과 값을 갖추고 생긴다.
@@ -79,10 +79,11 @@ const LADDERS: Partial<Record<Kind['id'], Ladder>> = {
   },
   shadow: {
     steps: [
-      ['sm', '0 1px 2px rgb(0 0 0 / 0.08)'],
-      ['md', '0 4px 12px rgb(0 0 0 / 0.1)'],
-      ['lg', '0 8px 24px rgb(0 0 0 / 0.12)'],
-      ['xl', '0 16px 48px rgb(0 0 0 / 0.16)'],
+      // 옅은 그림자 두 겹. 가까이 짧게 지는 것과 멀리 넓게 퍼지는 것을 겹쳐야 떠 있는 느낌이 자연스럽다. 진한 한 겹은 무겁고 예전 화면처럼 보인다.
+      ['sm', '0 1px 1px rgb(0 0 0 / 0.04), 0 2px 4px rgb(0 0 0 / 0.04)'],
+      ['md', '0 2px 4px rgb(0 0 0 / 0.04), 0 8px 16px rgb(0 0 0 / 0.06)'],
+      ['lg', '0 4px 8px rgb(0 0 0 / 0.04), 0 16px 32px rgb(0 0 0 / 0.08)'],
+      ['xl', '0 8px 16px rgb(0 0 0 / 0.05), 0 32px 64px rgb(0 0 0 / 0.1)'],
     ],
   },
   // 투명도는 값이 곧 이름이다. 50은 0.5.
@@ -118,9 +119,11 @@ const LADDERS: Partial<Record<Kind['id'], Ladder>> = {
   },
   ease: {
     steps: [
-      ['in', 'cubic-bezier(0.4, 0, 1, 1)'],
-      ['out', 'cubic-bezier(0, 0, 0.2, 1)'],
-      ['in-out', 'cubic-bezier(0.4, 0, 0.2, 1)'],
+      // 화면에 나타나고 반응하는 움직임은 거의 다 out이다(빠르게 출발해 부드럽게 멈춤). 그래서 out이 먼저 생긴다.
+      // in은 화면에서 사라질 때만 쓴다. 곡선은 끝에서 더 길게 감속하는 것으로, 예전 Material의 (0.4, 0, 0.2, 1)보다 부드럽게 멈춘다.
+      ['out', 'cubic-bezier(0.16, 1, 0.3, 1)'],
+      ['in-out', 'cubic-bezier(0.65, 0, 0.35, 1)'],
+      ['in', 'cubic-bezier(0.7, 0, 0.84, 0)'],
     ],
   },
 }
@@ -285,12 +288,12 @@ export type WeightStep = { name: string; weight: number; use: string; roles: Wei
 
 /**
  * 단계 수에 따른 굵기 한 벌. 단계가 적을수록 한 단계가 맡는 쓰임이 많다.
- * 둘이면 본문과 그 밖의 모든 것, 셋이면 본문 / 버튼과 강조 / 제목, 넷이면 강조와 버튼을 한 단계 더 나눈다.
+ * 2단계면 본문과 그 밖의 모든 것, 3단계면 본문 / 버튼과 선택 / 제목과 강조, 4단계면 강조와 버튼을 한 단계 더 나눈다.
  */
 export const WEIGHT_SETS: { count: number; label: string; steps: WeightStep[] }[] = [
   {
     count: 2,
-    label: '둘',
+    label: '2',
     steps: [
       { name: 'regular', weight: 400, use: '본문·입력칸', roles: ['body', 'label'] },
       { name: 'bold', weight: 700, use: '제목·버튼·강조', roles: ['strong', 'button', 'selected', 'heading'] },
@@ -298,16 +301,17 @@ export const WEIGHT_SETS: { count: number; label: string; steps: WeightStep[] }[
   },
   {
     count: 3,
-    label: '셋',
+    label: '3',
     steps: [
       { name: 'regular', weight: 400, use: '본문·입력칸', roles: ['body'] },
       { name: 'medium', weight: 500, use: '버튼·선택·이름표', roles: ['button', 'selected', 'label'] },
-      { name: 'bold', weight: 700, use: '제목·강조', roles: ['strong', 'heading'] },
+      // 가장 굵은 단계를 700이 아니라 600에 둔다. 700은 화면에서 무겁고, 획이 많은 한글은 뭉쳐 보이기 쉽다.
+      { name: 'semibold', weight: 600, use: '제목·강조', roles: ['strong', 'heading'] },
     ],
   },
   {
     count: 4,
-    label: '넷',
+    label: '4',
     steps: [
       { name: 'regular', weight: 400, use: '본문·입력칸', roles: ['body'] },
       { name: 'medium', weight: 500, use: '선택·이름표', roles: ['selected', 'label'] },
@@ -316,3 +320,42 @@ export const WEIGHT_SETS: { count: number; label: string; steps: WeightStep[] }[
     ],
   },
 ]
+
+// ── 글자 크기를 하나 더할 때 ──────────────────────────
+
+/**
+ * 글자 크기를 하나 추가할 때 생기는 단계. 정해진 표의 값이 아니라 지금 있는 크기들을 이어 간다.
+ * 이름은 다음 이름(xs, sm, base, lg, xl, 2xl, …)이고, 크기는 가장 큰 두 단계 사이의 배수만큼 더 큰 값이다(한 벌 만들기의 단계 사이를 그대로 잇는다).
+ * 크기가 하나뿐이면 1.2배, 하나도 없으면 base 16px이다. 빠진 작은 이름(xs, sm)이 생길 차례면 가장 작은 크기의 7/8이다.
+ * 줄 높이는 기준이 된 단계와 같은 방식(좁게, 보통, 넓게)으로, 글자 사이는 이 시스템이 큰 글자를 좁히고 있을 때만 붙인다.
+ */
+export function nextSize(tokens: Token[]): SizeStep {
+  const SIZE = KINDS.size
+  const px = (v: string) => parseFloat(v) * (v.trim().endsWith('rem') ? 16 : 1)
+  const sizes = tokens
+    .filter((t) => SIZE.matches(t.name) && Number.isFinite(px(t.value)))
+    .map((t) => ({ name: t.name, short: shortName(SIZE, t.name), px: px(t.value) }))
+    .sort((a, b) => a.px - b.px)
+  const name = nextPreset(SIZE, tokens).name
+  const make = (value: number, leading: Leading, tighten: boolean): SizeStep => ({ name, size: `${value}px`, line: `${lineFor(value, leading)}px`, track: tighten ? trackFor(value) : null })
+  if (sizes.length === 0) return make(16, 'normal', true)
+  const order = LADDERS.size!.steps.map(([n]) => n)
+  const known = sizes.map((s) => order.indexOf(s.short)).filter((i) => i >= 0)
+  const big = sizes[sizes.length - 1]
+  const small = sizes[0]
+  // 지금 있는 이름들보다 앞의 이름이 생길 차례면 더 작은 단계다.
+  const smaller = known.length > 0 && order.indexOf(name) >= 0 && order.indexOf(name) < Math.min(...known)
+  let value: number
+  if (smaller) value = Math.min(Math.round(small.px * 0.875), small.px - 1)
+  else {
+    const before = sizes[sizes.length - 2]
+    const ratio = before ? big.px / before.px : 1.2
+    value = Math.max(Math.round(big.px * (ratio >= 1.05 && ratio <= 1.5 ? ratio : 1.2)), big.px + 1)
+  }
+  const from = smaller ? small : big
+  const line = parseFloat(tokens.find((t) => t.name === lineName(from.name))?.value ?? '')
+  const leading = (['normal', 'snug', 'loose'] as const).find((id) => lineFor(from.px, id) === line) ?? 'normal'
+  // 큰 글자의 글자 사이를 좁히고 있는 시스템인지. 묶인 글자 사이가 하나라도 있거나, 아직 좁힐 만큼 큰 글자가 없으면 그렇다고 본다.
+  const tighten = tokens.some((t) => t.name.startsWith(SIZE.prefix) && t.name === trackName(t.name.slice(0, -'--letter-spacing'.length))) || !sizes.some((s) => s.px > 16)
+  return make(value, leading, tighten)
+}

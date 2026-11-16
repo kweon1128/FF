@@ -3,6 +3,8 @@ import { Check as CheckIcon, Minus, Plus } from 'lucide-react'
 import { PreviewFontContext } from './ColorUses'
 import { shownFont } from './lib/fonts'
 import { BASE_MAX, BASE_MIN, LEADINGS, SPREADS, lineFor, sizeScale, trackFor, type Leading, type SizeStep, type Spread } from './lib/presets'
+import { StepName, nameProblem } from './StepName'
+import { PlainScreen } from './TypeScreen'
 import { Button, UnitInput } from './ui'
 
 /** 위아래 여백을 잴 때 기준으로 삼는 글자. 받침이 없는 글자와 있는 글자가 섞여 한글의 평균적인 높이를 낸다. */
@@ -46,7 +48,7 @@ const EXAMPLE_SLOT = lineFor(BASE_MAX, LEADINGS[LEADINGS.length - 1].id) + Math.
 
 /** 본문 문단의 견본. 단계 견본과 같은 화면(비밀번호 바꾸기)에 나올 설명글이고, 세 줄에 걸치는 길이다. */
 const PARAGRAPH =
-  '비밀번호는 영문과 숫자를 섞어 8자 이상으로 정해 주세요. 다른 서비스에서 쓰는 비밀번호와 같으면 한 곳에서 새어 나갔을 때 여기까지 위험해집니다. 석 달에 한 번쯤 바꾸면 더 안전합니다.'
+  '비밀번호는 영문과 숫자를 섞어 8자 이상으로 정해 주세요. 다른 서비스와 같은 비밀번호를 쓰면 한 곳에서 유출됐을 때 이 계정도 위험해질 수 있습니다. 3개월에 한 번씩 바꾸면 더 안전합니다.'
 /** 본문 문단이 놓이는 자리의 높이(px). 본문을 가장 크게, 줄 높이를 가장 넓게 골랐을 때의 세 줄이다. */
 const PARAGRAPH_SLOT = lineFor(BASE_MAX, LEADINGS[LEADINGS.length - 1].id) * 3
 
@@ -62,6 +64,32 @@ const SAMPLES: Record<string, { use: string; text: string }> = {
   base: { use: '본문', text: '영문과 숫자를 섞어 8자 이상으로' },
   sm: { use: '버튼·입력칸·설명', text: '저장하기 · 이메일 주소를 입력하세요' },
   xs: { use: '이름표·캡션', text: '필수 · 3분 전에 바꿈 · NEW' },
+}
+
+/**
+ * 화면 예시의 자리마다 쓰는 단계와 굵기. 그 크기가 흔히 맡는 자리에 놓는다.
+ * 굵기는 이 창에서 정하는 것이 아니라서, 제목은 굵게 본문은 보통으로 흔히 쓰는 값으로 그린다.
+ */
+const SCREEN_USES: Record<string, [step: string, weight: number]> = {
+  overline: ['xs', 600],
+  caption: ['xs', 400],
+  display: ['3xl', 700],
+  'title-lg': ['2xl', 700],
+  'title-md': ['xl', 700],
+  'title-sm': ['lg', 700],
+  'body-lg': ['lg', 400],
+  body: ['base', 400],
+  'body-strong': ['base', 600],
+  numeric: ['lg', 600],
+  'body-sm': ['sm', 400],
+  code: ['sm', 400],
+  tab: ['sm', 400],
+  'tab-on': ['sm', 600],
+  'button-sm': ['xs', 500],
+  button: ['sm', 600],
+  label: ['sm', 500],
+  'button-lg': ['base', 600],
+  quote: ['lg', 500],
 }
 
 /** 한 단계의 크기로 직접 정할 수 있는 범위(px). */
@@ -155,7 +183,11 @@ export function NewSizesForm({
       return px === null ? rest : { ...rest, [name]: px }
     })
   const baseStep = steps.find((s) => s.name === 'base')!
-  const replaced = steps.filter((s) => existing.has(s.name)).length
+  // 단계의 이름을 직접 고친 것. 원래 이름으로 찾는다. 고치지 않은 단계는 원래 이름 그대로다.
+  const [names, setNames] = useState<Record<string, string>>({})
+  const nameOf = (name: string) => names[name] ?? name
+  const problem = nameProblem(steps.map((s) => nameOf(s.name)))
+  const replaced = steps.filter((s) => existing.has(nameOf(s.name))).length
 
   // 줄 상자 안에서 글자의 위 여백과 아래 여백(px). 화면에 그려진 뒤 실제 자리를 재서 채운다.
   // 한글(가나다라마바사)의 모양을 기준으로 잰다. 줄마다 적힌 글이 달라도 같은 기준으로 견주기 위해서다.
@@ -206,11 +238,21 @@ export function NewSizesForm({
 
   function submit(e: FormEvent) {
     e.preventDefault()
-    onCreate(steps)
+    if (problem) return
+    onCreate(steps.map((s) => ({ ...s, name: nameOf(s.name) })))
   }
 
+  // 화면 예시의 자리마다의 글자 모습. 지금 고른 한 벌의 크기, 줄 높이, 글자 사이로 그린다.
+  const looks = Object.fromEntries(
+    Object.entries(SCREEN_USES).flatMap(([use, [name, fontWeight]]) => {
+      const s = steps.find((x) => x.name === name)
+      return s ? [[use, { fontFamily: font, fontSize: s.size, lineHeight: s.line, letterSpacing: s.track ?? undefined, fontWeight }]] : []
+    }),
+  )
+
   return (
-    <form onSubmit={submit} className="flex gap-6">
+    <form onSubmit={submit}>
+      <div className="flex gap-6">
       <div className="w-56 shrink-0 space-y-4">
         <div>
           <p className={LABEL}>본문 크기</p>
@@ -325,7 +367,8 @@ export function NewSizesForm({
         <div ref={scale} data-scale className="h-[340px] space-y-1 overflow-hidden rounded-md border border-hairline px-4 py-3">
           {[...steps].reverse().map((s) => (
             <div key={s.name} data-step={s.name} className="flex items-center gap-3">
-              <span className="w-8 shrink-0 font-mono text-xs text-ink-faint">{s.name}</span>
+              {/* 이름은 미리 채워져 있고, 다른 이름을 쓰고 싶을 때만 고친다. */}
+              <StepName label={`${s.name} 이름`} value={nameOf(s.name)} onChange={(name) => setNames({ ...names, [s.name]: name })} />
               {/* 크기는 단계마다 직접 고칠 수 있다(본문은 왼쪽의 본문 크기로 정한다). 줄 높이는 고친 크기에 맞춰 따라온다. */}
               <span className="flex w-44 shrink-0 items-center font-mono text-xs whitespace-nowrap text-ink-faint">
                 {s.name === 'base' ? (
@@ -380,7 +423,8 @@ export function NewSizesForm({
         {/* 본문 크기로 쓴 문단. 줄 높이(좁게 · 보통 · 넓게)의 차이는 한 줄짜리 글이 아니라 줄과 줄 사이에서 보인다.
             높이는 가장 크고 넓게 골랐을 때의 세 줄에 맞춰 고정하고, 줄의 길이는 글자 수로 잡아서(em) 본문 크기를 바꿔도 같은 자리에서 줄이 바뀐다. */}
         <div data-paragraph className="mt-2 flex gap-3 rounded-md border border-hairline px-4 py-3">
-          <span className="w-8 shrink-0 font-mono text-xs text-ink-faint">base</span>
+          {/* 위 견본의 이름 칸과 같은 폭, 같은 자리에 적는다. */}
+          <span className="w-14 shrink-0 truncate border border-transparent px-1 font-mono text-xs text-ink-faint">{nameOf('base')}</span>
           {/* 위 견본의 줄과 글자가 같은 자리에 오도록 같은 짜임으로 적는다. */}
           <span className="flex w-44 shrink-0 font-mono text-xs whitespace-nowrap text-ink-faint">
             <span className="flex gap-1 border-x border-transparent px-1">
@@ -417,7 +461,7 @@ export function NewSizesForm({
                   </span>
                 </span>
                 <p className="mt-2 text-xs text-ink-soft">
-                  {ex.label} <span className="font-mono text-ink-faint">{ex.size}</span>
+                  {ex.label} <span className="font-mono text-ink-faint">{nameOf(ex.size)}</span>
                 </p>
                 <p className={`font-mono text-xs whitespace-nowrap tabular-nums ${gap && Math.abs(shiftOf(gap)) > OFF ? 'text-danger' : 'text-ink-faint'}`}>
                   {gap ? gapText(gap) : '\u00a0'}
@@ -432,9 +476,25 @@ export function NewSizesForm({
             )
           })}
         </div>
+      </div>
+      {/* 이 한 벌이 실제 화면에 놓인 모습. 왼쪽의 표는 단계끼리 견주는 것이고, 이것은 쓰였을 때를 보는 것이다.
+          표가 좁아지지 않도록 창이 넓을 때(1700px 이상)만 보인다. 높이는 표에 맞추고 넘치는 아래쪽은 잘린다.
+          이 안은 사용자의 글꼴을 보여 주는 미리보기라, FF 도구의 글자 규칙을 따르지 않는다. */}
+      <div data-screen className="relative hidden w-[640px] shrink-0 overflow-hidden rounded-md border border-hairline bg-canvas text-ink min-[1700px]:block">
+        <div className="absolute inset-0 p-6">
+          <PlainScreen looks={looks} />
+        </div>
+      </div>
+      </div>
         <div className="mt-3 flex items-center justify-end gap-2">
           {/* 이미 있는 단계가 새 값으로 바뀌는 것은 되돌리기 전에 알아야 하는 일이라 알린다. */}
-          {replaced > 0 && <span className="mr-1 text-sm text-ink-faint">이미 있는 {replaced}개는 새 값으로 바뀌어요.</span>}
+          {problem ? (
+            <span role="alert" className="mr-1 text-sm text-danger">
+              {problem}
+            </span>
+          ) : (
+            replaced > 0 && <span className="mr-1 text-sm text-ink-faint">이미 있는 {replaced}개는 새 값으로 바뀌어요.</span>
+          )}
           <Button variant="ghost" onClick={onCancel}>
             취소
           </Button>
@@ -442,7 +502,6 @@ export function NewSizesForm({
             만들기
           </Button>
         </div>
-      </div>
     </form>
   )
 }

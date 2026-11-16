@@ -3,7 +3,8 @@ import { Plus } from 'lucide-react'
 import { DynamicIcon, iconNames, type IconName } from 'lucide-react/dynamic'
 import type { Token } from './lib/api'
 import { STATES, cellLabel, cellStyle, type Cell, type Comp, type StateId } from './lib/components'
-import { ADD_TILE, ADD_TILE_LG, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
+import { OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
+import { Button } from './ui'
 
 export const isIconName = (name: string | undefined): name is IconName =>
   !!name && (iconNames as string[]).includes(name)
@@ -62,7 +63,20 @@ export function ComponentScreen({
 
   return (
     <div className="mx-auto max-w-[960px]">
-      <h1 className="mb-4 flex h-8 items-center text-base font-[650]">{comp.name}</h1>
+      {/* 이름 줄. 종류와 크기를 추가하는 버튼은 격자 끝의 점선 상자가 아니라 여기에 둔다. 크기는 모든 종류가 함께 쓰므로 종류마다 두지 않는다. */}
+      <div className="mb-4 flex h-8 items-center justify-between">
+        <h1 className="text-base font-[650]">{comp.name}</h1>
+        <span className="flex gap-1">
+          <Button variant="ghost" onClick={onAddVariant}>
+            <Plus size={16} strokeWidth={1.5} />
+            종류 추가
+          </Button>
+          <Button variant="ghost" onClick={onAddSize}>
+            <Plus size={16} strokeWidth={1.5} />
+            크기 추가
+          </Button>
+        </span>
+      </div>
 
       <div className="flex min-h-40 items-center justify-center rounded-lg border border-hairline bg-canvas p-8">
         <LivePreview comp={comp} cell={shown} tokens={tokens} />
@@ -119,24 +133,9 @@ export function ComponentScreen({
                   </div>
                 </div>
               ))}
-              <div className="flex gap-3">
-                <span className="w-12 shrink-0" />
-                <button type="button" aria-label="크기 추가" onClick={onAddSize} className={`${ADD_TILE} h-10 flex-1`}>
-                  <Plus size={16} strokeWidth={1.5} />
-                </button>
-              </div>
             </div>
           </section>
         ))}
-
-        <button
-          type="button"
-          aria-label="종류 추가"
-          onClick={onAddVariant}
-          className={`${ADD_TILE_LG} h-24 w-full`}
-        >
-          <Plus size={16} strokeWidth={1.5} />
-        </button>
       </div>
     </div>
   )

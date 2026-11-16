@@ -3,7 +3,7 @@ import { ChevronDown, ChevronRight, Copy, PencilLine, Pipette, Rows3, Type } fro
 import type { Token } from './lib/api'
 import { SLUG, groupOf, shortName, type Kind } from './lib/catalog'
 import { asHex, isApprox, showColor, toHex, toOklch } from './lib/color'
-import { stepValue } from './lib/tokens'
+import { stepValue, suggestLine, suggestTrack } from './lib/tokens'
 import { ColorSwatch } from './ColorPicker'
 import { ColorUses } from './ColorUses'
 import { FontSample, NewFontForm } from './NewFont'
@@ -187,6 +187,11 @@ export function Inspector({
     }
   }
 
+  // 칸이 비어 있을 때 옅게 보여 주는 추천값. 지금 글자 크기에 어울리는 줄 높이와 글자 사이다(한 벌 만들기의 "보통"과 같은 규칙).
+  // 비운 채로 칸을 떠나면 이 값으로 채운다. 빈 칸으로 남겨 두지 않는다. 좁힐 필요가 없는 크기의 글자 사이는 추천값이 없어 0이 보이고 비어 있는 채로 둔다.
+  const lineHint = digitsOf(suggestLine(token.value))
+  const trackHint = (suggestTrack(token.value) ?? '').replace(/em$/, '')
+
   /** 묶인 글자 사이는 em으로만 받는다(음수가 좁게). 비우면 묶인 글자 사이를 지운다. */
   function changeTrack(next: string) {
     setTrackDraft(next)
@@ -331,7 +336,16 @@ export function Inspector({
         {line !== undefined && (
           <div className="mt-2">
             <Field label="줄 높이" error={lineError}>
-              <UnitInput label="줄 높이" digits={lineDraft} unit="px" invalid={!!lineError} onDigits={changeLine} />
+              <UnitInput
+                label="줄 높이"
+                digits={lineDraft}
+                unit="px"
+                placeholder={lineHint}
+                fillOnTab={!!lineHint}
+                invalid={!!lineError}
+                onDigits={changeLine}
+                onBlur={() => !lineDraft && lineHint && changeLine(lineHint)}
+              />
             </Field>
           </div>
         )}
@@ -339,7 +353,17 @@ export function Inspector({
         {track !== undefined && (
           <div className="mt-2">
             <Field label="글자 사이" error={trackError}>
-              <UnitInput label="글자 사이" digits={trackDraft} unit="em" placeholder="0" invalid={!!trackError} negative onDigits={changeTrack} />
+              <UnitInput
+                label="글자 사이"
+                digits={trackDraft}
+                unit="em"
+                placeholder={trackHint || '0'}
+                fillOnTab={!!trackHint}
+                invalid={!!trackError}
+                negative
+                onDigits={changeTrack}
+                onBlur={() => !trackDraft && trackHint && changeTrack(trackHint)}
+              />
             </Field>
           </div>
         )}
@@ -450,8 +474,8 @@ export function Inspector({
                 onClick={() => onOpenToken(name)}
                 className="-ml-2 flex h-8 max-w-full items-center rounded-md px-2 font-[550] outline-selection hover:bg-hover focus-visible:outline-2"
               >
-                <span className="truncate">{name.slice(kind.prefix.length)}</span>
-                <span className="ml-2 shrink-0 text-sm font-normal text-ink-faint">의미 색</span>
+                <span className="truncate">{name.startsWith('--type-') ? name.slice('--type-'.length) : name.slice(kind.prefix.length)}</span>
+                <span className="ml-2 shrink-0 text-sm font-normal text-ink-faint">{name.startsWith('--type-') ? '의미 글꼴' : '의미 색'}</span>
               </button>
             ))}
             {uses.map((u) => (

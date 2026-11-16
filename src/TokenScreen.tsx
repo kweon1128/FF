@@ -8,6 +8,7 @@ import { SCALE_STEPS } from './lib/scale'
 import type { RoleUse } from './lib/roles'
 import { suggestLine } from './lib/tokens'
 import { RoleList } from './Roles'
+import { TypeList } from './Types'
 import { Button, swatchBackground } from './ui'
 
 const SAMPLE = '다람쥐 헌 쳇바퀴에 타고파 Aa 123'
@@ -44,13 +45,15 @@ export type SectionProps = {
   onMakeSizes?: () => void
   /** 굵기 한 벌을 만드는 창을 연다. */
   onMakeWeights?: () => void
+  /** 의미 글꼴 한 벌을 만드는 창을 연다. */
+  onMakeTypes?: () => void
 }
 
 /** Shift, Ctrl, Cmd 중 하나를 누른 채 누르면 여러 개 선택이다. */
 export const isAdditive = (e: MouseEvent) => e.shiftKey || e.ctrlKey || e.metaKey
 
 /** 한 화면에 속한 종류들을 차례로 그린다. 전체 보기의 판 안에서도 그대로 쓴다. */
-export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGroup, onRename, onSelectGroup, emptyGroups, pickedGroup, onPickGroup, folded, onReorderGroup, rolesFolded, onMoveRole, onMoveRoleGroup, onMakeSizes, onMakeWeights }: SectionProps & { kinds: Kind[] }) {
+export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGroup, onRename, onSelectGroup, emptyGroups, pickedGroup, onPickGroup, folded, onReorderGroup, rolesFolded, onMoveRole, onMoveRoleGroup, onMakeSizes, onMakeWeights, onMakeTypes }: SectionProps & { kinds: Kind[] }) {
   const single = kinds.length === 1
   return (
     <div className="space-y-8">
@@ -65,23 +68,40 @@ export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGr
         const trackOf = kind.id === 'size' ? (name: string) => tokens.find((t) => t.name === trackName(name))?.value : undefined
         return (
           <section key={kind.id}>
-            {!single &&
-              ((kind.id === 'size' && onMakeSizes) || (kind.id === 'weight' && onMakeWeights) ? (
-                // 글자 크기와 굵기는 낱개보다 한 벌로 정하는 것이라, 묶음 제목 옆에 한 벌을 만드는 버튼을 둔다.
+            {(() => {
+              // 묶음의 제목 줄. 왼쪽에 제목, 오른쪽에 버튼. 값을 추가하는 것은 목록 끝의 점선 상자가 아니라 여기의 "추가" 버튼이다.
+              // 점선 상자는 늘 한 줄의 자리를 차지하고, 값이 없는 묶음에서도 빈 상자가 남는다.
+              // 글자 크기와 굵기는 낱개보다 한 벌로 정하는 것이라 "한 벌 만들기"를 함께 둔다.
+              // 색은 목록마다, 의미 색은 판 위에 추가 버튼이 따로 있다. 이제 쓰지 않는 종류에는 추가가 없다.
+              const makeSet = kind.id === 'size' ? onMakeSizes : kind.id === 'weight' ? onMakeWeights : kind.id === 'style' ? onMakeTypes : undefined
+              const canAdd = kind.id !== 'color' && kind.id !== 'role' && !kind.legacy
+              if (single && !canAdd && !makeSet) return null
+              return (
                 <div className="mb-2 flex h-6 items-center justify-between">
-                  <h2 className="font-[650]">{kind.title}</h2>
-                  <Button variant="ghost" onClick={kind.id === 'size' ? onMakeSizes : onMakeWeights}>
-                    <Rows3 size={16} strokeWidth={1.5} />한 벌 만들기
-                  </Button>
+                  {single ? <span /> : <h2 className="font-[650]">{kind.title}</h2>}
+                  <span className="flex gap-1">
+                    {makeSet && (
+                      <Button variant="ghost" onClick={makeSet}>
+                        <Rows3 size={16} strokeWidth={1.5} />한 벌 만들기
+                      </Button>
+                    )}
+                    {canAdd && (
+                      <Button variant="ghost" aria-label={kind.addLabel} onClick={() => onAdd(kind)}>
+                        <Plus size={16} strokeWidth={1.5} />
+                        추가
+                      </Button>
+                    )}
+                  </span>
                 </div>
-              ) : (
-                <h2 className="mb-2 font-[650]">{kind.title}</h2>
-              ))}
+              )
+            })()}
             {kind.id === 'color' ? (
               // 색이 하나도 없어도 "예외 색" 목록은 처음부터 있다. 목록은 판 오른쪽 위의 "목록 추가"로 만든다.
               <ColorGroups {...list} onSelectGroup={onSelectGroup} emptyGroups={emptyGroups} pickedGroup={pickedGroup} onPickGroup={onPickGroup} folded={folded} onReorderGroup={onReorderGroup} onAddGroup={onAddGroup} />
             ) : kind.id === 'role' ? (
               <RoleList {...list} all={tokens} folded={rolesFolded} onSelectGroup={onSelectGroup} onMove={onMoveRole} onMoveGroup={onMoveRoleGroup} />
+            ) : kind.id === 'style' ? (
+              <TypeList items={items} all={tokens} selected={selected} onSelect={onSelect} onRename={onRename} />
             ) : kind.tiles ? (
               <TileGrid {...list} />
             ) : (
@@ -191,12 +211,6 @@ export const OUTLINE = 'line-inset outline-selection'
 export const SELECTED = 'line-1'
 export const HOVER = 'hover:line-2 focus-visible:line-2'
 
-// 항목을 추가하는 상자. 점선 테두리 안에 + 아이콘만 둔다. 마우스를 올리면 점선이 사라지고 옅은 회색 바탕이 된다.
-export const ADD_TILE =
-  'flex items-center justify-center rounded-md dash-box bg-canvas text-ink-faint outline-selection [--edge:0px] hover:bg-hover hover:bg-none hover:text-ink focus-visible:line-1'
-/** 모서리가 8px인 항목(네모 칸 격자, 컴포넌트의 종류) 옆에 놓는 추가 상자. */
-export const ADD_TILE_LG = ADD_TILE.replace('rounded-md dash-box', 'rounded-lg dash-box-lg')
-
 function ColorGroups({
   kind,
   items,
@@ -252,10 +266,10 @@ function ColorGroups({
       {groups.size === 1 && (
         <button type="button" aria-label="목록 추가" onClick={onAddGroup} className="group block w-full text-left outline-selection focus-visible:outline-2">
           <span className="mb-2 block text-base font-[650] text-ink-faint">primary</span>
-          <span className={`grid grid-cols-12 gap-x-3 ${folded ? 'gap-y-3' : 'gap-y-4'}`}>
+          <span className={`grid grid-cols-11 gap-x-3 ${folded ? 'gap-y-3' : 'gap-y-4'}`}>
             {SCALE_STEPS.map((step) => (
               <span key={step}>
-                {/* 추가 칸과 같은 점선 상자. */}
+                {/* 아직 없는 목록의 자리를 보여 주는 점선 상자. */}
                 <span className="block h-16 rounded-md dash-box bg-canvas group-hover:bg-hover group-hover:bg-none" />
                 {!folded && <span className="mt-2 block text-sm text-ink-faint">{step}</span>}
               </span>
@@ -324,9 +338,19 @@ function ColorGroups({
           >
             {group || '예외 색'}
           </button>
+          {/* 이 목록에 색을 추가한다. 줄 끝의 점선 칸 대신 이름 옆에 둔다. */}
+          <button
+            type="button"
+            title={group ? `${group} 목록에 색 추가` : '예외 색 추가'}
+            aria-label={group ? `${group} 목록에 색 추가` : '예외 색 추가'}
+            onClick={() => onAdd(kind, group)}
+            className="flex size-6 items-center justify-center rounded-sm text-ink-faint outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2"
+          >
+            <Plus size={16} strokeWidth={1.5} />
+          </button>
           </div>
-          {/* 한 줄에 12칸. 50부터 950까지 11단계인 한 목록과 추가 칸이 한 줄에 들어간다. 접으면 글자가 없어지므로 줄 사이를 좁힌다. */}
-          <div className={`grid grid-cols-12 gap-x-3 ${folded ? 'gap-y-3' : 'gap-y-4'}`}>
+          {/* 한 줄에 11칸. 50부터 950까지 11단계인 한 목록이 한 줄에 들어간다. 접으면 글자가 없어지므로 줄 사이를 좁힌다. */}
+          <div className={`grid grid-cols-11 gap-x-3 ${folded ? 'gap-y-3' : 'gap-y-4'}`}>
             {list.map((t, i) => {
               const short = shortName(kind, t.name)
               const isSelected = selected.includes(t.name)
@@ -373,14 +397,6 @@ function ColorGroups({
                 </button>
               )
             })}
-            <button
-              type="button"
-              aria-label={group ? `${group} 목록에 색 추가` : '예외 색 추가'}
-              onClick={() => onAdd(kind, group)}
-              className={`${ADD_TILE} h-16`}
-            >
-              <Plus size={16} strokeWidth={1.5} />
-            </button>
           </div>
         </div>
       ))}
@@ -409,7 +425,9 @@ function TileSample({ kind, value }: { kind: Kind; value: string }) {
   }
 }
 
-function TileGrid({ kind, items, selected, onSelect, onAdd, onRename }: ListProps) {
+function TileGrid({ kind, items, selected, onSelect, onRename }: ListProps) {
+  // 값이 없으면 아무것도 그리지 않는다. 추가는 묶음 제목 줄의 버튼으로 한다.
+  if (items.length === 0) return null
   return (
     <div className="grid grid-cols-[repeat(auto-fill,minmax(112px,1fr))] gap-3">
       {items.map((t) => {
@@ -433,9 +451,6 @@ function TileGrid({ kind, items, selected, onSelect, onAdd, onRename }: ListProp
           </button>
         )
       })}
-      <button type="button" aria-label={kind.addLabel} onClick={() => onAdd(kind)} className={`${ADD_TILE_LG} min-h-[138px]`}>
-        <Plus size={16} strokeWidth={1.5} />
-      </button>
     </div>
   )
 }
@@ -445,13 +460,14 @@ function RowList({
   items,
   selected,
   onSelect,
-  onAdd,
   onRename,
   lineOf,
   trackOf,
 }: ListProps & { lineOf?: (name: string) => string | undefined; trackOf?: (name: string) => string | undefined }) {
   // 값이 긴 종류는 이름·값과 견본을 위아래로 쌓는다.
   const stacked = kind.id === 'font'
+  // 값이 없으면 빈 상자를 남기지 않는다. 추가는 묶음 제목 줄의 버튼으로 한다.
+  if (items.length === 0) return null
   return (
     <div className="space-y-1 rounded-lg border border-hairline bg-canvas p-1">
       {items.map((t) => {
@@ -499,11 +515,6 @@ function RowList({
           </button>
         )
       })}
-      {!kind.legacy && (
-        <button type="button" aria-label={kind.addLabel} onClick={() => onAdd(kind)} className={`${ADD_TILE} h-10 w-full`}>
-          <Plus size={16} strokeWidth={1.5} />
-        </button>
-      )}
     </div>
   )
 }

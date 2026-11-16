@@ -3,6 +3,8 @@ import { PreviewFontContext } from './ColorUses'
 import { shownWeight } from './NewFont'
 import { parseFontValue, shownFont, weightsOf } from './lib/fonts'
 import { WEIGHT_SETS, type WeightRole, type WeightStep } from './lib/presets'
+import { StepName, nameProblem } from './StepName'
+import { PlainScreen } from './TypeScreen'
 import { Button } from './ui'
 
 const LABEL = 'mb-1 text-sm font-[550] text-ink-faint'
@@ -93,7 +95,11 @@ export function NewWeightsForm({
   const [custom, setCustom] = useState<Record<string, number>>({})
   const ruled = WEIGHT_SETS.find((s) => s.count === count)!.steps
   const steps: WeightStep[] = ruled.map((s) => ({ ...s, weight: custom[s.name] ?? s.weight }))
-  const replaced = steps.filter((s) => existing.has(s.name)).length
+  // 단계의 이름을 직접 고친 것. 원래 이름으로 찾는다.
+  const [names, setNames] = useState<Record<string, string>>({})
+  const nameOf = (name: string) => names[name] ?? name
+  const problem = nameProblem(steps.map((s) => nameOf(s.name)))
+  const replaced = steps.filter((s) => existing.has(nameOf(s.name))).length
 
   // 글꼴이 불려 온 뒤에 다시 잰다. 불려 오기 전에는 대체 글꼴로 재게 된다.
   const [loaded, setLoaded] = useState(0)
@@ -119,7 +125,32 @@ export function NewWeightsForm({
 
   function submit(e: FormEvent) {
     e.preventDefault()
-    onCreate(steps.map((s) => ({ name: s.name, value: String(s.weight) })))
+    if (problem) return
+    onCreate(steps.map((s) => ({ name: nameOf(s.name), value: String(s.weight) })))
+  }
+
+  // 화면 예시의 자리마다의 글자 모습. 크기는 이 창에서 정하는 것이 아니라서 흔히 쓰는 값으로 두고, 굵기만 그 쓰임을 맡은 단계의 것으로 그린다.
+  const at = (size: number, line: number, role: WeightRole) => ({ fontFamily: font, fontSize: size, lineHeight: `${line}px`, fontWeight: of(role) })
+  const looks = {
+    overline: at(13, 20, 'label'),
+    caption: at(13, 20, 'body'),
+    display: at(33, 42, 'heading'),
+    'title-lg': at(28, 36, 'heading'),
+    'title-md': at(23, 32, 'heading'),
+    'title-sm': at(19, 28, 'heading'),
+    'body-lg': at(19, 28, 'body'),
+    body: at(16, 24, 'body'),
+    'body-strong': at(16, 24, 'strong'),
+    numeric: at(19, 28, 'strong'),
+    'body-sm': at(14, 20, 'body'),
+    code: at(14, 20, 'body'),
+    tab: at(14, 20, 'body'),
+    'tab-on': at(14, 20, 'selected'),
+    'button-sm': at(13, 20, 'button'),
+    button: at(14, 20, 'button'),
+    label: at(14, 20, 'label'),
+    'button-lg': at(16, 24, 'button'),
+    quote: at(19, 28, 'body'),
   }
 
   return (
@@ -175,7 +206,7 @@ export function NewWeightsForm({
             const real = drawn[s.name]
             return (
               <div key={s.name} data-step={s.name} className="flex h-6 items-center gap-3">
-                <span className="w-16 shrink-0 font-mono text-xs text-ink-faint">{s.name}</span>
+                <StepName wide label={`${s.name} 이름`} value={nameOf(s.name)} onChange={(name) => setNames({ ...names, [s.name]: name })} />
                 <StepWeight
                   name={s.name}
                   rule={ruled.find((r) => r.name === s.name)!.weight}
@@ -202,45 +233,20 @@ export function NewWeightsForm({
             )
           })}
         </div>
-        {/* 이 굵기들이 실제로 쓰이는 모습. 쓰임마다 맡은 단계의 굵기로 그린다. 굵기는 혼자가 아니라 옆의 글과 함께 놓였을 때 판단할 수 있다. */}
-        <div data-uses className="mt-2 grid grid-cols-[1.4fr_1fr] gap-x-8 gap-y-4 rounded-md border border-hairline px-4 py-4" style={{ fontFamily: font }}>
-          <div>
-            <p data-role="heading" className="text-xl leading-7" style={{ fontWeight: of('heading') }}>
-              비밀번호 바꾸기
-            </p>
-            <p className="mt-2" style={{ ...type, fontWeight: of('body') }}>
-              영문과 숫자를 섞어{' '}
-              <span data-role="strong" style={{ fontWeight: of('strong') }}>
-                8자 이상
-              </span>
-              으로 정해 주세요. 다른 서비스에서 쓰는 비밀번호와 같으면 한 곳에서 새어 나갔을 때 여기까지 위험해집니다.
-            </p>
-            <p className="mt-3 flex gap-2">
-              <span data-role="button" className="inline-flex h-9 items-center rounded-md bg-ink px-3 text-sm text-white" style={{ fontWeight: of('button') }}>
-                저장하기
-              </span>
-              <span className="inline-flex h-9 items-center rounded-md border border-hairline px-3 text-sm" style={{ fontWeight: of('button') }}>
-                취소
-              </span>
-            </p>
-          </div>
-          <div>
-            <p data-role="label" className="text-xs leading-4 text-ink-soft" style={{ fontWeight: of('label') }}>
-              설정
-            </p>
-            {/* 선택된 메뉴 항목은 굵기로도 구분한다. 줄마다 바탕이 생기므로 4px 띄운다. */}
-            <div className="mt-1 space-y-1 text-sm">
-              {['프로필', '계정과 보안', '알림'].map((item, i) => (
-                <p key={item} data-role={i === 1 ? 'selected' : undefined} className={`flex h-8 items-center rounded-md px-2 ${i === 1 ? 'bg-hover' : 'text-ink-soft'}`} style={{ fontWeight: i === 1 ? of('selected') : of('body') }}>
-                  {item}
-                </p>
-              ))}
-            </div>
-          </div>
+        {/* 이 굵기들이 실제 화면에 놓인 모습. 쓰임마다 맡은 단계의 굵기로 그린다. 굵기는 혼자가 아니라 옆의 글과 함께 놓였을 때 판단할 수 있다.
+            이 안은 사용자의 글꼴을 보여 주는 미리보기라, FF 도구의 글자 규칙을 따르지 않는다. */}
+        <div data-uses className="mt-2 rounded-md border border-hairline bg-canvas p-6 text-ink">
+          <PlainScreen looks={looks} />
         </div>
         <div className="mt-3 flex items-center justify-end gap-2">
           {/* 이미 있는 단계가 새 값으로 바뀌는 것은 되돌리기 전에 알아야 하는 일이라 알린다. */}
-          {replaced > 0 && <span className="mr-1 text-sm text-ink-faint">이미 있는 {replaced}개는 새 값으로 바뀌어요.</span>}
+          {problem ? (
+            <span role="alert" className="mr-1 text-sm text-danger">
+              {problem}
+            </span>
+          ) : (
+            replaced > 0 && <span className="mr-1 text-sm text-ink-faint">이미 있는 {replaced}개는 새 값으로 바뀌어요.</span>
+          )}
           <Button variant="ghost" onClick={onCancel}>
             취소
           </Button>

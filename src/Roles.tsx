@@ -2,14 +2,14 @@
 // 한 줄에 색 하나. 색, 이름과 가리키는 단계, 역할과 설명, 그 역할로 쓰인 예시를 나란히 보여 준다.
 
 import { useContext, useRef, useState, type FormEvent, type PointerEvent, type ReactNode } from 'react'
-import { Copy, Plus } from 'lucide-react'
+import { Copy } from 'lucide-react'
 import type { Token } from './lib/api'
 import { KINDS, SLUG, groupOf, shortName, type Kind } from './lib/catalog'
 import { contrast, showColor } from './lib/color'
 import { ROLE_USES, guessUse, readNote, refOf, refTo, resolveColor, roleGroups, surroundings, writeNote, type Around, type RoleUse } from './lib/roles'
 import { TRIM, DARK, PreviewFontContext, inkOn, statesOf } from './ColorUses'
 import { CODE_OPEN, FoldSection, ICON_BUTTON, Section } from './Inspector'
-import { ADD_TILE, HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
+import { HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
 import { Button, Chip, Field, inputClass, swatchBackground } from './ui'
 
 const COLOR = KINDS.color
@@ -118,7 +118,6 @@ export function RoleList({
   folded,
   onSelect,
   onSelectGroup,
-  onAdd,
   onRename,
   onMove,
   onMoveGroup,
@@ -287,9 +286,6 @@ export function RoleList({
           </div>
         )
       })}
-      <button type="button" aria-label={kind.addLabel} onClick={() => onAdd(kind)} className={`${ADD_TILE} h-10 w-full`}>
-        <Plus size={16} strokeWidth={1.5} />
-      </button>
     </div>
   )
 }

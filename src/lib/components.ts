@@ -6,6 +6,7 @@ import type { Token } from './api'
 import { lineName, trackName } from './catalog'
 import { refOf, resolveColor } from './roles'
 import { suggestLine } from './tokens'
+import { lookOf } from './types'
 
 export const STATES = [
   { id: 'default', label: '기본' },
@@ -24,8 +25,11 @@ export type Colors = { bg?: string; text?: string; border?: string }
 /** 종류: 색을 맡는다. 기본이 아닌 상태에서 비운 색은 기본 상태의 색을 따른다. */
 export type Variant = { name: string; states: Record<StateId, Colors> }
 
-/** 크기: 여백과 글자 크기를 맡는다. */
-export type Size = { name: string; padX?: string; padY?: string; textSize?: string; gap?: string }
+/**
+ * 크기: 여백과 글자를 맡는다.
+ * type은 의미 글꼴(--type-이름)이다. 고르면 글꼴, 크기, 굵기, 줄 높이, 글자 사이가 모두 그 조합을 따르고, 따로 고른 글자 크기(textSize)와 컴포넌트의 글꼴·굵기는 쓰이지 않는다.
+ */
+export type Size = { name: string; padX?: string; padY?: string; textSize?: string; type?: string; gap?: string }
 
 export type IconPos = 'none' | 'before' | 'after'
 
@@ -89,6 +93,7 @@ export function normalize(raw: unknown): Comp[] {
         padX: ref(s?.padX),
         padY: ref(s?.padY),
         textSize: ref(s?.textSize),
+        type: ref(s?.type),
         gap: ref(s?.gap),
       }))
       return {
@@ -124,7 +129,7 @@ export function renameRef(comps: Comp[], from: string, to: string): Comp[] {
         }),
       ) as Record<StateId, Colors>,
     })),
-    sizes: c.sizes.map((s) => ({ ...s, padX: r(s.padX), padY: r(s.padY), textSize: r(s.textSize), gap: r(s.gap) })),
+    sizes: c.sizes.map((s) => ({ ...s, padX: r(s.padX), padY: r(s.padY), textSize: r(s.textSize), type: r(s.type), gap: r(s.gap) })),
   }))
 }
 
@@ -149,6 +154,9 @@ export function cellStyle(comp: Comp, cell: Cell, tokens: Token[]): CSSPropertie
 
   const width = value(comp.borderWidth)
   const border = color('border')
+  // 의미 글꼴을 골랐으면 글자의 모습은 모두 그 조합에서 온다. 가리키는 의미 글꼴이 없어졌거나 읽을 수 없으면 따로 고른 값으로 돌아간다.
+  const typeValue = size.type ? tokens.find((t) => t.name === size.type)?.value : undefined
+  const look = typeValue ? lookOf(tokens, typeValue, size.type) : null
   return {
     display: 'inline-flex',
     alignItems: 'center',
@@ -160,6 +168,8 @@ export function cellStyle(comp: Comp, cell: Cell, tokens: Token[]): CSSPropertie
     // 굵기만 정하고 색을 비운 종류는 투명한 테두리를 둬서, 테두리가 있는 종류와 크기가 같게 한다.
     border: width ? `${width} solid ${border ?? 'transparent'}` : undefined,
     borderRadius: value(comp.radius),
+    ...(look ? { fontFamily: look.family, fontWeight: look.weight, fontSize: look.size, lineHeight: look.line ?? lineFallback(look.size), letterSpacing: look.track } : {}),
+    ...(look ? {} : {
     fontFamily: value(comp.font),
     fontWeight: value(comp.weight),
     fontSize: value(size.textSize),
@@ -167,13 +177,14 @@ export function cellStyle(comp: Comp, cell: Cell, tokens: Token[]): CSSPropertie
     lineHeight: (size.textSize && value(lineName(size.textSize))) || lineFallback(value(size.textSize)),
     // 글자 사이도 글자 크기에 묶인 값을 따른다. 묶인 값이 없으면 글꼴이 정한 그대로다.
     letterSpacing: size.textSize ? value(trackName(size.textSize)) : undefined,
+    }),
     whiteSpace: 'nowrap',
   }
 }
 
 const COMMON_LABELS = { font: '글꼴', weight: '굵기', radius: '모서리', borderWidth: '테두리 굵기' } as const
 const COLOR_LABELS = { bg: '바탕색', text: '글자색', border: '테두리색' } as const
-const SIZE_LABELS = { padX: '좌우 여백', padY: '위아래 여백', textSize: '글자 크기', gap: '아이콘과 글자 사이' } as const
+const SIZE_LABELS = { padX: '좌우 여백', padY: '위아래 여백', textSize: '글자 크기', type: '의미 글꼴', gap: '아이콘과 글자 사이' } as const
 
 /** 이 기본 값을 쓰는 컴포넌트와 그 자리들. */
 export function usesOf(comps: Comp[], token: string): { index: number; name: string; where: string[] }[] {
@@ -228,11 +239,20 @@ export function compCss(comp: Comp, tokens: Token[]): string {
     ...comp.sizes.map((s) =>
       rule(`${base}--${s.name}`, [
         ['padding', s.padX || s.padY ? `${v(s.padY) ?? '0'} ${v(s.padX) ?? '0'}` : undefined],
+        // 의미 글꼴을 고른 크기는 font 한 줄로 글꼴, 굵기, 크기, 줄 높이를 모두 받는다. 글자 사이는 font에 들어가지 않아 따로 적는다.
+        ...(s.type
+          ? ([
+              ['font', v(s.type)],
+              ['letter-spacing', `var(${trackName(s.type)}, normal)`],
+            ] as [string, string | undefined][])
+          : []),
+        ...(s.type ? [] : ([
         ['font-size', v(s.textSize)],
         // 글자 크기에 묶인 줄 높이. 묶인 값이 없는 크기면 그 크기에서 계산한 px 값(lineFallback)이 쓰인다.
         ['line-height', s.textSize ? `var(${[lineName(s.textSize), lineFallback(sizeOf(s.textSize))].filter(Boolean).join(', ')})` : undefined],
         // 글자 크기에 묶인 글자 사이. 묶인 값이 없는 크기면 글꼴이 정한 그대로(normal)다.
         ['letter-spacing', s.textSize ? `var(${trackName(s.textSize)}, normal)` : undefined],
+        ] as [string, string | undefined][])),
         ['gap', v(s.gap)],
       ]),
     ),

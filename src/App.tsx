@@ -52,7 +52,7 @@ import {
 } from './lib/components'
 import { contrast, hexToLch, isColor, lchToHex, showColor, toHex, toOklch } from './lib/color'
 import { SCALE_STEPS, grayOf, makeScale } from './lib/scale'
-import { adoptColors, defaultColorOrder, duplicateTokens, kindOf, followLine, followTrack, lineOf, pasteName, pasteTokens, scanCss, shiftTokens, suggestLine, suggestTrack, toCss, trackOf, withLine, withTrack } from './lib/tokens'
+import { adoptColors, defaultColorOrder, duplicateTokens, kindOf, followLine, followTrack, lineOf, pasteName, pasteTokens, scanCss, shiftTokens, suggestLine, toCss, trackOf, withLine, withTrack } from './lib/tokens'
 import type { Placed } from './lib/arrange'
 import { BatchRename } from './BatchRename'
 import { BoardInspector, ImageInspector } from './BoardInspector'
@@ -71,8 +71,11 @@ import { NewSoloForm } from './NewSolo'
 import { NewFontForm, SampleContext } from './NewFont'
 import { NewSizesForm } from './NewSizes'
 import { NewWeightsForm } from './NewWeights'
-import { nextPreset, nextSizeName, nextVariantName, stepUp, type SizeStep } from './lib/presets'
-import { CATALOG, loadCatalog, loadSystemFonts } from './lib/fonts'
+import { TypeInspector } from './Types'
+import { NewTypesForm } from './NewTypes'
+import { followTypeRefs, nextType, syncTypes, typeUsers, withTypeTrack } from './lib/types'
+import { nextPreset, nextSize, nextSizeName, nextVariantName, stepUp, type SizeStep } from './lib/presets'
+import { loadFont, loadSystemFonts, parseFontValue } from './lib/fonts'
 import { NewSystemForm } from './NewSystem'
 import { Palette, type PaletteItem } from './Palette'
 import { PasteDialog, type PasteJob } from './PasteDialog'
@@ -88,6 +91,7 @@ const ROLE = KINDS.role
 const FONT = KINDS.font
 const SIZE = KINDS.size
 const WEIGHT = KINDS.weight
+const STYLE = KINDS.style
 
 /** 색 값을 파일에 저장하는 형식(oklch)으로 맞춘다. #, rgb, hsl로 적힌 색만 바꾸고, 나머지는 그대로 둔다. */
 function storeColors(tokens: Token[]): Token[] {
@@ -266,11 +270,15 @@ export function App() {
   const [addingFont, setAddingFont] = useState(false)
   const [makingSizes, setMakingSizes] = useState(false)
   const [makingWeights, setMakingWeights] = useState(false)
-  // 추천 글꼴을 쓰는 글꼴 종류가 있으면, 깔려 있지 않아도 판과 패널의 견본이 그 글꼴로 그려지게 불러온다.
-  const usesCatalog = tokens.some((t) => FONT.matches(t.name) && CATALOG.some((f) => t.value.includes(f.family)))
+  const [makingTypes, setMakingTypes] = useState(false)
+  // 이 시스템의 글꼴 종류가 추천 글꼴이면, 깔려 있지 않아도 판과 패널의 견본이 그 글꼴로 그려지게 불러온다. 쓰는 글꼴만, 모든 굵기로.
+  const usedFonts = tokens
+    .filter((t) => FONT.matches(t.name))
+    .map((t) => parseFontValue(t.value).font)
+    .join('|')
   useEffect(() => {
-    if (usesCatalog) loadCatalog()
-  }, [usesCatalog])
+    for (const family of usedFonts.split('|')) loadFont(family)
+  }, [usedFonts])
   // 시스템을 열면 그 시스템의 글꼴(fonts.css)을 화면에 불러온다.
   useEffect(() => {
     if (system) void loadSystemFonts(system)
@@ -573,7 +581,8 @@ export function App() {
     record()
     markRoles(next)
     // 어떤 길로 들어온 색이든(새로 만든 기본 색, 스포이드, 붙여넣기) 저장할 때는 oklch로 맞춘다.
-    const stored = storeColors(next)
+    // 의미 글꼴은 글자 크기에 묶인 줄 높이와 글자 사이를 따라가므로, 저장할 때마다 지금의 크기에 맞춘다.
+    const stored = storeColors(syncTypes(next))
     setTokens(stored)
     tokenSaver.queue(system, stored)
   }
@@ -622,6 +631,12 @@ export function App() {
     if (kind.id === 'role') return setAddingRole(true)
     // 글꼴 종류는 이름과 글꼴을 정해야 한다. 글꼴 이름은 틀려도 조용히 다른 글꼴로 보이므로 목록에서 고르게 한다.
     if (kind.id === 'font') return setAddingFont(true)
+    // 의미 글꼴은 기본 한 벌 가운데 아직 없는 것이 차례로 생긴다. 짝지을 재료(글꼴 종류, 글자 크기, 굵기)가 모자라면 무엇을 먼저 만들지 알리는 창을 연다.
+    if (kind.id === 'style') {
+      const made = nextType(tokens)
+      if (!made) return setMakingTypes(true)
+      return insert(made, (t) => t.name.startsWith(STYLE.prefix))
+    }
 
     if (kind.id === 'color' && group) {
       const inGroup = (t: Token) => kind.matches(t.name) && groupOf(shortName(kind, t.name)) === group
@@ -655,16 +670,18 @@ export function App() {
       return select([added.name])
     }
 
-    // 아무 이름(new)과 고정된 값이 아니라, 지금 있는 것 다음에 올 단계가 이름과 값을 갖추고 생긴다(base 다음은 lg 18px).
+    // 아무 이름(new)과 고정된 값이 아니라, 지금 있는 것 다음에 올 단계가 이름과 값을 갖추고 생긴다.
     const next = nextPreset(kind, tokens)
     const name = kind.prefix + next.name
     if (kind.id === 'size') {
       // 글자 크기는 줄 높이, 글자 사이와 한 묶음으로 만든다. 다른 크기의 묶인 값 뒤에 놓이도록 --text-로 시작하는 마지막 줄 뒤에 넣는다.
-      const line = suggestLine(next.value)
-      const track = suggestTrack(next.value)
+      // 크기는 정해진 표의 값이 아니라 지금 있는 크기들을 이어 간 값이다. 한 벌 만들기로 만든 단계들 뒤에 눌러도 같은 간격으로 이어진다.
+      const made = nextSize(tokens)
+      const line = made.line
+      const track = made.track
       const at = tokens.findLastIndex((t) => t.name.startsWith(kind.prefix)) + 1 || tokens.length
       const bound = [...(line ? [{ name: lineName(name), value: line }] : []), ...(track ? [{ name: trackName(name), value: track }] : [])]
-      commit([...tokens.slice(0, at), { name, value: next.value }, ...bound, ...tokens.slice(at)])
+      commit([...tokens.slice(0, at), { name, value: made.size }, ...bound, ...tokens.slice(at)])
       return select([name])
     }
     insert({ name, value: next.value }, (t) => kind.matches(t.name))
@@ -743,12 +760,28 @@ export function App() {
     select(made.map((t) => t.name))
   }
 
+  /**
+   * 의미 글꼴 한 벌을 넣는다. 같은 이름의 조합은 새 값으로 바뀌고, 한 벌에 없는 이름의 조합은 그대로 남는다.
+   * 지금 의미 글꼴들이 있던 자리(없으면 맨 뒤)에 놓는다.
+   */
+  function makeTypes(made: Token[]) {
+    setMakingTypes(false)
+    // 같은 이름의 조합에 직접 정해 두었던 글자 사이도 함께 바꾼다(새 한 벌에 없으면 지워져서 크기를 따른다).
+    const names = new Set(made.flatMap((t) => [t.name, trackName(t.name)]))
+    const first = tokens.findIndex((t) => t.name.startsWith(STYLE.prefix))
+    const rest = tokens.filter((t) => !names.has(t.name))
+    const at = first === -1 ? rest.length : tokens.slice(0, first).filter((t) => !names.has(t.name)).length
+    commit([...rest.slice(0, at), ...made, ...rest.slice(at)])
+    select(made.map((t) => t.name))
+  }
+
   function renameToken(from: string, to: string) {
     // 글자 크기의 이름을 바꾸면 묶인 줄 높이와 글자 사이도 따라간다.
-    const pair: Record<string, string> = SIZE.matches(from)
+    // 의미 글꼴도 뒤에 붙은 글자 사이 값이 따라간다(직접 정해 둔 값이 이름을 잃지 않게).
+    const pair: Record<string, string> = SIZE.matches(from) || STYLE.matches(from)
       ? { [from]: to, [lineName(from)]: lineName(to), [trackName(from)]: trackName(to) }
       : { [from]: to }
-    commit(followRefs(tokens.map((t) => (pair[t.name] ? { ...t, name: pair[t.name] } : t)), { [from]: to }))
+    commit(followTypeRefs(followRefs(tokens.map((t) => (pair[t.name] ? { ...t, name: pair[t.name] } : t)), { [from]: to }), pair))
     setSelected([to])
     // 이 값을 가리키던 컴포넌트도 새 이름을 따라가게 한다.
     if (JSON.stringify(comps).includes(`"${from}"`)) commitComps(renameRef(comps, from, to))
@@ -759,11 +792,11 @@ export function App() {
     setBatch(false)
     const pairs = { ...renames }
     for (const [from, to] of Object.entries(renames)) {
-      if (!SIZE.matches(from)) continue
+      if (!SIZE.matches(from) && !STYLE.matches(from)) continue
       pairs[lineName(from)] = lineName(to)
       pairs[trackName(from)] = trackName(to)
     }
-    commit(followRefs(tokens.map((t) => (pairs[t.name] ? { ...t, name: pairs[t.name] } : t)), renames))
+    commit(followTypeRefs(followRefs(tokens.map((t) => (pairs[t.name] ? { ...t, name: pairs[t.name] } : t)), renames), pairs))
     // 이름이 서로 맞바뀌어도 꼬이지 않도록 한 번에 훑으며 바꾼다.
     const next: Comp[] = JSON.parse(JSON.stringify(comps), (_, v) => (typeof v === 'string' && renames[v] ? renames[v] : v))
     if (JSON.stringify(next) !== JSON.stringify(comps)) commitComps(normalize(next))
@@ -884,7 +917,13 @@ export function App() {
   /** 값을 지운다. 컴포넌트가 쓰고 있는 값이 섞여 있을 때만 먼저 묻고, 아니면 바로 지운다(되돌리기로 살릴 수 있다). */
   function askRemoveTokens(names: string[]) {
     // 함께 지우는 의미 색은 빼고, 남는 의미 색 가운데 이 값을 가리키는 것들.
-    const rolesOf = (n: string) => tokens.filter((t) => !names.includes(t.name) && refOf(t.value) === n).map((t) => shortName(ROLE, t.name))
+    // 이 값을 가리키는 의미 글꼴도 함께 센다.
+    const rolesOf = (n: string) => [
+      ...tokens.filter((t) => !names.includes(t.name) && refOf(t.value) === n).map((t) => shortName(ROLE, t.name)),
+      ...typeUsers(tokens, n)
+        .filter((u) => !names.includes(u))
+        .map((u) => shortName(STYLE, u)),
+    ]
     const used = names.filter((n) => usesOf(comps, n).length > 0 || rolesOf(n).length > 0)
     if (used.length === 0) return removeTokens(names)
     const users = [...new Set(used.flatMap((n) => [...usesOf(comps, n).map((u) => u.name), ...rolesOf(n)]))]
@@ -1362,6 +1401,7 @@ export function App() {
     onAdd: addToken,
     onMakeSizes: () => setMakingSizes(true),
     onMakeWeights: () => setMakingWeights(true),
+    onMakeTypes: () => setMakingTypes(true),
     onAddGroup: () => setAddingGroup(true),
     onRename: renameTokenInPanel,
     emptyGroups: keptGroups,
@@ -1447,6 +1487,7 @@ export function App() {
         { id: 'a:font', group: '명령', label: '글꼴 종류 추가', run: () => setAddingFont(true) },
         { id: 'a:sizes', group: '명령', label: '글자 크기 한 벌 만들기', run: () => setMakingSizes(true) },
         { id: 'a:weights', group: '명령', label: '굵기 한 벌 만들기', run: () => setMakingWeights(true) },
+        { id: 'a:types', group: '명령', label: '의미 글꼴 한 벌 만들기', run: () => setMakingTypes(true) },
         { id: 'a:comp', group: '명령', label: '컴포넌트 추가', run: () => setAddingComp(true) },
         { id: 'a:system', group: '명령', label: '새 디자인 시스템', run: () => setCreating(true) },
         ...(systems ?? [])
@@ -1598,6 +1639,11 @@ export function App() {
                           onReset={rolesSorted ? () => commit(rolesSorted) : undefined}
                         />
                         <FoldButton folded={rolesFolded} title="설명과 예시를 모두 숨기거나 보여요" onToggle={toggleRolesFold} />
+                        {/* 의미 색을 추가한다. 목록 끝의 점선 상자 대신, 색상 판의 "목록 추가"처럼 판 위에 둔다. */}
+                        <Button aria-label="의미 색 추가" onClick={() => setAddingRole(true)}>
+                          <Plus size={16} strokeWidth={1.5} />
+                          추가
+                        </Button>
                       </div>
                     )}
                     <KindSections kinds={TOKEN_SCREENS[id].kinds} {...sectionProps} />
@@ -1727,6 +1773,19 @@ export function App() {
               onChange={(patch) => commit(tokens.map((t) => (t.name === selectedTokens[0].name ? { ...t, ...patch } : t)))}
               onCopy={(text) => copyText(text, '코드를 복사했어요.')}
             />
+          ) : selectedTokens.length === 1 && commonKind?.id === 'style' ? (
+            <TypeInspector
+              key={selectionId}
+              token={selectedTokens[0]}
+              tokens={tokens}
+              file={file}
+              uses={usesOf(comps, selectedTokens[0].name)}
+              onOpenComponent={openComp}
+              onRename={(to) => renameToken(selectedTokens[0].name, to)}
+              onChange={(patch) => commit(tokens.map((t) => (t.name === selectedTokens[0].name ? { ...t, ...patch } : t)))}
+              onTrack={(value) => commit(withTypeTrack(tokens, selectedTokens[0].name, value))}
+              onCopy={(text) => copyText(text, '코드를 복사했어요.')}
+            />
           ) : selectedTokens.length === 1 && commonKind ? (
             <Inspector
               key={selectionId}
@@ -1750,7 +1809,7 @@ export function App() {
               }}
               uses={usesOf(comps, selectedTokens[0].name)}
               onOpenComponent={openComp}
-              roles={tokens.filter((t) => refOf(t.value) === selectedTokens[0].name).map((t) => t.name)}
+              roles={[...tokens.filter((t) => refOf(t.value) === selectedTokens[0].name).map((t) => t.name), ...typeUsers(tokens, selectedTokens[0].name)]}
               onOpenToken={goToken}
               onCopy={(text) => copyText(text, '코드를 복사했어요.')}
               onPickColor={pickColor}
@@ -1812,13 +1871,19 @@ export function App() {
       )}
 
       {makingSizes && (
-        <Modal title="글자 크기 한 벌 만들기" wide="lg" onClose={() => setMakingSizes(false)}>
+        <Modal title="글자 크기 한 벌 만들기" wide="2xl" onClose={() => setMakingSizes(false)}>
           <NewSizesForm
             existing={new Set(tokens.filter((t) => SIZE.matches(t.name)).map((t) => shortName(SIZE, t.name)))}
             fonts={tokens.filter((t) => FONT.matches(t.name)).map((t) => ({ name: shortName(FONT, t.name), value: t.value }))}
             onCancel={() => setMakingSizes(false)}
             onCreate={makeSizes}
           />
+        </Modal>
+      )}
+
+      {makingTypes && (
+        <Modal title="의미 글꼴 한 벌 만들기" wide="xl" onClose={() => setMakingTypes(false)}>
+          <NewTypesForm tokens={tokens} onCancel={() => setMakingTypes(false)} onCreate={makeTypes} />
         </Modal>
       )}
 

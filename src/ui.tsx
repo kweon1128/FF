@@ -91,6 +91,7 @@ export function UnitInput({
   small = false,
   strong = false,
   placeholder,
+  fillOnTab = false,
   title,
   onDigits,
   onBlur,
@@ -110,6 +111,11 @@ export function UnitInput({
   /** 숫자를 진하고 굵게 보일지(직접 정한 값). */
   strong?: boolean
   placeholder?: string
+  /**
+   * 빈 칸에서 Tab을 누르면 옅게 보이던 값(placeholder)을 채우고 이 칸에 머문다. 다음 칸으로는 한 번 더 눌러야 넘어간다.
+   * 채우기와 넘어가기가 한 번에 일어나면 무엇이 적혔는지 보기도 전에 칸을 떠나게 된다.
+   */
+  fillOnTab?: boolean
   title?: string
   onDigits: (digits: string) => void
   onBlur?: () => void
@@ -119,17 +125,24 @@ export function UnitInput({
     : `h-8 w-full rounded-md bg-canvas px-2 text-sm ${invalid ? 'border-danger focus-within:border-danger' : 'border-hairline'}`
   // 마우스로 눌러서 고치기 시작했는지. 누른 손을 뗄 때 브라우저가 방금 한 전체 선택을 풀어 버리지 않게 막는 데 쓴다.
   const picking = useRef(false)
-  // 숫자 칸의 폭(글자 수). 작은 칸은 지우는 동안 줄어들지 않게 한다.
-  const chars = Math.max(small ? 2 : 1, digits.length, small ? (placeholder ?? '').length : digits ? 0 : (placeholder ?? '').length)
+  // 숫자 칸의 폭은 적힌 글자가 실제로 차지하는 폭이다. 그래야 단위가 숫자 바로 뒤에 온다.
+  // 글자 수(ch)로 재면 안 된다. 1ch는 숫자 0의 폭인데 소수점과 빼기표는 그보다 좁아서, "-0.01" 같은 값에서 숫자와 단위 사이가 벌어진다.
+  // 그래서 같은 글자를 보이지 않게 한 번 더 그려 그 폭을 칸의 폭으로 쓴다. 작은 칸은 지우는 동안 줄어들지 않게 placeholder의 폭도 함께 잰다.
+  const ghosts = small ? [digits, placeholder ?? ''] : [digits || placeholder || '']
+  const font = `tabular-nums ${strong ? 'font-[650]' : ''}`
   return (
     <label title={title} className={`flex cursor-text items-center gap-1 border focus-within:border-selection ${box}`}>
+      <span className={`inline-grid ${small ? 'min-w-[2ch]' : 'min-w-[1ch]'} ${font}`}>
+        {ghosts.map((text, i) => (
+          <span key={i} aria-hidden className="invisible col-start-1 row-start-1 h-0 overflow-hidden pr-px whitespace-pre">
+            {text}
+          </span>
+        ))}
       <input
         aria-label={label}
         inputMode="decimal"
         placeholder={placeholder}
-        className={`bg-transparent tabular-nums outline-none placeholder:text-ink-faint ${small && !strong ? 'text-ink-soft' : 'text-ink'} ${strong ? 'font-[650]' : ''}`}
-        // 칸의 폭은 적힌 글자 수만큼이다. 그래야 단위가 숫자 바로 뒤에 온다.
-        style={{ width: `${chars}ch` }}
+        className={`col-start-1 row-start-1 w-0 min-w-full bg-transparent outline-none placeholder:text-ink-faint ${font} ${small && !strong ? 'text-ink-soft' : 'text-ink'}`}
         onFocus={(e) => {
           if (!small) return
           e.currentTarget.select()
@@ -153,6 +166,10 @@ export function UnitInput({
         onKeyDown={(e) => {
           picking.current = false
           if (e.key === 'Enter') return e.currentTarget.blur()
+          if (e.key === 'Tab' && fillOnTab && !digits && placeholder) {
+            e.preventDefault()
+            return onDigits(placeholder)
+          }
           // ↑↓로 1씩(소수는 0.1씩, Shift는 10배) 올리고 내린다. 음수를 받지 않으면 0 아래로는 내려가지 않는다.
           if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
           const next = stepValue(digits || placeholder || '', e.key === 'ArrowUp' ? 1 : -1, e.shiftKey)
@@ -161,6 +178,7 @@ export function UnitInput({
           onDigits(next)
         }}
       />
+      </span>
       <span aria-hidden className={`select-none ${small ? '' : 'text-ink-soft'}`}>
         {unit}
       </span>
@@ -227,7 +245,7 @@ export function Modal({
 }: {
   title: string
   /** 내용이 많은 창(단축키 목록)은 넓게 연다. */
-  wide?: boolean | 'lg' | 'xl'
+  wide?: boolean | 'lg' | 'xl' | '2xl'
   onClose: () => void
   children: ReactNode
 }) {
@@ -247,7 +265,7 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={`${wide === 'xl' ? 'w-[1440px]' : wide === 'lg' ? 'w-[1160px]' : wide ? 'w-[720px]' : 'w-[360px]'} max-w-[calc(100vw-48px)] rounded-lg border border-hairline bg-canvas p-6 shadow-dialog`}
+        className={`${wide === '2xl' ? 'w-[1840px]' : wide === 'xl' ? 'w-[1440px]' : wide === 'lg' ? 'w-[1160px]' : wide ? 'w-[720px]' : 'w-[360px]'} max-w-[calc(100vw-48px)] rounded-lg border border-hairline bg-canvas p-6 shadow-dialog`}
       >
         <h2 className="mb-4 text-base font-[650]">{title}</h2>
         {children}

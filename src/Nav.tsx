@@ -1,4 +1,5 @@
 import {
+  CaseSensitive,
   Component,
   EyeOff,
   Image,
@@ -29,6 +30,7 @@ const SECTIONS: { title?: string; items: Item[] }[] = [
       { id: 'color', label: '색상', icon: Palette },
       { id: 'role', label: '의미 색', icon: Tags },
       { id: 'type', label: '글꼴', icon: Type },
+      { id: 'style', label: '의미 글꼴', icon: CaseSensitive },
       { id: 'spacing', label: '간격', icon: Ruler },
       { id: 'radius', label: '모서리', icon: SquareRoundCorner },
       { id: 'border', label: '테두리', icon: Square },

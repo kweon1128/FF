@@ -5,6 +5,7 @@ import type { Token } from './lib/api'
 import { KINDS, SLUG, shortName, type Kind } from './lib/catalog'
 import { showColor } from './lib/color'
 import { refOf, resolveColor } from './lib/roles'
+import { readType } from './lib/types'
 import { cellLabel, type Cell, type Colors, type Comp, type IconPos, type Size } from './lib/components'
 import { isIconName } from './ComponentScreen'
 import { Section } from './Inspector'
@@ -56,6 +57,13 @@ function NameField({
   )
 }
 
+/** 의미 글꼴이 가리키는 세 값을 짧게 적은 것. sans · 2xl · semibold */
+function specOf(value: string) {
+  const parts = readType(value)
+  if (!parts) return value
+  return [shortName(KINDS.font, parts.font), shortName(KINDS.size, parts.size), shortName(KINDS.weight, parts.weight)].join(' · ')
+}
+
 /** 기본 값 중에서 하나를 고르는 칸. 직접 적는 값은 받지 않는다. */
 function TokenField({
   label,
@@ -79,7 +87,7 @@ function TokenField({
   const missing = value !== undefined && !current
   const plain = (t: Token) => (
     <option key={t.name} value={t.name}>
-      {shortName(kind, t.name)} · {kind.id === 'color' ? showColor(t.value) : t.value}
+      {shortName(kind, t.name)} · {kind.id === 'color' ? showColor(t.value) : kind.id === 'style' ? specOf(t.value) : t.value}
     </option>
   )
 
@@ -309,13 +317,21 @@ export function ComponentInspector({
               onChange={(n) => setColor('text', n)}
             />
           )}
-          <TokenField {...field} label="글꼴" kind={KINDS.font} value={comp.font} onChange={(font) => common({ font })} />
-          <div className="grid grid-cols-2 gap-2">
-            <TokenField {...field} label="굵기" kind={KINDS.weight} value={comp.weight} onChange={(weight) => common({ weight })} />
-            {cell && size && (
-              <TokenField {...field} label="크기" kind={KINDS.size} value={size.textSize} onChange={(textSize) => setSize({ textSize })} />
-            )}
-          </div>
+          {/* 글자의 모습은 의미 글꼴 하나로 정한다(크기마다). 의미 글꼴을 고르면 글꼴, 굵기, 크기를 따로 고르는 칸은 쓰이지 않으므로 숨긴다. */}
+          {cell && size && (
+            <TokenField {...field} label="의미 글꼴" kind={KINDS.style} empty="따로 고르기" value={size.type} onChange={(type) => setSize({ type })} />
+          )}
+          {!(cell && size?.type) && (
+            <>
+              <TokenField {...field} label="글꼴" kind={KINDS.font} value={comp.font} onChange={(font) => common({ font })} />
+              <div className="grid grid-cols-2 gap-2">
+                <TokenField {...field} label="굵기" kind={KINDS.weight} value={comp.weight} onChange={(weight) => common({ weight })} />
+                {cell && size && (
+                  <TokenField {...field} label="크기" kind={KINDS.size} value={size.textSize} onChange={(textSize) => setSize({ textSize })} />
+                )}
+              </div>
+            </>
+          )}
           <Field label="미리보기 글자">
             <input className={inputClass} value={comp.label} onChange={(e) => common({ label: e.target.value })} />
           </Field>
