@@ -144,14 +144,25 @@ export function TypeScreen({ T, has = () => true }: { T: ComponentType<SlotProps
   )
 }
 
-const LooksContext = createContext<Record<string, CSSProperties>>({})
+type Plain = { looks: Record<string, CSSProperties>; groups: Record<string, string>; hot: string | null; onHot?: (group: string | null) => void }
+const PlainContext = createContext<Plain>({ looks: {}, groups: {}, hot: null })
 
 /** 정해 준 모습 그대로 그리는 자리. 모습이 없는 쓰임새는 그리지 않는다. */
 function PlainT({ use, as: Tag = 'span', className = '', children }: SlotProps) {
-  const look = useContext(LooksContext)[use]
+  const { looks, groups, hot, onHot } = useContext(PlainContext)
+  const look = looks[use]
   if (!look) return null
+  const group = groups[use]
   return (
-    <Tag data-use={use} className={className} style={look}>
+    <Tag
+      data-use={use}
+      onMouseEnter={onHot && group ? () => onHot(group) : undefined}
+      onMouseLeave={onHot && group ? () => onHot(null) : undefined}
+      // 제목처럼 한 줄을 다 차지하는 글자는 폭을 글자에 맞춘다. 그래야 마우스를 올렸을 때의 선이 빈 줄 끝까지 가지 않고 글자만 두른다.
+      // 버튼이나 입력칸처럼 상자를 가진 자리는 상자까지가 한 덩어리라 선도 상자를 두른다.
+      className={`outline-offset-2 outline-selection ${className.includes('rounded') ? '' : 'rounded-sm'} ${Tag !== 'span' && !className.includes('border') ? 'w-fit' : ''} ${group && hot === group ? 'outline-1' : ''} ${className}`}
+      style={look}
+    >
       {children}
     </Tag>
   )
@@ -159,12 +170,24 @@ function PlainT({ use, as: Tag = 'span', className = '', children }: SlotProps) 
 
 /**
  * 누르거나 고르는 것 없이 보기만 하는 화면 예시. looks는 쓰임새마다의 글자 모습이다.
- * 글자 크기 한 벌과 굵기 한 벌을 만드는 창에서, 지금 고른 값이 화면에 놓였을 때의 모습을 보여 준다.
+ * 굵기 한 벌을 만드는 창에서, 지금 고른 값이 화면에 놓였을 때의 모습을 보여 준다.
+ * groups는 쓰임새마다 그것이 어느 묶음(표의 어느 줄)에 드는지다. 주면 표의 줄과 화면의 글자가 서로 짚어 준다:
+ * hot과 같은 묶음의 자리에 1px 선이 생기고, 자리에 마우스를 올리면 onHot으로 그 묶음을 알린다.
  */
-export function PlainScreen({ looks }: { looks: Record<string, CSSProperties> }) {
+export function PlainScreen({
+  looks,
+  groups = {},
+  hot = null,
+  onHot,
+}: {
+  looks: Record<string, CSSProperties>
+  groups?: Record<string, string>
+  hot?: string | null
+  onHot?: (group: string | null) => void
+}) {
   return (
-    <LooksContext.Provider value={looks}>
+    <PlainContext.Provider value={{ looks, groups, hot, onHot }}>
       <TypeScreen T={PlainT} has={(use) => use in looks} />
-    </LooksContext.Provider>
+    </PlainContext.Provider>
   )
 }

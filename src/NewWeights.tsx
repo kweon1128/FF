@@ -1,16 +1,18 @@
 import { useContext, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { Minus, Plus, RotateCcw } from 'lucide-react'
 import { PreviewFontContext } from './ColorUses'
 import { shownWeight } from './NewFont'
 import { parseFontValue, shownFont, weightsOf } from './lib/fonts'
 import { WEIGHT_SETS, type WeightRole, type WeightStep } from './lib/presets'
-import { StepName, nameProblem } from './StepName'
+import { SetNotice, StepName, nameProblem } from './StepName'
 import { PlainScreen } from './TypeScreen'
 import { Button } from './ui'
 
 const LABEL = 'mb-1 text-sm font-[550] text-ink-faint'
-const SEGMENT = 'h-6 rounded-sm text-sm outline-selection focus-visible:outline-2'
-const SEGMENT_ON = 'bg-canvas font-[550] text-ink shadow-[0_0_0_1px_var(--color-hairline)]'
-const SEGMENT_OFF = 'text-ink-soft hover:text-ink'
+const STEP_BUTTON =
+  'flex size-8 shrink-0 items-center justify-center rounded-md text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2 disabled:opacity-40 disabled:hover:bg-transparent'
+/** 처음에 고르는 단계 수. 셋(본문, 중간, 굵게)이다. */
+const COUNT_START = 3
 
 /** 굵기로 적을 수 있는 범위. CSS의 굵기는 1부터 1000까지지만, 글꼴이 실제로 갖는 것은 100부터 900 사이다. */
 const WEIGHT_MIN = 100
@@ -50,7 +52,7 @@ function StepWeight({ name, rule, custom, onChange }: { name: string; rule: numb
       aria-label={`${name} 굵기`}
       inputMode="numeric"
       title={custom === null ? '숫자를 고치면 이 단계의 굵기를 직접 정해요' : `직접 정한 굵기예요. 비우면 정해 둔 값(${rule})으로 돌아가요`}
-      className={`h-6 w-12 rounded-sm border border-hairline bg-canvas text-center font-mono text-xs outline-none focus:border-selection ${
+      className={`h-6 w-12 shrink-0 rounded-sm border border-hairline bg-canvas text-center font-mono text-xs outline-none placeholder:text-ink-faint/50 hover:border-ink-faint focus:border-selection ${
         custom !== null ? 'font-bold text-ink' : 'text-ink-soft'
       }`}
       value={draft ?? String(custom ?? rule)}
@@ -75,12 +77,15 @@ function StepWeight({ name, rule, custom, onChange }: { name: string; rule: numb
  */
 export function NewWeightsForm({
   existing,
+  users = {},
   fonts = [],
   onCreate,
   onCancel,
 }: {
-  /** 이미 있는 굵기의 이름들. 같은 이름은 새 값으로 바뀐다. */
+  /** 이미 있는 굵기의 이름들. 같은 이름은 새 값으로 바뀌고, 새 한 벌에 없는 이름은 지워진다. */
   existing: Set<string>
+  /** 이미 있는 굵기마다 그것을 쓰는 곳들(의미 글꼴, 컴포넌트). 쓰이는 값이 지워질 때 알린다. */
+  users?: Record<string, string[]>
   /** 이 시스템의 글꼴 종류들(이름과 값). 견본을 어느 글꼴로 그릴지 고른다. */
   fonts?: { name: string; value: string }[]
   onCreate: (steps: { name: string; value: string }[]) => void
@@ -90,16 +95,23 @@ export function NewWeightsForm({
   const [fontName, setFontName] = useState(fonts[0]?.name ?? null)
   const font = fonts.find((f) => f.name === fontName)?.value ?? firstFont ?? 'system-ui, sans-serif'
   // 몇 단계로 할지. 처음에는 셋(본문, 중간, 굵게)이다.
-  const [count, setCount] = useState(3)
-  // 정해 둔 값 대신 직접 적은 굵기. 단계의 이름으로 찾는다. 단계 수를 바꿔도 같은 이름의 것은 남는다.
+  const [count, setCount] = useState(COUNT_START)
+  // 정해 둔 값 대신 직접 적은 굵기. 단계의 이름으로 찾는다.
   const [custom, setCustom] = useState<Record<string, number>>({})
+  const counts = WEIGHT_SETS.map((s) => s.count)
+  // 단계 수를 바꾸면 직접 적은 굵기를 지운다. 글자 크기 한 벌 만들기와 같다. 한 벌의 틀을 바꾸면 처음부터 다시 정한다.
+  const changeCount = (next: number) => {
+    setCount(next)
+    setCustom({})
+  }
+  // 마우스를 올린 단계. 표의 줄과 화면 예시의 글자를 서로 짚어 준다.
+  const [hot, setHot] = useState<string | null>(null)
   const ruled = WEIGHT_SETS.find((s) => s.count === count)!.steps
   const steps: WeightStep[] = ruled.map((s) => ({ ...s, weight: custom[s.name] ?? s.weight }))
   // 단계의 이름을 직접 고친 것. 원래 이름으로 찾는다.
   const [names, setNames] = useState<Record<string, string>>({})
   const nameOf = (name: string) => names[name] ?? name
   const problem = nameProblem(steps.map((s) => nameOf(s.name)))
-  const replaced = steps.filter((s) => existing.has(nameOf(s.name))).length
 
   // 글꼴이 불려 온 뒤에 다시 잰다. 불려 오기 전에는 대체 글꼴로 재게 된다.
   const [loaded, setLoaded] = useState(0)
@@ -119,8 +131,6 @@ export function NewWeightsForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [font, wanted, loaded],
   )
-  /** 그 쓰임을 맡은 단계의 굵기. 쓰임마다 단계가 하나씩 정해져 있다. */
-  const of = (role: WeightRole) => steps.find((s) => s.roles.includes(role))?.weight ?? 400
   const type = { fontFamily: font, fontSize: 16, lineHeight: '24px' }
 
   function submit(e: FormEvent) {
@@ -129,9 +139,20 @@ export function NewWeightsForm({
     onCreate(steps.map((s) => ({ name: nameOf(s.name), value: String(s.weight) })))
   }
 
+  // 처음 열었을 때와 달라진 것이 있는지. 견본의 글꼴은 보기만 바꾸는 것이라 세지 않는다.
+  const changed = count !== COUNT_START || Object.keys(custom).length > 0 || Object.entries(names).some(([from, to]) => from !== to)
+  /** 단계 수와 직접 고친 값(굵기, 이름)을 모두 처음으로 돌린다. 견본의 글꼴은 그대로 둔다. */
+  function reset() {
+    setCount(COUNT_START)
+    setCustom({})
+    setNames({})
+  }
+
   // 화면 예시의 자리마다의 글자 모습. 크기는 이 창에서 정하는 것이 아니라서 흔히 쓰는 값으로 두고, 굵기만 그 쓰임을 맡은 단계의 것으로 그린다.
-  const at = (size: number, line: number, role: WeightRole) => ({ fontFamily: font, fontSize: size, lineHeight: `${line}px`, fontWeight: of(role) })
-  const looks = {
+  // 자리마다 어느 단계의 굵기로 그렸는지도 함께 적어 둔다(groups). 표의 줄과 화면의 글자를 서로 짚어 주는 데 쓴다.
+  const groups: Record<string, string> = {}
+  const at = (size: number, line: number, role: WeightRole) => ({ size, line, role })
+  const places = {
     overline: at(13, 20, 'label'),
     caption: at(13, 20, 'body'),
     display: at(33, 42, 'heading'),
@@ -152,19 +173,31 @@ export function NewWeightsForm({
     'button-lg': at(16, 24, 'button'),
     quote: at(19, 28, 'body'),
   }
+  const looks = Object.fromEntries(
+    Object.entries(places).map(([use, { size, line, role }]) => {
+      const step = steps.find((s) => s.roles.includes(role))
+      if (step) groups[use] = step.name
+      return [use, { fontFamily: font, fontSize: size, lineHeight: `${line}px`, fontWeight: step?.weight ?? 400 }]
+    }),
+  )
 
   return (
     <form onSubmit={submit} className="flex gap-6">
       <div className="w-56 shrink-0 space-y-4">
         <div>
           <p className={LABEL}>단계 수</p>
-          <div role="radiogroup" aria-label="단계 수" className="grid grid-cols-3 gap-1 rounded-md bg-hover p-1">
-            {WEIGHT_SETS.map((s) => (
-              <button key={s.count} type="button" role="radio" aria-checked={s.count === count} onClick={() => setCount(s.count)} className={`${SEGMENT} ${s.count === count ? SEGMENT_ON : SEGMENT_OFF}`}>
-                {s.label}
-              </button>
-            ))}
-          </div>
+          {/* 글자 크기 한 벌 만들기의 단계 수와 같은 모양이다. -, +로 2단계에서 4단계까지 고른다. */}
+          <span className="flex h-8 items-center gap-1">
+            <button type="button" aria-label="단계 줄이기" disabled={count <= Math.min(...counts)} onClick={() => changeCount(count - 1)} className={STEP_BUTTON}>
+              <Minus size={16} strokeWidth={1.5} />
+            </button>
+            <span data-count className="w-20 text-center text-sm tabular-nums">
+              {count}단계
+            </span>
+            <button type="button" aria-label="단계 늘리기" disabled={count >= Math.max(...counts)} onClick={() => changeCount(count + 1)} className={STEP_BUTTON}>
+              <Plus size={16} strokeWidth={1.5} />
+            </button>
+          </span>
         </div>
         {/* 위의 것은 만들어지는 값을 정하고, 이것은 보기만 바꾼다. 그래서 구분선 아래에 둔다.
             굵기는 글꼴마다 가진 것이 달라서, 글꼴을 바꾸면 "실제로 그려지는 굵기"가 달라진다. */}
@@ -201,29 +234,35 @@ export function NewWeightsForm({
       <div className="flex min-w-0 flex-1 flex-col">
         {/* 얇은 것부터 굵은 것 순서로, 한 줄에 한 단계. 같은 글을 위아래로 붙여 놓아 단계 사이의 차이를 바로 본다.
             높이는 네 단계일 때에 맞춰 고정해서 단계 수를 바꿔도 창이 늘었다 줄었다 하지 않는다. */}
-        <div data-weights className="h-[140px] space-y-1 rounded-md border border-hairline px-4 py-3">
+        <div data-weights className="h-[164px] space-y-1 rounded-md border border-hairline px-4 py-3">
           {steps.map((s) => {
             const real = drawn[s.name]
             return (
-              <div key={s.name} data-step={s.name} className="flex h-6 items-center gap-3">
-                <StepName wide label={`${s.name} 이름`} value={nameOf(s.name)} onChange={(name) => setNames({ ...names, [s.name]: name })} />
-                <StepWeight
-                  name={s.name}
-                  rule={ruled.find((r) => r.name === s.name)!.weight}
-                  custom={custom[s.name] ?? null}
-                  onChange={(weight) =>
-                    setCustom((now) => {
-                      const { [s.name]: _gone, ...rest } = now
-                      return weight === null ? rest : { ...rest, [s.name]: weight }
-                    })
-                  }
-                />
-                {/* 이 굵기가 흔히 쓰이는 곳. */}
-                <span data-use className="w-36 shrink-0 text-xs whitespace-nowrap text-ink-soft">
-                  {s.use}
+              <div key={s.name} data-step={s.name} onMouseEnter={() => setHot(s.name)} onMouseLeave={() => setHot(null)} className="flex h-8 items-center gap-3">
+                {/* 마우스를 올렸을 때의 회색 바탕은 이름, 값, 쓰이는 곳까지만 덮는다. 견본 문장은 바탕 밖에 두고 화면 예시의 글자처럼 1px 선을 둘러 표시한다(글자 크기 한 벌 만들기와 같다).
+                    바탕의 좌우 여백은 그 끝에 놓인 것의 위아래 여백과 같게 한다. 왼쪽 끝은 이름 칸(24px, 위아래 4px)이라 4px, 오른쪽 끝은 쓰이는 곳의 글자(줄 높이 16px, 위아래 8px)라 8px. */}
+                <span className={`-ml-1 flex h-8 shrink-0 items-center gap-3 rounded-md pr-2 pl-1 ${hot === s.name ? 'bg-hover' : ''}`}>
+                  <StepName wide label={`${s.name} 이름`} value={nameOf(s.name)} onChange={(name) => setNames({ ...names, [s.name]: name })} />
+                  <StepWeight
+                    name={s.name}
+                    rule={ruled.find((r) => r.name === s.name)!.weight}
+                    custom={custom[s.name] ?? null}
+                    onChange={(weight) =>
+                      setCustom((now) => {
+                        const { [s.name]: _gone, ...rest } = now
+                        return weight === null ? rest : { ...rest, [s.name]: weight }
+                      })
+                    }
+                  />
+                  {/* 이 굵기가 흔히 쓰이는 곳. */}
+                  <span data-use className="w-36 shrink-0 text-xs whitespace-nowrap text-ink-soft">
+                    {s.use}
+                  </span>
                 </span>
-                <span data-line={s.name} className="min-w-0 flex-1 whitespace-nowrap" style={{ ...type, fontWeight: s.weight }}>
-                  {LINE}
+                <span className="min-w-0 flex-1">
+                  <span data-line={s.name} className={`block w-fit max-w-full truncate rounded-sm outline-offset-2 outline-selection ${hot === s.name ? 'outline-1' : ''}`} style={{ ...type, fontWeight: s.weight }}>
+                    {LINE}
+                  </span>
                 </span>
                 {/* 이 글꼴에 그 굵기가 없으면 다른 굵기로 그려진다. 그러면 단계를 나눈 뜻이 없어지므로 알린다. */}
                 <span data-drawn={s.name} className={`w-44 shrink-0 text-right text-xs whitespace-nowrap ${real !== s.weight ? 'text-danger' : 'text-ink-faint'}`}>
@@ -235,17 +274,22 @@ export function NewWeightsForm({
         </div>
         {/* 이 굵기들이 실제 화면에 놓인 모습. 쓰임마다 맡은 단계의 굵기로 그린다. 굵기는 혼자가 아니라 옆의 글과 함께 놓였을 때 판단할 수 있다.
             이 안은 사용자의 글꼴을 보여 주는 미리보기라, FF 도구의 글자 규칙을 따르지 않는다. */}
-        <div data-uses className="mt-2 rounded-md border border-hairline bg-canvas p-6 text-ink">
-          <PlainScreen looks={looks} />
+        <div data-uses className="mt-2 rounded-md border border-hairline bg-canvas px-6 py-4 text-ink">
+          <PlainScreen looks={looks} groups={groups} hot={hot} onHot={setHot} />
         </div>
         <div className="mt-3 flex items-center justify-end gap-2">
+          {/* 바꾼 것을 모두 처음으로 돌린다. 글자 크기 한 벌 만들기와 같은 자리다. 바꾼 것이 없으면 꺼져 있다. */}
+          <Button variant="ghost" className="mr-auto" disabled={!changed} title="단계 수와 직접 고친 값을 모두 처음으로 돌려요" onClick={reset}>
+            <RotateCcw size={16} strokeWidth={1.5} />
+            원래대로
+          </Button>
           {/* 이미 있는 단계가 새 값으로 바뀌는 것은 되돌리기 전에 알아야 하는 일이라 알린다. */}
           {problem ? (
             <span role="alert" className="mr-1 text-sm text-danger">
               {problem}
             </span>
           ) : (
-            replaced > 0 && <span className="mr-1 text-sm text-ink-faint">이미 있는 {replaced}개는 새 값으로 바뀌어요.</span>
+            <SetNotice made={steps.map((s) => nameOf(s.name))} existing={[...existing]} users={users} />
           )}
           <Button variant="ghost" onClick={onCancel}>
             취소

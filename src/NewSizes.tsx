@@ -3,7 +3,7 @@ import { Check as CheckIcon, Minus, Plus, RotateCcw } from 'lucide-react'
 import { PreviewFontContext } from './ColorUses'
 import { shownFont } from './lib/fonts'
 import { BASE_MAX, BASE_MIN, SPREAD_START, SPREAD_STEPS, UPS_MAX, UPS_MIN, UPS_START, baseLineRange, lineFor, sizeScale, trackFor, type SizeStep } from './lib/presets'
-import { StepName, nameProblem } from './StepName'
+import { SetNotice, StepName, nameProblem } from './StepName'
 import { Button, UnitInput } from './ui'
 
 /** 위아래 여백을 잴 때 기준으로 삼는 글자. 받침이 없는 글자와 있는 글자가 섞여 한글의 평균적인 높이를 낸다. */
@@ -338,14 +338,17 @@ const validTrack = (d: string) => /^-?\d*\.?\d+$/.test(d) && Math.abs(Number(d))
  */
 export function NewSizesForm({
   existing,
+  users = {},
   fonts = [],
   onCreate,
   onCancel,
 }: {
   /** 이 시스템의 글꼴 종류들(이름과 값). 견본을 어느 글꼴로 그릴지 고른다. 글자 크기는 글꼴마다 따로 정하는 값이 아니라서 보기만 바뀐다. */
   fonts?: { name: string; value: string }[]
-  /** 이미 있는 글자 크기의 이름들. 같은 이름은 새 값으로 바뀐다. */
+  /** 이미 있는 글자 크기의 이름들. 같은 이름은 새 값으로 바뀌고, 새 한 벌에 없는 이름은 지워진다. */
   existing: Set<string>
+  /** 이미 있는 글자 크기마다 그것을 쓰는 곳들(의미 글꼴, 컴포넌트). 쓰이는 값이 지워질 때 알린다. */
+  users?: Record<string, string[]>
   onCreate: (steps: SizeStep[]) => void
   onCancel: () => void
 }) {
@@ -440,7 +443,6 @@ export function NewSizesForm({
   const [names, setNames] = useState<Record<string, string>>({})
   const nameOf = (name: string) => names[name] ?? name
   const problem = nameProblem(steps.map((s) => nameOf(s.name)))
-  const replaced = steps.filter((s) => existing.has(nameOf(s.name))).length
 
   // 줄 상자 안에서 글자의 위 여백과 아래 여백(px). 화면에 그려진 뒤 실제 자리를 재서 채운다.
   // 한글(가나다라마바사)의 모양을 기준으로 잰다. 줄마다 적힌 글이 달라도 같은 기준으로 견주기 위해서다.
@@ -827,7 +829,7 @@ export function NewSizesForm({
               {problem}
             </span>
           ) : (
-            replaced > 0 && <span className="mr-1 text-sm text-ink-faint">이미 있는 {replaced}개는 새 값으로 바뀌어요.</span>
+            <SetNotice made={steps.map((s) => nameOf(s.name))} existing={[...existing]} users={users} />
           )}
           <Button variant="ghost" onClick={onCancel}>
             취소

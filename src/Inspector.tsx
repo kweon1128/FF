@@ -201,8 +201,14 @@ export function Inspector({
     onTrack?.(`${next}em`)
   }
 
+  // 값 칸을 비우면 지금 저장되어 있는 값이 옅게 보인다. 줄 높이나 글자 사이와 달리 값 자체는 다른 데서 계산해 낼 규칙이 없어서, 추천값 대신 마지막으로 저장된 값을 보여 준다.
+  // 비운 채로 칸을 떠나면 그 값으로 돌아간다. 빈 칸으로 남겨 두지 않는다.
+  const savedDigits = UNIT.exec(token.value)?.[1] ?? ''
+
   function changeDigits(next: string) {
     setDigits(next)
+    // 비운 것은 틀린 값이 아니라 고치는 중이다. 알리지 않고, 저장된 값은 그대로 둔다.
+    if (!next) return setValueError(null)
     if (!(negative ? SIGNED : NUMBER).test(next) || (positive && Number(next) <= 0)) return setValueError('숫자를 입력해 주세요.')
     setValueError(null)
     onValue(`${next}${unit}`)
@@ -303,7 +309,19 @@ export function Inspector({
             <span className="truncate">{shownFont(valueDraft)}</span>
           </p>
         )}
-        {unit && <UnitInput label={kind.valueLabel} digits={digits} unit={unit} invalid={!!valueError} negative={negative} onDigits={changeDigits} />}
+        {unit && (
+          <UnitInput
+            label={kind.valueLabel}
+            digits={digits}
+            unit={unit}
+            placeholder={savedDigits}
+            fillOnTab={!!savedDigits}
+            invalid={!!valueError}
+            negative={negative}
+            onDigits={changeDigits}
+            onBlur={() => !digits && savedDigits && changeDigits(savedDigits)}
+          />
+        )}
         <span className={isFont || unit ? 'hidden' : 'flex items-center gap-2'}>
           {isColor && <ColorSwatch label="색 고르기" value={valueDraft} alpha preview onChange={changeValue} />}
           <input

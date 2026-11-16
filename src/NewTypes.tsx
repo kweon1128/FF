@@ -6,7 +6,7 @@ import { createContext, useContext, useState, type FormEvent } from 'react'
 import type { Token } from './lib/api'
 import { KINDS, shortName, trackName, type Kind } from './lib/catalog'
 import { lookOf, missingForTypes, readType, typeCandidates, writeType, type TypeParts } from './lib/types'
-import { StepName, nameProblem } from './StepName'
+import { SetNotice, StepName, nameProblem } from './StepName'
 import { TypeScreen, type SlotProps } from './TypeScreen'
 import { styleOf } from './Types'
 import { Button } from './ui'
@@ -66,7 +66,18 @@ function T({ use, as: Tag = 'span', className = '', children }: SlotProps) {
   )
 }
 
-export function NewTypesForm({ tokens, onCreate, onCancel }: { tokens: Token[]; onCreate: (made: Token[]) => void; onCancel: () => void }) {
+export function NewTypesForm({
+  tokens,
+  users = {},
+  onCreate,
+  onCancel,
+}: {
+  tokens: Token[]
+  /** 이미 있는 의미 글꼴마다 그것을 쓰는 컴포넌트들. 쓰이는 조합이 지워질 때 알린다. */
+  users?: Record<string, string[]>
+  onCreate: (made: Token[]) => void
+  onCancel: () => void
+}) {
   const [rows, setRows] = useState<Row[]>(() =>
     typeCandidates(tokens).map(({ on, token, track }) => ({
       key: shortName(STYLE, token.name),
@@ -98,7 +109,6 @@ export function NewTypesForm({ tokens, onCreate, onCancel }: { tokens: Token[]; 
   const patch = (key: string, change: Partial<Row>) => setRows(rows.map((r) => (r.key === key ? { ...r, ...change } : r)))
   const used = rows.filter((r) => r.on)
   const problem = used.length === 0 ? '쓸 조합을 하나 이상 골라 주세요.' : nameProblem(used.map((r) => r.name))
-  const replaced = used.filter((r) => names.has(STYLE.prefix + r.name)).length
   const has = (key: string) => rows.some((r) => r.key === key)
 
   function submit(e: FormEvent) {
@@ -185,9 +195,14 @@ export function NewTypesForm({ tokens, onCreate, onCancel }: { tokens: Token[]; 
               {problem}
             </span>
           ) : (
-            <span className="mr-1 text-sm text-ink-faint">
-              {used.length}개를 만들어요.{replaced > 0 && ` 이미 있는 ${replaced}개는 새 값으로 바뀌어요.`}
-            </span>
+            <>
+              <span className="mr-1 text-sm text-ink-faint">{used.length}개를 만들어요.</span>
+              <SetNotice
+                made={used.map((r) => r.name)}
+                existing={tokens.filter((x) => STYLE.matches(x.name)).map((x) => shortName(STYLE, x.name))}
+                users={users}
+              />
+            </>
           )}
           <Button variant="ghost" onClick={onCancel}>
             취소

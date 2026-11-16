@@ -25,3 +25,30 @@ export function nameProblem(names: string[]) {
   if (new Set(names).size !== names.length) return '같은 이름이 두 번 있어요.'
   return null
 }
+
+/**
+ * 한 벌을 만들면 그 종류의 예전 값이 어떻게 되는지 알리는 글. 만들기 전에 알아야 하는 일이라 버튼 옆에 적는다.
+ * 한 벌 만들기는 그 종류를 통째로 새로 정한다. 같은 이름의 값은 새 값으로 바뀌고, 새 한 벌에 없는 이름의 값은 지워진다.
+ * 지워지는 값 가운데 다른 곳에서 쓰고 있는 것이 있으면 그것을 빨갛게 따로 알린다. 막지는 않는다(되돌리기로 살릴 수 있다).
+ * made는 새 한 벌의 이름들, existing은 지금 있는 이름들, users는 지금 있는 값마다 그것을 쓰는 곳들이다.
+ */
+export function SetNotice({ made, existing, users }: { made: string[]; existing: string[]; users: Record<string, string[]> }) {
+  const kept = made.filter((name) => existing.includes(name)).length
+  const removed = existing.filter((name) => !made.includes(name))
+  const used = removed.filter((name) => users[name]?.length)
+  if (kept === 0 && removed.length === 0) return null
+  // 이름이 많으면 앞의 넷만 적는다.
+  const few = (names: string[]) => (names.length > 4 ? `${names.slice(0, 4).join(', ')} 외 ${names.length - 4}개` : names.join(', '))
+  return (
+    <span data-set-notice className="mr-1 text-sm text-ink-faint">
+      {kept > 0 && `이미 있는 ${kept}개는 새 값으로 바뀌어요.`}
+      {removed.length > 0 && ` 한 벌에 없는 ${removed.length}개(${few(removed)})는 지워져요.`}
+      {used.length > 0 && (
+        <span role="alert" className="text-danger">
+          {' '}
+          쓰고 있는 값도 지워져요: {used.map((name) => `${name} (${few(users[name])})`).join(', ')}
+        </span>
+      )}
+    </span>
+  )
+}

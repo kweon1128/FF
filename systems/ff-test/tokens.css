@@ -82,7 +82,6 @@
   --text-base--line-height: 24px;
   --text-lg: 19px;
   --text-lg--line-height: 28px;
-  --text-lg--letter-spacing: -0.005em;
   --text-xl: 23px;
   --text-xl--line-height: 32px;
   --text-xl--letter-spacing: -0.01em;
@@ -95,5 +94,4 @@
   --font-weight-regular: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
-  --font-weight-bold: 700;
 }

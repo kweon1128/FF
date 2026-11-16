@@ -720,9 +720,28 @@ export function App() {
   }
 
   /**
-   * 글자 크기 한 벌을 넣는다. 같은 이름의 크기와 줄 높이는 새 값으로 바뀌고, 한 벌에 없는 이름의 크기는 그대로 남는다.
-   * 한 벌은 작은 것부터 차례로, 지금 글자 크기들이 있던 자리(없으면 글꼴 종류 뒤)에 놓는다.
+   * 한 벌을 통째로 갈아 끼운다. 그 종류의 예전 값(old)을 모두 지우고 그 자리에 새 한 벌(made)을 넣는다.
+   * 한 벌 만들기는 그 종류를 통째로 새로 정하는 일이다. 새 한 벌에 없는 이름의 예전 값을 남기면, 4단계였던 것을 3단계로 다시 만들어도 넷째가 남아 한 벌이 되지 않는다.
+   * 지워지는 값을 쓰는 곳이 있으면 창에서 만들기 전에 알린다(SetNotice). 예전 값이 없으면 fallback이 알려 주는 자리에 넣는다.
    */
+  function replaceSet(old: (t: Token) => boolean, made: Token[], fallback: (rest: Token[]) => number, picked: string[]) {
+    const first = tokens.findIndex(old)
+    const rest = tokens.filter((t) => !old(t))
+    const at = first === -1 ? fallback(rest) : tokens.slice(0, first).filter((t) => !old(t)).length
+    commit([...rest.slice(0, at), ...made, ...rest.slice(at)])
+    select(picked)
+  }
+
+  /** 지금 있는 그 종류의 값마다 그것을 쓰는 곳들의 이름(의미 글꼴, 컴포넌트). 한 벌을 만들 때 지워지는 값이 쓰이고 있는지 알리는 데 쓴다. */
+  const usersOfKind = (kind: Kind): Record<string, string[]> =>
+    Object.fromEntries(
+      tokens
+        .filter((t) => kind.matches(t.name))
+        // 의미 글꼴과 컴포넌트의 이름이 같으면(button) 한 번만 적는다.
+        .map((t) => [shortName(kind, t.name), [...new Set([...typeUsers(tokens, t.name).map((u) => shortName(STYLE, u)), ...usesOf(comps, t.name).map((u) => u.name)])]]),
+    )
+
+  /** 글자 크기 한 벌을 넣는다. 예전의 글자 크기와 거기 묶인 줄 높이, 글자 사이는 모두 지운다. 작은 것부터 차례로, 예전 크기들이 있던 자리(없으면 글꼴 종류 뒤)에 놓는다. */
   function makeSizes(steps: SizeStep[]) {
     setMakingSizes(false)
     const made = steps.flatMap((s) => [
@@ -730,49 +749,35 @@ export function App() {
       { name: lineName(SIZE.prefix + s.name), value: s.line },
       ...(s.track ? [{ name: trackName(SIZE.prefix + s.name), value: s.track }] : []),
     ])
-    // 같은 이름의 크기에 묶여 있던 값은 모두 새 것으로 바꾼다. 새 한 벌에 글자 사이가 없는 단계는 예전의 글자 사이도 지운다.
-    const names = new Set(steps.flatMap((s) => [SIZE.prefix + s.name, ...boundNames(SIZE.prefix + s.name)]))
-    const first = tokens.findIndex((t) => t.name.startsWith(SIZE.prefix))
-    const rest = tokens.filter((t) => !names.has(t.name))
-    const at =
-      first === -1
-        ? tokens.findLastIndex((t) => FONT.matches(t.name)) + 1 || tokens.length
-        : tokens.slice(0, first).filter((t) => !names.has(t.name)).length
-    commit([...rest.slice(0, at), ...made, ...rest.slice(at)])
-    select(steps.map((s) => SIZE.prefix + s.name))
+    replaceSet(
+      (t) => t.name.startsWith(SIZE.prefix),
+      made,
+      (rest) => rest.findLastIndex((t) => FONT.matches(t.name)) + 1 || rest.length,
+      steps.map((s) => SIZE.prefix + s.name),
+    )
   }
 
-  /**
-   * 굵기 한 벌을 넣는다. 같은 이름의 굵기는 새 값으로 바뀌고, 한 벌에 없는 이름의 굵기는 그대로 남는다.
-   * 한 벌은 얇은 것부터 차례로, 지금 굵기들이 있던 자리(없으면 글자 크기 뒤, 그것도 없으면 글꼴 종류 뒤)에 놓는다.
-   */
+  /** 굵기 한 벌을 넣는다. 예전의 굵기는 모두 지운다. 얇은 것부터 차례로, 예전 굵기들이 있던 자리(없으면 글자 크기 뒤, 그것도 없으면 글꼴 종류 뒤)에 놓는다. */
   function makeWeights(steps: { name: string; value: string }[]) {
     setMakingWeights(false)
     const made = steps.map((s) => ({ name: WEIGHT.prefix + s.name, value: s.value }))
-    const names = new Set(made.map((t) => t.name))
-    const first = tokens.findIndex((t) => WEIGHT.matches(t.name))
-    const rest = tokens.filter((t) => !names.has(t.name))
-    const at =
-      first === -1
-        ? tokens.findLastIndex((t) => t.name.startsWith(SIZE.prefix) || FONT.matches(t.name)) + 1 || tokens.length
-        : tokens.slice(0, first).filter((t) => !names.has(t.name)).length
-    commit([...rest.slice(0, at), ...made, ...rest.slice(at)])
-    select(made.map((t) => t.name))
+    replaceSet(
+      (t) => WEIGHT.matches(t.name),
+      made,
+      (rest) => rest.findLastIndex((t) => t.name.startsWith(SIZE.prefix) || FONT.matches(t.name)) + 1 || rest.length,
+      made.map((t) => t.name),
+    )
   }
 
-  /**
-   * 의미 글꼴 한 벌을 넣는다. 같은 이름의 조합은 새 값으로 바뀌고, 한 벌에 없는 이름의 조합은 그대로 남는다.
-   * 지금 의미 글꼴들이 있던 자리(없으면 맨 뒤)에 놓는다.
-   */
+  /** 의미 글꼴 한 벌을 넣는다. 예전의 의미 글꼴과 거기 붙은 글자 사이는 모두 지운다. 예전 것들이 있던 자리(없으면 맨 뒤)에 놓는다. */
   function makeTypes(made: Token[]) {
     setMakingTypes(false)
-    // 같은 이름의 조합에 직접 정해 두었던 글자 사이도 함께 바꾼다(새 한 벌에 없으면 지워져서 크기를 따른다).
-    const names = new Set(made.flatMap((t) => [t.name, trackName(t.name)]))
-    const first = tokens.findIndex((t) => t.name.startsWith(STYLE.prefix))
-    const rest = tokens.filter((t) => !names.has(t.name))
-    const at = first === -1 ? rest.length : tokens.slice(0, first).filter((t) => !names.has(t.name)).length
-    commit([...rest.slice(0, at), ...made, ...rest.slice(at)])
-    select(made.map((t) => t.name))
+    replaceSet(
+      (t) => t.name.startsWith(STYLE.prefix),
+      made,
+      (rest) => rest.length,
+      made.filter((t) => STYLE.matches(t.name)).map((t) => t.name),
+    )
   }
 
   function renameToken(from: string, to: string) {
@@ -1874,6 +1879,7 @@ export function App() {
         <Modal title="글자 크기 한 벌 만들기" wide="2xl" tall onClose={() => setMakingSizes(false)}>
           <NewSizesForm
             existing={new Set(tokens.filter((t) => SIZE.matches(t.name)).map((t) => shortName(SIZE, t.name)))}
+            users={usersOfKind(SIZE)}
             fonts={tokens.filter((t) => FONT.matches(t.name)).map((t) => ({ name: shortName(FONT, t.name), value: t.value }))}
             onCancel={() => setMakingSizes(false)}
             onCreate={makeSizes}
@@ -1883,7 +1889,7 @@ export function App() {
 
       {makingTypes && (
         <Modal title="의미 글꼴 한 벌 만들기" wide="xl" onClose={() => setMakingTypes(false)}>
-          <NewTypesForm tokens={tokens} onCancel={() => setMakingTypes(false)} onCreate={makeTypes} />
+          <NewTypesForm tokens={tokens} users={usersOfKind(STYLE)} onCancel={() => setMakingTypes(false)} onCreate={makeTypes} />
         </Modal>
       )}
 
@@ -1891,6 +1897,7 @@ export function App() {
         <Modal title="굵기 한 벌 만들기" wide="lg" onClose={() => setMakingWeights(false)}>
           <NewWeightsForm
             existing={new Set(tokens.filter((t) => WEIGHT.matches(t.name)).map((t) => shortName(WEIGHT, t.name)))}
+            users={usersOfKind(WEIGHT)}
             fonts={tokens.filter((t) => FONT.matches(t.name)).map((t) => ({ name: shortName(FONT, t.name), value: t.value }))}
             onCancel={() => setMakingWeights(false)}
             onCreate={makeWeights}
