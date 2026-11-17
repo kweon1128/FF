@@ -20,7 +20,7 @@ const weightOf = (name: string) => (name === 'base' || name === 'sm' || name ===
 /** 글자가 가운데에서 밀린 양(px). 양수면 위로, 음수면 아래로 밀린 것이다. 위아래 여백의 차이의 절반이다. */
 const shiftOf = (gap: { top: number; bottom: number }) => (gap.bottom - gap.top) / 2
 
-const LABEL = 'mb-1 text-sm font-[550] text-ink-faint'
+const LABEL = 'mb-1 type-label text-ink-faint'
 const STEP_BUTTON =
   'flex size-8 shrink-0 items-center justify-center rounded-md text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2 disabled:opacity-40 disabled:hover:bg-transparent'
 
@@ -548,7 +548,7 @@ export function NewSizesForm({
             <button type="button" aria-label="본문 작게" disabled={base <= BASE_MIN} onClick={() => changeBase(base - 1)} className={STEP_BUTTON}>
               <Minus size={16} strokeWidth={1.5} />
             </button>
-            <span data-base className="w-20 text-center text-sm tabular-nums">
+            <span data-base className="w-20 text-center type-body tabular-nums!">
               {base}px
             </span>
             <button type="button" aria-label="본문 크게" disabled={base >= BASE_MAX} onClick={() => changeBase(base + 1)} className={STEP_BUTTON}>
@@ -563,7 +563,7 @@ export function NewSizesForm({
             <button type="button" aria-label="줄 높이 좁게" disabled={baseLine <= lineRange.min} onClick={() => stepLine(-1)} className={STEP_BUTTON}>
               <Minus size={16} strokeWidth={1.5} />
             </button>
-            <span data-leading title="본문 크기의 줄 높이. 다른 단계는 같은 비율로 따라가요" className="w-20 text-center text-sm tabular-nums">
+            <span data-leading title="본문 크기의 줄 높이. 다른 단계는 같은 비율로 따라가요" className="w-20 text-center type-body tabular-nums!">
               {baseLine}px
             </span>
             <button type="button" aria-label="줄 높이 넓게" disabled={baseLine >= lineRange.max} onClick={() => stepLine(1)} className={STEP_BUTTON}>
@@ -580,7 +580,7 @@ export function NewSizesForm({
             <button type="button" aria-label="단계 줄이기" disabled={upCount <= UPS_MIN} onClick={() => changeUps(upCount - 1)} className={STEP_BUTTON}>
               <Minus size={16} strokeWidth={1.5} />
             </button>
-            <span data-count title={`가장 큰 단계는 ${nameOf(ruled[ruled.length - 1].name)} ${ruled[ruled.length - 1].size}`} className="w-20 text-center text-sm tabular-nums">
+            <span data-count title={`가장 큰 단계는 ${nameOf(ruled[ruled.length - 1].name)} ${ruled[ruled.length - 1].size}`} className="w-20 text-center type-body tabular-nums!">
               {ruled.length}단계
             </span>
             <button
@@ -602,7 +602,7 @@ export function NewSizesForm({
               <Minus size={16} strokeWidth={1.5} />
             </button>
             {/* 배수의 숫자 대신 이름을 보여 준다. 숫자는 마우스를 올리면 나온다. */}
-            <span data-spread title={`한 단계마다 ${spread}배씩 커져요`} className="w-20 text-center text-sm">
+            <span data-spread title={`한 단계마다 ${spread}배씩 커져요`} className="w-20 text-center type-body">
               {SPREAD_STEPS[spreadAt]?.label}
             </span>
             <button type="button" aria-label="단계 사이 넓게" disabled={spreadAt >= SPREAD_STEPS.length - 1} onClick={() => stepSpread(1)} className={STEP_BUTTON}>
@@ -627,8 +627,8 @@ export function NewSizesForm({
                   setTighten(o.on)
                   setTracks({})
                 }}
-                className={`h-6 rounded-sm text-sm outline-selection focus-visible:outline-2 ${
-                  o.on === tighten ? 'bg-canvas font-[550] text-ink shadow-[0_0_0_1px_var(--color-hairline)]' : 'text-ink-soft hover:text-ink'
+                className={`h-6 rounded-sm outline-selection focus-visible:outline-2 ${
+                  o.on === tighten ? 'bg-canvas type-label text-ink shadow-[0_0_0_1px_var(--color-hairline)]' : 'type-body text-ink-soft hover:text-ink'
                 }`}
               >
                 {o.label}
@@ -642,8 +642,8 @@ export function NewSizesForm({
           <div className="border-t border-hairline pt-4">
             <p className={LABEL}>견본의 글꼴</p>
             {fonts.length === 1 ? (
-              <p className="text-sm">
-                <span className="font-mono text-ink-faint">{fonts[0].name}</span> {shownFont(fonts[0].value)}
+              <p className="type-body">
+                <span className="type-code text-ink-faint">{fonts[0].name}</span> {shownFont(fonts[0].value)}
               </p>
             ) : (
               <div role="radiogroup" aria-label="견본의 글꼴" className="space-y-1">
@@ -654,11 +654,11 @@ export function NewSizesForm({
                     role="radio"
                     aria-checked={f.name === fontName}
                     onClick={() => setFontName(f.name)}
-                    className={`flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-sm outline-selection focus-visible:outline-2 ${
+                    className={`flex h-8 w-full items-center gap-2 rounded-md px-2 text-left type-body outline-selection focus-visible:outline-2 ${
                       f.name === fontName ? 'bg-selection-soft' : 'hover:bg-hover'
                     }`}
                   >
-                    <span className="shrink-0 font-mono text-xs text-ink-faint">{f.name}</span>
+                    <span className="shrink-0 type-code-sm text-ink-faint">{f.name}</span>
                     <span className="min-w-0 flex-1 truncate">{shownFont(f.value)}</span>
                   </button>
                 ))}
@@ -688,7 +688,7 @@ export function NewSizesForm({
               {/* 이름은 미리 채워져 있고, 다른 이름을 쓰고 싶을 때만 고친다. */}
               <StepName label={`${s.name} 이름`} value={nameOf(s.name)} onChange={(name) => setNames({ ...names, [s.name]: name })} />
               {/* 크기, 줄 높이, 글자 사이는 단계마다 직접 고칠 수 있다(본문 줄의 크기 칸은 왼쪽의 본문 크기와 같은 값이다). 줄 높이와 글자 사이는 고친 크기에 맞춰 따라오고, 직접 고친 것은 따라가지 않는다. */}
-              <span className="flex w-60 shrink-0 items-center font-mono text-xs whitespace-nowrap text-ink-faint">
+              <span className="flex w-60 shrink-0 items-center type-code-sm whitespace-nowrap text-ink-faint">
                 {s.name === 'base' ? (
                   // 본문 줄의 크기도 다른 줄처럼 칸이다. 여기서 고치는 것은 왼쪽의 "본문 크기"와 같은 값이다.
                   <BaseSize base={base} onChange={changeBase} />
@@ -728,7 +728,7 @@ export function NewSizesForm({
                 />
               </span>
               {/* 이 크기가 흔히 쓰이는 곳. */}
-              <span data-use className="w-36 shrink-0 text-xs whitespace-nowrap text-ink-soft">
+              <span data-use className="w-36 shrink-0 type-caption whitespace-nowrap text-ink-soft">
                 {/* 5단계면 xl이 가장 큰 단계라 화면 제목까지 맡는다. */}
                 {s.name === 'xl' && upCount === 2 ? '화면 제목, 구역 제목' : SAMPLES[s.name].use}
               </span>
@@ -754,7 +754,7 @@ export function NewSizesForm({
           {/* 머리 줄: 열마다의 종류. */}
           <span />
           {EXAMPLE_ROWS.map((kind) => (
-            <p key={kind.id} data-ex-head={kind.id} className="text-center text-xs text-ink-soft">
+            <p key={kind.id} data-ex-head={kind.id} className="text-center type-caption text-ink-soft">
               {kind.label}
             </p>
           ))}
@@ -763,7 +763,7 @@ export function NewSizesForm({
             const slot = slotOf(size)
             return [
               // 줄의 이름(크기)은 상자와 같은 높이의 자리 안에서 가운데에 둔다.
-              <p key={size} data-ex-size={size} className="flex flex-col justify-center font-mono text-xs leading-4 text-ink-faint" style={{ height: slot }}>
+              <p key={size} data-ex-size={size} className="flex flex-col justify-center type-code-sm text-ink-faint" style={{ height: slot }}>
                 <span className="text-ink-soft">{nameOf(size)}</span>
                 <span className="whitespace-nowrap">
                   {step.size} / {step.line}
@@ -794,7 +794,7 @@ export function NewSizesForm({
                     {/* 글자가 상자의 가운데에서 어느 쪽으로 얼마나 밀렸는지만 적는다. 알고 싶은 것은 치우침이지 여백의 크기가 아니다. 위아래 여백은 마우스를 올리면 나온다. */}
                     <p
                       title={gap ? `위 여백 ${gap.top.toFixed(1)}px · 아래 여백 ${gap.bottom.toFixed(1)}px` : undefined}
-                      className={`mt-1 font-mono text-xs leading-4 whitespace-nowrap tabular-nums ${gap && Math.abs(shift) > OFF ? 'text-danger' : 'text-ink-faint'}`}
+                      className={`mt-1 type-code-sm whitespace-nowrap tabular-nums! ${gap && Math.abs(shift) > OFF ? 'text-danger' : 'text-ink-faint'}`}
                     >
                       {gap ? (Math.abs(shift) < 0.05 ? '가운데' : `${shift > 0 ? '위로' : '아래로'} ${Math.abs(shift).toFixed(1)}`) : '\u00a0'}
                     </p>
@@ -842,7 +842,7 @@ export function NewSizesForm({
           </Button>
           {/* 이미 있는 단계가 새 값으로 바뀌는 것은 되돌리기 전에 알아야 하는 일이라 알린다. */}
           {problem ? (
-            <span role="alert" className="mr-1 text-sm text-danger">
+            <span role="alert" className="mr-1 type-body text-danger">
               {problem}
             </span>
           ) : (

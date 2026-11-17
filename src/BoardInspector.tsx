@@ -16,7 +16,7 @@ import { asHex } from './lib/color'
 import { arrange, gapOf, setGap, type Arrange, type Placed } from './lib/arrange'
 import { ColorSwatch } from './ColorPicker'
 import { Section } from './Inspector'
-import { inputClass } from './ui'
+import { monoInputClass } from './ui'
 
 export const MIN_BOARD_WIDTH = 240
 export const MAX_BOARD_WIDTH = 1600
@@ -78,7 +78,7 @@ export function NumberField({
       }`}
     >
       <span
-        className={`shrink-0 text-sm text-ink-faint select-none ${fixed ? '' : 'cursor-ew-resize'}`}
+        className={`shrink-0 type-body text-ink-faint select-none ${fixed ? '' : 'cursor-ew-resize'}`}
         onPointerDown={(e) => {
           if (fixed) return
           e.preventDefault()
@@ -99,7 +99,7 @@ export function NumberField({
       <input
         aria-label={label}
         inputMode="numeric"
-        className={`min-w-0 flex-1 bg-transparent text-sm tabular-nums outline-none placeholder:text-ink-faint ${
+        className={`min-w-0 flex-1 bg-transparent type-body tabular-nums! outline-none placeholder:text-ink-faint ${
           readOnly ? 'text-ink-soft' : 'text-ink'
         }`}
         value={draft}
@@ -137,7 +137,7 @@ function ColorField({ label, value, onCommit }: { label: string; value: string |
       <ColorSwatch label={`${label} 고르기`} value={value} fallback="#ffffff" onChange={onCommit} />
       <input
         aria-label={label}
-        className={`${inputClass} font-mono`}
+        className={monoInputClass}
         value={draft}
         placeholder={MIXED}
         onChange={(e) => setDraft(e.target.value)}
@@ -161,7 +161,7 @@ export function ImageInspector({
   return (
     <div>
       <Section>
-        <h2 className="font-[650]">{many ? `사진 ${picked.length}개 선택됨` : '사진'}</h2>
+        <h2 className="type-heading">{many ? `사진 ${picked.length}개 선택됨` : '사진'}</h2>
       </Section>
       <Section title="위치">
         <div className="grid grid-cols-2 gap-2">
@@ -222,7 +222,7 @@ export function BoardInspector({
     <div>
       <Section>
         <div className="flex items-center gap-1">
-          <h2 className="min-w-0 flex-1 truncate font-[650]">{many ? `판 ${picked.length}개 선택됨` : `${titles[picked[0].id]} 판`}</h2>
+          <h2 className="min-w-0 flex-1 truncate type-heading">{many ? `판 ${picked.length}개 선택됨` : `${titles[picked[0].id]} 판`}</h2>
           <button
             type="button"
             title={locked ? '잠금 풀기 (Ctrl+Shift+L)' : '잠그기 (Ctrl+Shift+L)'}
@@ -246,7 +246,7 @@ export function BoardInspector({
       </Section>
 
       <Section title="위치">
-        <p className="mb-1 text-sm font-[550] text-ink-faint">정렬</p>
+        <p className="mb-1 type-label text-ink-faint">정렬</p>
         <div className="mb-3 flex gap-1">
           {ALIGN.map(({ action, label, icon: Icon }, i) => (
             <button
@@ -265,7 +265,7 @@ export function BoardInspector({
             </button>
           ))}
         </div>
-        <p className="mb-1 text-sm font-[550] text-ink-faint">위치</p>
+        <p className="mb-1 type-label text-ink-faint">위치</p>
         <div className="grid grid-cols-2 gap-2">
           <NumberField tag="X" label="가로 위치" value={x} readOnly={anyLocked} onCommit={(v) => all(() => ({ x: v }))} />
           <NumberField tag="Y" label="세로 위치" value={y} readOnly={anyLocked} onCommit={(v) => all(() => ({ y: v }))} />
@@ -273,7 +273,7 @@ export function BoardInspector({
       </Section>
 
       <Section title="배치">
-        <p className="mb-1 text-sm font-[550] text-ink-faint">크기</p>
+        <p className="mb-1 type-label text-ink-faint">크기</p>
         <div className="grid grid-cols-2 gap-2">
           <NumberField
             tag="W"
@@ -285,7 +285,7 @@ export function BoardInspector({
         </div>
         {many && (
           <>
-            <p className="mt-3 mb-1 text-sm font-[550] text-ink-faint">간격</p>
+            <p className="mt-3 mb-1 type-label text-ink-faint">간격</p>
             <div className="grid grid-cols-2 gap-2">
               <NumberField
                 tag="가로"

@@ -6,6 +6,9 @@
   --color-ink: #000000;
   --color-ink-soft: #5c5c5c;
   --color-ink-faint: #757575;
+  /* 주요 버튼의 바탕과 그 위의 글자. 지금은 ink, 흰색과 같은 값이지만 이름을 따로 두어 주요 버튼의 색만 바꿀 수 있게 한다. */
+  --color-primary: #000000;
+  --color-on-primary: #ffffff;
   --color-canvas: #ffffff;
   --color-workspace: #f7f7f5;
   --color-hover: #f1f1f1;
@@ -21,8 +24,66 @@
   --font-sans: "SUIT Variable", SUIT, Pretendard, system-ui, sans-serif;
   --font-mono: ui-monospace, Consolas, monospace;
 
+  /* 글자 크기는 셋, 줄 높이는 크기에 묶인 짝수 px. 굵기도 셋. 이름과 값은 systems/ff-test와 같다. */
+  --text-xs: 12px;
+  --text-xs--line-height: 16px;
+  --text-sm: 14px;
+  --text-sm--line-height: 20px;
+  --text-base: 16px;
+  --text-base--line-height: 24px;
+  --font-weight-regular: 400;
+  --font-weight-medium: 550;
+  --font-weight-semibold: 650;
+
+  /* 의미 글꼴. 위의 재료 가운데 실제로 쓰는 조합이다. 코드에서는 아래의 type-이름 클래스로만 쓰고, 크기와 굵기를 따로 적지 않는다. */
+  --type-title: var(--font-weight-semibold) var(--text-base)/var(--text-base--line-height) var(--font-sans); /* 제목: 화면과 창의 제목, 색 목록의 이름 | 컴포넌트 | 제목: gray */
+  --type-heading: var(--font-weight-semibold) var(--text-sm)/var(--text-sm--line-height) var(--font-sans); /* 제목: 패널의 제목, 구역의 제목 | ink | 제목: 쓰이는 곳 */
+  --type-body: var(--font-weight-regular) var(--text-sm)/var(--text-sm--line-height) var(--font-sans); /* 본문: 본문, 입력한 값 | 읽을 수 없는 값이에요. 파일에서 값을 고쳐 주세요. */
+  --type-caption: var(--font-weight-regular) var(--text-xs)/var(--text-xs--line-height) var(--font-sans); /* 보조: 보조 설명, 판에 적힌 값, 판의 제목 | 저장됨 | 제목: 의미 글꼴 */
+  --type-menu-strong: var(--font-weight-medium) var(--text-base)/var(--text-base--line-height) var(--font-sans); /* 조작: 왼쪽 메뉴에서 지금 열려 있는 화면의 항목 | 의미 글꼴 */
+  --type-menu: var(--font-weight-regular) var(--text-base)/var(--text-base--line-height) var(--font-sans); /* 조작: 왼쪽 메뉴의 항목(색상, 글꼴 같은 화면 이름) | 색상, 의미 색, 글꼴 */
+  --type-label: var(--font-weight-medium) var(--text-sm)/var(--text-sm--line-height) var(--font-sans); /* 조작(버튼): 버튼, 입력칸의 이름표, 본문 속 강조 | 추가, 취소 | 이름표: 글꼴 종류 */
+  --type-caption-strong: var(--font-weight-medium) var(--text-xs)/var(--text-xs--line-height) var(--font-sans); /* 조작(뱃지): 묶음의 이름, 작은 이름표 | ink · #000000 | 제목: 이 디자인 시스템의 색 */
+  --type-code: var(--font-weight-regular) var(--text-sm)/var(--text-sm--line-height) var(--font-mono); /* 숫자·코드: 판에 적힌 색 값과 변수 이름 | --color-ink */
+  --type-code-sm: var(--font-weight-regular) var(--text-xs)/var(--text-xs--line-height) var(--font-mono); /* 숫자·코드: 작은 칸의 숫자와 이름, 코드 표시 | sans · sm · medium */
+
   --shadow-float: 0 4px 16px rgb(0 0 0 / 0.08);
   --shadow-dialog: 0 8px 32px rgb(0 0 0 / 0.12);
+}
+
+/*
+  의미 글꼴의 클래스. 한 줄로 글꼴, 크기, 굵기, 줄 높이가 모두 정해진다.
+  font 한 줄은 숫자 폭(tabular-nums) 같은 글꼴의 다른 설정을 처음 값으로 되돌리므로, 그런 클래스는 뒤에 !를 붙여 쓴다(tabular-nums!).
+*/
+@utility type-title {
+  font: var(--type-title);
+}
+@utility type-heading {
+  font: var(--type-heading);
+}
+@utility type-body {
+  font: var(--type-body);
+}
+@utility type-label {
+  font: var(--type-label);
+}
+@utility type-caption {
+  font: var(--type-caption);
+}
+@utility type-caption-strong {
+  font: var(--type-caption-strong);
+}
+@utility type-code {
+  font: var(--type-code);
+}
+@utility type-code-sm {
+  font: var(--type-code-sm);
+}
+@utility type-menu {
+  font: var(--type-menu);
+}
+@utility type-menu-strong {
+  font: var(--type-menu-strong);
 }
 
 /* 선택과 호버 선의 굵기. 전체 보기에서는 확대 비율의 반대로 키워서, 축소해도 화면에서 같은 굵기로 보이게 한다. */
@@ -85,10 +146,8 @@ body,
 }
 
 body {
-  font-family: var(--font-sans);
-  font-size: 14px;
-  /* 14px 글자의 줄 높이는 20px. 짝수라야 16px 아이콘이나 체크박스가 줄의 한가운데에 반 픽셀 어긋남 없이 놓인다. */
-  line-height: 20px;
+  /* 기본 글자는 본문(14px, 줄 높이 20px). 줄 높이가 짝수라야 16px 아이콘이나 체크박스가 줄의 한가운데에 반 픽셀 어긋남 없이 놓인다. */
+  font: var(--type-body);
   color: var(--color-ink);
   background: var(--color-canvas);
   overflow: hidden;

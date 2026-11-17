@@ -9,7 +9,7 @@ import { useUndo } from './lib/useUndo'
 import { PlainScreen } from './TypeScreen'
 import { Button } from './ui'
 
-const LABEL = 'mb-1 text-sm font-[550] text-ink-faint'
+const LABEL = 'mb-1 type-label text-ink-faint'
 const STEP_BUTTON =
   'flex size-8 shrink-0 items-center justify-center rounded-md text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2 disabled:opacity-40 disabled:hover:bg-transparent'
 /** 처음에 고르는 단계 수. 셋(본문, 중간, 굵게)이다. */
@@ -56,8 +56,8 @@ function StepWeight({ name, rule, custom, onChange }: { name: string; rule: numb
       aria-invalid={bad || undefined}
       inputMode="numeric"
       title={custom === null ? '숫자를 고치면 이 단계의 굵기를 직접 정해요' : `직접 정한 굵기예요. 비우면 정해 둔 값(${rule})으로 돌아가요`}
-      className={`h-6 w-12 shrink-0 rounded-sm border bg-canvas text-center ${bad ? 'border-danger' : 'border-hairline hover:border-ink-faint focus:border-selection'} font-mono text-xs outline-none placeholder:text-ink-faint/50 ${
-        custom !== null ? 'font-bold text-ink' : 'text-ink-soft'
+      className={`h-6 w-12 shrink-0 rounded-sm border bg-canvas text-center ${bad ? 'border-danger' : 'border-hairline hover:border-ink-faint focus:border-selection'} type-code-sm outline-none placeholder:text-ink-faint/50 ${
+        custom !== null ? 'text-ink' : 'text-ink-soft'
       }`}
       value={draft ?? String(custom ?? rule)}
       placeholder={String(rule)}
@@ -205,7 +205,7 @@ export function NewWeightsForm({
             <button type="button" aria-label="단계 줄이기" disabled={count <= Math.min(...counts)} onClick={() => changeCount(count - 1)} className={STEP_BUTTON}>
               <Minus size={16} strokeWidth={1.5} />
             </button>
-            <span data-count className="w-20 text-center text-sm tabular-nums">
+            <span data-count className="w-20 text-center type-body tabular-nums!">
               {count}단계
             </span>
             <button type="button" aria-label="단계 늘리기" disabled={count >= Math.max(...counts)} onClick={() => changeCount(count + 1)} className={STEP_BUTTON}>
@@ -219,8 +219,8 @@ export function NewWeightsForm({
           <div className="border-t border-hairline pt-4">
             <p className={LABEL}>견본의 글꼴</p>
             {fonts.length === 1 ? (
-              <p className="text-sm">
-                <span className="font-mono text-ink-faint">{fonts[0].name}</span> {shownFont(fonts[0].value)}
+              <p className="type-body">
+                <span className="type-code text-ink-faint">{fonts[0].name}</span> {shownFont(fonts[0].value)}
               </p>
             ) : (
               <div role="radiogroup" aria-label="견본의 글꼴" className="space-y-1">
@@ -231,11 +231,11 @@ export function NewWeightsForm({
                     role="radio"
                     aria-checked={f.name === fontName}
                     onClick={() => setFontName(f.name)}
-                    className={`flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-sm outline-selection focus-visible:outline-2 ${
+                    className={`flex h-8 w-full items-center gap-2 rounded-md px-2 text-left type-body outline-selection focus-visible:outline-2 ${
                       f.name === fontName ? 'bg-selection-soft' : 'hover:bg-hover'
                     }`}
                   >
-                    <span className="shrink-0 font-mono text-xs text-ink-faint">{f.name}</span>
+                    <span className="shrink-0 type-code-sm text-ink-faint">{f.name}</span>
                     <span className="min-w-0 flex-1 truncate">{shownFont(f.value)}</span>
                   </button>
                 ))}
@@ -269,7 +269,7 @@ export function NewWeightsForm({
                     }
                   />
                   {/* 이 굵기가 흔히 쓰이는 곳. */}
-                  <span data-use className="w-36 shrink-0 text-xs whitespace-nowrap text-ink-soft">
+                  <span data-use className="w-36 shrink-0 type-caption whitespace-nowrap text-ink-soft">
                     {s.use}
                   </span>
                 </span>
@@ -279,7 +279,7 @@ export function NewWeightsForm({
                   </span>
                 </span>
                 {/* 이 글꼴에 그 굵기가 없으면 다른 굵기로 그려진다. 그러면 단계를 나눈 뜻이 없어지므로 알린다. */}
-                <span data-drawn={s.name} className={`w-44 shrink-0 text-right text-xs whitespace-nowrap ${real !== s.weight ? 'text-danger' : 'text-ink-faint'}`}>
+                <span data-drawn={s.name} className={`w-44 shrink-0 text-right type-caption whitespace-nowrap ${real !== s.weight ? 'text-danger' : 'text-ink-faint'}`}>
                   {real !== s.weight ? `이 글꼴에서는 ${real}으로 그려져요` : ''}
                 </span>
               </div>
@@ -301,7 +301,7 @@ export function NewWeightsForm({
           </Button>
           {/* 이미 있는 단계가 새 값으로 바뀌는 것은 되돌리기 전에 알아야 하는 일이라 알린다. */}
           {problem ? (
-            <span role="alert" className="mr-1 text-sm text-danger">
+            <span role="alert" className="mr-1 type-body text-danger">
               {problem}
             </span>
           ) : (

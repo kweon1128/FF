@@ -16,7 +16,7 @@ export type PasteJob = {
   into: string | null
 }
 
-const OPTION = 'h-6 flex-1 rounded-sm text-sm font-[550] outline-selection focus-visible:outline-2'
+const OPTION = 'h-6 flex-1 rounded-sm type-label outline-selection focus-visible:outline-2'
 
 /**
  * 붙여넣기 창. 이름이 같은 값이 있거나 읽지 못한 값이 있을 때만 뜬다.
@@ -40,12 +40,12 @@ export function PasteDialog({
     <Modal title="붙여넣기" onClose={onCancel}>
       <div className="space-y-4">
         <p className="text-ink-soft">
-          값 <span className="font-[550] text-ink">{total}개</span>를 붙여넣어요.
+          값 <span className="type-label text-ink">{total}개</span>를 붙여넣어요.
         </p>
 
         {job.conflicts > 0 && (
           <div>
-            <p className="mb-1 text-sm font-[550] text-ink-faint">이름이 같은 값 {job.conflicts}개</p>
+            <p className="mb-1 type-label text-ink-faint">이름이 같은 값 {job.conflicts}개</p>
             <div role="group" aria-label="이름이 같은 값" className="flex gap-1 rounded-md bg-hover p-1">
               {[
                 { on: true, label: '덮어쓰기' },
@@ -67,10 +67,10 @@ export function PasteDialog({
 
         {job.skipped.length > 0 && (
           <div>
-            <p className="mb-1 text-sm font-[550] text-ink-faint">읽지 못한 값 {job.skipped.length}개</p>
+            <p className="mb-1 type-label text-ink-faint">읽지 못한 값 {job.skipped.length}개</p>
             <ul className="max-h-36 space-y-1 overflow-y-auto rounded-md border border-hairline p-2">
               {job.skipped.map((t) => (
-                <li key={t.name} className="flex items-baseline gap-2 font-mono text-xs">
+                <li key={t.name} className="flex items-baseline gap-2 type-code-sm">
                   <span className="min-w-0 flex-1 truncate">{t.name}</span>
                   <span className="max-w-[45%] shrink-0 truncate text-ink-faint">{t.value}</span>
                 </li>
@@ -79,7 +79,7 @@ export function PasteDialog({
             {job.adoptable.length > 0 && (
               <div className="mt-2">
                 <Check checked={adopt} onChange={setAdopt}>
-                  색으로 보이는 {job.adoptable.length}개는 이름 앞에 <span className="font-mono text-xs">--color-</span>를 붙여 가져오기
+                  색으로 보이는 {job.adoptable.length}개는 이름 앞에 <span className="type-code-sm">--color-</span>를 붙여 가져오기
                 </Check>
               </div>
             )}

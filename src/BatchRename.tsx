@@ -97,13 +97,13 @@ export function BatchRename({
           {rows.map((r) => {
             const problem = problemOf(r)
             return (
-              <li key={r.old} className="flex items-baseline gap-2 font-mono text-sm">
+              <li key={r.old} className="flex items-baseline gap-2 type-code">
                 <span className="min-w-0 flex-1 truncate text-ink-faint">{r.short}</span>
                 <span className="shrink-0 text-ink-faint">→</span>
                 <span className={`min-w-0 flex-1 truncate ${problem ? 'text-danger' : r.full === r.old ? 'text-ink-faint' : 'text-ink'}`}>
                   {r.next}
                 </span>
-                {problem && <span className="shrink-0 font-sans text-danger">{problem}</span>}
+                {problem && <span className="shrink-0 type-body text-danger">{problem}</span>}
               </li>
             )
           })}

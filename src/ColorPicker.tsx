@@ -65,7 +65,7 @@ function useDrag(onMove: (x: number, y: number) => void) {
 // 손잡이: 피그마처럼 두꺼운 흰 고리에 가운데로 그 자리의 색이 보인다. 옅은 그림자로 밝은 색 위에서도 보이게 한다.
 const KNOB =
   'pointer-events-none absolute size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-white shadow-[0_0_0_0.5px_rgb(0_0_0/0.25),0_1px_3px_rgb(0_0_0/0.35)]'
-const FIELD = 'h-8 min-w-0 rounded-md border border-hairline bg-canvas px-2 font-mono text-sm outline-none focus:border-selection'
+const FIELD = 'h-8 min-w-0 rounded-md border border-hairline bg-canvas px-2 type-code outline-none focus:border-selection'
 
 function Panel({
   anchor,
@@ -260,7 +260,7 @@ function Panel({
               }}
               onBlur={() => setPercent(String(Math.round(a * 100)))}
             />
-            <span className="font-sans text-xs text-ink-faint">%</span>
+            <span className="type-caption text-ink-faint">%</span>
           </label>
         )}
       </div>
@@ -274,7 +274,7 @@ function Panel({
 
       {swatches.length > 0 && (
         <div className="mt-3 border-t border-hairline pt-3">
-          <p className="mb-2 text-xs font-[550] text-ink-faint">이 디자인 시스템의 색</p>
+          <p className="mb-2 type-caption-strong text-ink-faint">이 디자인 시스템의 색</p>
           {/* 색상 판처럼 목록마다 한 줄. 한 줄에 11칸이라 50부터 950까지가 한 줄에 들어가고, 줄끼리 같은 단계가 위아래로 맞는다. */}
           <div className="max-h-40 space-y-1 overflow-y-auto">
             {swatches.map((row) => (

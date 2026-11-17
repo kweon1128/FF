@@ -5,9 +5,8 @@ import { COLOR_REF, SLUG, groupOf, shortName, type Kind } from './lib/catalog'
 import { asHex, isApprox, showColor, toHex, toOklch } from './lib/color'
 import { stepValue, suggestLine, suggestTrack } from './lib/tokens'
 import { ColorSwatch } from './ColorPicker'
-import { ColorUses } from './ColorUses'
-import { FontSample, NewFontForm } from './NewFont'
-import { parseFontValue, shownFont, weightsOf } from './lib/fonts'
+import { NewFontForm } from './NewFont'
+import { shownFont } from './lib/fonts'
 import { Button, Chip, Field, Modal, UnitInput, inputClass } from './ui'
 
 type Props = {
@@ -53,14 +52,13 @@ const PLAIN = /^[a-z0-9]+$/
 export function Section({ title, children }: { title?: string; children: ReactNode }) {
   return (
     <section className="border-b border-hairline px-4 py-3 last:border-b-0">
-      {title && <h3 className="mb-2 text-sm font-[650]">{title}</h3>}
+      {title && <h3 className="mb-2 type-heading">{title}</h3>}
       {children}
     </section>
   )
 }
 
 export const CODE_OPEN = 'ff.codeOpen'
-export const USES_OPEN = 'ff.usesOpen'
 export const WHERE_OPEN = 'ff.whereOpen'
 
 /**
@@ -105,9 +103,9 @@ export function FoldSection({
   if (empty)
     return (
       <section className="border-b border-hairline last:border-b-0">
-        <h3 className="flex h-11 items-center gap-1 px-4 text-sm font-[650]">
+        <h3 className="flex h-11 items-center gap-1 px-4 type-heading">
           <span className="flex-1">{title}</span>
-          {note && <span className="font-normal text-ink-faint">{note}</span>}
+          {note && <span className="type-body text-ink-faint">{note}</span>}
         </h3>
       </section>
     )
@@ -118,10 +116,10 @@ export function FoldSection({
           type="button"
           aria-expanded={open}
           onClick={toggle}
-          className="flex h-11 w-full items-center gap-1 px-4 text-sm font-[650] outline-selection hover:bg-hover focus-visible:outline-2 focus-visible:-outline-offset-2"
+          className="flex h-11 w-full items-center gap-1 px-4 type-heading outline-selection hover:bg-hover focus-visible:outline-2 focus-visible:-outline-offset-2"
         >
           <span className="flex-1 text-left">{title}</span>
-          {note && <span className="font-normal text-ink-faint">{note}</span>}
+          {note && <span className="type-body text-ink-faint">{note}</span>}
           <Arrow size={16} strokeWidth={1.5} className="text-ink-soft" />
         </button>
       </h3>
@@ -310,7 +308,7 @@ export function Inspector({
   return (
     <div>
       <Section>
-        <h2 className="font-[650] break-all">{short}</h2>
+        <h2 className="type-heading break-all">{short}</h2>
       </Section>
 
       <Section title="이름">
@@ -336,7 +334,7 @@ export function Inspector({
         ) : (
           <>
             {nameInput}
-            {nameError && <span className="mt-1 block text-sm text-danger">{nameError}</span>}
+            {nameError && <span className="mt-1 block type-body text-danger">{nameError}</span>}
           </>
         )}
       </Section>
@@ -344,7 +342,7 @@ export function Inspector({
       <Section title={kind.valueLabel}>
         {/* 글꼴 종류는 값을 직접 적지 않는다. 정한 글꼴의 이름만 보여 주고, 바꾸는 것은 아래의 "글꼴 고르기"로 한다. 대체 글꼴까지 든 전체 값은 코드 구역에 있다. */}
         {isFont && (
-          <p data-font-name className="flex h-8 items-center text-sm">
+          <p data-font-name className="flex h-8 items-center type-body">
             <span className="truncate">{shownFont(valueDraft)}</span>
           </p>
         )}
@@ -394,7 +392,7 @@ export function Inspector({
             </button>
           )}
         </span>
-        {valueError && <span className="mt-1 block text-sm text-danger">{valueError}</span>}
+        {valueError && <span className="mt-1 block type-body text-danger">{valueError}</span>}
         {line !== undefined && (
           <div className="mt-2">
             <Field label="줄 높이" error={lineError}>
@@ -466,25 +464,11 @@ export function Inspector({
         )}
       </Section>
 
-      {/* 색을 고르거나 고치는 동안 그 색이 실제로 쓰인 모습을 바로 보여 준다. 적는 중인 값이 색이면 그것을, 아니면 저장된 값을 쓴다. */}
-      {isColor && liveColor && (
-        <FoldSection title="쓰인 모습" storageKey={USES_OPEN} startOpen>
-          {/* 이름이 500 같은 단계면 그 단계를 기준으로 올림·누름 색을 계산한다. */}
-          <ColorUses color={liveColor} step={Number(initialName)} />
-        </FoldSection>
-      )}
-
-      {/* 글꼴도 색처럼 쓰인 모습을 보여 준다. 값을 적는 동안 바로 따라 바뀐다. */}
-      {isFont && (
-        <FoldSection title="쓰인 모습" storageKey={USES_OPEN} startOpen>
-          <FontSample family={valueDraft} weights={weightsOf(parseFontValue(valueDraft).font)} className="rounded-md p-3 shadow-[inset_0_0_0_1px_rgb(0_0_0/0.08)]" />
-        </FoldSection>
-      )}
-
-      {/* 구역의 차례는 어느 패널이나 같다: 이름, 값, 쓰인 모습, 설명, 쓰이는 곳, 코드. 고치는 것은 늘 펼쳐 두고, 보기만 하는 것(쓰인 모습, 쓰이는 곳, 코드)은 접을 수 있다. */}
+      {/* 구역의 차례는 어느 패널이나 같다: 이름, 값, 설명, 쓰이는 곳, 코드. 고치는 것은 늘 펼쳐 두고, 보기만 하는 것(쓰이는 곳, 코드)은 접을 수 있다.
+          "쓰인 모습" 구역은 두지 않는다. 패널은 값을 고치는 곳이고, 쓰인 모습은 판(의미 색과 의미 글꼴의 예시)과 색 선택 창, 글꼴 추가 창이 보여 준다. */}
       <FoldSection title="쓰이는 곳" storageKey={WHERE_OPEN} startOpen note={uses.length + roles.length > 0 ? String(uses.length + roles.length) : '없음'} empty={uses.length + roles.length === 0}>
         {uses.length === 0 && roles.length === 0 ? (
-          <p className="text-sm text-ink-faint">이 값을 쓰는 곳이 아직 없어요.</p>
+          <p className="type-body text-ink-faint">이 값을 쓰는 곳이 아직 없어요.</p>
         ) : (
           <div className="space-y-2">
             {/* 이 색을 가리키는 의미 색. 누르면 의미 색 판의 그 색으로 간다. */}
@@ -493,10 +477,10 @@ export function Inspector({
                 key={name}
                 type="button"
                 onClick={() => onOpenToken(name)}
-                className="-ml-2 flex h-8 max-w-full items-center rounded-md px-2 font-[550] outline-selection hover:bg-hover focus-visible:outline-2"
+                className="-ml-2 flex h-8 max-w-full items-center rounded-md px-2 type-label outline-selection hover:bg-hover focus-visible:outline-2"
               >
                 <span className="truncate">{name.startsWith('--type-') ? name.slice('--type-'.length) : name.slice(kind.prefix.length)}</span>
-                <span className="ml-2 shrink-0 text-sm font-normal text-ink-faint">{name.startsWith('--type-') ? '의미 글꼴' : '의미 색'}</span>
+                <span className="ml-2 shrink-0 type-body text-ink-faint">{name.startsWith('--type-') ? '의미 글꼴' : '의미 색'}</span>
               </button>
             ))}
             {uses.map((u) => (
@@ -504,12 +488,12 @@ export function Inspector({
                 <button
                   type="button"
                   onClick={() => onOpenComponent(u.index)}
-                  className="-ml-2 flex h-8 max-w-full items-center rounded-md px-2 font-[550] outline-selection hover:bg-hover focus-visible:outline-2"
+                  className="-ml-2 flex h-8 max-w-full items-center rounded-md px-2 type-label outline-selection hover:bg-hover focus-visible:outline-2"
                 >
                   <span className="truncate">{u.name}</span>
-                  <span className="ml-2 shrink-0 text-sm font-normal text-ink-faint">{u.where.length}곳</span>
+                  <span className="ml-2 shrink-0 type-body text-ink-faint">{u.where.length}곳</span>
                 </button>
-                <p className="text-sm text-ink-faint">{u.where.join(', ')}</p>
+                <p className="type-body text-ink-faint">{u.where.join(', ')}</p>
               </div>
             ))}
           </div>
@@ -519,7 +503,7 @@ export function Inspector({
       <FoldSection title="코드" storageKey={CODE_OPEN}>
         <div className="space-y-2">
           <div>
-            <p className="mb-1 text-sm font-[550] text-ink-faint">변수 이름</p>
+            <p className="mb-1 type-label text-ink-faint">변수 이름</p>
             <span className="flex items-center gap-1">
               <span className="min-w-0 flex-1">
                 <Chip>{token.name}</Chip>
@@ -537,7 +521,7 @@ export function Inspector({
           </div>
           {(isColor || isFont) && (
             <div>
-              <p className="mb-1 text-sm font-[550] text-ink-faint">저장된 값</p>
+              <p className="mb-1 type-label text-ink-faint">저장된 값</p>
               <span className="flex items-center gap-1">
                 <span className="min-w-0 flex-1">
                   <Chip>{token.value}</Chip>
@@ -547,12 +531,12 @@ export function Inspector({
                 </button>
               </span>
               {isColor && isApprox(token.value) && (
-                <p className="mt-1 text-sm text-ink-faint">화면이 낼 수 없는 선명한 색이라, 위의 # 값은 가장 가까운 색이에요.</p>
+                <p className="mt-1 type-body text-ink-faint">화면이 낼 수 없는 선명한 색이라, 위의 # 값은 가장 가까운 색이에요.</p>
               )}
             </div>
           )}
           <div>
-            <p className="mb-1 text-sm font-[550] text-ink-faint">저장 위치</p>
+            <p className="mb-1 type-label text-ink-faint">저장 위치</p>
             <Chip>{file}</Chip>
           </div>
         </div>
@@ -587,7 +571,7 @@ export function MultiInspector({
   return (
     <div>
       <Section>
-        <h2 className="font-[650]">{tokens.length}개 선택됨</h2>
+        <h2 className="type-heading">{tokens.length}개 선택됨</h2>
       </Section>
 
       {group !== null && (
@@ -604,7 +588,7 @@ export function MultiInspector({
             onBlur={commitGroup}
             onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
           />
-          {error && <span className="mt-1 block text-sm text-danger">{error}</span>}
+          {error && <span className="mt-1 block type-body text-danger">{error}</span>}
         </Section>
       )}
 

@@ -10,7 +10,7 @@ export function StepName({ label, value, wide = false, onChange }: { label: stri
     <input
       aria-label={label}
       spellCheck={false}
-      className={`h-6 shrink-0 rounded-sm border border-hairline bg-canvas px-1 font-mono text-xs text-ink-soft outline-none focus:border-selection ${wide === 'xl' ? 'w-28' : wide ? 'w-20' : 'w-14'}`}
+      className={`h-6 shrink-0 rounded-sm border border-hairline bg-canvas px-1 type-code-sm text-ink-soft outline-none focus:border-selection ${wide === 'xl' ? 'w-28' : wide ? 'w-20' : 'w-14'}`}
       value={value}
       onFocus={(e) => e.currentTarget.select()}
       onChange={(e) => onChange(e.target.value.trim())}
@@ -40,7 +40,7 @@ export function SetNotice({ made, existing, users }: { made: string[]; existing:
   // 이름이 많으면 앞의 넷만 적는다.
   const few = (names: string[]) => (names.length > 4 ? `${names.slice(0, 4).join(', ')} 외 ${names.length - 4}개` : names.join(', '))
   return (
-    <span data-set-notice className="mr-1 text-sm text-ink-faint">
+    <span data-set-notice className="mr-1 type-body text-ink-faint">
       {kept > 0 && `이미 있는 ${kept}개는 새 값으로 바뀌어요.`}
       {removed.length > 0 && ` 한 벌에 없는 ${removed.length}개(${few(removed)})는 지워져요.`}
       {used.length > 0 && (

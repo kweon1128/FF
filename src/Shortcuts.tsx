@@ -67,12 +67,12 @@ export function Shortcuts({ onClose }: { onClose: () => void }) {
       <div className="grid max-h-[70vh] grid-cols-2 gap-x-8 gap-y-6 overflow-y-auto">
         {GROUPS.map((group) => (
           <section key={group.title}>
-            <h3 className="mb-2 text-xs font-[650]">{group.title}</h3>
+            <h3 className="mb-2 type-caption-strong">{group.title}</h3>
             <dl className="space-y-2">
               {group.keys.map(([key, what]) => (
                 <div key={key} className="flex items-baseline justify-between gap-3">
                   <dt className="text-ink-soft">{what}</dt>
-                  <dd className="shrink-0 rounded-sm bg-hover px-1 text-xs">{key}</dd>
+                  <dd className="shrink-0 rounded-sm bg-hover px-1 type-caption">{key}</dd>
                 </div>
               ))}
             </dl>

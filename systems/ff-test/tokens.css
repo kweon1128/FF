@@ -1,3 +1,28 @@
+/* ff:guide
+  이 파일은 FF(디자인 시스템 관리 도구)가 읽고 쓴다. 값 뒤에 붙인 주석은 FF의 판에 설명과 예시로 보인다.
+  값을 더하거나 정리할 때 주석도 함께 적는다. 적지 않으면 판에는 지어낸 기본 예시가 보인다.
+
+  의미 색(다른 색을 가리키는 --color-이름)의 주석
+    역할(모양): 설명 | 문구 | 모양: 문구
+    예) 바탕(줄): 마우스를 올린 메뉴 줄 | 주문 관리
+    역할: 글자, 바탕, 테두리, 채움, 상태, 차트
+    모양: 글자, 면, 줄, 테두리, 구분선, 버튼, 버튼 글자, 뱃지, 선택 표시, 안내선, 안내 글자, 차트
+
+  의미 글꼴(--type-이름)의 주석
+    묶음(모양): 설명 | 문구 | 모양: 문구
+    예) 조작(버튼): 버튼, 입력칸의 이름표 | 저장, 취소 | 이름표: 받는 분
+    묶음: 제목, 본문, 보조, 조작, 숫자·코드
+    모양: 제목, 문단, 설명, 버튼, 이름표, 메뉴, 고른 메뉴, 탭, 뱃지, 숫자, 코드
+
+  설명은 이 값을 화면 어디에 쓰는지다.
+  문구는 그 자리에 실제로 적혀 있는 말이다. 지어내지 않고 화면에 있는 말을 옮긴다.
+  모양은 그 값이 놓인 자리다. (모양)을 빼면 FF가 이름에서 짐작한다.
+  한 값을 여러 자리에 쓰면 뒤에 " | 모양: 문구"를 자리마다 이어 적는다.
+  여럿을 늘어놓는 모양(버튼, 버튼 글자, 메뉴, 탭, 뱃지, 숫자)은 문구를 쉼표와 빈칸으로 나눈다.
+  주석은 값과 같은 줄에 한 줄로 적는다.
+  파일 끝의 ff:type 구역은 FF가 저장할 때마다 다시 쓰므로 고치지 않는다.
+ff:guide 끝 */
+
 /* FF가 관리하는 디자인 값입니다. @theme 안의 값은 FF에서 고칠 수 있습니다. */
 @theme {
   --color-gray-50: oklch(0.97558 0.00264 106.448);
@@ -57,21 +82,21 @@
   --color-blue-950: oklch(0.23983 0.07438 253.186);
   --color-white: oklch(1 0 0);
   --color-black: oklch(0 0 0);
-  --color-ink: var(--color-black); /* 글자: 제목, 본문, 입력한 값 */
-  --color-ink-soft: var(--color-gray-600); /* 글자: 선택되지 않은 메뉴 항목, 보조 설명 */
-  --color-ink-faint: var(--color-gray-500); /* 글자: 묶음 이름, 입력칸 이름표. 이보다 옅은 글자는 쓰지 않는다 */
-  --color-on-primary: var(--color-white); /* 글자: 주요 버튼 위의 글자 */
-  --color-canvas: var(--color-white); /* 바탕: 왼쪽 메뉴, 오른쪽 패널, 상단 바, 판 */
-  --color-workspace: var(--color-gray-50); /* 바탕: 가운데 작업 영역 */
-  --color-hover: var(--color-gray-100); /* 바탕: 마우스를 올린 줄, 선택된 메뉴 항목, 값 이름표 */
-  --color-selection-soft: var(--color-blue-50); /* 바탕: 선택된 줄 */
-  --color-hairline: var(--color-gray-200); /* 테두리: 패널 사이의 선, 입력칸과 버튼의 테두리 */
+  --color-ink: var(--color-black); /* 글자: 제목, 본문, 입력한 값 | 컴포넌트 | 글자: SUIT Variable | 글자: ink */
+  --color-ink-soft: var(--color-gray-600); /* 글자: 선택되지 않은 메뉴 항목, 보조 설명 | 색상 | 글자: 가운데 작업 영역 */
+  --color-ink-faint: var(--color-gray-500); /* 글자: 묶음 이름, 입력칸 이름표. 이보다 옅은 글자는 쓰지 않는다 | 기본 값 | 글자: 글꼴 종류 */
+  --color-on-primary: var(--color-white); /* 글자: 주요 버튼 위의 글자 | 만들기 */
+  --color-canvas: var(--color-white); /* 바탕: 왼쪽 메뉴, 오른쪽 패널, 상단 바, 판 | 색상 | 면: 쓰이는 곳 | 면: ff-test | 면: 글자 크기 */
+  --color-workspace: var(--color-gray-50); /* 바탕: 가운데 작업 영역 | 색상 */
+  --color-hover: var(--color-gray-100); /* 바탕: 마우스를 올린 줄, 선택된 메뉴 항목, 값 이름표 | 간격 | 줄: 색상 | 면: --color-ink */
+  --color-selection-soft: var(--color-blue-50); /* 바탕: 선택된 줄 | button */
+  --color-hairline: var(--color-gray-200); /* 테두리(구분선): 패널 사이의 선, 입력칸과 버튼의 테두리 | | 테두리: ink | 테두리: 취소 */
   --color-hairline-soft: var(--color-gray-100); /* 테두리: 패널 안에서 묶음을 나누는 옅은 선 */
-  --color-guide: var(--color-orange-500); /* 테두리: 판을 끌 때의 맞춤 안내선, 간격 표시 */
-  --color-selection: var(--color-blue-400); /* 테두리: 선택과 포커스 표시 전용. 버튼 바탕이나 장식으로 쓰지 않는다 */
-  --color-primary: var(--color-black); /* 채움: 주요 버튼. 한 화면에 하나만 둔다 */
-  --color-danger: var(--color-red-600); /* 상태: 삭제 버튼, 잘못된 입력의 안내 */
-  --color-success: var(--color-green-500); /* 상태: 저장됨 표시 */
+  --color-guide: var(--color-orange-500); /* 테두리: 판을 끌 때의 맞춤 안내선, 간격 표시 | 24 */
+  --color-selection: var(--color-blue-400); /* 테두리: 선택과 포커스 표시 전용. 버튼 바탕이나 장식으로 쓰지 않는다 | ink · #000000 | 테두리: ink */
+  --color-primary: var(--color-black); /* 채움: 주요 버튼. 한 화면에 하나만 둔다 | 만들기 */
+  --color-danger: var(--color-red-600); /* 상태(글자): 삭제 버튼, 잘못된 입력의 안내 | 종류 삭제 | 안내 글자: 이름을 입력해 주세요. | 테두리: ink */
+  --color-success: var(--color-green-500); /* 상태(안내 글자): 저장됨 표시 | 저장됨 */
   --font-sans: "SUIT Variable", SUIT, Pretendard, system-ui, sans-serif;
   --font-mono: ui-monospace, Consolas, monospace;
   --text-xs: 12px;
@@ -83,16 +108,51 @@
   --font-weight-regular: 400;
   --font-weight-medium: 550;
   --font-weight-semibold: 650;
-  --type-title: var(--font-weight-semibold) var(--text-base)/var(--text-base--line-height) var(--font-sans); /* 화면과 판의 제목 */
-  --type-heading: var(--font-weight-semibold) var(--text-sm)/var(--text-sm--line-height) var(--font-sans); /* 패널의 제목, 구역의 제목 */
-  --type-body: var(--font-weight-regular) var(--text-sm)/var(--text-sm--line-height) var(--font-sans); /* 본문, 입력한 값, 메뉴 항목 */
-  --type-label: var(--font-weight-medium) var(--text-sm)/var(--text-sm--line-height) var(--font-sans); /* 버튼, 입력칸의 이름표, 본문 속 강조 */
-  --type-caption: var(--font-weight-regular) var(--text-xs)/var(--text-xs--line-height) var(--font-sans); /* 보조 설명, 판에 적힌 값 */
-  --type-caption-strong: var(--font-weight-medium) var(--text-xs)/var(--text-xs--line-height) var(--font-sans); /* 묶음의 이름, 작은 이름표 */
-  --type-code: var(--font-weight-regular) var(--text-sm)/var(--text-sm--line-height) var(--font-mono); /* 판에 적힌 색 값과 변수 이름 */
-  --type-code-sm: var(--font-weight-regular) var(--text-xs)/var(--text-xs--line-height) var(--font-mono); /* 작은 칸의 숫자와 이름, 코드 표시 */
+  --type-title: var(--font-weight-semibold) var(--text-base)/var(--text-base--line-height) var(--font-sans); /* 제목: 화면과 창의 제목, 색 목록의 이름 | 컴포넌트 | 제목: gray */
+  --type-heading: var(--font-weight-semibold) var(--text-sm)/var(--text-sm--line-height) var(--font-sans); /* 제목: 패널의 제목, 구역의 제목 | ink | 제목: 쓰이는 곳 */
+  --type-body: var(--font-weight-regular) var(--text-sm)/var(--text-sm--line-height) var(--font-sans); /* 본문: 본문, 입력한 값 | 읽을 수 없는 값이에요. 파일에서 값을 고쳐 주세요. */
+  --type-caption: var(--font-weight-regular) var(--text-xs)/var(--text-xs--line-height) var(--font-sans); /* 보조: 보조 설명, 판에 적힌 값, 판의 제목 | 저장됨 | 제목: 의미 글꼴 */
+  --type-menu-strong: var(--font-weight-medium) var(--text-base)/var(--text-base--line-height) var(--font-sans); /* 조작: 왼쪽 메뉴에서 지금 열려 있는 화면의 항목 | 의미 글꼴 */
+  --type-menu: var(--font-weight-regular) var(--text-base)/var(--text-base--line-height) var(--font-sans); /* 조작: 왼쪽 메뉴의 항목(색상, 글꼴 같은 화면 이름) | 색상, 의미 색, 글꼴 */
+  --type-label: var(--font-weight-medium) var(--text-sm)/var(--text-sm--line-height) var(--font-sans); /* 조작(버튼): 버튼, 입력칸의 이름표, 본문 속 강조 | 추가, 취소 | 이름표: 글꼴 종류 */
+  --type-caption-strong: var(--font-weight-medium) var(--text-xs)/var(--text-xs--line-height) var(--font-sans); /* 조작(뱃지): 묶음의 이름, 작은 이름표 | ink · #000000 | 제목: 이 디자인 시스템의 색 */
+  --type-code: var(--font-weight-regular) var(--text-sm)/var(--text-sm--line-height) var(--font-mono); /* 숫자·코드: 판에 적힌 색 값과 변수 이름 | --color-ink */
+  --type-code-sm: var(--font-weight-regular) var(--text-xs)/var(--text-xs--line-height) var(--font-mono); /* 숫자·코드: 작은 칸의 숫자와 이름, 코드 표시 | sans · sm · medium */
   --shadow-sm: 0 1px 1px rgb(0 0 0 / 0.04), 0 2px 4px rgb(0 0 0 / 0.04);
   --shadow-md: 0 2px 4px rgb(0 0 0 / 0.04), 0 8px 16px rgb(0 0 0 / 0.06);
   --shadow-lg: 0 4px 8px rgb(0 0 0 / 0.04), 0 16px 32px rgb(0 0 0 / 0.08);
   --shadow-xl: 0 8px 16px rgb(0 0 0 / 0.05), 0 32px 64px rgb(0 0 0 / 0.1);
 }
+
+/* ff:type 의미 글꼴마다 FF가 만드는 클래스. 저장할 때마다 다시 쓰므로 직접 고치지 않는다. */
+@utility type-title {
+  font: var(--type-title);
+}
+@utility type-heading {
+  font: var(--type-heading);
+}
+@utility type-body {
+  font: var(--type-body);
+}
+@utility type-caption {
+  font: var(--type-caption);
+}
+@utility type-menu-strong {
+  font: var(--type-menu-strong);
+}
+@utility type-menu {
+  font: var(--type-menu);
+}
+@utility type-label {
+  font: var(--type-label);
+}
+@utility type-caption-strong {
+  font: var(--type-caption-strong);
+}
+@utility type-code {
+  font: var(--type-code);
+}
+@utility type-code-sm {
+  font: var(--type-code-sm);
+}
+/* ff:type 끝 */

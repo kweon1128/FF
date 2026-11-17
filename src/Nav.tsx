@@ -49,8 +49,8 @@ const SECTIONS: { title?: string; items: Item[] }[] = [
   },
 ]
 
-const ROW = 'flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-base'
-const IDLE = 'text-ink-soft hover:bg-hover hover:text-ink'
+const ROW = 'flex h-8 w-full items-center gap-2 rounded-md px-2 text-left'
+const IDLE = 'type-menu text-ink-soft hover:bg-hover hover:text-ink'
 
 export function Nav({
   screen,
@@ -82,7 +82,7 @@ export function Nav({
     <nav className="w-[220px] shrink-0 overflow-y-auto border-r border-hairline p-2">
       {SECTIONS.map((section, i) => (
         <div key={i}>
-          {section.title && <p className="px-2 pt-3 pb-1 text-sm font-[550] text-ink-faint">{section.title}</p>}
+          {section.title && <p className="px-2 pt-3 pb-1 type-label text-ink-faint">{section.title}</p>}
           <div className="space-y-1">
             {section.items.map(({ id, label, icon: Icon }) => {
               const selected = id === screen
@@ -92,7 +92,7 @@ export function Nav({
                     type="button"
                     aria-current={selected ? 'page' : undefined}
                     onClick={() => onSelect(id)}
-                    className={`${ROW} ${selected ? 'bg-hover font-[550] text-ink' : IDLE}`}
+                    className={`${ROW} ${selected ? 'bg-hover type-menu-strong text-ink' : IDLE}`}
                   >
                     <Icon size={16} strokeWidth={1.5} />
                     <span className={hidden.includes(id) ? 'text-ink-faint' : ''}>{label}</span>
@@ -128,7 +128,7 @@ export function Nav({
                           type="button"
                           aria-pressed={index === currentComponent}
                           onClick={() => onPickComponent(index)}
-                          className={`${ROW} pl-8 ${index === currentComponent ? 'bg-selection-soft font-[550] text-ink' : IDLE}`}
+                          className={`${ROW} pl-8 ${index === currentComponent ? 'bg-selection-soft type-menu-strong text-ink' : IDLE}`}
                         >
                           <span className="truncate">{name}</span>
                         </button>

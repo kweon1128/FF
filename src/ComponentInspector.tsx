@@ -155,7 +155,7 @@ function IconPicker({ value, onChange }: { value: string | undefined; onChange: 
         />
       </Field>
       {results.length === 0 ? (
-        <p className="text-sm text-ink-faint">맞는 아이콘이 없어요.</p>
+        <p className="type-body text-ink-faint">맞는 아이콘이 없어요.</p>
       ) : (
         <div className="grid grid-cols-6 gap-1">
           {results.map((name) => (
@@ -176,7 +176,7 @@ function IconPicker({ value, onChange }: { value: string | undefined; onChange: 
         </div>
       )}
       {matches.length > ICON_RESULTS && (
-        <p className="text-sm text-ink-faint">
+        <p className="type-body text-ink-faint">
           {matches.length}개 중 {ICON_RESULTS}개만 보여요. 검색어를 더 적어 보세요.
         </p>
       )}
@@ -247,9 +247,9 @@ export function ComponentInspector({
   return (
     <div>
       <Section>
-        <h2 className="font-[650] break-all">{comp.name}</h2>
+        <h2 className="type-heading break-all">{comp.name}</h2>
         {cell && (
-          <p className="mt-1 text-sm text-ink-faint">{single ? cellLabel(comp, cell) : `${cells.length}칸 선택됨`}</p>
+          <p className="mt-1 type-body text-ink-faint">{single ? cellLabel(comp, cell) : `${cells.length}칸 선택됨`}</p>
         )}
       </Section>
 
@@ -322,7 +322,7 @@ export function ComponentInspector({
             value={comp.borderWidth}
             onChange={(borderWidth) => common({ borderWidth })}
           />
-          {colors && !comp.borderWidth && <p className="text-sm text-ink-faint">굵기를 골라야 테두리가 보여요.</p>}
+          {colors && !comp.borderWidth && <p className="type-body text-ink-faint">굵기를 골라야 테두리가 보여요.</p>}
         </div>
       </Section>
 
@@ -368,7 +368,7 @@ export function ComponentInspector({
                 type="button"
                 aria-pressed={comp.iconPos === id}
                 onClick={() => common({ iconPos: id })}
-                className={`h-6 flex-1 rounded-sm text-sm font-[550] outline-selection focus-visible:outline-2 ${
+                className={`h-6 flex-1 rounded-sm type-label outline-selection focus-visible:outline-2 ${
                   comp.iconPos === id ? 'border border-hairline bg-canvas text-ink' : 'text-ink-soft hover:text-ink'
                 }`}
               >
@@ -383,7 +383,7 @@ export function ComponentInspector({
       {/* 저장 위치와 코드 복사는 다른 패널처럼 접히는 "코드" 구역에 둔다. */}
       <FoldSection title="코드" storageKey={CODE_OPEN}>
         <div>
-          <p className="mb-1 text-sm font-[550] text-ink-faint">저장 위치</p>
+          <p className="mb-1 type-label text-ink-faint">저장 위치</p>
           <Chip>{file}</Chip>
         </div>
         <div className="mt-2 -ml-2">

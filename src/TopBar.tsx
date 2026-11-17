@@ -34,7 +34,7 @@ export function TopBar({
           aria-haspopup="menu"
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
-          className="flex h-8 items-center gap-2 rounded-md px-2 font-[550] hover:bg-hover"
+          className="flex h-8 items-center gap-2 rounded-md px-2 type-label hover:bg-hover"
         >
           <Folder size={16} strokeWidth={1.5} />
           {current ?? '디자인 시스템 없음'}
@@ -98,7 +98,7 @@ export function TopBar({
         ))}
       </div>
 
-      <span className="text-xs" role="status">
+      <span className="type-caption" role="status">
         {status === 'saving' && <span className="text-ink-faint">저장 중…</span>}
         {status === 'saved' && <span className="text-success">저장됨</span>}
         {status === 'error' && <span className="text-danger">{saveError ?? '저장하지 못했어요.'}</span>}

@@ -2,15 +2,15 @@
 // 한 줄에 색 하나. 색, 이름과 가리키는 단계, 역할과 설명, 그 역할로 쓰인 예시를 나란히 보여 준다.
 
 import { useContext, useRef, useState, type FormEvent, type PointerEvent, type ReactNode } from 'react'
-import { ArrowUpRight, Check, ChevronDown, Copy } from 'lucide-react'
+import { ArrowUpRight, Copy } from 'lucide-react'
 import type { Token } from './lib/api'
 import { KINDS, SLUG, groupOf, shortName, type Kind } from './lib/catalog'
 import { contrast, showColor } from './lib/color'
-import { ROLE_USES, guessUse, readNote, refOf, refTo, resolveColor, roleGroups, surroundings, writeNote, type Around, type RoleUse } from './lib/roles'
-import { TRIM, DARK, PreviewFontContext, inkOn } from './ColorUses'
-import { CODE_OPEN, FoldSection, ICON_BUTTON, Section, USES_OPEN, WHERE_OPEN } from './Inspector'
+import { ROLE_USES, ROLE_WORDS, guessUse, isRoleListShape, readNote, refOf, refTo, resolveColor, roleGroups, surroundings, writeNote, type Around, type RoleShape, type RoleUse } from './lib/roles'
+import { DARK, PreviewFontContext, inkOn } from './ColorUses'
+import { CODE_OPEN, FoldSection, ICON_BUTTON, Section, WHERE_OPEN } from './Inspector'
 import { HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
-import { Button, Chip, Field, inputClass, swatchBackground } from './ui'
+import { Button, Chip, Field, UsePicker, inputClass, swatchBackground } from './ui'
 
 const COLOR = KINDS.color
 const ROLE = KINDS.role
@@ -20,35 +20,44 @@ const EDGE = 'shadow-[inset_0_0_0_1px_rgb(0_0_0/0.1)]'
 const refName = (value: string) => (refOf(value) ?? value).replace(/^--color-/, '')
 
 /**
- * 색이 그 역할로 쓰인 모습. 주변(바탕과 글자)은 이 디자인 시스템의 색으로 그려서, 실제 화면에서 만나는 조합 그대로 보여 준다.
- * 글자 색이면 제목과 본문, 바탕 색이면 글이 놓인 면, 테두리 색이면 입력칸과 구분선,
- * 채움 색이면 그 색으로 채우는 것들(버튼, 뱃지, 칩, 토글, 선택 표시), 상태 색이면 같은 색의 옅은 바탕·채움·테두리·글자, 차트 색이면 막대들.
- * 이 안은 사용자의 색을 보여 주는 미리보기라, FF 도구의 흑백 규칙을 따르지 않는다.
+ * 색이 실제로 쓰인 모습. 주변(바탕과 글자)은 이 디자인 시스템의 색으로 그려서, 실제 화면에서 만나는 조합 그대로 보여 준다.
+ * 어떤 자리에 칠할지는 줄마다 정한 예시의 모양(shape)을 따르고, 그 안의 말은 줄마다 적은 문구(words. 그 시스템이 실제로 쓰는 말)다. 의미 글꼴의 예시와 같은 방식이다.
+ * 역할로 정하지 않는다. 한 역할에도 쓰임이 여럿이라(바탕 역할에 패널의 면도, 마우스를 올린 줄도 있다) 역할로 정하면 설명과 맞지 않는다.
+ * 곁에 놓이는 것(다른 줄, 면 안의 본문)은 옅은 막대로 그려 자리만 알려 준다. 눈이 그 색이 칠해진 곳으로 가게 하려는 것이다.
+ * 이 안은 사용자의 색과 글꼴을 보여 주는 미리보기라, FF 도구의 흑백 규칙과 글자 규칙(type- 클래스)을 따르지 않는다. 글꼴 종류를 바깥에서 물려받아야 해서 크기와 굵기를 따로 적는다.
  */
-export function RoleSample({ use, color, around }: { use: RoleUse; color: string; around: Around }) {
+export function RoleSample({ shape, color, around, words: written = '' }: { shape: RoleShape; color: string; around: Around; words?: string }) {
   const font = useContext(PreviewFontContext)
   const rgb = color.slice(0, 7)
   const light = (hex: string) => contrast(hex.slice(0, 7), '#ffffff') < 3
-  const BOX = 'flex h-16 w-full flex-col justify-center overflow-hidden rounded-md px-3 whitespace-nowrap'
+  const all = written || ROLE_WORDS[shape]
+  const list = isRoleListShape(shape) ? all.split(', ').map((w) => w.trim()).filter(Boolean) : [all]
+  // 막대의 색. 그 면에 놓이는 글자 색을 면에 옅게 섞는다.
+  const faintOn = (ink: string, surface: string) => `color-mix(in oklab, ${ink} 16%, ${surface})`
   const frame = (background: string, body: ReactNode) => (
-    <span className={`${BOX} ${light(background) ? EDGE : ''}`} style={{ background: swatchBackground(background), fontFamily: font }}>
+    <span className={`block w-full overflow-hidden rounded-md px-3 py-3 ${light(background) ? EDGE : ''}`} style={{ background: swatchBackground(background), fontFamily: font }}>
       {body}
     </span>
   )
-  switch (use) {
+  const bar = (width: string, tone: string, more = '') => <span className={`block h-2 rounded-sm ${width} ${more}`} style={{ background: tone }} />
+  // 선택 이름표와 간격 숫자 위의 글자. 이런 표시는 밝은 파랑이나 주황 위에 흰 글자를 쓰는 것이 보통이라, 흰 글자가 어느 정도 읽히면 흰색을 쓴다.
+  const onMark = (hex: string) => (contrast('#ffffff', hex.slice(0, 7)) >= 2.5 ? '#ffffff' : inkOn(hex))
+  const STRONG = 'text-sm leading-5 font-[550]'
+  const SMALL = 'text-xs leading-4 font-[550]'
+  const faint = faintOn(around.ink, around.surface)
+  const soft = `color-mix(in oklab, ${color} 12%, ${around.surface})`
+  switch (shape) {
     case 'text': {
       // 이 시스템의 바탕 위에서 거의 보이지 않는 글자 색은 짙은 면 위에 쓰는 색이다. 그때는 이 시스템의 글자 색(없으면 어두운 회색)을 바탕으로 깐다.
       const hidden = contrast(rgb, around.surface.slice(0, 7)) < 1.6
-      const dark = contrast(rgb, around.ink.slice(0, 7)) >= 3 ? around.ink : DARK.surface
+      const back = hidden ? (contrast(rgb, around.ink.slice(0, 7)) >= 3 ? around.ink : DARK.surface) : around.surface
       return frame(
-        hidden ? dark : around.surface,
+        back,
         <>
-          <span className="truncate text-base leading-6 font-[650]" style={{ color }}>
-            제목 가나다 Aa
+          <span data-sample className={`block break-words ${STRONG}`} style={{ color }}>
+            {all}
           </span>
-          <span className="truncate text-xs leading-4" style={{ color }}>
-            본문 가나다라마바사 Aa 123
-          </span>
+          {bar('w-3/4', faintOn(color, back), 'mt-2')}
         </>,
       )
     }
@@ -58,49 +67,114 @@ export function RoleSample({ use, color, around }: { use: RoleUse; color: string
       return frame(
         color,
         <>
-          <span className="truncate text-sm leading-5 font-[650]" style={{ color: ink }}>
-            제목 가나다 Aa
+          <span data-sample className={`block break-words ${STRONG}`} style={{ color: ink }}>
+            {all}
           </span>
-          <span className="truncate text-xs leading-4" style={{ color: ink }}>
-            본문 가나다라마바사 Aa 123
-          </span>
+          {bar('w-3/4', faintOn(ink, color), 'mt-2')}
+          {bar('w-1/2', faintOn(ink, color), 'mt-2')}
         </>,
+      )
+    }
+    case 'row': {
+      // 목록의 세 줄 가운데 한 줄에만 이 색을 깐다. 나머지 줄은 막대다.
+      const ink = contrast(around.ink.slice(0, 7), rgb) >= 3 ? around.ink : inkOn(color)
+      return frame(
+        around.surface,
+        <span className="block space-y-1">
+          <span className="flex h-6 items-center px-2">{bar('w-12', faint)}</span>
+          <span data-sample className={`block rounded-md px-2 py-1 break-words ${STRONG}`} style={{ background: color, color: ink }}>
+            {all}
+          </span>
+          <span className="flex h-6 items-center px-2">{bar('w-16', faint)}</span>
+        </span>,
       )
     }
     case 'border':
       return frame(
         around.surface,
-        <>
-          <span className="flex h-7 items-center rounded-md px-2 text-xs" style={{ border: `1px solid ${color}`, color: around.ink }}>
-            <span className={TRIM}>입력칸</span>
-          </span>
-          <span className="mt-2 block h-px w-full" style={{ background: color }} />
-        </>,
+        <span data-sample className={`flex h-8 items-center rounded-md px-2 ${STRONG}`} style={{ boxShadow: `inset 0 0 0 1px ${color}`, color: around.ink }}>
+          <span className="min-w-0 truncate">{all}</span>
+        </span>,
       )
-    case 'status': {
-      // 상태 색 하나가 실제로 놓이는 네 자리: 옅은 바탕의 알림 표시, 채운 뱃지, 테두리만 있는 상자, 그리고 글자.
-      const soft = `color-mix(in oklab, ${color} 12%, ${around.surface})`
-      const PILL = 'flex h-6 items-center rounded-md px-2 text-xs font-[550]'
+    case 'divider':
       return frame(
         around.surface,
         <>
-          <span className="flex items-center gap-2">
-            <span className={PILL} style={{ background: soft, color }}>
-              <span className={TRIM}>알림</span>
+          {bar('w-1/2', faint)}
+          <span className="my-2 block h-px w-full" style={{ background: color }} />
+          {bar('w-3/4', faint)}
+        </>,
+      )
+    case 'on-fill':
+      // 채운 버튼 위의 글자. 버튼은 이 시스템의 글자 색으로 채운다.
+      return frame(
+        around.surface,
+        <span className="flex flex-wrap items-center gap-2">
+          {list.map((text) => (
+            <span key={text} data-sample className={`flex h-7 items-center rounded-md px-2 whitespace-nowrap ${STRONG}`} style={{ background: around.ink, color }}>
+              {text}
             </span>
-            <span className={PILL} style={{ background: color, color: inkOn(color) }}>
-              <span className={TRIM}>뱃지</span>
+          ))}
+        </span>,
+      )
+    case 'badge':
+      // 첫 뱃지는 이 색을 옅게 깐 바탕에 이 색 글자, 나머지는 이 색으로 채운다.
+      return frame(
+        around.surface,
+        <span className="flex flex-wrap items-center gap-2">
+          {list.map((text, i) => (
+            <span key={text} data-sample className={`flex h-6 items-center rounded-full px-2 whitespace-nowrap ${SMALL}`} style={i === 0 ? { background: soft, color } : { background: color, color: inkOn(color) }}>
+              {text}
             </span>
-            <span className={PILL} style={{ border: `1px solid ${color}`, color: around.ink }}>
-              <span className={TRIM}>입력칸</span>
+          ))}
+        </span>,
+      )
+    case 'outline': {
+      // 고른 것을 두르는 선과 네 꼭짓점, 그 아래에 붙는 이름표. 선은 고른 것의 가장자리에 틈 없이 붙고 꼭짓점은 선 위에 걸친다.
+      const HANDLE = 'absolute size-1.5'
+      const corner = { background: around.surface, boxShadow: `inset 0 0 0 1px ${color}` }
+      return frame(
+        around.surface,
+        <span className="flex flex-col items-center px-1 pt-1">
+          <span className="relative flex h-8 w-full items-center px-2" style={{ boxShadow: `0 0 0 1px ${color}` }}>
+            {bar('w-1/2', faint)}
+            <span className={`${HANDLE} -top-1 -left-1`} style={corner} />
+            <span className={`${HANDLE} -top-1 -right-1`} style={corner} />
+            <span className={`${HANDLE} -bottom-1 -left-1`} style={corner} />
+            <span className={`${HANDLE} -right-1 -bottom-1`} style={corner} />
+          </span>
+          <span data-sample className={`mt-2 rounded-xs px-1 whitespace-nowrap ${SMALL}`} style={{ background: color, color: onMark(color) }}>
+            {all}
+          </span>
+        </span>,
+      )
+    }
+    case 'guide':
+      // 판을 끌 때의 모습. 두 상자의 왼쪽 가장자리가 맞았다고 알리는 세로 선과, 두 상자 사이의 간격을 적은 숫자.
+      return frame(
+        around.surface,
+        <span className="relative block pl-2">
+          <span className="absolute inset-y-0 left-2 w-px" style={{ background: color }} />
+          <span className="block h-4 w-24 rounded-sm" style={{ background: faint }} />
+          <span className="relative my-1 flex h-6 w-16 items-center justify-center">
+            <span className="absolute inset-y-0 left-1/2 w-px" style={{ background: color }} />
+            <span data-sample className={`relative rounded-xs px-1 whitespace-nowrap ${SMALL}`} style={{ background: color, color: onMark(color) }}>
+              {all}
             </span>
           </span>
-          <span className="mt-1 truncate text-xs leading-4" style={{ color }}>
-            안내 글자 가나다 Aa 123
+          <span className="block h-4 w-16 rounded-sm" style={{ background: faint }} />
+        </span>,
+      )
+    case 'note':
+      return frame(
+        around.surface,
+        <>
+          {bar('w-1/2', faint)}
+          <span data-sample className="mt-2 block text-xs leading-4 break-words" style={{ color }}>
+            {all}
           </span>
         </>,
       )
-    }
     case 'chart': {
       // 계열 하나의 막대들. 값이 다른 막대 여럿으로, 넓은 면에 칠했을 때의 인상을 본다.
       const bars = [40, 65, 50, 85, 60, 100, 75]
@@ -113,33 +187,18 @@ export function RoleSample({ use, color, around }: { use: RoleUse; color: string
         </span>,
       )
     }
-    default: {
-      // 채움: 이 색으로 채우는 것들을 한 줄에. 버튼, 뱃지, 칩, 켜진 토글, 선택 표시(체크 상자).
-      const ink = inkOn(color)
-      const soft = `color-mix(in oklab, ${color} 12%, ${around.surface})`
+    default:
+      // 버튼: 이 색으로 채운 버튼들.
       return frame(
         around.surface,
-        <span className="flex items-center gap-2">
-          <span className="flex h-7 items-center rounded-md px-2 text-sm font-[550]" style={{ background: color, color: ink }}>
-            <span className={TRIM}>버튼</span>
-          </span>
-          <span className="flex h-5 items-center rounded-full px-2 text-xs font-[550]" style={{ background: color, color: ink }}>
-            <span className={TRIM}>뱃지</span>
-          </span>
-          <span className="flex h-6 items-center rounded-full px-2 text-xs font-[550]" style={{ background: soft, color }}>
-            <span className={TRIM}>칩</span>
-          </span>
-          <span className="flex h-5 w-8 shrink-0 items-center justify-end rounded-full p-0.5" style={{ background: color }}>
-            <span className="block size-4 rounded-full" style={{ background: ink }} />
-          </span>
-          <span className="flex size-4 shrink-0 items-center justify-center rounded-sm" style={{ background: color, color: ink }}>
-            <svg viewBox="0 0 12 12" className="size-3" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M2.5 6.5 5 9l4.5-5.5" />
-            </svg>
-          </span>
+        <span className="flex flex-wrap items-center gap-2">
+          {list.map((text) => (
+            <span key={text} data-sample className={`flex h-7 items-center rounded-md px-2 whitespace-nowrap ${STRONG}`} style={{ background: color, color: inkOn(color) }}>
+              {text}
+            </span>
+          ))}
         </span>,
       )
-    }
   }
 }
 
@@ -264,7 +323,7 @@ export function RoleList({
                 data-role-title={use}
                 onClick={(e) => !dragged.current && onSelectGroup(list.map((t) => t.name), isAdditive(e), false)}
                 {...grab('group', use, use)}
-                className="rounded-sm px-1 font-[650] outline-selection hover:bg-hover focus-visible:outline-2"
+                className="rounded-sm px-1 type-heading outline-selection hover:bg-hover focus-visible:outline-2"
               >
                 {ROLE_USES.find((u) => u.id === use)!.label}
               </button>
@@ -272,7 +331,7 @@ export function RoleList({
             <div className={folded ? 'grid grid-cols-3 gap-1 rounded-lg border border-hairline bg-canvas p-1' : 'space-y-1 rounded-lg border border-hairline bg-canvas p-1'}>
               {list.map((t, i) => {
                 const short = shortName(kind, t.name)
-                const { text } = readNote(t.note, short)
+                const { text, shape, words, more } = readNote(t.note, short)
                 const isSelected = selected.includes(t.name)
                 const color = resolveColor(all, t.value)
                 const ref = refName(t.value)
@@ -305,23 +364,33 @@ export function RoleList({
                       style={{ background: swatchBackground(color ?? 'transparent') }}
                     />
                     <span className="min-w-0">
-                      <span data-name className="block truncate text-sm font-[550]">
+                      <span data-name className="block truncate type-label">
                         {short}
                       </span>
                       {/* 접으면 색과 이름만 남긴다. 가리키는 색과 # 값은 색을 고르면 뜨는 파란 이름표와 오른쪽 패널에서 볼 수 있다. */}
                       {!folded && (
                         <>
-                          <span className="block truncate font-mono text-sm text-ink-faint">
+                          <span className="block truncate type-code text-ink-faint">
                             {ref}
                             {color === null && <span className="text-danger"> · 없는 색</span>}
                           </span>
                           {/* 가리키는 색의 실제 값. 색상 판에서 보이는 것과 같은 # 값이다. */}
-                          {color && <span className="block truncate font-mono text-sm text-ink-faint">{color}</span>}
+                          {color && <span className="block truncate type-code text-ink-faint">{color}</span>}
                         </>
                       )}
                     </span>
-                    {!folded && <span className="min-w-0 text-sm break-keep text-ink-soft">{text}</span>}
-                    {!folded && (color ? <RoleSample use={use} color={color} around={around} /> : <span />)}
+                    {!folded && <span className="min-w-0 type-body break-keep text-ink-soft">{text}</span>}
+                    {/* 쓰임이 여럿인 색은 예시도 여럿이다. 위아래로 8px 띄워 쌓는다. */}
+                    {!folded &&
+                      (color ? (
+                        <span className="block space-y-2">
+                          {[{ shape, words }, ...more].map((e, k) => (
+                            <RoleSample key={k} shape={e.shape} color={color} around={around} words={e.words} />
+                          ))}
+                        </span>
+                      ) : (
+                        <span />
+                      ))}
                     {isSelected && selected.length === 1 && <SelectionLabel name={short} value={ref} />}
                   </button>
                 )
@@ -346,12 +415,12 @@ function RefPicker({ tokens, value, onChange }: { tokens: Token[]; value: string
   const solo = groups.get('')
   groups.delete('')
   if (solo) groups.set('', solo)
-  if (groups.size === 0) return <p className="text-sm text-ink-faint">색상 판에 색이 아직 없어요.</p>
+  if (groups.size === 0) return <p className="type-body text-ink-faint">색상 판에 색이 아직 없어요.</p>
   return (
     <div className="max-h-56 space-y-2 overflow-y-auto">
       {[...groups].map(([group, list]) => (
         <div key={group}>
-          <p className="mb-1 text-sm text-ink-faint">{group || '예외 색'}</p>
+          <p className="mb-1 type-body text-ink-faint">{group || '예외 색'}</p>
           {/* 한 줄에 11칸. 50부터 950까지 한 목록이 한 줄에 들어간다. */}
           <div className="grid grid-cols-11 gap-1">
             {list.map((t) => {
@@ -378,75 +447,6 @@ function RefPicker({ tokens, value, onChange }: { tokens: Token[]; value: string
           </div>
         </div>
       ))}
-    </div>
-  )
-}
-
-/**
- * 역할을 고르는 칸. 닫혀 있을 때는 고르는 칸의 모양이고, 누르면 여섯 묶음의 목록이 아래에 펼쳐진다.
- * 브라우저의 고르는 칸(select)을 쓰지 않는다. 그 목록에서는 글자를 한 가지 모양으로만 적을 수 있어서,
- * 묶음의 이름(글자, 바탕…)과 그 묶음에 드는 것들(본문, 링크, 아이콘)이 한 줄에 같은 모양으로 이어져 무엇이 이름인지 헷갈린다.
- * 여기서는 이름을 진하게 정해진 폭에 적고, 드는 것들은 그 옆에 옅게 적는다. 이름들이 한 열로 줄을 서서 이름만 훑어 고를 수 있다.
- */
-function UsePicker({ value, onChange }: { value: RoleUse; onChange: (use: RoleUse) => void }) {
-  const [open, setOpen] = useState(false)
-  const now = ROLE_USES.find((u) => u.id === value)!
-  const pick = (use: RoleUse) => {
-    setOpen(false)
-    if (use !== value) onChange(use)
-  }
-  /** 한 줄의 내용. 이름은 진하게 정해진 폭(48px)에, 드는 것들은 옅게. 닫힌 칸과 목록의 줄이 같은 모양이다. */
-  const line = (u: (typeof ROLE_USES)[number]) => (
-    <>
-      <span className="w-12 shrink-0 font-[550] text-ink">{u.label}</span>
-      <span className="min-w-0 flex-1 truncate text-ink-faint">{u.hint}</span>
-    </>
-  )
-  return (
-    <div className="relative">
-      <button
-        type="button"
-        aria-label="역할"
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        data-use={value}
-        onClick={() => setOpen((v) => !v)}
-        onKeyDown={(e) => {
-          // ↑↓로 펼치지 않고도 묶음을 바꾼다. Esc는 목록을 닫는다.
-          if (e.key === 'Escape') return setOpen(false)
-          if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
-          e.preventDefault()
-          const at = ROLE_USES.indexOf(now) + (e.key === 'ArrowDown' ? 1 : -1)
-          if (ROLE_USES[at]) onChange(ROLE_USES[at].id)
-        }}
-        className={`${inputClass} flex items-center gap-2 text-left`}
-      >
-        {line(now)}
-        <ChevronDown size={16} strokeWidth={1.5} className="shrink-0 text-ink-faint" />
-      </button>
-      {open && (
-        <>
-          {/* 목록 바깥을 누르면 닫는다. */}
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          {/* 줄의 바탕(올렸을 때, 고른 것)이 서로 닿지 않게 줄 사이를 4px 띄운다. */}
-          <div role="listbox" aria-label="역할" className="absolute top-9 right-0 left-0 z-20 space-y-1 rounded-lg border border-hairline bg-canvas p-1 shadow-float">
-            {ROLE_USES.map((u) => (
-              <button
-                key={u.id}
-                type="button"
-                role="option"
-                aria-selected={u.id === value}
-                data-use-option={u.id}
-                onClick={() => pick(u.id)}
-                className={`flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-sm outline-selection focus-visible:outline-2 ${u.id === value ? 'bg-hover' : 'hover:bg-hover'}`}
-              >
-                {line(u)}
-                {u.id === value && <Check size={16} strokeWidth={1.5} className="shrink-0" />}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
     </div>
   )
 }
@@ -497,8 +497,8 @@ export function NewRoleForm({
       </Field>
       {/* 견본 버튼들이 label 안에 있으면 한 번 누를 때 첫 버튼이 함께 눌린다. 그래서 Field를 쓰지 않는다. */}
       <div>
-        <p className="mb-1 text-sm font-[550] text-ink-faint">
-          가리키는 색{ref && <span className="ml-2 font-mono font-normal text-ink">{refName(ref)}</span>}
+        <p className="mb-1 type-label text-ink-faint">
+          가리키는 색{ref && <span className="ml-2 type-code text-ink">{refName(ref)}</span>}
         </p>
         <RefPicker
           tokens={tokens}
@@ -508,11 +508,11 @@ export function NewRoleForm({
             setError({ ...error, ref: undefined })
           }}
         />
-        {error.ref && <span className="mt-1 block text-sm text-danger">{error.ref}</span>}
+        {error.ref && <span className="mt-1 block type-body text-danger">{error.ref}</span>}
       </div>
       <div>
-        <p className="mb-1 text-sm font-[550] text-ink-faint">역할</p>
-        <UsePicker value={shownUse} onChange={setUse} />
+        <p className="mb-1 type-label text-ink-faint">역할</p>
+        <UsePicker label="역할" options={ROLE_USES} value={shownUse} onChange={setUse} />
       </div>
       <Field label="설명">
         <input className={inputClass} value={text} onChange={(e) => setText(e.target.value)} />
@@ -555,7 +555,7 @@ export function RoleInspector({
   onCopy: (text: string) => void
 }) {
   const short = shortName(ROLE, token.name)
-  const { use, text } = readNote(token.note, short)
+  const { use, text, picked, words, more } = readNote(token.note, short)
   const [nameDraft, setNameDraft] = useState(short)
   const [nameError, setNameError] = useState<string | null>(null)
   const [textDraft, setTextDraft] = useState(text)
@@ -572,13 +572,21 @@ export function RoleInspector({
   }
 
   function commitText() {
-    if (textDraft.trim() !== text) onChange({ note: writeNote(use, textDraft) })
+    if (textDraft.trim() !== text) saveNote({})
+  }
+
+  /**
+   * 역할과 설명을 주석에 적어 저장한다. 같은 주석에 적혀 있는 예시(모양과 문구)는 그대로 둔다.
+   * 예시는 패널에서 고치지 않는다. 그 값이 화면 어디에 어떤 말로 쓰였는지는 페이지를 만든 AI가 알고, AI가 파일의 주석에 적는다(파일 맨 위의 안내 참고).
+   */
+  function saveNote(patch: { use?: RoleUse }) {
+    onChange({ note: writeNote(patch.use ?? use, textDraft, picked, words, more) })
   }
 
   return (
     <div>
       <Section>
-        <h2 className="font-[650] break-all">{short}</h2>
+        <h2 className="type-heading break-all">{short}</h2>
       </Section>
 
       <Section title="이름">
@@ -594,7 +602,7 @@ export function RoleInspector({
           onBlur={commitName}
           onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
         />
-        {nameError && <span className="mt-1 block text-sm text-danger">{nameError}</span>}
+        {nameError && <span className="mt-1 block type-body text-danger">{nameError}</span>}
       </Section>
 
       <Section title="가리키는 색">
@@ -603,7 +611,7 @@ export function RoleInspector({
           <span className="min-w-0">
             <Chip>{refName(token.value)}</Chip>
           </span>
-          <span className="min-w-0 flex-1 truncate font-mono text-sm text-ink-faint">{color ?? <span className="text-danger">없는 색</span>}</span>
+          <span className="min-w-0 flex-1 truncate type-code text-ink-faint">{color ?? <span className="text-danger">없는 색</span>}</span>
           {/* 가리키는 색이 색상 판의 어디에 있는지 보러 가는 버튼. "쓰이는 곳"의 반대 방향이다. 가리키는 색이 없어졌으면 갈 곳이 없어 꺼진다. */}
           <button
             type="button"
@@ -620,15 +628,8 @@ export function RoleInspector({
       </Section>
 
       <Section title="역할">
-        <UsePicker value={use} onChange={(next) => onChange({ note: writeNote(next, textDraft) })} />
+        <UsePicker label="역할" options={ROLE_USES} value={use} onChange={(next) => saveNote({ use: next })} />
       </Section>
-
-      {/* 그 역할로 쓰인 모습. 다른 패널의 "쓰인 모습"과 같은 자리(값 바로 아래)에 있고 같이 접힌다. */}
-      {color && (
-        <FoldSection title="쓰인 모습" storageKey={USES_OPEN} startOpen>
-          <RoleSample use={use} color={color} around={surroundings(tokens)} />
-        </FoldSection>
-      )}
 
       <Section title="설명">
         <input
@@ -648,12 +649,12 @@ export function RoleInspector({
                 <button
                   type="button"
                   onClick={() => onOpenComponent(u.index)}
-                  className="-ml-2 flex h-8 max-w-full items-center rounded-md px-2 font-[550] outline-selection hover:bg-hover focus-visible:outline-2"
+                  className="-ml-2 flex h-8 max-w-full items-center rounded-md px-2 type-label outline-selection hover:bg-hover focus-visible:outline-2"
                 >
                   <span className="truncate">{u.name}</span>
-                  <span className="ml-2 shrink-0 text-sm font-normal text-ink-faint">{u.where.length}곳</span>
+                  <span className="ml-2 shrink-0 type-body text-ink-faint">{u.where.length}곳</span>
                 </button>
-                <p className="text-sm text-ink-faint">{u.where.join(', ')}</p>
+                <p className="type-body text-ink-faint">{u.where.join(', ')}</p>
               </div>
             ))}
           </div>
@@ -662,7 +663,7 @@ export function RoleInspector({
       <FoldSection title="코드" storageKey={CODE_OPEN}>
         <div className="space-y-2">
           <div>
-            <p className="mb-1 text-sm font-[550] text-ink-faint">변수 이름</p>
+            <p className="mb-1 type-label text-ink-faint">변수 이름</p>
             <span className="flex items-center gap-1">
               <span className="min-w-0 flex-1">
                 <Chip>{token.name}</Chip>
@@ -679,11 +680,11 @@ export function RoleInspector({
             </span>
           </div>
           <div>
-            <p className="mb-1 text-sm font-[550] text-ink-faint">저장된 값</p>
+            <p className="mb-1 type-label text-ink-faint">저장된 값</p>
             <Chip>{token.value}</Chip>
           </div>
           <div>
-            <p className="mb-1 text-sm font-[550] text-ink-faint">저장 위치</p>
+            <p className="mb-1 type-label text-ink-faint">저장 위치</p>
             <Chip>{file}</Chip>
           </div>
         </div>

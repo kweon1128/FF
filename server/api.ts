@@ -7,7 +7,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Plugin } from 'vite'
-import { isValidToken, parseTokens, writeTokens } from './tokensCss.ts'
+import { isValidToken, parseTokens, withGuide, writeTokens } from './tokensCss.ts'
 
 const SYSTEM_NAME = /^[a-z0-9]+(-[a-z0-9]+)*$/
 const TOKENS_FILE = 'tokens.css'
@@ -160,7 +160,7 @@ export function ffApi(): Plugin {
           await fs.mkdir(dir)
         } else throw e
       }
-      await fs.writeFile(path.join(dir, TOKENS_FILE), EMPTY_TOKENS, 'utf-8')
+      await fs.writeFile(path.join(dir, TOKENS_FILE), withGuide(EMPTY_TOKENS), 'utf-8')
       return send(res, 201, { name })
     }
 

@@ -43,7 +43,7 @@ export function Palette({ items, onClose }: { items: PaletteItem[]; onClose: () 
           <input
             autoFocus
             aria-label="찾기"
-            className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-ink-faint"
+            className="min-w-0 flex-1 bg-transparent type-body outline-none placeholder:text-ink-faint"
             placeholder="화면, 값, 명령 찾기"
             value={query}
             onChange={(e) => {
@@ -76,9 +76,9 @@ export function Palette({ items, onClose }: { items: PaletteItem[]; onClose: () 
                 onClick={() => run(item)}
                 className={`flex h-8 w-full items-center gap-2 rounded-md px-2 text-left ${i === at ? 'bg-hover' : ''}`}
               >
-                <span className="w-10 shrink-0 text-xs text-ink-faint">{item.group}</span>
+                <span className="w-10 shrink-0 type-caption text-ink-faint">{item.group}</span>
                 <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                {item.hint && <span className="max-w-[45%] shrink-0 truncate font-mono text-xs text-ink-faint">{item.hint}</span>}
+                {item.hint && <span className="max-w-[45%] shrink-0 truncate type-code-sm text-ink-faint">{item.hint}</span>}
               </button>
             ))
           )}

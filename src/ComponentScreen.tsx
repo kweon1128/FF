@@ -65,7 +65,7 @@ export function ComponentScreen({
     <div className="mx-auto max-w-[960px]">
       {/* 이름 줄. 종류와 크기를 추가하는 버튼은 격자 끝의 점선 상자가 아니라 여기에 둔다. 크기는 모든 종류가 함께 쓰므로 종류마다 두지 않는다. */}
       <div className="mb-4 flex h-8 items-center justify-between">
-        <h1 className="text-base font-[650]">{comp.name}</h1>
+        <h1 className="type-title">{comp.name}</h1>
         <span className="flex gap-1">
           <Button variant="ghost" onClick={onAddVariant}>
             <Plus size={16} strokeWidth={1.5} />
@@ -81,14 +81,14 @@ export function ComponentScreen({
       <div className="flex min-h-40 items-center justify-center rounded-lg border border-hairline bg-canvas p-8">
         <LivePreview comp={comp} cell={shown} tokens={tokens} />
       </div>
-      <p className="mt-1 text-xs text-ink-faint">
+      <p className="mt-1 type-caption text-ink-faint">
         {comp.variants[shown.v]?.name} · {comp.sizes[shown.s]?.name}
       </p>
 
       <div className="mt-8 space-y-8">
         {comp.variants.map((variant, v) => (
           <section key={v}>
-            <h2 className="mb-2 text-xs font-[550] text-ink-faint">
+            <h2 className="mb-2 type-caption-strong text-ink-faint">
               <span data-variant-name={v} onDoubleClick={() => onRenameVariant(v)}>
                 {variant.name}
               </span>
@@ -96,7 +96,7 @@ export function ComponentScreen({
             <div className="space-y-3">
               {comp.sizes.map((size, s) => (
                 <div key={s} className="flex items-start gap-3">
-                  <span className="flex h-24 w-12 shrink-0 items-center text-xs text-ink-soft">
+                  <span className="flex h-24 w-12 shrink-0 items-center type-caption text-ink-soft">
                     <span className="truncate" onDoubleClick={() => onRenameSize(s)}>
                       {size.name}
                     </span>
@@ -124,7 +124,7 @@ export function ComponentScreen({
                             </span>
                             {labeled && <SelectionLabel name={cellLabel(comp, here)} />}
                           </span>
-                          <span className="mt-1 block truncate text-xs text-ink-faint">
+                          <span className="mt-1 block truncate type-caption text-ink-faint">
                             {label}
                           </span>
                         </button>

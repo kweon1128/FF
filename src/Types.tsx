@@ -1,21 +1,23 @@
 // 의미 글꼴: 글꼴 판의 재료 가운데 실제로 쓰는 조합(글꼴 종류 · 글자 크기 · 굵기)에 쓰임새의 이름을 붙여 모아 둔 판과, 그것을 만들고 고치는 양식.
 // 한 줄에 조합 하나. 이름과 가리키는 값, 설명, 그 조합으로 적은 견본을 나란히 보여 준다.
 
-import { useState, type CSSProperties } from 'react'
+import { useRef, useState, type CSSProperties, type PointerEvent } from 'react'
 import { ArrowUpRight, Copy, TriangleAlert, X } from 'lucide-react'
 import type { Token } from './lib/api'
 import { KINDS, SLUG, lineName, shortName, trackName, type Kind } from './lib/catalog'
 import { shownFont } from './lib/fonts'
-import { lookOf, trackOverride, writeType, type TypeLook, type TypeParts } from './lib/types'
-import { CODE_OPEN, FoldSection, ICON_BUTTON, Section, USES_OPEN, WHERE_OPEN } from './Inspector'
+import { surroundings, type Around } from './lib/roles'
+import { SHAPE_WORDS, TYPE_USES, isListShape, lookOf, readTypeNote, trackOverride, typeGroups, writeType, writeTypeNote, type TypeLook, type TypeParts, type TypeShape, type TypeUse } from './lib/types'
+import { CODE_OPEN, FoldSection, ICON_BUTTON, Section, WHERE_OPEN } from './Inspector'
 import { HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
-import { Chip, Field, inputClass } from './ui'
+import { Chip, Field, UsePicker, inputClass } from './ui'
 
 const STYLE = KINDS.style
 const FONT = KINDS.font
 const SIZE = KINDS.size
 const WEIGHT = KINDS.weight
-const SAMPLE = '다람쥐 헌 쳇바퀴에 타고파 Aa 123'
+// 예시의 바탕이 판의 바탕과 같은 색이어도 가장자리가 보이게 하는 옅은 선.
+const EDGE = 'shadow-[inset_0_0_0_1px_rgb(0_0_0/0.1)]'
 
 
 /**
@@ -53,8 +55,8 @@ function Spec({ look, tokens }: { look: TypeLook; tokens: Token[] }) {
 function Follows({ label, bound, own, onClear }: { label: string; bound: string; own?: string; onClear: () => void }) {
   return (
     <Field label={label}>
-      <span className="flex h-8 items-center gap-1 text-sm">
-        <span data-follows={label} className={`min-w-0 flex-1 truncate ${own ? 'font-[550] text-ink' : 'text-ink-soft'}`}>
+      <span className="flex h-8 items-center gap-1 type-body">
+        <span data-follows={label} className={`min-w-0 flex-1 truncate ${own ? 'type-label text-ink' : 'text-ink-soft'}`}>
           {own ?? (bound || '정해지지 않음')}
         </span>
         {own && (
@@ -70,24 +72,215 @@ function Follows({ label, bound, own, onClear }: { label: string; bound: string;
 /** 실제로 그려지는 숫자. 28px / 36px / -0.015em · 600 */
 const figures = (look: TypeLook) => [[look.size, look.line, look.track].filter(Boolean).join(' / '), look.weight].filter(Boolean).join(' · ')
 
-/** 의미 글꼴의 목록. 줄마다 왼쪽에 이름, 가리키는 값, 설명이 있고 오른쪽에 그 조합으로 적은 견본이 있다. */
+/**
+ * 그 조합이 실제로 쓰인 모습. 의미 색 판이 색을 그 역할로 쓰인 모습으로 보여 주듯, 의미 글꼴도 그 글자가 놓이는 자리에 놓아 보여 준다.
+ * 어떤 자리인지는 줄마다 정한 예시의 모양(shape)을 따른다. 묶음으로 정하지 않는다. 한 묶음에도 쓰임이 여럿이라, 묶음으로 정하면 메뉴 글자가 버튼으로 그려진다.
+ * 읽을 수 있는 글자는 그 조합으로 적은 것뿐이다. 곁에 놓이는 것(제목 아래의 본문, 입력칸에 적힌 값, 숫자 위의 이름표, 고르지 않은 메뉴 줄)은 글자가 아니라 옅은 회색 막대로 그려 자리만 알려 준다.
+ * 바탕과 글자 색은 이 디자인 시스템의 것(around)이다. 이 안은 사용자의 글꼴을 보여 주는 미리보기라, FF 도구의 글자 규칙을 따르지 않는다. 큰 글자도 자르지 않고 줄을 바꿔 다 보여 준다.
+ */
+export function TypeSample({ shape, look, around, words: written = '' }: { shape: TypeShape; look: TypeLook; around: Around; words?: string }) {
+  const own = styleOf(look)
+  // 예시 문구. 줄에 적어 둔 것이 있으면 그것(그 시스템이 실제로 쓰는 말), 없으면 모양의 기본 문구다. 늘어놓는 모양은 ", "로 나눈다.
+  const all = written || SHAPE_WORDS[shape]
+  const list = isListShape(shape) ? all.split(', ').map((w) => w.trim()).filter(Boolean) : [all]
+  // 막대, 테두리, 옅은 바탕의 색. 글자 색을 바탕에 옅게 섞는다.
+  const faint = `color-mix(in oklab, ${around.ink} 16%, ${around.surface})`
+  const soft = `color-mix(in oklab, ${around.ink} 8%, ${around.surface})`
+  /** 곁에 놓이는 글의 자리. 높이 8px의 막대이고 폭은 자리마다 다르다. */
+  const bar = (width: string, more = '') => <span className={`block h-2 rounded-sm ${width} ${more}`} style={{ background: faint }} />
+  const words = (text: string, more = '', style?: CSSProperties) => (
+    <span key={text} data-sample className={`block ${more}`} style={{ ...own, ...style }}>
+      {text}
+    </span>
+  )
+  const scene = () => {
+    switch (shape) {
+      case 'title':
+        return (
+          <>
+            {words(all, 'break-words')}
+            {bar('w-3/4', 'mt-3')}
+            {bar('w-1/2', 'mt-2')}
+          </>
+        )
+      case 'caption':
+        return (
+          <>
+            {bar('w-32')}
+            {words(all, 'mt-2 break-words')}
+          </>
+        )
+      case 'button':
+        return (
+          <span className="flex flex-wrap items-center gap-2">
+            {/* 첫 버튼은 채우고 나머지는 테두리만 둔다. */}
+            {list.map((text, i) => words(text, 'rounded-md px-3 py-2 whitespace-nowrap', i === 0 ? { background: around.ink, color: around.surface } : { boxShadow: `inset 0 0 0 1px ${faint}` }))}
+          </span>
+        )
+      case 'field':
+        return (
+          <>
+            {words(all, 'break-words')}
+            <span className="mt-2 flex h-8 w-40 items-center rounded-md px-2" style={{ boxShadow: `inset 0 0 0 1px ${faint}` }}>
+              {bar('w-16')}
+            </span>
+          </>
+        )
+      case 'menu':
+        return (
+          <span className="block w-40 space-y-1">
+            {list.map((text) => words(text, 'rounded-md px-2 py-1 whitespace-nowrap'))}
+          </span>
+        )
+      case 'menu-on':
+        // 고른 줄만 글자다. 고르지 않은 줄은 다른 조합(보통 굵기)으로 적히는 자리라 막대로 둔다.
+        return (
+          <span className="block w-40 space-y-1">
+            <span className="flex h-6 items-center px-2">{bar('w-12')}</span>
+            {words(all, 'rounded-md px-2 py-1 whitespace-nowrap', { background: soft })}
+            <span className="flex h-6 items-center px-2">{bar('w-16')}</span>
+          </span>
+        )
+      case 'tab':
+        return (
+          <span className="flex flex-wrap gap-4" style={{ boxShadow: `inset 0 -1px 0 ${faint}` }}>
+            {list.map((text, i) => words(text, 'py-2 whitespace-nowrap', i === 0 ? { boxShadow: `inset 0 -2px 0 ${around.ink}` } : undefined))}
+          </span>
+        )
+      case 'badge':
+        return (
+          <span className="flex flex-wrap items-center gap-2">
+            {/* 첫 뱃지는 옅은 바탕, 나머지는 채운다. */}
+            {list.map((text, i) => words(text, 'rounded-full px-2 py-1 whitespace-nowrap', i === 0 ? { background: soft } : { background: around.ink, color: around.surface }))}
+          </span>
+        )
+      case 'number':
+        return (
+          <span className="flex flex-wrap gap-x-6 gap-y-2">
+            {list.map((value) => (
+              <span key={value}>
+                {bar('w-12')}
+                {words(value, 'mt-2 break-words')}
+              </span>
+            ))}
+          </span>
+        )
+      case 'code':
+        return (
+          <>
+            {bar('w-12')}
+            <span className="mt-2 flex">{words(all, 'rounded-sm px-1 break-all', { background: soft })}</span>
+          </>
+        )
+      default:
+        return words(all, 'break-words')
+    }
+  }
+  return (
+    <span className={`block w-full overflow-hidden rounded-md px-4 py-3 ${EDGE}`} style={{ background: around.surface, color: around.ink }}>
+      {scene()}
+    </span>
+  )
+}
+
+type Drag = { what: 'row' | 'group'; id: string; use: TypeUse; x: number; y: number; moved: boolean }
+/** 끄는 중에 놓일 자리. before 앞에 놓인다(맨 끝이면 null). */
+type Drop = { what: 'row' | 'group'; id: string; use: TypeUse; before: string | null }
+
+// 끄는 중에 놓일 자리를 알려 주는 선. 확대 비율과 관계없이 화면에서 같은 굵기로 보인다.
+const DROP_LINE = 'pointer-events-none absolute z-10 bg-selection'
+
+/**
+ * 의미 글꼴 판의 내용. 묶음(제목, 본문, 보조, 조작, 숫자·코드)별로 묶어 보여 준다. 의미 색 판과 같은 짜임이다.
+ * 묶음의 순서와 묶음 안의 순서는 파일에 적힌 순서이고, 끌어서 바꾸면 파일의 순서가 바뀐다.
+ * 줄마다 왼쪽에 이름, 가리키는 값, 설명이 있고 오른쪽에 그 조합이 쓰인 장면이 있다.
+ */
 export function TypeList({
   items,
   all,
   selected,
   onSelect,
+  onSelectGroup,
   onRename,
+  onMove,
+  onMoveGroup,
 }: {
   items: Token[]
   /** 가리키는 값을 찾을 전체 값 목록. */
   all: Token[]
   selected: string[]
   onSelect: (name: string, additive: boolean) => void
+  /** 묶음 제목을 누르면 그 묶음의 조합을 모두 선택한다. */
+  onSelectGroup: (names: string[], additive: boolean, rename: boolean) => void
   onRename: (name: string) => void
+  /** 조합을 같은 묶음 안의 다른 자리로 옮긴다. before는 그 앞에 놓일 조합(묶음의 맨 끝이면 null). */
+  onMove: (name: string, before: string | null) => void
+  onMoveGroup: (use: TypeUse, before: TypeUse | null) => void
 }) {
+  const drag = useRef<Drag | null>(null)
+  // 끌기가 끝난 직후에 따라오는 클릭은 선택으로 치지 않는다.
+  const dragged = useRef(false)
+  const [drop, setDrop] = useState<Drop | null>(null)
   if (items.length === 0) return null
+  const around = surroundings(all)
+  const groups = typeGroups(items)
   // 가리키는 글꼴 종류, 크기, 굵기 가운데 하나라도 없어진 조합들. 줄마다 빨갛게 적혀 있지만 목록이 길면 몇 개인지 한눈에 알 수 없어서 맨 위에 모아 알린다.
   const broken = items.filter((t) => lookOf(all, t.value, t.name)?.broken ?? true)
+
+  const boxOf = (selector: string) => document.querySelector(selector)?.getBoundingClientRect()
+
+  /** 마우스 자리에서 놓으면 어느 것의 앞에 들어가는지. 세로 한가운데보다 위면 그것의 앞이다. */
+  function slotAt(d: Drag, y: number): string | null {
+    if (d.what === 'group') {
+      for (const g of groups) {
+        const box = boxOf(`[data-type-group="${g.use}"]`)
+        if (box && y < box.top + box.height / 2) return g.use
+      }
+      return null
+    }
+    for (const t of groups.find((g) => g.use === d.use)?.items ?? []) {
+      const box = boxOf(`[data-token="${CSS.escape(t.name)}"]`)
+      if (box && y < box.top + box.height / 2) return t.name
+    }
+    return null
+  }
+
+  /** 잡고 끄는 것(묶음 제목이나 조합 한 줄)에 붙이는 동작. 조금이라도 끌어야 옮기기로 치고, 그냥 누르면 선택이다. */
+  const grab = (what: Drag['what'], id: string, use: TypeUse) => ({
+    onPointerDown: (e: PointerEvent<HTMLButtonElement>) => {
+      if (e.button !== 0) return
+      // 캔버스가 이 끌기를 영역 선택으로 받지 않게 막는다.
+      e.stopPropagation()
+      // 누르는 순간부터 마우스를 붙잡아 둔다. 빠르게 끌어 밖으로 나가도 계속 따라갈 수 있다.
+      e.currentTarget.setPointerCapture(e.pointerId)
+      drag.current = { what, id, use, x: e.clientX, y: e.clientY, moved: false }
+    },
+    onPointerMove: (e: PointerEvent<HTMLButtonElement>) => {
+      const d = drag.current
+      if (!d) return
+      if (!d.moved) {
+        if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < 5) return
+        d.moved = true
+      }
+      setDrop({ what: d.what, id: d.id, use: d.use, before: slotAt(d, e.clientY) })
+    },
+    onPointerUp: (e: PointerEvent<HTMLButtonElement>) => {
+      const d = drag.current
+      drag.current = null
+      setDrop(null)
+      if (!d?.moved) return
+      dragged.current = true
+      window.setTimeout(() => (dragged.current = false))
+      const before = slotAt(d, e.clientY)
+      if (d.what === 'group') onMoveGroup(d.use, before as TypeUse | null)
+      else onMove(d.id, before)
+    },
+    onPointerCancel: () => {
+      drag.current = null
+      setDrop(null)
+    },
+  })
+
   return (
     <div>
       {broken.length > 0 && (
@@ -97,49 +290,81 @@ export function TypeList({
           data-broken={broken.length}
           title="누르면 첫 조합을 골라요. 오른쪽에서 없어진 값을 다시 골라 주세요"
           onClick={() => onSelect(broken[0].name, false)}
-          className={`mb-2 flex h-8 items-center gap-2 rounded-md px-3 text-sm text-danger ${HOVER} ${OUTLINE}`}
+          className={`mb-2 flex h-8 items-center gap-2 rounded-md px-3 type-body text-danger ${HOVER} ${OUTLINE}`}
         >
           <TriangleAlert size={16} strokeWidth={1.5} />
           가리키는 값이 없어진 조합 {broken.length}개
         </button>
       )}
-    <div className="space-y-1 rounded-lg border border-hairline bg-canvas p-1">
-      {items.map((t) => {
-        const short = shortName(STYLE, t.name)
-        const look = lookOf(all, t.value, t.name)
-        const isSelected = selected.includes(t.name)
-        return (
-          <button
-            key={t.name}
-            type="button"
-            data-token={t.name}
-            aria-pressed={isSelected}
-            aria-label={short}
-            onClick={(e) => onSelect(t.name, isAdditive(e))}
-            onDoubleClick={() => onRename(t.name)}
-            className={`group relative flex w-full items-center gap-4 rounded-md px-3 py-3 text-left select-none ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
-          >
-            <span className="w-56 shrink-0">
-              {/* 이름, 가리키는 값, 설명, 견본은 자르지 않는다(말줄임표를 쓰지 않는다). 칸보다 길면 줄을 바꿔 다 보여 준다. */}
-              <span data-name className="block text-sm break-words text-ink-soft">
-                {short}
-              </span>
-              <span className="block font-mono text-xs leading-4 break-words text-ink-faint">
-                {look ? <Spec look={look} tokens={all} /> : <span className="text-danger">읽을 수 없는 값</span>}
-              </span>
-              {t.note && <span className="mt-1 block text-xs leading-4 break-words text-ink-faint">{t.note}</span>}
-            </span>
-            <span className="min-w-0 flex-1 overflow-hidden">
-              {/* 이 안은 사용자의 글꼴을 보여 주는 미리보기라, FF 도구의 글자 규칙을 따르지 않는다. */}
-              <span data-sample className="block break-words text-ink" style={look ? styleOf(look) : undefined}>
-                {SAMPLE}
-              </span>
-            </span>
-            {isSelected && selected.length === 1 && <SelectionLabel name={short} value={look ? figures(look) : undefined} />}
-          </button>
-        )
-      })}
-    </div>
+      <div className="space-y-6">
+        {groups.map(({ use, items: list }, gi) => {
+          const groupDrop = drop?.what === 'group' && drop.id !== use ? drop : null
+          const rowDrop = drop?.what === 'row' && drop.use === use ? drop : null
+          return (
+            <div key={use} data-type-group={use} className={`relative ${drop?.what === 'group' && drop.id === use ? 'opacity-40' : ''}`}>
+              {groupDrop?.before === use && <span className={`${DROP_LINE} inset-x-0 -top-3 h-[calc(var(--line)*2)] -translate-y-1/2`} />}
+              {groupDrop?.before === null && gi === groups.length - 1 && (
+                <span className={`${DROP_LINE} inset-x-0 -bottom-3 h-[calc(var(--line)*2)] translate-y-1/2`} />
+              )}
+              {/* 묶음 제목을 누르면 그 묶음의 조합이 모두 선택되고, 잡고 위아래로 끌면 묶음이 통째로 옮겨진다. */}
+              <div className="mb-2 -ml-1 flex">
+                <button
+                  type="button"
+                  data-type-title={use}
+                  onClick={(e) => !dragged.current && onSelectGroup(list.map((t) => t.name), isAdditive(e), false)}
+                  {...grab('group', use, use)}
+                  className="rounded-sm px-1 type-heading outline-selection hover:bg-hover focus-visible:outline-2"
+                >
+                  {TYPE_USES.find((u) => u.id === use)!.label}
+                </button>
+              </div>
+              <div className="space-y-1 rounded-lg border border-hairline bg-canvas p-1">
+                {list.map((t, i) => {
+                  const short = shortName(STYLE, t.name)
+                  const { text, shape, words, more } = readTypeNote(t.note, short)
+                  const look = lookOf(all, t.value, t.name)
+                  const isSelected = selected.includes(t.name)
+                  const moving = rowDrop?.id === t.name
+                  // 놓일 자리의 선. 줄 위(맨 끝이면 마지막 줄 아래)에 가로로 긋는다.
+                  const lineBefore = rowDrop && !moving && rowDrop.before === t.name
+                  const lineAfter = rowDrop && !moving && rowDrop.before === null && i === list.length - 1
+                  return (
+                    <button
+                      key={t.name}
+                      type="button"
+                      data-token={t.name}
+                      aria-pressed={isSelected}
+                      aria-label={short}
+                      onClick={(e) => !dragged.current && onSelect(t.name, isAdditive(e))}
+                      onDoubleClick={() => onRename(t.name)}
+                      {...grab('row', t.name, use)}
+                      className={`group relative flex w-full items-center gap-4 rounded-md px-3 py-2 text-left select-none ${moving ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
+                    >
+                      {lineBefore && <span className={`${DROP_LINE} inset-x-0 top-0 h-[calc(var(--line)*2)] -translate-y-1/2`} />}
+                      {lineAfter && <span className={`${DROP_LINE} inset-x-0 bottom-0 h-[calc(var(--line)*2)] translate-y-1/2`} />}
+                      <span className="w-56 shrink-0">
+                        {/* 이름, 가리키는 값, 설명, 예시는 자르지 않는다(말줄임표를 쓰지 않는다). 칸보다 길면 줄을 바꿔 다 보여 준다. */}
+                        <span data-name className="block type-label break-words">
+                          {short}
+                        </span>
+                        <span className="block type-code-sm break-words text-ink-faint">
+                          {look ? <Spec look={look} tokens={all} /> : <span className="text-danger">읽을 수 없는 값</span>}
+                        </span>
+                        {text && <span className="mt-1 block type-caption break-words text-ink-faint">{text}</span>}
+                      </span>
+                      {/* 쓰임이 여럿인 조합은 예시도 여럿이다. 위아래로 8px 띄워 쌓는다. */}
+                      <span className="min-w-0 flex-1 space-y-2">
+                        {look && [{ shape, words }, ...more].map((e, k) => <TypeSample key={k} shape={e.shape} look={look} around={around} words={e.words} />)}
+                      </span>
+                      {isSelected && selected.length === 1 && <SelectionLabel name={short} value={look ? figures(look) : undefined} />}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -217,7 +442,8 @@ export function TypeInspector({
   const short = shortName(STYLE, token.name)
   const [nameDraft, setNameDraft] = useState(short)
   const [nameError, setNameError] = useState<string | null>(null)
-  const [noteDraft, setNoteDraft] = useState(token.note ?? '')
+  const { use, text, picked, words, more } = readTypeNote(token.note, short)
+  const [noteDraft, setNoteDraft] = useState(text)
   const look = lookOf(tokens, token.value, token.name)
   const names = new Set(tokens.map((t) => t.name))
   const get = (name: string) => tokens.find((t) => t.name === name)?.value ?? ''
@@ -235,15 +461,26 @@ export function TypeInspector({
   function commitNote() {
     // 주석을 끝내는 기호와 줄바꿈은 파일을 깨뜨리므로 뺀다.
     const clean = noteDraft.replace(/\*\//g, '').replace(/\s+/g, ' ').trim()
-    if (clean !== (token.note ?? '')) onChange({ note: clean })
+    if (clean !== text) saveNote({ text: clean })
   }
+
+  /**
+   * 묶음과 설명을 주석에 적어 저장한다. 같은 주석에 적혀 있는 예시(모양과 문구)는 그대로 둔다.
+   * 예시는 패널에서 고치지 않는다. 그 조합이 화면 어디에 어떤 말로 쓰였는지는 페이지를 만든 AI가 알고, AI가 파일의 주석에 적는다(파일 맨 위의 안내 참고).
+   */
+  function saveNote(patch: { use?: TypeUse; text?: string }) {
+    onChange({ note: writeTypeNote(patch.use ?? use, patch.text ?? noteDraft, picked, words, more) })
+  }
+
+  /** 코드에서 쓰는 클래스 이름. 저장할 때 서버가 tokens.css에 같은 이름으로 적어 둔다(server/tokensCss.ts의 typeClasses). */
+  const className = `type-${short}`
 
   const set = (patch: Partial<TypeParts>) => look && onChange({ value: writeType({ ...look.parts, ...patch }, names) })
 
   return (
     <div>
       <Section>
-        <h2 className="font-[650] break-all">{short}</h2>
+        <h2 className="type-heading break-all">{short}</h2>
       </Section>
 
       <Section title="이름">
@@ -259,7 +496,7 @@ export function TypeInspector({
           onBlur={commitName}
           onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
         />
-        {nameError && <span className="mt-1 block text-sm text-danger">{nameError}</span>}
+        {nameError && <span className="mt-1 block type-body text-danger">{nameError}</span>}
       </Section>
 
       <Section title="조합">
@@ -278,22 +515,14 @@ export function TypeInspector({
             <PartField label="굵기" kind={WEIGHT} tokens={tokens} value={look.parts.weight} show={(t) => t.value} onChange={(weight) => set({ weight })} onOpen={onOpenToken} />
           </div>
         ) : (
-          <p className="text-sm text-danger">읽을 수 없는 값이에요. 파일에서 값을 고쳐 주세요.</p>
+          <p className="type-body text-danger">읽을 수 없는 값이에요. 파일에서 값을 고쳐 주세요.</p>
         )}
       </Section>
 
-      {/* 그 조합으로 적은 견본과 실제로 그려지는 숫자. 다른 패널의 "쓰인 모습"과 같은 자리(값 바로 아래)에 있고 같이 접힌다.
-          이 안은 사용자의 글꼴을 보여 주는 미리보기다. 큰 글자도 잘리지 않고 줄을 바꿔 다 보인다. */}
-      {look && (
-        <FoldSection title="쓰인 모습" storageKey={USES_OPEN} startOpen>
-          <div className="overflow-hidden rounded-md border border-hairline bg-canvas px-3 py-3">
-            <p data-sample className="break-words text-ink" style={styleOf(look)}>
-              {SAMPLE}
-            </p>
-          </div>
-          <p className="mt-2 font-mono text-xs leading-4 text-ink-faint">{figures(look)}</p>
-        </FoldSection>
-      )}
+      {/* 묶음은 판에서 이 조합이 놓이는 자리와 예시의 장면을 정한다. 의미 색 패널의 "역할"과 같은 자리다. */}
+      <Section title="묶음">
+        <UsePicker label="묶음" options={TYPE_USES} value={use} nameWidth="w-16" onChange={(next) => saveNote({ use: next })} />
+      </Section>
 
       <Section title="설명">
         <input
@@ -313,12 +542,12 @@ export function TypeInspector({
                 <button
                   type="button"
                   onClick={() => onOpenComponent(u.index)}
-                  className="-ml-2 flex h-8 max-w-full items-center rounded-md px-2 font-[550] outline-selection hover:bg-hover focus-visible:outline-2"
+                  className="-ml-2 flex h-8 max-w-full items-center rounded-md px-2 type-label outline-selection hover:bg-hover focus-visible:outline-2"
                 >
                   <span className="truncate">{u.name}</span>
-                  <span className="ml-2 shrink-0 text-sm font-normal text-ink-faint">{u.where.length}곳</span>
+                  <span className="ml-2 shrink-0 type-body text-ink-faint">{u.where.length}곳</span>
                 </button>
-                <p className="text-sm text-ink-faint">{u.where.join(', ')}</p>
+                <p className="type-body text-ink-faint">{u.where.join(', ')}</p>
               </div>
             ))}
           </div>
@@ -327,22 +556,27 @@ export function TypeInspector({
       <FoldSection title="코드" storageKey={CODE_OPEN}>
         <div className="space-y-2">
           <div>
-            <p className="mb-1 text-sm font-[550] text-ink-faint">쓰는 법</p>
-            <span className="flex items-center gap-1">
-              <span className="min-w-0 flex-1">
-                <Chip>{`font: var(${token.name})`}</Chip>
-              </span>
-              <button type="button" title={`font: var(${token.name}) 복사`} aria-label="코드 복사" onClick={() => onCopy(`font: var(${token.name});`)} className={ICON_BUTTON}>
-                <Copy size={16} strokeWidth={1.5} />
-              </button>
-            </span>
+            <p className="mb-1 type-label text-ink-faint">쓰는 법</p>
+            {/* 클래스가 먼저다. FF가 저장할 때 의미 글꼴마다 type-이름 클래스를 함께 적어 두므로, 코드에서는 이 한 단어로 글꼴, 크기, 굵기, 줄 높이를 모두 정한다. CSS로 직접 적을 때의 한 줄은 그 아래에 둔다. */}
+            <div className="space-y-1">
+              {[{ shown: className, copied: className, label: '클래스 복사' }, { shown: `font: var(${token.name})`, copied: `font: var(${token.name});`, label: 'CSS 복사' }].map((row) => (
+                <span key={row.label} className="flex items-center gap-1">
+                  <span className="min-w-0 flex-1">
+                    <Chip>{row.shown}</Chip>
+                  </span>
+                  <button type="button" title={`${row.shown} 복사`} aria-label={row.label} onClick={() => onCopy(row.copied)} className={ICON_BUTTON}>
+                    <Copy size={16} strokeWidth={1.5} />
+                  </button>
+                </span>
+              ))}
+            </div>
           </div>
           <div>
-            <p className="mb-1 text-sm font-[550] text-ink-faint">저장된 값</p>
+            <p className="mb-1 type-label text-ink-faint">저장된 값</p>
             <Chip>{token.value}</Chip>
           </div>
           <div>
-            <p className="mb-1 text-sm font-[550] text-ink-faint">저장 위치</p>
+            <p className="mb-1 type-label text-ink-faint">저장 위치</p>
             <Chip>{file}</Chip>
           </div>
         </div>

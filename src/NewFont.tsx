@@ -33,7 +33,7 @@ const LINE = 'h-[1lh] whitespace-nowrap content-center [text-box:trim-both_cap_a
 /** 견본에서 상자 안에 들어가는 글들(버튼 셋과 입력칸). 글자의 실제 모양을 재서 상자의 한가운데에 놓는다. */
 const BOXED = ['배송 준비', '바꾸기', '더 보기', '결제 완료', '출고 완료', '김하늘']
 /** 설정의 이름표. 값 위에 둔다. 한 벌 만들기 창들의 왼쪽 열과 같다. */
-const LABEL = 'mb-1 text-sm font-[550] text-ink-faint'
+const LABEL = 'mb-1 type-label text-ink-faint'
 const SCALE_BUTTON =
   'flex size-8 shrink-0 items-center justify-center rounded-md text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2 disabled:opacity-40 disabled:hover:bg-transparent'
 /**
@@ -245,7 +245,7 @@ export function FontSample({
                 {has ? '가' : '\u00a0'}
               </span>
               <span
-                className={`mx-auto block w-fit border-b font-mono text-[10px] leading-[14px] ${has ? 'opacity-60' : 'opacity-20'}`}
+                className={`mx-auto block w-fit border-b type-code-sm ${has ? 'opacity-60' : 'opacity-20'}`}
                 style={{ borderColor: w === drawn ? 'currentColor' : 'transparent' }}
               >
                 {w}
@@ -421,7 +421,7 @@ export function NewFontForm({
         aria-selected={on}
         aria-disabled={full}
         onClick={() => toggle(family)}
-        className={`flex h-8 w-full items-center gap-2 overflow-hidden rounded-md px-2 text-left text-sm outline-selection focus-visible:outline-2 ${
+        className={`flex h-8 w-full items-center gap-2 overflow-hidden rounded-md px-2 text-left type-body outline-selection focus-visible:outline-2 ${
           on ? 'bg-selection-soft' : full ? 'cursor-default opacity-40' : 'hover:bg-hover'
         }`}
       >
@@ -446,7 +446,7 @@ export function NewFontForm({
         <div role="listbox" aria-label="글꼴 목록" aria-multiselectable className="mt-2 min-h-80 flex-1 basis-0 overflow-y-auto rounded-md border border-hairline p-1">
           {/* 목록에 없는 글꼴은 이름만 적어 넣지 못한다. 불러올 곳을 모르는 글꼴은 견본이 다른 글꼴로 그려져 견주는 뜻이 없기 때문이다. 그런 글꼴은 AI가 찾아서 넣는다. */}
           {groups.size === 0 && (
-            <p className="px-2 py-4 text-sm leading-5 text-ink-faint">
+            <p className="px-2 py-4 type-body text-ink-faint">
               목록에 없는 글꼴이에요.
               <br />
               AI에게 추가해 달라고 하세요.
@@ -454,7 +454,7 @@ export function NewFontForm({
           )}
           {[...groups].map(([group, list]) => (
             <div key={group}>
-              <p className="px-2 pt-2 pb-1 text-xs font-[550] text-ink-faint">{group}</p>
+              <p className="px-2 pt-2 pb-1 type-caption-strong text-ink-faint">{group}</p>
               {/* 고른 줄과 마우스를 올린 줄의 바탕이 서로 닿지 않게 줄 사이를 4px 띄운다. */}
               <div className="space-y-1">{list.map((family) => row(family))}</div>
             </div>
@@ -481,7 +481,7 @@ export function NewFontForm({
                   setNameError(null)
                 }}
               />
-              {nameError && <span className="mt-1 block text-sm text-danger">{nameError}</span>}
+              {nameError && <span className="mt-1 block type-body text-danger">{nameError}</span>}
             </div>
           )}
           <div>
@@ -490,7 +490,7 @@ export function NewFontForm({
               <button type="button" aria-label="견본 글자 작게" disabled={size <= SIZE_MIN} onClick={() => stepSize(-1)} className={SCALE_BUTTON}>
                 <Minus size={16} strokeWidth={1.5} />
               </button>
-              <span data-size className="w-20 text-center text-sm tabular-nums">
+              <span data-size className="w-20 text-center type-body tabular-nums!">
                 {size}px
               </span>
               <button type="button" aria-label="견본 글자 크게" disabled={size >= SIZE_MAX} onClick={() => stepSize(1)} className={SCALE_BUTTON}>
@@ -505,7 +505,7 @@ export function NewFontForm({
               <button type="button" aria-label="견본 글자 얇게" disabled={weight <= 100} onClick={() => stepWeight(-1)} className={SCALE_BUTTON}>
                 <Minus size={16} strokeWidth={1.5} />
               </button>
-              <span data-weight-now className="w-20 text-center text-sm tabular-nums">
+              <span data-weight-now className="w-20 text-center type-body tabular-nums!">
                 {weight}
               </span>
               <button type="button" aria-label="견본 글자 굵게" disabled={weight >= 900} onClick={() => stepWeight(1)} className={SCALE_BUTTON}>
@@ -552,7 +552,7 @@ export function NewFontForm({
                   style={CARD_ROWS}
                 >
                   {/* 높이를 정해 둔다. 글자를 줄이는 처리(truncate) 때문에 이 줄은 "줄어들어도 되는 줄"로 취급되어, 견본이 카드 영역보다 길어지면 높이가 0에 가깝게 눌린다. */}
-                  <span className="block h-10 truncate pt-3 pr-9 pb-2 pl-4 text-sm leading-5 font-[550] text-ink-faint">{family}</span>
+                  <span className="block h-10 truncate pt-3 pr-9 pb-2 pl-4 type-label text-ink-faint">{family}</span>
                   {/* 견본은 카드의 아래쪽을 가장자리까지 채운다. 바탕색을 고르면 그 색이 카드에 깔린다. 안쪽 여백은 좌우 16px, 아래 12px로, 한 벌 만들기 창의 표 상자와 같다. */}
                   <FontSample family={valueOf(family)} weights={weightsOf(family)} scale={scale} weight={weight} className="px-4 pt-2 pb-3" />
                 </div>
@@ -580,7 +580,7 @@ export function NewFontForm({
           </Button>
           {/* 알림은 누르려던 버튼 바로 왼쪽에 둔다. 눈이 가 있는 자리라 놓치지 않는다. */}
           {error && (
-            <span role="alert" className="mr-1 text-sm whitespace-nowrap text-danger">
+            <span role="alert" className="mr-1 type-body whitespace-nowrap text-danger">
               {error}
             </span>
           )}

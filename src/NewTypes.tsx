@@ -44,7 +44,7 @@ function grouped(rows: Row[]): [label: string, list: Row[]][] {
   return made.filter(([, list]) => list.length > 0)
 }
 
-const PICK = 'h-6 min-w-0 rounded-sm border border-hairline bg-canvas px-1 text-xs text-ink-soft outline-none focus:border-selection disabled:opacity-40'
+const PICK = 'h-6 min-w-0 rounded-sm border border-hairline bg-canvas px-1 type-caption text-ink-soft outline-none focus:border-selection disabled:opacity-40'
 
 const ScreenContext = createContext<{ rows: Row[]; tokens: Token[]; hot: string | null; setHot: (key: string | null) => void; toggle: (key: string) => void }>({
   rows: [],
@@ -119,8 +119,8 @@ export function NewTypesForm({
   if (rows.length === 0) {
     return (
       <div>
-        <p className="text-sm text-ink-soft">
-          의미 글꼴은 글꼴 판의 값을 짝지어 만들어요. 글꼴 판에서 <span className="font-[550] text-ink">{missing.join(', ')}</span>부터 만들어 주세요.
+        <p className="type-body text-ink-soft">
+          의미 글꼴은 글꼴 판의 값을 짝지어 만들어요. 글꼴 판에서 <span className="type-label text-ink">{missing.join(', ')}</span>부터 만들어 주세요.
         </p>
         <div className="mt-3 flex justify-end">
           <Button onClick={onCancel}>닫기</Button>
@@ -173,7 +173,7 @@ export function NewTypesForm({
             {grouped(rows).map(([label, list]) => (
             <div key={label} data-group={label} className="first:[&>p]:pt-0">
               {/* 묶음의 이름표. 글꼴 종류 추가 창의 목록과 같은 모양이다. */}
-              <p className="px-2 pt-2 pb-1 text-xs leading-4 font-[550] text-ink-faint">{label}</p>
+              <p className="px-2 pt-2 pb-1 type-caption-strong text-ink-faint">{label}</p>
               {/* 마우스를 올린 줄의 바탕이 서로 닿지 않게 줄 사이를 4px 띄운다. */}
               <div className="space-y-1">
             {list.map((r) => (
@@ -202,7 +202,7 @@ export function NewTypesForm({
                 <span className={r.on ? '' : 'opacity-40'}>
                   <StepName label={`${r.key} 이름`} wide="xl" value={r.name} onChange={(name) => patch(r.key, { name })} />
                 </span>
-                <span className={`min-w-0 flex-1 text-xs whitespace-nowrap text-ink-faint ${r.on ? '' : 'opacity-40'}`}>
+                <span className={`min-w-0 flex-1 type-caption whitespace-nowrap text-ink-faint ${r.on ? '' : 'opacity-40'}`}>
                   {r.note}
                 </span>
                 {pick(r, FONT, 'font', '글꼴 종류', 'w-20', (t) => shortName(FONT, t.name))}
@@ -229,12 +229,12 @@ export function NewTypesForm({
           </Button>
           {/* 이미 있는 조합이 새 값으로 바뀌는 것은 되돌리기 전에 알아야 하는 일이라 알린다. */}
           {problem ? (
-            <span role="alert" className="mr-1 text-sm text-danger">
+            <span role="alert" className="mr-1 type-body text-danger">
               {problem}
             </span>
           ) : (
             <>
-              <span className="mr-1 text-sm text-ink-faint">{used.length}개를 만들어요.</span>
+              <span className="mr-1 type-body text-ink-faint">{used.length}개를 만들어요.</span>
               <SetNotice
                 made={used.map((r) => r.name)}
                 existing={tokens.filter((x) => STYLE.matches(x.name)).map((x) => shortName(STYLE, x.name))}

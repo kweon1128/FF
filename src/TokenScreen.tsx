@@ -9,6 +9,7 @@ import type { RoleUse } from './lib/roles'
 import { suggestLine } from './lib/tokens'
 import { RoleList } from './Roles'
 import { TypeList } from './Types'
+import type { TypeUse } from './lib/types'
 import { Button, swatchBackground } from './ui'
 
 const SAMPLE = '다람쥐 헌 쳇바퀴에 타고파 Aa 123'
@@ -41,6 +42,12 @@ export type SectionProps = {
   onMoveRole: (name: string, before: string | null) => void
   /** 의미 색의 역할 묶음을 끌어서 다른 자리에 놓는다. */
   onMoveRoleGroup: (use: RoleUse, before: RoleUse | null) => void
+  /** 의미 글꼴을 끌어서 같은 묶음 안의 다른 자리에 놓는다. before는 그 앞에 놓일 조합(묶음의 맨 끝이면 null). */
+  onMoveType: (name: string, before: string | null) => void
+  /** 의미 글꼴의 묶음을 끌어서 다른 자리에 놓는다. */
+  onMoveTypeGroup: (use: TypeUse, before: TypeUse | null) => void
+  /** 의미 글꼴 판의 묶음과 조합을 기본 순서로 돌려놓는다. 이미 기본 순서면 없다. */
+  onResetTypes?: () => void
   /** 글자 크기 한 벌을 만드는 창을 연다. */
   onMakeSizes?: () => void
   /** 굵기 한 벌을 만드는 창을 연다. */
@@ -53,7 +60,7 @@ export type SectionProps = {
 export const isAdditive = (e: MouseEvent) => e.shiftKey || e.ctrlKey || e.metaKey
 
 /** 한 화면에 속한 종류들을 차례로 그린다. 전체 보기의 판 안에서도 그대로 쓴다. */
-export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGroup, onRename, onSelectGroup, emptyGroups, pickedGroup, onPickGroup, folded, onReorderGroup, rolesFolded, onMoveRole, onMoveRoleGroup, onMakeSizes, onMakeWeights, onMakeTypes }: SectionProps & { kinds: Kind[] }) {
+export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGroup, onRename, onSelectGroup, emptyGroups, pickedGroup, onPickGroup, folded, onReorderGroup, rolesFolded, onMoveRole, onMoveRoleGroup, onMoveType, onMoveTypeGroup, onResetTypes, onMakeSizes, onMakeWeights, onMakeTypes }: SectionProps & { kinds: Kind[] }) {
   const single = kinds.length === 1
   return (
     <div className="space-y-8">
@@ -78,8 +85,9 @@ export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGr
               if (single && !canAdd && !makeSet) return null
               return (
                 <div className="mb-2 flex h-6 items-center justify-between">
-                  {single ? <span /> : <h2 className="font-[650]">{kind.title}</h2>}
+                  {single ? <span /> : <h2 className="type-heading">{kind.title}</h2>}
                   <span className="flex gap-1">
+                    {kind.id === 'style' && <ResetButton title="묶음과 그 안의 조합을 기본 순서로 돌려놓아요" onReset={onResetTypes} />}
                     {makeSet && (
                       <Button variant="ghost" onClick={makeSet}>
                         <Rows3 size={16} strokeWidth={1.5} />한 벌 만들기
@@ -101,7 +109,7 @@ export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGr
             ) : kind.id === 'role' ? (
               <RoleList {...list} all={tokens} folded={rolesFolded} onSelectGroup={onSelectGroup} onMove={onMoveRole} onMoveGroup={onMoveRoleGroup} />
             ) : kind.id === 'style' ? (
-              <TypeList items={items} all={tokens} selected={selected} onSelect={onSelect} onRename={onRename} />
+              <TypeList items={items} all={tokens} selected={selected} onSelect={onSelect} onSelectGroup={onSelectGroup} onRename={onRename} onMove={onMoveType} onMoveGroup={onMoveTypeGroup} />
             ) : kind.tiles ? (
               <TileGrid {...list} />
             ) : (
@@ -187,7 +195,7 @@ export function SelectionHandles() {
 /** 선택한 항목 바로 아래에 붙는 파란 이름표(이름 · 값). 주변에 무엇이 있든 가장 위에 겹쳐 보인다. */
 export function SelectionTag({ name, value }: { name: string; value?: string }) {
   return (
-    <span className="pointer-events-none absolute top-full left-1/2 z-20 mt-2 origin-top -translate-x-1/2 [scale:var(--unzoom)] rounded-xs bg-selection px-1 text-xs font-[550] whitespace-nowrap text-white">
+    <span className="pointer-events-none absolute top-full left-1/2 z-20 mt-2 origin-top -translate-x-1/2 [scale:var(--unzoom)] rounded-xs bg-selection px-1 type-caption-strong whitespace-nowrap text-white">
       {value === undefined ? name : `${name} · ${value}`}
     </span>
   )
@@ -265,13 +273,13 @@ function ColorGroups({
       */}
       {groups.size === 1 && (
         <button type="button" aria-label="목록 추가" onClick={onAddGroup} className="group block w-full text-left outline-selection focus-visible:outline-2">
-          <span className="mb-2 block text-base font-[650] text-ink-faint">primary</span>
+          <span className="mb-2 block type-title text-ink-faint">primary</span>
           <span className={`grid grid-cols-11 gap-x-3 ${folded ? 'gap-y-3' : 'gap-y-4'}`}>
             {SCALE_STEPS.map((step) => (
               <span key={step}>
                 {/* 아직 없는 목록의 자리를 보여 주는 점선 상자. */}
                 <span className="block h-16 rounded-md dash-box bg-canvas group-hover:bg-hover group-hover:bg-none" />
-                {!folded && <span className="mt-2 block text-sm text-ink-faint">{step}</span>}
+                {!folded && <span className="mt-2 block type-body text-ink-faint">{step}</span>}
               </span>
             ))}
           </span>
@@ -331,7 +339,7 @@ function ColorGroups({
               setDrop(null)
             }}
             onDoubleClick={() => list.length > 0 && onSelectGroup(list.map((t) => t.name), false, true)}
-            className={`rounded-sm px-1 font-[650] outline-selection hover:bg-hover focus-visible:outline-2 ${group ? 'text-base' : ''} ${
+            className={`rounded-sm px-1 outline-selection hover:bg-hover focus-visible:outline-2 ${group ? 'type-title' : 'type-heading'} ${
               list.length === 0 && pickedGroup === group ? 'line-1' : ''
             }`}
             style={{ '--edge': '0px' } as CSSProperties}
@@ -382,11 +390,11 @@ function ColorGroups({
                   {/* 접으면 이름과 값 글자를 숨긴다. 색을 고르면 뜨는 파란 이름표로는 여전히 볼 수 있다. */}
                   {!folded && (
                   <span>
-                    <span data-name className="mt-2 block truncate text-sm text-ink-soft">
+                    <span data-name className="mt-2 block truncate type-body text-ink-soft">
                       {group ? short.slice(group.length + 1) : short}
                     </span>
                     <span
-                      className="block truncate font-mono text-sm text-ink-faint"
+                      className="block truncate type-code text-ink-faint"
                       title={approx ? `${t.value} · 화면이 낼 수 없는 색이라 가까운 색으로 보여 줘요` : undefined}
                     >
                       {approx ? '≈ ' : ''}
@@ -445,8 +453,8 @@ function TileGrid({ kind, items, selected, onSelect, onRename }: ListProps) {
             className={`relative flex flex-col items-center rounded-lg border border-hairline bg-canvas p-4 select-none ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
           >
             <TileSample kind={kind} value={t.value} />
-            <span data-name className="mt-3 block max-w-full truncate text-sm text-ink-soft">{short}</span>
-            <span className="block max-w-full truncate font-mono text-sm text-ink-faint">{t.value}</span>
+            <span data-name className="mt-3 block max-w-full truncate type-body text-ink-soft">{short}</span>
+            <span className="block max-w-full truncate type-code text-ink-faint">{t.value}</span>
             {isSelected && selected.length === 1 && <SelectionLabel name={short} value={t.value} />}
           </button>
         )
@@ -474,7 +482,8 @@ function RowList({
         const short = shortName(kind, t.name)
         const isSelected = selected.includes(t.name)
         const line = lineOf?.(t.name)
-        const track = trackOf?.(t.name)
+        // 글자 사이를 정하지 않은 크기는 0em으로 적는다. 빼 버리면 그 자리가 비어 보이고, 0이라는 것도 값인데 알 수 없게 된다.
+        const track = trackOf ? (trackOf(t.name) ?? '0em') : undefined
         // 글자 크기는 묶인 줄 높이, 글자 사이와 함께 적는다(23px / 32px / -0.01em).
         // 글꼴 종류는 대체 글꼴을 뺀 글꼴 이름만 적는다.
         const shown = stacked ? shownFont(t.value) : [t.value, line, track].filter(Boolean).join(' / ')
@@ -492,9 +501,9 @@ function RowList({
             {stacked ? (
               // 글꼴 종류는 이름과 글꼴 이름을 한 줄 전체에 쓰고, 견본은 그 아래에 둔다. 글꼴 이름은 좁은 칸에 넣으면 잘린다.
               <>
-                <span data-name className="block text-sm text-ink-soft">{short}</span>
+                <span data-name className="block type-body text-ink-soft">{short}</span>
                 {/* 다른 줄의 값(14px)보다 작게 12px로 적어 견본 문장이 주인공이 되게 한다. */}
-                <span className="block font-mono text-xs leading-4 break-words text-ink-faint">{shown}</span>
+                <span className="block type-code-sm break-words text-ink-faint">{shown}</span>
                 <span className="mt-2 block overflow-hidden">
                   <RowSample kind={kind} value={t.value} />
                 </span>
@@ -504,8 +513,8 @@ function RowList({
                 {/* 글자 크기는 값 셋을 한 줄에 적으므로 칸이 넓다. */}
                 <span className={`${kind.id === 'size' ? 'w-48' : 'w-28'} shrink-0`}>
                   {/* 이름과 값은 자르지 않는다(말줄임표를 쓰지 않는다). 칸보다 길면 줄을 바꿔 다 보여 준다. */}
-                  <span data-name className="block text-sm break-words text-ink-soft">{short}</span>
-                  <span className="block font-mono text-sm break-words text-ink-faint">{shown}</span>
+                  <span data-name className="block type-body break-words text-ink-soft">{short}</span>
+                  <span className="block type-code break-words text-ink-faint">{shown}</span>
                 </span>
                 <span className="min-w-0 flex-1 overflow-hidden">
                   <RowSample kind={kind} value={t.value} line={line} track={track} />

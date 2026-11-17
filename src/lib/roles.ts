@@ -46,19 +46,108 @@ export function guessUse(short: string): RoleUse {
   return 'fill'
 }
 
-/** 주석에서 역할과 설명을 읽는다. "글자: 본문 글자"처럼 역할로 시작하지 않으면 주석 전체가 설명이고 역할은 이름에서 짐작한다. */
-export function readNote(note: string | undefined, short: string): { use: RoleUse; text: string } {
-  const all = (note ?? '').trim()
-  // "버튼"은 "채움"의 예전 이름이다. 예전에 적어 둔 주석도 그대로 읽는다(다음에 역할이나 설명을 고칠 때 채움으로 적힌다).
-  const m = /^(글자|바탕|테두리|버튼|채움|상태|차트)\s*(?::\s*(.*))?$/.exec(all)
-  const use = m && ROLE_USES.find((u) => u.label === (m[1] === '버튼' ? '채움' : m[1]))
-  return use ? { use: use.id, text: (m[2] ?? '').trim() } : { use: guessUse(short), text: all }
+/**
+ * 예시의 모양. 판의 줄마다 그 색을 어떤 자리에 칠해 보여 줄지다. 의미 글꼴의 예시 모양과 같은 생각이다.
+ * 역할 하나에도 쓰임이 여럿이라(바탕 역할에 패널의 면도, 마우스를 올린 줄도 있다) 역할로 예시를 정하면 설명과 맞지 않는다. 그래서 줄마다 따로 정한다.
+ * 적어 두지 않은 색은 이름에서 짐작하고(hover는 줄, on-primary는 버튼 글자), 짐작할 수 없으면 역할의 첫 모양을 쓴다.
+ */
+export type RoleShape = 'text' | 'surface' | 'row' | 'border' | 'divider' | 'button' | 'on-fill' | 'badge' | 'outline' | 'guide' | 'note' | 'chart'
+
+export const ROLE_SHAPES: { id: RoleShape; label: string; hint: string }[] = [
+  { id: 'text', label: '글자', hint: '이 색으로 적은 글자' },
+  { id: 'surface', label: '면', hint: '글이 놓이는 바탕' },
+  { id: 'row', label: '줄', hint: '목록에서 올리거나 고른 줄' },
+  { id: 'border', label: '테두리', hint: '입력칸의 테두리' },
+  { id: 'divider', label: '구분선', hint: '면을 나누는 선' },
+  { id: 'button', label: '버튼', hint: '이 색으로 채운 버튼' },
+  { id: 'on-fill', label: '버튼 글자', hint: '채운 버튼 위의 글자' },
+  { id: 'badge', label: '뱃지', hint: '상태를 알리는 작은 표시' },
+  { id: 'outline', label: '선택 표시', hint: '고른 것을 두르는 선과 이름표' },
+  { id: 'guide', label: '안내선', hint: '맞춤 안내선과 간격 숫자' },
+  { id: 'note', label: '안내 글자', hint: '상태를 알리는 작은 글자' },
+  { id: 'chart', label: '차트', hint: '그래프의 막대' },
+]
+
+/**
+ * 모양마다의 기본 예시 문구. 줄에 예시 문구를 적지 않았을 때 쓴다. 구분선과 차트에는 글자가 없다.
+ * 여러 개를 늘어놓는 모양(버튼, 버튼 글자, 뱃지)은 쉼표와 빈칸(", ")으로 나눠 적는다.
+ */
+export const ROLE_WORDS: Record<RoleShape, string> = {
+  text: '제목 가나다 Aa',
+  surface: '카드 제목',
+  row: '고른 줄',
+  border: '입력칸',
+  divider: '',
+  button: '저장',
+  'on-fill': '저장',
+  badge: '알림, 뱃지',
+  outline: '선택됨',
+  guide: '24',
+  note: '안내 글자 가나다 Aa 123',
+  chart: '',
 }
 
-/** 주석에 적을 글자. 주석을 끝내는 기호와 줄바꿈은 파일을 깨뜨리므로 뺀다. */
-export function writeNote(use: RoleUse, text: string) {
-  const clean = text.replace(/\*\//g, '').replace(/\s+/g, ' ').trim()
-  return clean ? `${labelOf(use)}: ${clean}` : labelOf(use)
+/** 여러 개를 늘어놓는 모양인지. */
+export const isRoleListShape = (shape: RoleShape) => ['button', 'on-fill', 'badge'].includes(shape)
+
+/** 모양을 적지 않은 색의 모양. 이름에서 짐작하고, 짐작할 수 없으면 역할의 첫 모양이다. */
+export function guessRoleShape(short: string, use: RoleUse): RoleShape {
+  const parts = short.split('-')
+  const has = (...words: string[]) => parts.some((p) => words.includes(p))
+  if (parts[0] === 'on') return 'on-fill'
+  if (has('hover', 'active', 'pressed', 'selected', 'row', 'highlight')) return use === 'surface' ? 'row' : ({ text: 'text', border: 'border', fill: 'button', status: 'badge', chart: 'chart', surface: 'row' } as const)[use]
+  if (has('divider', 'separator', 'hairline', 'rule')) return 'divider'
+  if (has('guide', 'snap', 'ruler')) return 'guide'
+  if (has('selection', 'focus', 'ring', 'outline')) return use === 'surface' ? 'row' : 'outline'
+  return ({ text: 'text', surface: 'surface', border: 'border', fill: 'button', status: 'badge', chart: 'chart' } as const)[use]
+}
+
+/** 예시 하나. 어떤 자리에 칠할지(모양)와 그 안에 적을 말(문구. 비어 있으면 모양의 기본 문구). */
+export type RoleExample = { shape: RoleShape; words: string }
+
+// 설명 뒤에 " | "로 이어 적은 것은 예시다. "바탕(줄): 마우스를 올린 줄 | 색상 | 뱃지: --color-ink".
+// 역할 뒤의 괄호가 첫 예시의 모양(직접 고른 것만 적힌다), 첫 " | " 뒤가 첫 예시의 문구, 그 뒤로 " | 모양: 문구"가 예시마다 이어진다.
+const WORDS_MARK = ' | '
+// 읽을 때는 세로줄 앞뒤의 빈칸 수를 따지지 않는다. 손으로 적은 주석은 빈칸이 하나 빠지거나 더 들어가기 쉽고, 문구가 빈 예시는 세로줄 둘이 붙어 적힌다.
+const MARK = /\s*\|\s*/
+const MARK_ALL = /\s*\|\s*/g
+const SHAPE_LABELS = ROLE_SHAPES.map((u) => u.label).join('|')
+const NOTE = new RegExp(`^(글자|바탕|테두리|버튼|채움|상태|차트)(?:\\((${SHAPE_LABELS})\\))?\\s*(?::\\s*(.*))?$`)
+const SHAPE_HEAD = new RegExp(`^(${SHAPE_LABELS})\\s*:\\s*(.*)$`)
+
+/**
+ * 주석에서 역할, 설명, 예시들을 읽는다. "글자: 본문 글자"처럼 역할로 시작하지 않으면 주석 전체가 설명이고 역할은 이름에서 짐작한다.
+ * shape는 첫 예시를 그릴 모양이고, picked는 주석에 직접 적혀 있던 모양이다(없으면 undefined. 그때 shape는 짐작한 것이다).
+ * words는 첫 예시의 문구(없으면 ''), more는 둘째부터의 예시다.
+ */
+export function readNote(note: string | undefined, short: string): { use: RoleUse; text: string; shape: RoleShape; picked?: RoleShape; words: string; more: RoleExample[] } {
+  const all = (note ?? '').trim()
+  // "버튼"은 "채움"의 예전 이름이다. 예전에 적어 둔 주석도 그대로 읽는다(다음에 역할이나 설명을 고칠 때 채움으로 적힌다).
+  const m = NOTE.exec(all)
+  const found = m && ROLE_USES.find((u) => u.label === (m[1] === '버튼' ? '채움' : m[1]))
+  const use = found ? found.id : guessUse(short)
+  const picked = found && m![2] ? ROLE_SHAPES.find((u) => u.label === m![2])?.id : undefined
+  const shape = picked ?? guessRoleShape(short, use)
+  // 예시는 역할을 적은 주석에서만 읽는다.
+  const parts = found ? (m![3] ?? '').split(MARK).map((p) => p.trim()) : [all]
+  const more = parts.slice(2).map((p): RoleExample => {
+    const head = SHAPE_HEAD.exec(p)
+    const own = head && ROLE_SHAPES.find((u) => u.label === head[1])
+    return own ? { shape: own.id, words: head![2].trim() } : { shape, words: p }
+  })
+  return { use, text: parts[0], shape, ...(picked ? { picked } : {}), words: parts[1] ?? '', more }
+}
+
+/** 주석에 적을 글자. 첫 예시의 모양은 직접 고른 것만 적는다. 주석을 끝내는 기호와 줄바꿈은 파일을 깨뜨리므로 뺀다. */
+export function writeNote(use: RoleUse, text: string, shape?: RoleShape, words = '', more: RoleExample[] = []) {
+  // 설명과 문구 안의 " | "는 예시를 나누는 표시와 헷갈리므로 " / "로 바꿔 적는다.
+  const tidy = (s: string) => s.replace(/\*\//g, '').replace(/\s+/g, ' ').trim().replace(MARK_ALL, ' / ')
+  const clean = tidy(text)
+  const head = shape ? `${labelOf(use)}(${ROLE_SHAPES.find((u) => u.id === shape)!.label})` : labelOf(use)
+  const rest = more.map((e) => `${ROLE_SHAPES.find((u) => u.id === e.shape)!.label}: ${tidy(e.words)}`.trim())
+  // 첫 예시의 문구가 비어 있어도 뒤에 예시가 더 있으면 그 자리는 비운 채로 남긴다. 그래야 둘째 예시가 첫째로 읽히지 않는다.
+  const body = [clean, ...(tidy(words) || rest.length ? [tidy(words)] : []), ...rest].join(WORDS_MARK).trim()
+  return body ? `${head}: ${body}` : head
 }
 
 /** 예시를 그릴 때 주변에 까는 색. 이 디자인 시스템의 기본 바탕과 기본 글자 색. */

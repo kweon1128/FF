@@ -3,7 +3,7 @@ import { SLUG } from './lib/catalog'
 import { SCALE_STEPS, grayOf, nearestStep } from './lib/scale'
 import { ColorSwatch } from './ColorPicker'
 import { asHex } from './lib/color'
-import { Button, Check, Field, inputClass } from './ui'
+import { Button, Check, Field, inputClass, monoInputClass } from './ui'
 
 const HEX6 = /^#[0-9a-f]{6}$/i
 const STEP = /^[a-z0-9]+$/
@@ -104,7 +104,7 @@ export function NewGroupForm({
             />
             <input
               aria-label="색 값"
-              className={`${inputClass} font-mono`}
+              className={monoInputClass}
               value={color}
               placeholder={suggestedColor}
               onChange={(e) => {

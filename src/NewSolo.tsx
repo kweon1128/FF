@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { ColorSwatch } from './ColorPicker'
 import { asHex } from './lib/color'
-import { Button, Field, inputClass } from './ui'
+import { Button, Field, inputClass, monoInputClass } from './ui'
 
 const HEX6 = /^#[0-9a-f]{6}$/i
 // 예외 색의 이름에는 하이픈을 쓸 수 없다. 하이픈이 있으면 그 앞부분이 목록 이름이 된다.
@@ -72,7 +72,7 @@ export function NewSoloForm({
           />
           <input
             aria-label="색 값"
-            className={`${inputClass} font-mono`}
+            className={monoInputClass}
             value={color}
             placeholder={suggested}
             onChange={(e) => {

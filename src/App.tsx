@@ -73,7 +73,7 @@ import { NewSizesForm } from './NewSizes'
 import { NewWeightsForm } from './NewWeights'
 import { TypeInspector } from './Types'
 import { NewTypesForm } from './NewTypes'
-import { followTypeRefs, nextType, syncTypes, typeUsers, withTypeTrack } from './lib/types'
+import { defaultTypeOrder, followTypeRefs, moveType, moveTypeGroup, nextType, shiftTypes, syncTypes, typeUsers, withTypeTrack, type TypeUse } from './lib/types'
 import { nextPreset, nextSize, nextSizeName, nextVariantName, stepUp, type SizeStep } from './lib/presets'
 import { loadFont, loadSystemFonts, parseFontValue } from './lib/fonts'
 import { NewSystemForm } from './NewSystem'
@@ -944,10 +944,10 @@ export function App() {
       title: used.length === 1 ? '쓰고 있는 값이에요' : `쓰고 있는 값이 ${used.length}개 있어요`,
       body: (
         <>
-          <span className="font-[550] text-ink">{users.join(', ')}</span>에서{' '}
+          <span className="type-label text-ink">{users.join(', ')}</span>에서{' '}
           {used.length === 1 ? (
             <>
-              <span className="font-[550] text-ink">{kind ? shortName(kind, used[0]) : used[0]}</span> 값을
+              <span className="type-label text-ink">{kind ? shortName(kind, used[0]) : used[0]}</span> 값을
             </>
           ) : (
             '이 값들을'
@@ -1404,6 +1404,8 @@ export function App() {
       if (movableGroup !== null) moveGroup(movableGroup, dir)
       // 의미 색은 같은 역할 묶음 안에서만 옮긴다(파일에서 이웃한 다른 묶음의 색과 자리를 바꾸지 않는다).
       else if (selected.every((n) => ROLE.matches(n))) commitIfMoved(shiftRoles(tokens, selected, dir))
+      // 의미 글꼴도 같은 묶음 안에서만 옮긴다.
+      else if (selected.every((n) => STYLE.matches(n))) commitIfMoved(shiftTypes(tokens, selected, dir))
       else commit(shiftTokens(tokens, selected, dir))
     } else if (e.code === 'Tab' && !mod && !e.altKey) {
       if (stepSelection(e.shiftKey ? -1 : 1)) e.preventDefault()
@@ -1468,6 +1470,13 @@ export function App() {
     rolesFolded,
     onMoveRole: (name: string, before: string | null) => commitIfMoved(moveRole(tokens, name, before)),
     onMoveRoleGroup: (use: RoleUse, before: RoleUse | null) => commitIfMoved(moveRoleGroup(tokens, use, before)),
+    onMoveType: (name: string, before: string | null) => commitIfMoved(moveType(tokens, name, before)),
+    onMoveTypeGroup: (use: TypeUse, before: TypeUse | null) => commitIfMoved(moveTypeGroup(tokens, use, before)),
+    // 의미 글꼴 판은 묶음을 제목, 본문, 보조, 조작, 숫자·코드 순서로, 묶음 안은 큰 글자부터(같은 크기면 굵은 것부터) 놓는다. 이미 그 순서면 버튼이 꺼진다.
+    onResetTypes: (() => {
+      const next = defaultTypeOrder(tokens)
+      return next.every((t, i) => t === tokens[i]) ? undefined : () => commit(next)
+    })(),
     onSelectGroup: (names: string[], additive: boolean, rename: boolean) => {
       setSelectedBoards([])
       select(additive ? [...selected, ...names.filter((n) => !selected.includes(n))] : names)
@@ -1709,7 +1718,7 @@ export function App() {
               <EmptyState title="불러오지 못했어요" body={loadError} />
             ) : systems === null ? null : !system ? (
               <div className="mx-auto mt-16 w-[360px] rounded-lg border border-hairline bg-canvas p-6">
-                <p className="mb-4 text-base font-[650]">첫 디자인 시스템을 만들어 보세요</p>
+                <p className="mb-4 type-title">첫 디자인 시스템을 만들어 보세요</p>
                 <NewSystemForm
                   onCreated={(name) => {
                     setSystems((list) => [...(list ?? []), name].sort())
@@ -1731,7 +1740,7 @@ export function App() {
                 />
               ) : (
                 <div className="mx-auto max-w-[960px]">
-                  <h1 className="mb-4 flex h-8 items-center text-base font-[650]">컴포넌트</h1>
+                  <h1 className="mb-4 flex h-8 items-center type-title">컴포넌트</h1>
                   <div className="rounded-lg border border-hairline bg-canvas">
                     <EmptyState title="첫 컴포넌트를 만들어 보세요">
                       <Button onClick={() => setAddingComp(true)}>
@@ -1744,7 +1753,7 @@ export function App() {
               )
             ) : screen !== 'canvas' ? (
               <div className="mx-auto max-w-[960px]">
-                <h1 className="mb-4 flex h-8 items-center text-base font-[650]">{PLACEHOLDER_SCREENS[screen].title}</h1>
+                <h1 className="mb-4 flex h-8 items-center type-title">{PLACEHOLDER_SCREENS[screen].title}</h1>
                 <div className="rounded-lg border border-hairline bg-canvas">
                   <EmptyState title="다음 단계에서 만들 화면이에요" />
                 </div>
@@ -1997,7 +2006,7 @@ export function App() {
       {notice && (
         <div
           role="status"
-          className="pointer-events-none fixed bottom-6 left-1/2 z-50 flex h-8 -translate-x-1/2 items-center rounded-md bg-ink px-3 text-sm whitespace-nowrap text-white shadow-float"
+          className="pointer-events-none fixed bottom-6 left-1/2 z-50 flex h-8 -translate-x-1/2 items-center rounded-md bg-ink px-3 type-body whitespace-nowrap text-white shadow-float"
         >
           {notice}
         </div>
