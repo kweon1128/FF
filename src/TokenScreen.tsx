@@ -75,7 +75,7 @@ export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGr
       {kinds.map((kind) => {
         const items = tokens.filter((t) => kind.matches(t.name))
         // 차례를 손으로 바꿀 수 있는 종류에만 끌기를 준다. 크기 있는 종류(글자 크기, 간격…)는 값의 크기순으로 저절로 놓인다.
-        const onMove = isFreeKind(kind) ? (name: string, before: string | null) => onMoveInKind(kind, name, before) : undefined
+        const onMove = isFreeKind(kind) || kind.id === 'color' ? (name: string, before: string | null) => onMoveInKind(kind, name, before) : undefined
         const list = { kind, items, selected, onSelect, onAdd, onRename, onMove }
         // 이제 쓰지 않는 종류(따로 떨어진 줄 높이)는 파일에 값이 남아 있을 때만 보여 준다.
         if (kind.legacy && items.length === 0) return null
@@ -242,6 +242,7 @@ function ColorGroups({
   onSelect,
   onAdd,
   onRename,
+  onMove,
   onSelectGroup,
   emptyGroups,
   pickedGroup,
@@ -262,6 +263,8 @@ function ColorGroups({
   const exceptions = groups.get('') ?? []
   groups.delete('')
   groups.set('', exceptions)
+  // 예외 색은 크기의 차례가 없는 낱개 색이라 끌어서 차례를 바꾼다. 목록 안의 단계(50~950)는 숫자순으로 저절로 놓여 끌 수 없다.
+  const reorder = useReorder(exceptions.map((t) => t.name), onMove, true)
 
   // 목록 이름을 잡고 위아래로 끌면 목록의 순서가 바뀐다. 색이 있는 목록만 옮길 수 있다(빈 목록은 파일에 자리가 없다).
   // 예외 색 목록은 항상 맨 아래라 옮기지 않는다.
@@ -390,11 +393,13 @@ function ColorGroups({
                   data-token={t.name}
                   aria-pressed={isSelected}
                   aria-label={`${short} ${shown}`}
-                  onClick={(e) => onSelect(t.name, isAdditive(e))}
+                  onClick={(e) => !reorder.justDragged() && onSelect(t.name, isAdditive(e))}
                   onDoubleClick={() => onRename(t.name)}
+                  {...(group ? {} : reorder.grab(t.name))}
                   // 색은 한 줄에 11개까지. 12번째 칸은 추가 칸의 자리라서, 12번째 색부터는 다음 줄 맨 앞에서 시작한다.
-                  className={`group text-left outline-none select-none ${i > 0 && i % 11 === 0 ? 'col-start-1' : ''}`}
+                  className={`group relative text-left outline-none select-none ${reorder.moving(t.name) ? 'opacity-40' : ''} ${i > 0 && i % 11 === 0 ? 'col-start-1' : ''}`}
                 >
+                  {!group && reorder.line(t.name, i)}
                   <span className="relative block">
                     <span
                       className={`block h-16 rounded-md shadow-[inset_0_0_0_1px_rgb(0_0_0/0.1)] ${isSelected ? SELECTED : ''} group-hover:line-2 group-focus-visible:line-2 ${OUTLINE}`}

@@ -74,7 +74,7 @@ import { NewWeightsForm } from './NewWeights'
 import { TypeInspector } from './Types'
 import { EffectInspector } from './Effects'
 import { isEffectKind } from './lib/effects'
-import { autoOrder, defaultFreeOrder, isAutoOrdered, moveInKind } from './lib/order'
+import { autoOrder, defaultFreeOrder, isAutoOrdered, moveException, moveInKind } from './lib/order'
 import { NewTypesForm } from './NewTypes'
 import { defaultTypeOrder, followTypeRefs, moveType, moveTypeGroup, nextType, shiftTypes, syncTypes, typeUsers, withTypeTrack, type TypeUse } from './lib/types'
 import { nextPreset, nextSize, nextSizeName, nextVariantName, stepUp, type SizeStep } from './lib/presets'
@@ -1478,7 +1478,9 @@ export function App() {
     onMoveRole: (name: string, before: string | null) => commitIfMoved(moveRole(tokens, name, before)),
     onMoveRoleGroup: (use: RoleUse, before: RoleUse | null) => commitIfMoved(moveRoleGroup(tokens, use, before)),
     onMoveType: (name: string, before: string | null) => commitIfMoved(moveType(tokens, name, before)),
-    onMoveInKind: (kind: Kind, name: string, before: string | null) => commitIfMoved(moveInKind(tokens, kind, name, before)),
+    // 색상 판에서 끌어 옮기는 낱개 색은 예외 색뿐이다(목록 안의 단계는 숫자순으로 저절로 놓인다).
+    onMoveInKind: (kind: Kind, name: string, before: string | null) =>
+      commitIfMoved(kind.id === 'color' ? moveException(tokens, name, before) : moveInKind(tokens, kind, name, before)),
     resetOf: (kind: Kind) => {
       const next = defaultFreeOrder(tokens, kind)
       return next === tokens ? undefined : () => commit(next)

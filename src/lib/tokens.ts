@@ -162,7 +162,7 @@ const NEUTRAL_CHROMA = 0.04
 /**
  * 색상 판의 순서를 기본으로 돌려놓는다.
  * 목록은 회색 목록을 먼저, 색깔 있는 목록을 무지개 순서(빨강, 주황, 노랑, 초록, 파랑, 보라)로 놓는다.
- * 목록 안의 색은 번호 순서(50→950)이고 번호가 아닌 이름은 뒤에 그대로 둔다. 예외 색은 맨 뒤에 지금 순서 그대로 둔다.
+ * 목록 안의 색은 번호 순서(50→950)이고 번호가 아닌 이름은 뒤에 그대로 둔다. 예외 색은 맨 뒤에, 무채색 먼저(밝은 것부터) 그다음 무지개 순서로 둔다.
  */
 export function defaultColorOrder(tokens: Token[]): Token[] {
   const color = KINDS.color
@@ -187,7 +187,16 @@ export function defaultColorOrder(tokens: Token[]): Token[] {
     const list = colors.filter((t) => listOf(t) === name)
     return { hue: hueOf(list), list: [...list].sort((a, b) => step(a) - step(b)) }
   })
-  const sorted = [...lists.sort((a, b) => a.hue - b.hue).flatMap((l) => l.list), ...colors.filter((t) => listOf(t) === '')]
+  // 예외 색은 목록들과 같은 생각으로 놓는다. 무채색을 먼저(밝은 것부터), 색깔 있는 것을 무지개 순서로. 읽을 수 없는 값은 맨 뒤에 지금 순서 그대로.
+  const tone = (t: Token) => {
+    const hex = toHex(t.value)
+    const m = hex && /^oklch\(([\d.]+) ([\d.]+)(?: ([\d.]+))?/.exec(toOklch(hex.slice(0, 7)))
+    if (!m) return [2, 0]
+    return Number(m[2]) < NEUTRAL_CHROMA ? [0, -Number(m[1])] : [1, Number(m[3] ?? 0)]
+  }
+  const tones = new Map(colors.filter((t) => listOf(t) === '').map((t) => [t, tone(t)]))
+  const exceptions = [...tones.keys()].sort((a, b) => tones.get(a)![0] - tones.get(b)![0] || tones.get(a)![1] - tones.get(b)![1])
+  const sorted = [...lists.sort((a, b) => a.hue - b.hue).flatMap((l) => l.list), ...exceptions]
   let k = 0
   return tokens.map((t) => (color.matches(t.name) ? sorted[k++] : t))
 }

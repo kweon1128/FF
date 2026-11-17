@@ -118,6 +118,20 @@ export function moveInKind(tokens: Token[], kind: Kind, name: string, before: st
   return place(tokens, (t) => kind.matches(t.name), rest)
 }
 
+/** 예외 색(색 목록에 속하지 않은 색)인지. */
+const isException = (t: Token) => KINDS.color.matches(t.name) && groupOf(shortName(KINDS.color, t.name)) === ''
+
+/** 예외 색 하나를 예외 색들 안의 다른 자리로 옮긴다. before의 앞에 놓고, null이면 맨 뒤에 놓는다. */
+export function moveException(tokens: Token[], name: string, before: string | null): Token[] {
+  const items = tokens.filter(isException)
+  const moving = items.find((t) => t.name === name)
+  if (!moving || name === before) return tokens
+  const rest = items.filter((t) => t !== moving)
+  const at = before === null ? rest.length : rest.findIndex((t) => t.name === before)
+  rest.splice(at === -1 ? rest.length : at, 0, moving)
+  return place(tokens, isException, rest)
+}
+
 /**
  * 손으로 차례를 바꾸는 종류의 기본 순서. "원래대로"가 돌아가는 곳이다.
  * 그림자는 멀리 지는 정도(가장 넓게 퍼지는 겹의 흐림)가 작은 것부터, 투명도와 흐림은 값이 작은 것부터, 비율은 세로로 긴 것부터 가로로 긴 것으로.
