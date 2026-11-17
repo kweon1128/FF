@@ -552,7 +552,7 @@ export function NewFontForm({
                   style={CARD_ROWS}
                 >
                   {/* 높이를 정해 둔다. 글자를 줄이는 처리(truncate) 때문에 이 줄은 "줄어들어도 되는 줄"로 취급되어, 견본이 카드 영역보다 길어지면 높이가 0에 가깝게 눌린다. */}
-                  <span className="block h-10 truncate pt-3 pr-9 pb-2 pl-4 type-label text-ink-faint">{family}</span>
+                  <span className="mr-6 block h-10 truncate pt-3 pr-2 pb-2 pl-4 type-label text-ink-faint">{family}</span>
                   {/* 견본은 카드의 아래쪽을 가장자리까지 채운다. 바탕색을 고르면 그 색이 카드에 깔린다. 안쪽 여백은 좌우 16px, 아래 12px로, 한 벌 만들기 창의 표 상자와 같다. */}
                   <FontSample family={valueOf(family)} weights={weightsOf(family)} scale={scale} weight={weight} className="px-4 pt-2 pb-3" />
                 </div>

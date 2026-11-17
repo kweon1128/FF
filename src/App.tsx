@@ -68,12 +68,14 @@ import { Inspector, MultiInspector } from './Inspector'
 import { Nav } from './Nav'
 import { NewGroupForm } from './NewGroup'
 import { NewSoloForm } from './NewSolo'
+import { NewEffectForm } from './NewEffect'
 import { NewFontForm, SampleContext } from './NewFont'
 import { NewSizesForm } from './NewSizes'
 import { NewWeightsForm } from './NewWeights'
 import { TypeInspector } from './Types'
 import { EffectInspector } from './Effects'
 import { isEffectKind } from './lib/effects'
+import { readSpaceNote, writeSpaceNote } from './lib/spacing'
 import { autoOrder, defaultFreeOrder, isAutoOrdered, moveException, moveInKind } from './lib/order'
 import { NewTypesForm } from './NewTypes'
 import { defaultTypeOrder, followTypeRefs, moveType, moveTypeGroup, nextType, shiftTypes, syncTypes, typeUsers, withTypeTrack, type TypeUse } from './lib/types'
@@ -274,6 +276,8 @@ export function App() {
   const [addingFirst, setAddingFirst] = useState<string | null>(null)
   // 예외 색(white, black 등)을 만드는 창이 떠 있는지.
   const [addingSolo, setAddingSolo] = useState(false)
+  // 효과(그림자, 투명도, 흐림)를 만드는 창이 어느 종류로 떠 있는지.
+  const [addingEffect, setAddingEffect] = useState<Kind | null>(null)
   const [addingRole, setAddingRole] = useState(false)
   const [addingFont, setAddingFont] = useState(false)
   const [makingSizes, setMakingSizes] = useState(false)
@@ -642,6 +646,8 @@ export function App() {
     if (kind.id === 'role') return setAddingRole(true)
     // 글꼴 종류는 이름과 글꼴을 정해야 한다. 글꼴 이름은 틀려도 조용히 다른 글꼴로 보이므로 목록에서 고르게 한다.
     if (kind.id === 'font') return setAddingFont(true)
+    // 효과는 단계가 아니라 쓰임으로 이름 붙이므로, 무엇에 쓸지를 묻고 그 쓰임의 이름과 추천 값으로 만든다.
+    if (isEffectKind(kind.id)) return setAddingEffect(kind)
     // 의미 글꼴은 기본 한 벌 가운데 아직 없는 것이 차례로 생긴다. 짝지을 재료(글꼴 종류, 글자 크기, 굵기)가 모자라면 무엇을 먼저 만들지 알리는 창을 연다.
     if (kind.id === 'style') {
       const made = nextType(tokens)
@@ -1731,7 +1737,7 @@ export function App() {
             {loadError ? (
               <EmptyState title="불러오지 못했어요" body={loadError} />
             ) : systems === null ? null : !system ? (
-              <div className="mx-auto mt-16 w-[360px] rounded-lg border border-hairline bg-canvas p-6">
+              <div className="mx-auto mt-6 w-[360px] rounded-lg border border-hairline bg-canvas p-6">
                 <p className="mb-4 type-title">첫 디자인 시스템을 만들어 보세요</p>
                 <NewSystemForm
                   onCreated={(name) => {
@@ -1900,6 +1906,15 @@ export function App() {
               onTrack={(value) => commit(withTrack(tokens, selectedTokens[0].name, value))}
               scaleMissing={scaleOf(selectedTokens[0].name)?.missing.length ?? null}
               onMakeScale={() => fillScale(selectedTokens[0].name)}
+              // 간격은 값마다 어디에 쓰는지를 주석에 적는다. 같은 주석에 적혀 있는 예시(모양과 문구)는 그대로 둔다.
+              describe={
+                commonKind.id === 'space'
+                  ? (() => {
+                      const { text, picked, words, more } = readSpaceNote(selectedTokens[0].note)
+                      return { text, onSave: (next: string) => commit(tokens.map((t) => (t.name === selectedTokens[0].name ? { ...t, note: writeSpaceNote(next, picked, words, more) } : t))) }
+                    })()
+                  : undefined
+              }
             />
           ) : selectedTokens.length > 1 ? (
             <MultiInspector
@@ -1942,6 +1957,21 @@ export function App() {
             why={takenWhy}
             onCancel={() => setAddingSolo(false)}
             onCreate={addSolo}
+          />
+        </Modal>
+      )}
+
+      {addingEffect && (
+        <Modal title={addingEffect.addLabel} onClose={() => setAddingEffect(null)}>
+          <NewEffectForm
+            kind={addingEffect}
+            existing={new Set(tokens.filter((t) => addingEffect.matches(t.name)).map((t) => shortName(addingEffect, t.name)))}
+            onCancel={() => setAddingEffect(null)}
+            onCreate={(name, value, note) => {
+              const kind = addingEffect
+              setAddingEffect(null)
+              insert({ name, value, note }, (t) => kind.matches(t.name))
+            }}
           />
         </Modal>
       )}

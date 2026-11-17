@@ -11,6 +11,7 @@ import { EffectList } from './Effects'
 import { isEffectKind } from './lib/effects'
 import { isFreeKind } from './lib/order'
 import { useReorder } from './useReorder'
+import { SpaceList } from './Spacing'
 import { RoleList } from './Roles'
 import { TypeList } from './Types'
 import type { TypeUse } from './lib/types'
@@ -71,7 +72,7 @@ export const isAdditive = (e: MouseEvent) => e.shiftKey || e.ctrlKey || e.metaKe
 export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGroup, onRename, onSelectGroup, emptyGroups, pickedGroup, onPickGroup, folded, onReorderGroup, rolesFolded, onMoveRole, onMoveRoleGroup, onMoveType, onMoveTypeGroup, onResetTypes, onMoveInKind, resetOf, onMakeSizes, onMakeWeights, onMakeTypes }: SectionProps & { kinds: Kind[] }) {
   const single = kinds.length === 1
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {kinds.map((kind) => {
         const items = tokens.filter((t) => kind.matches(t.name))
         // 차례를 손으로 바꿀 수 있는 종류에만 끌기를 준다. 크기 있는 종류(글자 크기, 간격…)는 값의 크기순으로 저절로 놓인다.
@@ -124,6 +125,9 @@ export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGr
             ) : isEffectKind(kind.id) ? (
               // 효과(그림자, 투명도, 흐림)는 의미 판처럼 한 줄에 하나씩, 쓰인 모습과 함께 보여 준다.
               <EffectList kind={kind} items={items} all={tokens} selected={selected} onSelect={onSelect} onRename={onRename} onMove={onMove} />
+            ) : kind.id === 'space' ? (
+              // 간격도 효과처럼 한 줄에 하나씩, 그 값이 쓰인 모습과 함께 보여 준다.
+              <SpaceList kind={kind} items={items} all={tokens} selected={selected} onSelect={onSelect} onRename={onRename} />
             ) : kind.tiles ? (
               <TileGrid {...list} />
             ) : (

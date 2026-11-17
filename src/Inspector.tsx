@@ -37,6 +37,25 @@ type Props = {
   /** 이 색을 기준으로 50~950 단계를 만들 수 있으면, 아직 없는 단계의 수. 만들 수 없는 색이면 null. */
   scaleMissing: number | null
   onMakeScale: () => void
+  /** 설명을 주석에 적는 종류(간격)에서만 준다. text는 지금 설명, onSave는 고친 설명을 저장한다. */
+  describe?: { text: string; onSave: (text: string) => void }
+}
+
+/** 설명 구역. 칸을 벗어나거나 Enter를 누르면 저장한다. */
+function Describe({ text, onSave }: { text: string; onSave: (text: string) => void }) {
+  const [draft, setDraft] = useState(text)
+  return (
+    <Section title="설명">
+      <input
+        className={inputClass}
+        aria-label="설명"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => draft.trim() !== text && onSave(draft)}
+        onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+      />
+    </Section>
+  )
 }
 
 export const ICON_BUTTON =
@@ -154,6 +173,7 @@ export function Inspector({
   onTrack,
   scaleMissing,
   onMakeScale,
+  describe,
 }: Props) {
   const short = shortName(kind, token.name)
   const isColor = kind.id === 'color'
@@ -466,6 +486,8 @@ export function Inspector({
 
       {/* 구역의 차례는 어느 패널이나 같다: 이름, 값, 설명, 쓰이는 곳, 코드. 고치는 것은 늘 펼쳐 두고, 보기만 하는 것(쓰이는 곳, 코드)은 접을 수 있다.
           "쓰인 모습" 구역은 두지 않는다. 패널은 값을 고치는 곳이고, 쓰인 모습은 판(의미 색과 의미 글꼴의 예시)과 색 선택 창, 글꼴 추가 창이 보여 준다. */}
+      {describe && <Describe text={describe.text} onSave={describe.onSave} />}
+
       <FoldSection title="쓰이는 곳" storageKey={WHERE_OPEN} startOpen note={uses.length + roles.length > 0 ? String(uses.length + roles.length) : '없음'} empty={uses.length + roles.length === 0}>
         {uses.length === 0 && roles.length === 0 ? (
           <p className="type-body text-ink-faint">이 값을 쓰는 곳이 아직 없어요.</p>

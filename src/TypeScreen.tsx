@@ -72,7 +72,7 @@ export function TypeScreen({ T, has = () => true }: { T: ComponentType<SlotProps
               오늘 들어온 주문과 배송 상태를 한눈에 봅니다.
             </T>
           </div>
-          <T use="button-lg" className="inline-flex shrink-0 rounded-md bg-ink px-5 py-3 whitespace-nowrap text-white">
+          <T use="button-lg" className="inline-flex shrink-0 rounded-md bg-ink px-4 py-3 whitespace-nowrap text-white">
             새 주문 등록
           </T>
         </div>
@@ -196,7 +196,7 @@ export function TypeScreen({ T, has = () => true }: { T: ComponentType<SlotProps
  */
 export function ShortScreen({ T, has = () => true }: { T: ComponentType<SlotProps>; has?: (use: string) => boolean }) {
   return (
-    <div className="grid grid-cols-2 gap-8">
+    <div className="grid grid-cols-2 gap-6">
       <div>
         <T use="caption" as="p" className="text-ink-soft">
           최근 주문 · 2분 전

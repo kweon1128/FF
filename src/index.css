@@ -47,6 +47,13 @@
   --type-code: var(--font-weight-regular) var(--text-sm)/var(--text-sm--line-height) var(--font-mono); /* 숫자·코드: 판에 적힌 색 값과 변수 이름 | --color-ink */
   --type-code-sm: var(--font-weight-regular) var(--text-xs)/var(--text-xs--line-height) var(--font-mono); /* 숫자·코드: 작은 칸의 숫자와 이름, 코드 표시 | sans · sm · medium */
 
+  /* 간격은 다섯 개다(4·8·12·16·24px). 이름은 Tailwind의 숫자 그대로라 p-2, gap-3처럼 쓴다. 이 밖의 숫자(p-5, gap-8)는 쓰지 않는다. 이름과 값은 systems/ff-test와 같다. */
+  --spacing-1: 4px; /* 간격(이름표): 이름표와 입력칸 사이, 목록의 줄 사이, 버튼 안의 아이콘과 글자 사이 | 이름, float | 줄: float, dialog */
+  --spacing-2: 8px; /* 간격(사이): 버튼 사이, 입력칸의 좌우 여백, 메뉴 줄의 아이콘과 글자 사이 | 취소, 추가 | 입력칸: float */
+  --spacing-3: 12px; /* 간격(버튼): 채운 버튼과 테두리 버튼의 좌우 여백, 판의 줄 안쪽 여백, 창 안의 칸 사이 | 취소 | 칸: 쓰임, 이름 */
+  --spacing-4: 16px; /* 간격(면 좌우): 오른쪽 패널 구역의 좌우 여백, 판의 줄에서 이름 칸과 예시 사이 | 이름 */
+  --spacing-6: 24px; /* 간격(면): 창의 안쪽 여백, 판 안의 묶음 사이 | 그림자 추가 | 묶음: 그림자, 투명도 */
+
   /* 그림자는 옅은 두 겹이다. 가까이 짧게 지는 겹과 멀리 넓게 퍼지는 겹을 겹쳐야 떠 있는 느낌이 자연스럽다. 진한 한 겹은 무겁다. */
   --shadow-float: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 16px rgb(0 0 0 / 0.06); /* 그림자(메뉴): 화면 위에 잠깐 떠 있는 것. 드롭다운 목록, 확대 도구, 알림 | ff-test, 새 디자인 시스템 | 알림: 코드를 복사했어요. */
   --shadow-dialog: 0 2px 4px rgb(0 0 0 / 0.04), 0 8px 32px rgb(0 0 0 / 0.1); /* 그림자(창): 화면을 덮고 뜨는 창, 빠른 실행, 색 선택 창 | 새 디자인 시스템 */

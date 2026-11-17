@@ -78,14 +78,14 @@ export function ComponentScreen({
         </span>
       </div>
 
-      <div className="flex min-h-40 items-center justify-center rounded-lg border border-hairline bg-canvas p-8">
+      <div className="flex min-h-40 items-center justify-center rounded-lg border border-hairline bg-canvas p-6">
         <LivePreview comp={comp} cell={shown} tokens={tokens} />
       </div>
       <p className="mt-1 type-caption text-ink-faint">
         {comp.variants[shown.v]?.name} · {comp.sizes[shown.s]?.name}
       </p>
 
-      <div className="mt-8 space-y-8">
+      <div className="mt-6 space-y-6">
         {comp.variants.map((variant, v) => (
           <section key={v}>
             <h2 className="mb-2 type-caption-strong text-ink-faint">

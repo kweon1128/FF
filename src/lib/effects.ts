@@ -39,6 +39,22 @@ export const EFFECT_WORDS: Record<EffectShape, string> = {
   glass: '',
 }
 
+/**
+ * "추가"로 값을 만들 때, 고른 쓰임마다 채워 넣는 이름·추천 값·설명.
+ * 효과는 쓰임으로 이름 붙이므로 단계 이름(sm, md…)이 아니라 쓰임의 이름으로 만든다. 값은 만든 뒤에 패널에서 고친다.
+ * 그림자는 두 겹이다. 가까이 짧게 지는 겹과 멀리 넓게 퍼지는 겹. 멀리 뜬 것일수록 뒤의 겹이 넓고 진하다(카드 < 메뉴 < 알림 < 창).
+ */
+export const EFFECT_PRESETS: Record<EffectShape, { name: string; value: string; text: string }> = {
+  menu: { name: 'float', value: '0 1px 2px rgb(0 0 0 / 0.04), 0 4px 16px rgb(0 0 0 / 0.06)', text: '드롭다운 목록, 떠 있는 메뉴' },
+  dialog: { name: 'dialog', value: '0 2px 4px rgb(0 0 0 / 0.04), 0 8px 32px rgb(0 0 0 / 0.1)', text: '화면 위에 뜨는 창' },
+  toast: { name: 'toast', value: '0 2px 4px rgb(0 0 0 / 0.04), 0 8px 24px rgb(0 0 0 / 0.08)', text: '잠깐 떴다 사라지는 알림' },
+  card: { name: 'card', value: '0 1px 2px rgb(0 0 0 / 0.04), 0 2px 8px rgb(0 0 0 / 0.04)', text: '살짝 떠 있는 면' },
+  disabled: { name: 'disabled', value: '0.4', text: '누를 수 없는 버튼과 입력칸' },
+  scrim: { name: 'scrim', value: '0.4', text: '창 뒤의 화면을 가리는 막' },
+  layer: { name: 'layer', value: '0.8', text: '뒤가 비치는 면' },
+  glass: { name: 'glass', value: '12px', text: '뒤가 흐려 보이는 면' },
+}
+
 /** 모양을 적지 않은 값의 모양. */
 export function guessEffectShape(kind: EffectKind, short: string): EffectShape {
   const parts = short.split('-')

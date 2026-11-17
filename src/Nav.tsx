@@ -128,12 +128,15 @@ export function Nav({
                           type="button"
                           aria-pressed={index === currentComponent}
                           onClick={() => onPickComponent(index)}
-                          className={`${ROW} pl-8 ${index === currentComponent ? 'bg-selection-soft type-menu-strong text-ink' : IDLE}`}
+                          className={`${ROW} ${index === currentComponent ? 'bg-selection-soft type-menu-strong text-ink' : IDLE}`}
                         >
+                          {/* 윗줄의 아이콘 자리(16px)를 비워 이름을 윗줄의 글자에 맞춘다. 들여쓰기를 여백 값으로 따로 두지 않는다. */}
+                          <span className="size-4 shrink-0" />
                           <span className="truncate">{name}</span>
                         </button>
                       ))}
-                      <button type="button" onClick={onAddComponent} className={`${ROW} pl-8 ${IDLE}`}>
+                      <button type="button" onClick={onAddComponent} className={`${ROW} ${IDLE}`}>
+                        <span className="size-4 shrink-0" />
                         <Plus size={16} strokeWidth={1.5} />
                         컴포넌트 추가
                       </button>

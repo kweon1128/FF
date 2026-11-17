@@ -1,7 +1,7 @@
 // FF 도구의 공통 부품. 모양의 기준은 DESIGN.md의 components 항목.
 
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { Check as CheckIcon, ChevronDown } from 'lucide-react'
 import { stepValue } from './lib/tokens'
 
@@ -239,7 +239,7 @@ export function EmptyState({
   children?: ReactNode
 }) {
   return (
-    <div className="flex flex-col items-center px-8 py-16 text-center">
+    <div className="flex flex-col items-center p-6 text-center">
       <p className="type-heading">{title}</p>
       {body && <p className="mt-1 text-ink-soft">{body}</p>}
       {children && <div className="mt-4">{children}</div>}
@@ -383,9 +383,10 @@ export function Phrases({ text }: { text: string }) {
       {text.split(/(?<=[.!?])\s+/).map((sentence, i) => (
         <span key={i} className="block">
           {sentence.split(/(?<=,)\s+/).map((piece, k) => (
-            <span key={k} className={piece.length <= 18 ? 'whitespace-nowrap' : ''}>
-              {piece}{' '}
-            </span>
+            // 덩어리 사이의 빈칸은 덩어리 밖에 둔다. 붙여 둔 덩어리 안에 있으면 그 빈칸에서 줄이 바뀌지 못해, 짧은 덩어리가 이어질 때 칸 밖으로 넘친다.
+            <Fragment key={k}>
+              <span className={piece.length <= 18 ? 'whitespace-nowrap' : ''}>{piece}</span>{' '}
+            </Fragment>
           ))}
         </span>
       ))}

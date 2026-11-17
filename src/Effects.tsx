@@ -29,8 +29,9 @@ export function EffectSample({ shape, value, around, words: written = '' }: { sh
   const bar = (width: string, more = '') => <span className={`block h-2 rounded-sm ${width} ${more}`} style={{ background: faint }} />
   const STRONG = 'text-sm leading-5 font-[550]'
   // 그림자는 상자 밖으로 지므로, 잘리지 않게 상자 둘레에 24px을 비워 둔다.
+  // 내용은 상자의 가운데에 놓는다. 예시는 읽는 글이 아니라 물건 하나를 보여 주는 것이라, 왼쪽에 붙이면 오른쪽만 비어 덜 만든 것처럼 보인다.
   const frame = (body: ReactNode, roomy = false) => (
-    <span className={`block w-full overflow-hidden rounded-md ${roomy ? 'p-6' : 'px-3 py-3'} ${EDGE}`} style={{ background: around.surface, color: around.ink, fontFamily: font }}>
+    <span className={`flex w-full items-center justify-center overflow-hidden rounded-md ${roomy ? 'p-6' : 'px-3 py-3'} ${EDGE}`} style={{ background: around.surface, color: around.ink, fontFamily: font }}>
       {body}
     </span>
   )
@@ -112,7 +113,7 @@ export function EffectSample({ shape, value, around, words: written = '' }: { sh
     case 'scrim':
       // 화면(막대들) 위를 이 시스템의 글자 색으로 덮고, 그 위에 창을 하나 띄운다.
       return frame(
-        <span className="relative block h-20">
+        <span className="relative block h-20 w-full">
           {bar('w-3/4')}
           {bar('w-1/2', 'mt-2')}
           {bar('w-2/3', 'mt-2')}
@@ -140,7 +141,7 @@ export function EffectSample({ shape, value, around, words: written = '' }: { sh
     default:
       // 겹침: 막대들 위에 이 시스템의 글자 색 면을 이 투명도로 겹친다.
       return frame(
-        <span className="relative block h-12">
+        <span className="relative block h-12 w-full">
           {bar('w-3/4')}
           {bar('w-1/2', 'mt-2')}
           {bar('w-2/3', 'mt-2')}
