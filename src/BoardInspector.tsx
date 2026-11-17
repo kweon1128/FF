@@ -259,7 +259,7 @@ export function BoardInspector({
                 const moves = arrange(action, picked)
                 if (moves) onMove(moves)
               }}
-              className={`flex size-8 items-center justify-center rounded-md text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2 disabled:pointer-events-none disabled:opacity-40 ${i === 3 ? 'ml-2' : ''}`}
+              className={`flex size-8 items-center justify-center rounded-md text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2 disabled:pointer-events-none disabled:opacity-disabled ${i === 3 ? 'ml-2' : ''}`}
             >
               <Icon size={16} strokeWidth={1.5} />
             </button>

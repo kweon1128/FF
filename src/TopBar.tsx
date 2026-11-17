@@ -91,7 +91,7 @@ export function TopBar({
             title={`${label} (${keys})`}
             disabled={!run}
             onClick={run}
-            className="flex size-8 items-center justify-center rounded-md text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2 disabled:pointer-events-none disabled:opacity-30"
+            className="flex size-8 items-center justify-center rounded-md text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2 disabled:pointer-events-none disabled:opacity-disabled"
           >
             <Icon size={16} strokeWidth={1.5} />
           </button>

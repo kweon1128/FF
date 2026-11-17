@@ -14,11 +14,17 @@
     묶음: 제목, 본문, 보조, 조작, 숫자·코드
     모양: 제목, 문단, 설명, 버튼, 이름표, 메뉴, 고른 메뉴, 탭, 뱃지, 숫자, 코드
 
+  효과(--shadow-이름, --opacity-이름, --blur-이름)의 주석
+    종류(모양): 설명 | 문구 | 모양: 문구
+    예) 그림자(메뉴): 드롭다운 목록, 알림 | 이름 바꾸기, 복제, 삭제 | 알림: 저장했어요
+    종류와 그 모양: 그림자(메뉴, 창, 알림, 카드), 투명도(꺼짐, 가림막, 겹침), 흐림(유리)
+    효과의 이름은 단계(sm, md)보다 쓰임(float, dialog, disabled)으로 짓는다.
+
   설명은 이 값을 화면 어디에 쓰는지다.
   문구는 그 자리에 실제로 적혀 있는 말이다. 지어내지 않고 화면에 있는 말을 옮긴다.
   모양은 그 값이 놓인 자리다. (모양)을 빼면 FF가 이름에서 짐작한다.
   한 값을 여러 자리에 쓰면 뒤에 " | 모양: 문구"를 자리마다 이어 적는다.
-  여럿을 늘어놓는 모양(버튼, 버튼 글자, 메뉴, 탭, 뱃지, 숫자)은 문구를 쉼표와 빈칸으로 나눈다.
+  여럿을 늘어놓는 모양(버튼, 버튼 글자, 메뉴, 탭, 뱃지, 숫자, 그림자의 메뉴)은 문구를 쉼표와 빈칸으로 나눈다.
   주석은 값과 같은 줄에 한 줄로 적는다.
   파일 끝의 ff:type 구역은 FF가 저장할 때마다 다시 쓰므로 고치지 않는다.
 ff:guide 끝 */
@@ -118,10 +124,9 @@ ff:guide 끝 */
   --type-caption-strong: var(--font-weight-medium) var(--text-xs)/var(--text-xs--line-height) var(--font-sans); /* 조작(뱃지): 묶음의 이름, 작은 이름표 | ink · #000000 | 제목: 이 디자인 시스템의 색 */
   --type-code: var(--font-weight-regular) var(--text-sm)/var(--text-sm--line-height) var(--font-mono); /* 숫자·코드: 판에 적힌 색 값과 변수 이름 | --color-ink */
   --type-code-sm: var(--font-weight-regular) var(--text-xs)/var(--text-xs--line-height) var(--font-mono); /* 숫자·코드: 작은 칸의 숫자와 이름, 코드 표시 | sans · sm · medium */
-  --shadow-sm: 0 1px 1px rgb(0 0 0 / 0.04), 0 2px 4px rgb(0 0 0 / 0.04);
-  --shadow-md: 0 2px 4px rgb(0 0 0 / 0.04), 0 8px 16px rgb(0 0 0 / 0.06);
-  --shadow-lg: 0 4px 8px rgb(0 0 0 / 0.04), 0 16px 32px rgb(0 0 0 / 0.08);
-  --shadow-xl: 0 8px 16px rgb(0 0 0 / 0.05), 0 32px 64px rgb(0 0 0 / 0.1);
+  --shadow-float: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 16px rgb(0 0 0 / 0.06); /* 그림자(메뉴): 화면 위에 잠깐 떠 있는 것. 드롭다운 목록, 확대 도구, 알림 | ff-test, 새 디자인 시스템 | 알림: 코드를 복사했어요. */
+  --shadow-dialog: 0 2px 4px rgb(0 0 0 / 0.04), 0 8px 32px rgb(0 0 0 / 0.1); /* 그림자(창): 화면을 덮고 뜨는 창, 빠른 실행, 색 선택 창 | 새 디자인 시스템 */
+  --opacity-disabled: 0.4; /* 투명도(꺼짐): 누를 수 없는 버튼 | 원래대로 */
 }
 
 /* ff:type 의미 글꼴마다 FF가 만드는 클래스. 저장할 때마다 다시 쓰므로 직접 고치지 않는다. */

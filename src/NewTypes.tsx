@@ -44,7 +44,7 @@ function grouped(rows: Row[]): [label: string, list: Row[]][] {
   return made.filter(([, list]) => list.length > 0)
 }
 
-const PICK = 'h-6 min-w-0 rounded-sm border border-hairline bg-canvas px-1 type-caption text-ink-soft outline-none focus:border-selection disabled:opacity-40'
+const PICK = 'h-6 min-w-0 rounded-sm border border-hairline bg-canvas px-1 type-caption text-ink-soft outline-none focus:border-selection disabled:opacity-disabled'
 
 const ScreenContext = createContext<{ rows: Row[]; tokens: Token[]; hot: string | null; setHot: (key: string | null) => void; toggle: (key: string) => void }>({
   rows: [],

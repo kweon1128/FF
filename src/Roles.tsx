@@ -619,7 +619,7 @@ export function RoleInspector({
             title={`색상 판에서 ${refName(token.value)} 보기`}
             disabled={!refOf(token.value) || !tokens.some((t) => t.name === refOf(token.value))}
             onClick={() => onOpenToken(refOf(token.value)!)}
-            className={`${ICON_BUTTON} disabled:pointer-events-none disabled:opacity-30`}
+            className={`${ICON_BUTTON} disabled:pointer-events-none disabled:opacity-disabled`}
           >
             <ArrowUpRight size={16} strokeWidth={1.5} />
           </button>

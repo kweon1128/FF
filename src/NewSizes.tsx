@@ -22,7 +22,7 @@ const shiftOf = (gap: { top: number; bottom: number }) => (gap.bottom - gap.top)
 
 const LABEL = 'mb-1 type-label text-ink-faint'
 const STEP_BUTTON =
-  'flex size-8 shrink-0 items-center justify-center rounded-md text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2 disabled:opacity-40 disabled:hover:bg-transparent'
+  'flex size-8 shrink-0 items-center justify-center rounded-md text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2 disabled:opacity-disabled disabled:hover:bg-transparent'
 
 /** 예시 상자에 쓰는 세 크기. 작은 것부터. 상자에 들어가는 글자는 본문 크기 이하다. */
 const EXAMPLE_SIZES = ['xs', 'sm', 'base'] as const

@@ -72,6 +72,9 @@ import { NewFontForm, SampleContext } from './NewFont'
 import { NewSizesForm } from './NewSizes'
 import { NewWeightsForm } from './NewWeights'
 import { TypeInspector } from './Types'
+import { EffectInspector } from './Effects'
+import { isEffectKind } from './lib/effects'
+import { autoOrder, defaultFreeOrder, isAutoOrdered, moveInKind } from './lib/order'
 import { NewTypesForm } from './NewTypes'
 import { defaultTypeOrder, followTypeRefs, moveType, moveTypeGroup, nextType, shiftTypes, syncTypes, typeUsers, withTypeTrack, type TypeUse } from './lib/types'
 import { nextPreset, nextSize, nextSizeName, nextVariantName, stepUp, type SizeStep } from './lib/presets'
@@ -385,7 +388,8 @@ export function App() {
       const [data, canvas, components] = await Promise.all([getTokens(name), getCanvas(name), getComponents(name)])
       revs.current = { tokens: data.rev, comps: components.rev, canvas: canvas.rev }
       // 예전에 #으로 저장된 색은 열 때 한 번에 oklch로 바꿔 파일에 다시 쓴다. 화면에 보이는 # 값은 그대로다.
-      const stored = storeColors(data.tokens)
+      // 차례가 값의 크기로 정해지는 종류(글자 크기, 간격, 색 목록 안의 단계…)는 열 때 제자리에 놓는다.
+      const stored = storeColors(autoOrder(data.tokens))
       setTokens(stored)
       if (stored !== data.tokens) queueTokens(name, stored)
       setFile(data.file)
@@ -588,7 +592,8 @@ export function App() {
     markRoles(next)
     // 어떤 길로 들어온 색이든(새로 만든 기본 색, 스포이드, 붙여넣기) 저장할 때는 oklch로 맞춘다.
     // 의미 글꼴은 글자 크기에 묶인 줄 높이와 글자 사이를 따라가므로, 저장할 때마다 지금의 크기에 맞춘다.
-    const stored = storeColors(syncTypes(next))
+    // 차례가 값의 크기로 정해지는 종류는 저장할 때마다 제자리에 놓는다. 값을 고쳐 크기가 달라지면 줄이 제 차례로 옮겨 간다.
+    const stored = storeColors(syncTypes(autoOrder(next)))
     setTokens(stored)
     tokenSaver.queue(system, stored)
   }
@@ -1406,6 +1411,8 @@ export function App() {
       else if (selected.every((n) => ROLE.matches(n))) commitIfMoved(shiftRoles(tokens, selected, dir))
       // 의미 글꼴도 같은 묶음 안에서만 옮긴다.
       else if (selected.every((n) => STYLE.matches(n))) commitIfMoved(shiftTypes(tokens, selected, dir))
+      // 차례가 값의 크기로 정해지는 값(글자 크기, 간격, 색 목록 안의 단계…)은 옮기지 않는다.
+      else if (selectedTokens.some(isAutoOrdered)) return
       else commit(shiftTokens(tokens, selected, dir))
     } else if (e.code === 'Tab' && !mod && !e.altKey) {
       if (stepSelection(e.shiftKey ? -1 : 1)) e.preventDefault()
@@ -1471,6 +1478,11 @@ export function App() {
     onMoveRole: (name: string, before: string | null) => commitIfMoved(moveRole(tokens, name, before)),
     onMoveRoleGroup: (use: RoleUse, before: RoleUse | null) => commitIfMoved(moveRoleGroup(tokens, use, before)),
     onMoveType: (name: string, before: string | null) => commitIfMoved(moveType(tokens, name, before)),
+    onMoveInKind: (kind: Kind, name: string, before: string | null) => commitIfMoved(moveInKind(tokens, kind, name, before)),
+    resetOf: (kind: Kind) => {
+      const next = defaultFreeOrder(tokens, kind)
+      return next === tokens ? undefined : () => commit(next)
+    },
     onMoveTypeGroup: (use: TypeUse, before: TypeUse | null) => commitIfMoved(moveTypeGroup(tokens, use, before)),
     // 의미 글꼴 판은 묶음을 제목, 본문, 보조, 조작, 숫자·코드 순서로, 묶음 안은 큰 글자부터(같은 크기면 굵은 것부터) 놓는다. 이미 그 순서면 버튼이 꺼진다.
     onResetTypes: (() => {
@@ -1838,6 +1850,19 @@ export function App() {
               onRename={(to) => renameToken(selectedTokens[0].name, to)}
               onChange={(patch) => commit(tokens.map((t) => (t.name === selectedTokens[0].name ? { ...t, ...patch } : t)))}
               onTrack={(value) => commit(withTypeTrack(tokens, selectedTokens[0].name, value))}
+              onCopy={(text) => copyText(text, '코드를 복사했어요.')}
+            />
+          ) : selectedTokens.length === 1 && commonKind && isEffectKind(commonKind.id) ? (
+            <EffectInspector
+              key={selectionId}
+              token={selectedTokens[0]}
+              kind={commonKind}
+              allNames={tokens.map((t) => t.name)}
+              file={file}
+              uses={usesOf(comps, selectedTokens[0].name)}
+              onOpenComponent={openComp}
+              onRename={(to) => renameToken(selectedTokens[0].name, to)}
+              onChange={(patch) => commit(tokens.map((t) => (t.name === selectedTokens[0].name ? { ...t, ...patch } : t)))}
               onCopy={(text) => copyText(text, '코드를 복사했어요.')}
             />
           ) : selectedTokens.length === 1 && commonKind ? (

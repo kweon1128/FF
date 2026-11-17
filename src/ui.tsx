@@ -23,7 +23,7 @@ export function Button({
   return (
     <button
       type="button"
-      className={`inline-flex h-8 shrink-0 items-center gap-1 rounded-md type-label whitespace-nowrap outline-selection focus-visible:outline-2 focus-visible:outline-offset-1 disabled:opacity-50 ${BUTTON_STYLES[variant]} ${className}`}
+      className={`inline-flex h-8 shrink-0 items-center gap-1 rounded-md type-label whitespace-nowrap outline-selection focus-visible:outline-2 focus-visible:outline-offset-1 disabled:opacity-disabled ${BUTTON_STYLES[variant]} ${className}`}
       {...rest}
     >
       {children}
@@ -369,5 +369,26 @@ export function UsePicker<T extends string>({
         </>
       )}
     </div>
+  )
+}
+
+/**
+ * 설명 글을 뜻의 단위로 줄바꿈해 보여 준다. 판의 좁은 칸에서 "확대 / 도구"처럼 낱말 사이 아무 데서나 줄이 바뀌면 읽기 어렵다.
+ * 문장마다 새 줄에서 시작하고, 쉼표로 늘어놓은 것은 한 덩어리씩 붙여 둔다(줄은 덩어리와 덩어리 사이에서만 바뀐다).
+ * 덩어리 하나가 칸보다 길 수 있으므로, 긴 덩어리(18자 넘는 것)는 붙여 두지 않고 낱말 사이에서 바뀌게 둔다.
+ */
+export function Phrases({ text }: { text: string }) {
+  return (
+    <>
+      {text.split(/(?<=[.!?])\s+/).map((sentence, i) => (
+        <span key={i} className="block">
+          {sentence.split(/(?<=,)\s+/).map((piece, k) => (
+            <span key={k} className={piece.length <= 18 ? 'whitespace-nowrap' : ''}>
+              {piece}{' '}
+            </span>
+          ))}
+        </span>
+      ))}
+    </>
   )
 }

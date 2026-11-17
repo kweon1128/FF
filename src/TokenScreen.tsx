@@ -7,6 +7,10 @@ import { shownFont } from './lib/fonts'
 import { SCALE_STEPS } from './lib/scale'
 import type { RoleUse } from './lib/roles'
 import { suggestLine } from './lib/tokens'
+import { EffectList } from './Effects'
+import { isEffectKind } from './lib/effects'
+import { isFreeKind } from './lib/order'
+import { useReorder } from './useReorder'
 import { RoleList } from './Roles'
 import { TypeList } from './Types'
 import type { TypeUse } from './lib/types'
@@ -46,6 +50,10 @@ export type SectionProps = {
   onMoveType: (name: string, before: string | null) => void
   /** 의미 글꼴의 묶음을 끌어서 다른 자리에 놓는다. */
   onMoveTypeGroup: (use: TypeUse, before: TypeUse | null) => void
+  /** 손으로 차례를 바꾸는 종류(효과, 글꼴 종류, 비율, 흐름)에서 값을 끌어 다른 자리에 놓는다. before는 그 앞에 놓일 값(맨 끝이면 null). */
+  onMoveInKind: (kind: Kind, name: string, before: string | null) => void
+  /** 그 종류를 기본 순서로 돌려놓는 일. 이미 기본 순서면 undefined(버튼이 꺼진다). */
+  resetOf: (kind: Kind) => (() => void) | undefined
   /** 의미 글꼴 판의 묶음과 조합을 기본 순서로 돌려놓는다. 이미 기본 순서면 없다. */
   onResetTypes?: () => void
   /** 글자 크기 한 벌을 만드는 창을 연다. */
@@ -60,13 +68,15 @@ export type SectionProps = {
 export const isAdditive = (e: MouseEvent) => e.shiftKey || e.ctrlKey || e.metaKey
 
 /** 한 화면에 속한 종류들을 차례로 그린다. 전체 보기의 판 안에서도 그대로 쓴다. */
-export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGroup, onRename, onSelectGroup, emptyGroups, pickedGroup, onPickGroup, folded, onReorderGroup, rolesFolded, onMoveRole, onMoveRoleGroup, onMoveType, onMoveTypeGroup, onResetTypes, onMakeSizes, onMakeWeights, onMakeTypes }: SectionProps & { kinds: Kind[] }) {
+export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGroup, onRename, onSelectGroup, emptyGroups, pickedGroup, onPickGroup, folded, onReorderGroup, rolesFolded, onMoveRole, onMoveRoleGroup, onMoveType, onMoveTypeGroup, onResetTypes, onMoveInKind, resetOf, onMakeSizes, onMakeWeights, onMakeTypes }: SectionProps & { kinds: Kind[] }) {
   const single = kinds.length === 1
   return (
     <div className="space-y-8">
       {kinds.map((kind) => {
         const items = tokens.filter((t) => kind.matches(t.name))
-        const list = { kind, items, selected, onSelect, onAdd, onRename }
+        // 차례를 손으로 바꿀 수 있는 종류에만 끌기를 준다. 크기 있는 종류(글자 크기, 간격…)는 값의 크기순으로 저절로 놓인다.
+        const onMove = isFreeKind(kind) ? (name: string, before: string | null) => onMoveInKind(kind, name, before) : undefined
+        const list = { kind, items, selected, onSelect, onAdd, onRename, onMove }
         // 이제 쓰지 않는 종류(따로 떨어진 줄 높이)는 파일에 값이 남아 있을 때만 보여 준다.
         if (kind.legacy && items.length === 0) return null
         // 글자 크기의 줄에는 묶인 줄 높이를 함께 보여 준다.
@@ -87,6 +97,7 @@ export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGr
                 <div className="mb-2 flex h-6 items-center justify-between">
                   {single ? <span /> : <h2 className="type-heading">{kind.title}</h2>}
                   <span className="flex gap-1">
+                    {isFreeKind(kind) && <ResetButton title="기본 순서로 돌려놓아요" onReset={resetOf(kind)} />}
                     {kind.id === 'style' && <ResetButton title="묶음과 그 안의 조합을 기본 순서로 돌려놓아요" onReset={onResetTypes} />}
                     {makeSet && (
                       <Button variant="ghost" onClick={makeSet}>
@@ -110,6 +121,9 @@ export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGr
               <RoleList {...list} all={tokens} folded={rolesFolded} onSelectGroup={onSelectGroup} onMove={onMoveRole} onMoveGroup={onMoveRoleGroup} />
             ) : kind.id === 'style' ? (
               <TypeList items={items} all={tokens} selected={selected} onSelect={onSelect} onSelectGroup={onSelectGroup} onRename={onRename} onMove={onMoveType} onMoveGroup={onMoveTypeGroup} />
+            ) : isEffectKind(kind.id) ? (
+              // 효과(그림자, 투명도, 흐림)는 의미 판처럼 한 줄에 하나씩, 쓰인 모습과 함께 보여 준다.
+              <EffectList kind={kind} items={items} all={tokens} selected={selected} onSelect={onSelect} onRename={onRename} onMove={onMove} />
             ) : kind.tiles ? (
               <TileGrid {...list} />
             ) : (
@@ -175,6 +189,8 @@ type ListProps = {
   onSelect: (name: string, additive: boolean) => void
   onAdd: (kind: Kind, group?: string) => void
   onRename: (name: string) => void
+  /** 끌어서 차례를 바꾼다. 주지 않으면 끌 수 없는 목록이다. */
+  onMove?: (name: string, before: string | null) => void
 }
 
 // 꼭짓점 사각형과 이름표는 확대 비율과 관계없이 화면에서 같은 크기로 보인다.
@@ -433,12 +449,13 @@ function TileSample({ kind, value }: { kind: Kind; value: string }) {
   }
 }
 
-function TileGrid({ kind, items, selected, onSelect, onRename }: ListProps) {
+function TileGrid({ kind, items, selected, onSelect, onRename, onMove }: ListProps) {
+  const reorder = useReorder(items.map((t) => t.name), onMove, true)
   // 값이 없으면 아무것도 그리지 않는다. 추가는 묶음 제목 줄의 버튼으로 한다.
   if (items.length === 0) return null
   return (
     <div className="grid grid-cols-[repeat(auto-fill,minmax(112px,1fr))] gap-3">
-      {items.map((t) => {
+      {items.map((t, i) => {
         const short = shortName(kind, t.name)
         const isSelected = selected.includes(t.name)
         return (
@@ -448,10 +465,12 @@ function TileGrid({ kind, items, selected, onSelect, onRename }: ListProps) {
             data-token={t.name}
             aria-pressed={isSelected}
             aria-label={`${short} ${t.value}`}
-            onClick={(e) => onSelect(t.name, isAdditive(e))}
-                  onDoubleClick={() => onRename(t.name)}
-            className={`relative flex flex-col items-center rounded-lg border border-hairline bg-canvas p-4 select-none ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
+            onClick={(e) => !reorder.justDragged() && onSelect(t.name, isAdditive(e))}
+            onDoubleClick={() => onRename(t.name)}
+            {...reorder.grab(t.name)}
+            className={`relative flex flex-col items-center rounded-lg border border-hairline bg-canvas p-4 select-none ${reorder.moving(t.name) ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
           >
+            {reorder.line(t.name, i)}
             <TileSample kind={kind} value={t.value} />
             <span data-name className="mt-3 block max-w-full truncate type-body text-ink-soft">{short}</span>
             <span className="block max-w-full truncate type-code text-ink-faint">{t.value}</span>
@@ -469,16 +488,18 @@ function RowList({
   selected,
   onSelect,
   onRename,
+  onMove,
   lineOf,
   trackOf,
 }: ListProps & { lineOf?: (name: string) => string | undefined; trackOf?: (name: string) => string | undefined }) {
   // 값이 긴 종류는 이름·값과 견본을 위아래로 쌓는다.
   const stacked = kind.id === 'font'
+  const reorder = useReorder(items.map((t) => t.name), onMove)
   // 값이 없으면 빈 상자를 남기지 않는다. 추가는 묶음 제목 줄의 버튼으로 한다.
   if (items.length === 0) return null
   return (
     <div className="space-y-1 rounded-lg border border-hairline bg-canvas p-1">
-      {items.map((t) => {
+      {items.map((t, i) => {
         const short = shortName(kind, t.name)
         const isSelected = selected.includes(t.name)
         const line = lineOf?.(t.name)
@@ -494,10 +515,12 @@ function RowList({
             data-token={t.name}
             aria-pressed={isSelected}
             aria-label={`${short} ${shown}`}
-            onClick={(e) => onSelect(t.name, isAdditive(e))}
-                  onDoubleClick={() => onRename(t.name)}
-            className={`group relative w-full rounded-md px-3 py-3 text-left select-none ${stacked ? 'block' : 'flex items-center gap-4'} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
+            onClick={(e) => !reorder.justDragged() && onSelect(t.name, isAdditive(e))}
+            onDoubleClick={() => onRename(t.name)}
+            {...reorder.grab(t.name)}
+            className={`group relative w-full rounded-md px-3 py-3 text-left select-none ${stacked ? 'block' : 'flex items-center gap-4'} ${reorder.moving(t.name) ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
           >
+            {reorder.line(t.name, i)}
             {stacked ? (
               // 글꼴 종류는 이름과 글꼴 이름을 한 줄 전체에 쓰고, 견본은 그 아래에 둔다. 글꼴 이름은 좁은 칸에 넣으면 잘린다.
               <>

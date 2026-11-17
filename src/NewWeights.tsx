@@ -11,7 +11,7 @@ import { Button } from './ui'
 
 const LABEL = 'mb-1 type-label text-ink-faint'
 const STEP_BUTTON =
-  'flex size-8 shrink-0 items-center justify-center rounded-md text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2 disabled:opacity-40 disabled:hover:bg-transparent'
+  'flex size-8 shrink-0 items-center justify-center rounded-md text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2 disabled:opacity-disabled disabled:hover:bg-transparent'
 /** 처음에 고르는 단계 수. 셋(본문, 중간, 굵게)이다. */
 const COUNT_START = 3
 

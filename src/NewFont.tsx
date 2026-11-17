@@ -35,7 +35,7 @@ const BOXED = ['배송 준비', '바꾸기', '더 보기', '결제 완료', '출
 /** 설정의 이름표. 값 위에 둔다. 한 벌 만들기 창들의 왼쪽 열과 같다. */
 const LABEL = 'mb-1 type-label text-ink-faint'
 const SCALE_BUTTON =
-  'flex size-8 shrink-0 items-center justify-center rounded-md text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2 disabled:opacity-40 disabled:hover:bg-transparent'
+  'flex size-8 shrink-0 items-center justify-center rounded-md text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2 disabled:opacity-disabled disabled:hover:bg-transparent'
 /**
  * 버튼과 입력칸 안의 글자에 준다. 글꼴마다 글자 위아래에 잡아 둔 여백이 달라서, 그대로 가운데에 놓으면 글꼴에 따라
  * 위나 아래로 1~2px 치우친다. 줄 상자에서 그 여백을 잘라 내고(대문자 높이에서 기준선까지만 남김) 글자 자체를 가운데에 놓는다.

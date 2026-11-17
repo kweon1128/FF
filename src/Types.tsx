@@ -10,7 +10,7 @@ import { surroundings, type Around } from './lib/roles'
 import { SHAPE_WORDS, TYPE_USES, isListShape, lookOf, readTypeNote, trackOverride, typeGroups, writeType, writeTypeNote, type TypeLook, type TypeParts, type TypeShape, type TypeUse } from './lib/types'
 import { CODE_OPEN, FoldSection, ICON_BUTTON, Section, WHERE_OPEN } from './Inspector'
 import { HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
-import { Chip, Field, UsePicker, inputClass } from './ui'
+import { Chip, Field, Phrases, UsePicker, inputClass } from './ui'
 
 const STYLE = KINDS.style
 const FONT = KINDS.font
@@ -350,7 +350,11 @@ export function TypeList({
                         <span className="block type-code-sm break-words text-ink-faint">
                           {look ? <Spec look={look} tokens={all} /> : <span className="text-danger">읽을 수 없는 값</span>}
                         </span>
-                        {text && <span className="mt-1 block type-caption break-words text-ink-faint">{text}</span>}
+                        {text && (
+                          <span className="mt-1 block type-caption break-words text-ink-faint">
+                            <Phrases text={text} />
+                          </span>
+                        )}
                       </span>
                       {/* 쓰임이 여럿인 조합은 예시도 여럿이다. 위아래로 8px 띄워 쌓는다. */}
                       <span className="min-w-0 flex-1 space-y-2">
@@ -403,7 +407,7 @@ function PartField({
           </option>
         ))}
       </select>
-        <button type="button" aria-label={`${label} 보러 가기`} title={`글꼴 판에서 ${shortName(kind, value)} 보기`} disabled={missing} onClick={() => onOpen(value)} className={`${ICON_BUTTON} disabled:pointer-events-none disabled:opacity-30`}>
+        <button type="button" aria-label={`${label} 보러 가기`} title={`글꼴 판에서 ${shortName(kind, value)} 보기`} disabled={missing} onClick={() => onOpen(value)} className={`${ICON_BUTTON} disabled:pointer-events-none disabled:opacity-disabled`}>
           <ArrowUpRight size={16} strokeWidth={1.5} />
         </button>
       </span>
