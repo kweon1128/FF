@@ -503,8 +503,9 @@ function RowList({
               <>
                 {/* 글자 크기는 값 셋을 한 줄에 적으므로 칸이 넓다. */}
                 <span className={`${kind.id === 'size' ? 'w-48' : 'w-28'} shrink-0`}>
-                  <span data-name className="block truncate text-sm text-ink-soft">{short}</span>
-                  <span className="block truncate font-mono text-sm text-ink-faint">{shown}</span>
+                  {/* 이름과 값은 자르지 않는다(말줄임표를 쓰지 않는다). 칸보다 길면 줄을 바꿔 다 보여 준다. */}
+                  <span data-name className="block text-sm break-words text-ink-soft">{short}</span>
+                  <span className="block font-mono text-sm break-words text-ink-faint">{shown}</span>
                 </span>
                 <span className="min-w-0 flex-1 overflow-hidden">
                   <RowSample kind={kind} value={t.value} line={line} track={track} />
@@ -532,19 +533,20 @@ function MovingDot({ style }: { style: CSSProperties }) {
 function RowSample({ kind, value, line, track }: { kind: Kind; value: string; line?: string; track?: string }) {
   switch (kind.id) {
     case 'font':
-      return <span className="block truncate text-lg leading-[26px]" style={{ fontFamily: value }}>{SAMPLE}</span>
+      // 견본 문장도 자르지 않는다. 판보다 길면 줄을 바꾼다. 큰 글자일수록 여러 줄이 되지만 끝이 "…"로 사라지는 것보다 낫다.
+      return <span className="block text-lg leading-[26px] break-words" style={{ fontFamily: value }}>{SAMPLE}</span>
     case 'size':
       // 줄 높이가 묶여 있으면 두 줄로 써서 줄 사이가 보이게 한다. 줄 높이는 한 줄로는 보이지 않는다.
       return line ? (
         <span className="block" style={{ fontSize: value, lineHeight: line, letterSpacing: track }}>
-          <span className="block truncate">{SAMPLE}</span>
-          <span className="block truncate">{SAMPLE}</span>
+          <span className="block break-words">{SAMPLE}</span>
+          <span className="block break-words">{SAMPLE}</span>
         </span>
       ) : (
-        <span className="block truncate" style={{ fontSize: value, lineHeight: suggestLine(value) ?? undefined, letterSpacing: track }}>{SAMPLE}</span>
+        <span className="block break-words" style={{ fontSize: value, lineHeight: suggestLine(value) ?? undefined, letterSpacing: track }}>{SAMPLE}</span>
       )
     case 'weight':
-      return <span className="block truncate text-lg leading-[26px]" style={{ fontWeight: value }}>{SAMPLE}</span>
+      return <span className="block text-lg leading-[26px] break-words" style={{ fontWeight: value }}>{SAMPLE}</span>
     case 'leading':
       return (
         <span className="block" style={{ lineHeight: value }}>
@@ -554,7 +556,7 @@ function RowSample({ kind, value, line, track }: { kind: Kind; value: string; li
         </span>
       )
     case 'tracking':
-      return <span className="block truncate text-lg leading-[26px]" style={{ letterSpacing: value }}>{SAMPLE}</span>
+      return <span className="block text-lg leading-[26px] break-words" style={{ letterSpacing: value }}>{SAMPLE}</span>
     case 'border':
       return <span className="block w-full max-w-60 bg-ink" style={{ height: value }} />
     case 'breakpoint':

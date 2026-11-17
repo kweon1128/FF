@@ -2,13 +2,13 @@
 // 한 줄에 색 하나. 색, 이름과 가리키는 단계, 역할과 설명, 그 역할로 쓰인 예시를 나란히 보여 준다.
 
 import { useContext, useRef, useState, type FormEvent, type PointerEvent, type ReactNode } from 'react'
-import { Copy } from 'lucide-react'
+import { ArrowUpRight, Check, ChevronDown, Copy } from 'lucide-react'
 import type { Token } from './lib/api'
 import { KINDS, SLUG, groupOf, shortName, type Kind } from './lib/catalog'
 import { contrast, showColor } from './lib/color'
 import { ROLE_USES, guessUse, readNote, refOf, refTo, resolveColor, roleGroups, surroundings, writeNote, type Around, type RoleUse } from './lib/roles'
-import { TRIM, DARK, PreviewFontContext, inkOn, statesOf } from './ColorUses'
-import { CODE_OPEN, FoldSection, ICON_BUTTON, Section } from './Inspector'
+import { TRIM, DARK, PreviewFontContext, inkOn } from './ColorUses'
+import { CODE_OPEN, FoldSection, ICON_BUTTON, Section, USES_OPEN, WHERE_OPEN } from './Inspector'
 import { HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
 import { Button, Chip, Field, inputClass, swatchBackground } from './ui'
 
@@ -21,7 +21,8 @@ const refName = (value: string) => (refOf(value) ?? value).replace(/^--color-/, 
 
 /**
  * 색이 그 역할로 쓰인 모습. 주변(바탕과 글자)은 이 디자인 시스템의 색으로 그려서, 실제 화면에서 만나는 조합 그대로 보여 준다.
- * 글자 색이면 제목과 본문, 바탕 색이면 글이 놓인 면, 테두리 색이면 입력칸과 구분선, 버튼 색이면 기본·올림·비활성 버튼.
+ * 글자 색이면 제목과 본문, 바탕 색이면 글이 놓인 면, 테두리 색이면 입력칸과 구분선,
+ * 채움 색이면 그 색으로 채우는 것들(버튼, 뱃지, 칩, 토글, 선택 표시), 상태 색이면 같은 색의 옅은 바탕·채움·테두리·글자, 차트 색이면 막대들.
  * 이 안은 사용자의 색을 보여 주는 미리보기라, FF 도구의 흑백 규칙을 따르지 않는다.
  */
 export function RoleSample({ use, color, around }: { use: RoleUse; color: string; around: Around }) {
@@ -76,22 +77,66 @@ export function RoleSample({ use, color, around }: { use: RoleUse; color: string
           <span className="mt-2 block h-px w-full" style={{ background: color }} />
         </>,
       )
-    default: {
-      const { hover } = statesOf(color)
-      const button = (label: string, background: string, opacity?: number) => (
-        <span
-          className="flex h-7 items-center rounded-md px-2 text-sm font-[550]"
-          style={{ background, color: inkOn(color), opacity }}
-        >
-          <span className={TRIM}>{label}</span>
-        </span>
-      )
+    case 'status': {
+      // 상태 색 하나가 실제로 놓이는 네 자리: 옅은 바탕의 알림 표시, 채운 뱃지, 테두리만 있는 상자, 그리고 글자.
+      const soft = `color-mix(in oklab, ${color} 12%, ${around.surface})`
+      const PILL = 'flex h-6 items-center rounded-md px-2 text-xs font-[550]'
       return frame(
         around.surface,
-        <span className="flex gap-2">
-          {button('기본', color)}
-          {button('올림', hover)}
-          {button('비활성', color, 0.4)}
+        <>
+          <span className="flex items-center gap-2">
+            <span className={PILL} style={{ background: soft, color }}>
+              <span className={TRIM}>알림</span>
+            </span>
+            <span className={PILL} style={{ background: color, color: inkOn(color) }}>
+              <span className={TRIM}>뱃지</span>
+            </span>
+            <span className={PILL} style={{ border: `1px solid ${color}`, color: around.ink }}>
+              <span className={TRIM}>입력칸</span>
+            </span>
+          </span>
+          <span className="mt-1 truncate text-xs leading-4" style={{ color }}>
+            안내 글자 가나다 Aa 123
+          </span>
+        </>,
+      )
+    }
+    case 'chart': {
+      // 계열 하나의 막대들. 값이 다른 막대 여럿으로, 넓은 면에 칠했을 때의 인상을 본다.
+      const bars = [40, 65, 50, 85, 60, 100, 75]
+      return frame(
+        around.surface,
+        <span className="flex h-10 items-end gap-1">
+          {bars.map((h, i) => (
+            <span key={i} className="w-4 rounded-t-sm" style={{ height: `${h}%`, background: color }} />
+          ))}
+        </span>,
+      )
+    }
+    default: {
+      // 채움: 이 색으로 채우는 것들을 한 줄에. 버튼, 뱃지, 칩, 켜진 토글, 선택 표시(체크 상자).
+      const ink = inkOn(color)
+      const soft = `color-mix(in oklab, ${color} 12%, ${around.surface})`
+      return frame(
+        around.surface,
+        <span className="flex items-center gap-2">
+          <span className="flex h-7 items-center rounded-md px-2 text-sm font-[550]" style={{ background: color, color: ink }}>
+            <span className={TRIM}>버튼</span>
+          </span>
+          <span className="flex h-5 items-center rounded-full px-2 text-xs font-[550]" style={{ background: color, color: ink }}>
+            <span className={TRIM}>뱃지</span>
+          </span>
+          <span className="flex h-6 items-center rounded-full px-2 text-xs font-[550]" style={{ background: soft, color }}>
+            <span className={TRIM}>칩</span>
+          </span>
+          <span className="flex h-5 w-8 shrink-0 items-center justify-end rounded-full p-0.5" style={{ background: color }}>
+            <span className="block size-4 rounded-full" style={{ background: ink }} />
+          </span>
+          <span className="flex size-4 shrink-0 items-center justify-center rounded-sm" style={{ background: color, color: ink }}>
+            <svg viewBox="0 0 12 12" className="size-3" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M2.5 6.5 5 9l4.5-5.5" />
+            </svg>
+          </span>
         </span>,
       )
     }
@@ -106,7 +151,7 @@ type Drop = { what: 'row' | 'group'; id: string; use: RoleUse; before: string | 
 const DROP_LINE = 'pointer-events-none absolute z-10 bg-selection'
 
 /**
- * 의미 색 판의 내용. 역할(글자, 바탕, 테두리, 버튼)별로 묶어 보여 준다.
+ * 의미 색 판의 내용. 역할(글자, 바탕, 테두리, 채움, 상태, 차트)별로 묶어 보여 준다.
  * 묶음의 순서와 묶음 안의 순서는 파일에 적힌 순서이고, 끌어서 바꾸면 파일의 순서가 바뀐다.
  * folded면 설명과 예시를 숨기고 색과 이름만 한 줄에 세 개씩 놓는다.
  */
@@ -131,7 +176,6 @@ export function RoleList({
   onSelect: (name: string, additive: boolean) => void
   /** 묶음 제목을 누르면 그 묶음의 색을 모두 선택한다. */
   onSelectGroup: (names: string[], additive: boolean, rename: boolean) => void
-  onAdd: (kind: Kind) => void
   onRename: (name: string) => void
   /** 색을 같은 묶음 안의 다른 자리로 옮긴다. before는 그 앞에 놓일 색(묶음의 맨 끝이면 null). */
   onMove: (name: string, before: string | null) => void
@@ -338,23 +382,71 @@ function RefPicker({ tokens, value, onChange }: { tokens: Token[]; value: string
   )
 }
 
-/** 네 역할 중 하나를 고르는 전환 버튼. */
+/**
+ * 역할을 고르는 칸. 닫혀 있을 때는 고르는 칸의 모양이고, 누르면 여섯 묶음의 목록이 아래에 펼쳐진다.
+ * 브라우저의 고르는 칸(select)을 쓰지 않는다. 그 목록에서는 글자를 한 가지 모양으로만 적을 수 있어서,
+ * 묶음의 이름(글자, 바탕…)과 그 묶음에 드는 것들(본문, 링크, 아이콘)이 한 줄에 같은 모양으로 이어져 무엇이 이름인지 헷갈린다.
+ * 여기서는 이름을 진하게 정해진 폭에 적고, 드는 것들은 그 옆에 옅게 적는다. 이름들이 한 열로 줄을 서서 이름만 훑어 고를 수 있다.
+ */
 function UsePicker({ value, onChange }: { value: RoleUse; onChange: (use: RoleUse) => void }) {
+  const [open, setOpen] = useState(false)
+  const now = ROLE_USES.find((u) => u.id === value)!
+  const pick = (use: RoleUse) => {
+    setOpen(false)
+    if (use !== value) onChange(use)
+  }
+  /** 한 줄의 내용. 이름은 진하게 정해진 폭(48px)에, 드는 것들은 옅게. 닫힌 칸과 목록의 줄이 같은 모양이다. */
+  const line = (u: (typeof ROLE_USES)[number]) => (
+    <>
+      <span className="w-12 shrink-0 font-[550] text-ink">{u.label}</span>
+      <span className="min-w-0 flex-1 truncate text-ink-faint">{u.hint}</span>
+    </>
+  )
   return (
-    <div className="grid grid-cols-4 gap-1 rounded-md bg-hover p-1">
-      {ROLE_USES.map((u) => (
-        <button
-          key={u.id}
-          type="button"
-          aria-pressed={u.id === value}
-          onClick={() => onChange(u.id)}
-          className={`h-6 rounded-sm text-sm outline-selection focus-visible:outline-2 ${
-            u.id === value ? 'bg-canvas font-[550] text-ink shadow-[0_0_0_1px_var(--color-hairline)]' : 'text-ink-soft hover:text-ink'
-          }`}
-        >
-          {u.label}
-        </button>
-      ))}
+    <div className="relative">
+      <button
+        type="button"
+        aria-label="역할"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        data-use={value}
+        onClick={() => setOpen((v) => !v)}
+        onKeyDown={(e) => {
+          // ↑↓로 펼치지 않고도 묶음을 바꾼다. Esc는 목록을 닫는다.
+          if (e.key === 'Escape') return setOpen(false)
+          if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+          e.preventDefault()
+          const at = ROLE_USES.indexOf(now) + (e.key === 'ArrowDown' ? 1 : -1)
+          if (ROLE_USES[at]) onChange(ROLE_USES[at].id)
+        }}
+        className={`${inputClass} flex items-center gap-2 text-left`}
+      >
+        {line(now)}
+        <ChevronDown size={16} strokeWidth={1.5} className="shrink-0 text-ink-faint" />
+      </button>
+      {open && (
+        <>
+          {/* 목록 바깥을 누르면 닫는다. */}
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          {/* 줄의 바탕(올렸을 때, 고른 것)이 서로 닿지 않게 줄 사이를 4px 띄운다. */}
+          <div role="listbox" aria-label="역할" className="absolute top-9 right-0 left-0 z-20 space-y-1 rounded-lg border border-hairline bg-canvas p-1 shadow-float">
+            {ROLE_USES.map((u) => (
+              <button
+                key={u.id}
+                type="button"
+                role="option"
+                aria-selected={u.id === value}
+                data-use-option={u.id}
+                onClick={() => pick(u.id)}
+                className={`flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-sm outline-selection focus-visible:outline-2 ${u.id === value ? 'bg-hover' : 'hover:bg-hover'}`}
+              >
+                {line(u)}
+                {u.id === value && <Check size={16} strokeWidth={1.5} className="shrink-0" />}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   )
 }
@@ -444,6 +536,7 @@ export function RoleInspector({
   file,
   uses,
   onOpenComponent,
+  onOpenToken,
   onRename,
   onChange,
   onCopy,
@@ -454,6 +547,8 @@ export function RoleInspector({
   /** 이 색을 쓰는 컴포넌트와 그 자리들. */
   uses: { index: number; name: string; where: string[] }[]
   onOpenComponent: (index: number) => void
+  /** 이 색이 가리키는 색이 있는 판으로 간다. */
+  onOpenToken: (name: string) => void
   onRename: (next: string) => void
   /** 가리키는 색이나 주석(역할과 설명)을 바꾼다. */
   onChange: (patch: { value?: string; note?: string }) => void
@@ -508,19 +603,32 @@ export function RoleInspector({
           <span className="min-w-0">
             <Chip>{refName(token.value)}</Chip>
           </span>
-          <span className="shrink-0 font-mono text-sm text-ink-faint">{color ?? <span className="text-danger">없는 색</span>}</span>
+          <span className="min-w-0 flex-1 truncate font-mono text-sm text-ink-faint">{color ?? <span className="text-danger">없는 색</span>}</span>
+          {/* 가리키는 색이 색상 판의 어디에 있는지 보러 가는 버튼. "쓰이는 곳"의 반대 방향이다. 가리키는 색이 없어졌으면 갈 곳이 없어 꺼진다. */}
+          <button
+            type="button"
+            aria-label="가리키는 색 보러 가기"
+            title={`색상 판에서 ${refName(token.value)} 보기`}
+            disabled={!refOf(token.value) || !tokens.some((t) => t.name === refOf(token.value))}
+            onClick={() => onOpenToken(refOf(token.value)!)}
+            className={`${ICON_BUTTON} disabled:pointer-events-none disabled:opacity-30`}
+          >
+            <ArrowUpRight size={16} strokeWidth={1.5} />
+          </button>
         </div>
         <RefPicker tokens={tokens} value={refOf(token.value)} onChange={(name) => onChange({ value: refTo(name) })} />
       </Section>
 
       <Section title="역할">
         <UsePicker value={use} onChange={(next) => onChange({ note: writeNote(next, textDraft) })} />
-        {color && (
-          <div className="mt-2">
-            <RoleSample use={use} color={color} around={surroundings(tokens)} />
-          </div>
-        )}
       </Section>
+
+      {/* 그 역할로 쓰인 모습. 다른 패널의 "쓰인 모습"과 같은 자리(값 바로 아래)에 있고 같이 접힌다. */}
+      {color && (
+        <FoldSection title="쓰인 모습" storageKey={USES_OPEN} startOpen>
+          <RoleSample use={use} color={color} around={surroundings(tokens)} />
+        </FoldSection>
+      )}
 
       <Section title="설명">
         <input
@@ -532,6 +640,24 @@ export function RoleInspector({
           onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
         />
       </Section>
+
+      <FoldSection title="쓰이는 곳" storageKey={WHERE_OPEN} startOpen note={uses.length > 0 ? String(uses.length) : '없음'} empty={uses.length === 0}>
+          <div className="space-y-2">
+            {uses.map((u) => (
+              <div key={u.index}>
+                <button
+                  type="button"
+                  onClick={() => onOpenComponent(u.index)}
+                  className="-ml-2 flex h-8 max-w-full items-center rounded-md px-2 font-[550] outline-selection hover:bg-hover focus-visible:outline-2"
+                >
+                  <span className="truncate">{u.name}</span>
+                  <span className="ml-2 shrink-0 text-sm font-normal text-ink-faint">{u.where.length}곳</span>
+                </button>
+                <p className="text-sm text-ink-faint">{u.where.join(', ')}</p>
+              </div>
+            ))}
+          </div>
+      </FoldSection>
 
       <FoldSection title="코드" storageKey={CODE_OPEN}>
         <div className="space-y-2">
@@ -562,26 +688,6 @@ export function RoleInspector({
           </div>
         </div>
       </FoldSection>
-
-      {uses.length > 0 && (
-        <Section title="쓰이는 곳">
-          <div className="space-y-2">
-            {uses.map((u) => (
-              <div key={u.index}>
-                <button
-                  type="button"
-                  onClick={() => onOpenComponent(u.index)}
-                  className="-ml-2 flex h-8 max-w-full items-center rounded-md px-2 font-[550] outline-selection hover:bg-hover focus-visible:outline-2"
-                >
-                  <span className="truncate">{u.name}</span>
-                  <span className="ml-2 shrink-0 text-sm font-normal text-ink-faint">{u.where.length}곳</span>
-                </button>
-                <p className="text-sm text-ink-faint">{u.where.join(', ')}</p>
-              </div>
-            ))}
-          </div>
-        </Section>
-      )}
     </div>
   )
 }

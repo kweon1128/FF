@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { ChevronDown, ChevronRight, Copy, PencilLine, Pipette, Rows3, Type } from 'lucide-react'
 import type { Token } from './lib/api'
-import { SLUG, groupOf, shortName, type Kind } from './lib/catalog'
+import { COLOR_REF, SLUG, groupOf, shortName, type Kind } from './lib/catalog'
 import { asHex, isApprox, showColor, toHex, toOklch } from './lib/color'
 import { stepValue, suggestLine, suggestTrack } from './lib/tokens'
 import { ColorSwatch } from './ColorPicker'
@@ -60,7 +60,8 @@ export function Section({ title, children }: { title?: string; children: ReactNo
 }
 
 export const CODE_OPEN = 'ff.codeOpen'
-const USES_OPEN = 'ff.usesOpen'
+export const USES_OPEN = 'ff.usesOpen'
+export const WHERE_OPEN = 'ff.whereOpen'
 
 /**
  * 접어 두는 구역. 제목 줄을 누르면 펼쳐지고 다시 누르면 접힌다. 처음 상태는 startOpen으로 정한다(안 주면 접힘).
@@ -70,12 +71,18 @@ export function FoldSection({
   title,
   storageKey,
   startOpen = false,
+  note,
+  empty = false,
   children,
 }: {
   title: string
   storageKey: string
   startOpen?: boolean
-  children: ReactNode
+  /** 제목 줄 오른쪽에 옅게 적는 짧은 말. 접어 두어도 보인다(쓰이는 곳의 수 등). */
+  note?: string
+  /** 내용이 없는 구역. 접고 펼 것이 없어서 제목 줄만 남고 누를 수 없다. */
+  empty?: boolean
+  children?: ReactNode
 }) {
   const [open, setOpen] = useState(() => {
     try {
@@ -95,6 +102,15 @@ export function FoldSection({
     }
   }
   const Arrow = open ? ChevronDown : ChevronRight
+  if (empty)
+    return (
+      <section className="border-b border-hairline last:border-b-0">
+        <h3 className="flex h-11 items-center gap-1 px-4 text-sm font-[650]">
+          <span className="flex-1">{title}</span>
+          {note && <span className="font-normal text-ink-faint">{note}</span>}
+        </h3>
+      </section>
+    )
   return (
     <section className="border-b border-hairline last:border-b-0">
       <h3>
@@ -105,6 +121,7 @@ export function FoldSection({
           className="flex h-11 w-full items-center gap-1 px-4 text-sm font-[650] outline-selection hover:bg-hover focus-visible:outline-2 focus-visible:-outline-offset-2"
         >
           <span className="flex-1 text-left">{title}</span>
+          {note && <span className="font-normal text-ink-faint">{note}</span>}
           <Arrow size={16} strokeWidth={1.5} className="text-ink-soft" />
         </button>
       </h3>
@@ -239,15 +256,37 @@ export function Inspector({
     onRename(kind.prefix + next)
   }
 
-  function changeValue(raw: string) {
+  /**
+   * 값 칸의 값을 바꾼다. save가 false면 칸의 글자와 오류 표시만 바꾸고 저장하지 않는다.
+   * 칸에 적는 동안은 저장하지 않고, 칸을 벗어나거나 Enter를 누를 때 저장한다. #1a2b3c를 적는 동안 #1a2, #1a2b가 잠깐씩 저장되어
+   * 그 색을 쓰는 화면이 깜빡이고 되돌리기 단계가 잘게 쌓이는 것을 막는다. 색 고르기, ↑↓, 화면에서 색 찍기는 바로 저장한다.
+   */
+  function changeValue(raw: string, save = true) {
     setValueDraft(raw)
     const next = raw.trim()
     if (!next) return setValueError('값을 입력해 주세요.')
     if (/[;{}]/.test(next)) return setValueError('; { } 기호는 쓸 수 없어요.')
+    // 색 칸에서 쓰다 만 # 값(#12345)은 저장하지 않는다. 그대로 저장되면 이 색을 가리키는 의미 색이 모두 "없는 색"이 된다.
+    // 이름으로 된 색(white)이나 color-mix(…)처럼 FF가 읽지 못할 뿐인 값은 막지 않는다.
+    if (isColor && /^#?[0-9a-f]*$/i.test(next) && !asHex(next)) return setValueError('#rrggbb처럼 여섯 자리로 적어 주세요.')
+    // 다른 색을 가리키는 값을 적으면 이 색이 의미 색으로 바뀌어 색상 판에서 사라진다. 의미 색은 의미 색 판에서 만든다.
+    if (isColor && COLOR_REF.test(next)) return setValueError('다른 색을 가리키는 색은 의미 색 판에서 만들어 주세요.')
     setValueError(null)
     // 색으로 읽히는 값(#, rgb, hsl)은 oklch로 바꿔 저장한다. 읽을 수 없는 값은 적은 그대로 둔다.
     // #을 빼고 여섯 자리만 적어도 색으로 받는다.
-    onValue(isColor ? toOklch(asHex(next) ?? next) : next)
+    const out = isColor ? toOklch(asHex(next) ?? next) : next
+    if (save && out !== token.value) onValue(out)
+  }
+
+  /** 칸에 적어 둔 값을 저장한다. 받을 수 없는 값이거나 비어 있으면 저장된 값으로 되돌린다(틀린 값을 칸에 남겨 두지 않는다). */
+  function commitValue() {
+    const next = valueDraft.trim()
+    if (!next || valueError) return revertValue()
+    changeValue(valueDraft)
+  }
+  function revertValue() {
+    setValueDraft(isColor ? showColor(token.value) : token.value)
+    setValueError(null)
   }
 
   // 견본에 쓸 색. 칸에 적는 중인 값이 색으로 읽히면 그것을 바로 보여 주고, 아니면 저장된 값을 쓴다.
@@ -323,13 +362,18 @@ export function Inspector({
           />
         )}
         <span className={isFont || unit ? 'hidden' : 'flex items-center gap-2'}>
-          {isColor && <ColorSwatch label="색 고르기" value={valueDraft} alpha preview onChange={changeValue} />}
+          {/* 칸에 #을 빼고 적었어도 지금 색에서 시작하도록, 적은 글자가 아니라 읽어 낸 색을 넘긴다. */}
+          {isColor && <ColorSwatch label="색 고르기" value={liveColor ?? valueDraft} alpha preview onChange={changeValue} />}
           <input
             aria-label={kind.valueLabel}
             className={`${inputClass} ${valueError ? 'border-danger focus:border-danger' : ''}`}
             value={valueDraft}
-            onChange={(e) => changeValue(e.target.value)}
+            onChange={(e) => changeValue(e.target.value, false)}
+            onBlur={commitValue}
             onKeyDown={(e) => {
+              // Enter는 적은 값을 저장하고, Esc는 적던 것을 버리고 저장된 값으로 돌아간다.
+              if (e.key === 'Enter') return commitValue()
+              if (e.key === 'Escape') return revertValue()
               // ↑↓로 숫자를 올리고 내린다(Shift는 10배). 16px, 1.5처럼 숫자 하나로 된 값만.
               if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
               const next = stepValue(valueDraft, e.key === 'ArrowUp' ? 1 : -1, e.shiftKey)
@@ -408,7 +452,7 @@ export function Inspector({
           <Button
             variant="ghost"
             className="mt-2 -ml-2"
-            disabled={!HEX6.test(valueDraft.trim())}
+            disabled={!HEX6.test(liveColor ?? '')}
             title={
               scaleMissing === 0
                 ? '이 색을 기준으로 나머지 단계의 색을 모두 다시 계산해요. 지금 있는 색은 바뀌어요.'
@@ -436,6 +480,41 @@ export function Inspector({
           <FontSample family={valueDraft} weights={weightsOf(parseFontValue(valueDraft).font)} className="rounded-md p-3 shadow-[inset_0_0_0_1px_rgb(0_0_0/0.08)]" />
         </FoldSection>
       )}
+
+      {/* 구역의 차례는 어느 패널이나 같다: 이름, 값, 쓰인 모습, 설명, 쓰이는 곳, 코드. 고치는 것은 늘 펼쳐 두고, 보기만 하는 것(쓰인 모습, 쓰이는 곳, 코드)은 접을 수 있다. */}
+      <FoldSection title="쓰이는 곳" storageKey={WHERE_OPEN} startOpen note={uses.length + roles.length > 0 ? String(uses.length + roles.length) : '없음'} empty={uses.length + roles.length === 0}>
+        {uses.length === 0 && roles.length === 0 ? (
+          <p className="text-sm text-ink-faint">이 값을 쓰는 곳이 아직 없어요.</p>
+        ) : (
+          <div className="space-y-2">
+            {/* 이 색을 가리키는 의미 색. 누르면 의미 색 판의 그 색으로 간다. */}
+            {roles.map((name) => (
+              <button
+                key={name}
+                type="button"
+                onClick={() => onOpenToken(name)}
+                className="-ml-2 flex h-8 max-w-full items-center rounded-md px-2 font-[550] outline-selection hover:bg-hover focus-visible:outline-2"
+              >
+                <span className="truncate">{name.startsWith('--type-') ? name.slice('--type-'.length) : name.slice(kind.prefix.length)}</span>
+                <span className="ml-2 shrink-0 text-sm font-normal text-ink-faint">{name.startsWith('--type-') ? '의미 글꼴' : '의미 색'}</span>
+              </button>
+            ))}
+            {uses.map((u) => (
+              <div key={u.index}>
+                <button
+                  type="button"
+                  onClick={() => onOpenComponent(u.index)}
+                  className="-ml-2 flex h-8 max-w-full items-center rounded-md px-2 font-[550] outline-selection hover:bg-hover focus-visible:outline-2"
+                >
+                  <span className="truncate">{u.name}</span>
+                  <span className="ml-2 shrink-0 text-sm font-normal text-ink-faint">{u.where.length}곳</span>
+                </button>
+                <p className="text-sm text-ink-faint">{u.where.join(', ')}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </FoldSection>
 
       <FoldSection title="코드" storageKey={CODE_OPEN}>
         <div className="space-y-2">
@@ -478,40 +557,6 @@ export function Inspector({
           </div>
         </div>
       </FoldSection>
-
-      <Section title="쓰이는 곳">
-        {uses.length === 0 && roles.length === 0 ? (
-          <p className="text-sm text-ink-faint">이 값을 쓰는 곳이 아직 없어요.</p>
-        ) : (
-          <div className="space-y-2">
-            {/* 이 색을 가리키는 의미 색. 누르면 의미 색 판의 그 색으로 간다. */}
-            {roles.map((name) => (
-              <button
-                key={name}
-                type="button"
-                onClick={() => onOpenToken(name)}
-                className="-ml-2 flex h-8 max-w-full items-center rounded-md px-2 font-[550] outline-selection hover:bg-hover focus-visible:outline-2"
-              >
-                <span className="truncate">{name.startsWith('--type-') ? name.slice('--type-'.length) : name.slice(kind.prefix.length)}</span>
-                <span className="ml-2 shrink-0 text-sm font-normal text-ink-faint">{name.startsWith('--type-') ? '의미 글꼴' : '의미 색'}</span>
-              </button>
-            ))}
-            {uses.map((u) => (
-              <div key={u.index}>
-                <button
-                  type="button"
-                  onClick={() => onOpenComponent(u.index)}
-                  className="-ml-2 flex h-8 max-w-full items-center rounded-md px-2 font-[550] outline-selection hover:bg-hover focus-visible:outline-2"
-                >
-                  <span className="truncate">{u.name}</span>
-                  <span className="ml-2 shrink-0 text-sm font-normal text-ink-faint">{u.where.length}곳</span>
-                </button>
-                <p className="text-sm text-ink-faint">{u.where.join(', ')}</p>
-              </div>
-            ))}
-          </div>
-        )}
-      </Section>
     </div>
   )
 }

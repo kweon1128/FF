@@ -19,7 +19,22 @@ export type SlotProps = { use: string; as?: 'span' | 'p' | 'h3'; className?: str
  * 화면 예시. T는 글자 한 자리를 그리는 부품이고, has는 그 쓰임새의 자리를 둘지다(없는 쓰임새는 자리째로 뺀다).
  * 버튼이나 입력칸처럼 상자를 가진 자리는 상자의 모양(className)까지 T에 넘긴다. 상자까지가 한 덩어리이기 때문이다.
  */
+/** 내세우는 숫자들의 이름표와 값. 자리가 몇 개인지(하나, 둘, 셋)에 따라 큰 것부터다. 자리가 많을수록 숫자를 짧게 써서 한 줄에 들어가게 한다. */
+const STATS: [label: string, value: string][][] = [
+  [['이번 달 매출', '12,480,000원']],
+  [
+    ['올해 누적 매출', '1억 2,480만 원'],
+    ['이번 달 매출', '12,480,000원'],
+  ],
+  [
+    ['올해 누적 매출', '1억 2,480만 원'],
+    ['이번 달 매출', '1,248만 원'],
+    ['이번 달 주문', '318건'],
+  ],
+]
+
 export function TypeScreen({ T, has = () => true }: { T: ComponentType<SlotProps>; has?: (use: string) => boolean }) {
+  const stats = ['display-xl', 'display-lg', 'display'].filter(has)
   return (
     <>
       {/* 화면의 맨 위는 성과다. 분류 표시(무엇의, 언제의 숫자인지)가 머리에 오고 8px 아래에 큰 숫자들이 놓인다.
@@ -28,34 +43,25 @@ export function TypeScreen({ T, has = () => true }: { T: ComponentType<SlotProps
       <T use="overline" as="p" className="text-ink-soft">
         SALES · 2025년 4월
       </T>
-      {/* 큰 숫자의 자리는 그만큼 큰 크기가 있을 때만 나온다(단계가 적은 한 벌에는 내세우는 조합이 없다). */}
-      {(has('display-lg') || has('display')) && (
-      <div className="mt-2 flex items-end gap-6">
-        {has('display-lg') && (
-          <div>
-            <T use="caption" as="p" className="text-ink-soft">
-              올해 누적 매출
-            </T>
-            <T use="display-lg" as="p">
-              1억 2,480만 원
-            </T>
-          </div>
-        )}
-        {has('display') && (
-        <div>
-          <T use="caption" as="p" className="text-ink-soft">
-            이번 달 매출
-          </T>
-          <T use="display" as="p">
-            12,480,000원
-          </T>
+      {/* 큰 숫자의 자리는 그만큼 큰 크기가 있을 때만 나온다(단계가 적은 한 벌에는 내세우는 조합이 없다).
+          하나에서 셋까지, 있는 만큼 큰 것부터 놓는다. 가장 큰 자리가 가장 무거운 숫자(올해 누적)를 맡는다. 폭이 모자라면 아래 줄로 넘어간다(줄 사이 8px). */}
+      {stats.length > 0 && (
+        <div className="mt-2 flex flex-wrap items-end gap-x-6 gap-y-2">
+          {stats.map((use, i) => (
+            <div key={use}>
+              <T use="caption" as="p" className="text-ink-soft">
+                {STATS[stats.length - 1][i][0]}
+              </T>
+              <T use={use} as="p" className="whitespace-nowrap">
+                {STATS[stats.length - 1][i][1]}
+              </T>
+            </div>
+          ))}
         </div>
-        )}
-      </div>
       )}
 
       {/* 화면 제목과 소개 글과 본문은 8px씩 띄워 잇는다. */}
-      <div className={`space-y-2 ${has('display-lg') || has('display') ? 'mt-6' : ''}`}>
+      <div className={`space-y-2 ${stats.length > 0 ? 'mt-6' : ''}`}>
         {/* 큰 버튼은 화면에 하나뿐인 주된 일이라 화면 제목의 오른쪽에 둔다. 카드 안의 버튼(중간 크기)과 같은 줄에 나란히 놓지 않는다. 크기가 다른 버튼이 같은 자리에 있으면 어긋나 보인다. */}
         <div className="flex items-center justify-between gap-6">
           <div className="space-y-2">

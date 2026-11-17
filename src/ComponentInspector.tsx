@@ -8,7 +8,7 @@ import { refOf, resolveColor } from './lib/roles'
 import { readType } from './lib/types'
 import { cellLabel, type Cell, type Colors, type Comp, type IconPos, type Size } from './lib/components'
 import { isIconName } from './ComponentScreen'
-import { Section } from './Inspector'
+import { CODE_OPEN, FoldSection, Section } from './Inspector'
 import { Button, Chip, Field, inputClass, swatchBackground } from './ui'
 
 const ICON_RESULTS = 30
@@ -243,7 +243,7 @@ export function ComponentInspector({
   const colors = cell && variant ? variant.states[cell.state] : undefined
   const common = (patch: Partial<Comp>) => onChange({ ...comp, ...patch })
 
-  // 구역은 피그마의 순서를 따른다: 배치, 모양, 채우기, 테두리, 글자, 아이콘. 그 아래에 이름과 삭제를 둔다.
+  // 구역의 차례: 이름, 그다음 피그마의 순서(배치, 모양, 채우기, 테두리, 글자, 아이콘), 코드, 맨 아래에 복제와 삭제. 이름이 맨 위고 저장 위치가 "코드"에 있는 것은 값 패널들과 같다.
   return (
     <div>
       <Section>
@@ -251,6 +251,27 @@ export function ComponentInspector({
         {cell && (
           <p className="mt-1 text-sm text-ink-faint">{single ? cellLabel(comp, cell) : `${cells.length}칸 선택됨`}</p>
         )}
+      </Section>
+
+      {/* 이름은 맨 위다. 값, 의미 색, 의미 글꼴 패널과 같은 자리다. 칸 하나를 골랐으면 그 칸의 종류와 크기의 이름도 여기서 고친다. */}
+      <Section title="이름">
+        <div className="space-y-3">
+          <NameField label="컴포넌트" value={comp.name} taken={otherNames} onCommit={(name) => common({ name })} />
+          {cell && single && variant && (
+            <NameField
+              label="종류"
+              rename="variant"
+              value={variant.name}
+              taken={comp.variants.map((v) => v.name)}
+              onCommit={(name) =>
+                onChange({ ...comp, variants: comp.variants.map((v, i) => (i === cell.v ? { ...v, name } : v)) })
+              }
+            />
+          )}
+          {cell && single && size && (
+            <NameField label="크기" rename="size" value={size.name} taken={comp.sizes.map((s) => s.name)} onCommit={(name) => setSize({ name })} />
+          )}
+        </div>
       </Section>
 
       {cell && size && (
@@ -359,69 +380,51 @@ export function ComponentInspector({
         </div>
       </Section>
 
-      {cell && single && variant && (
-        <Section title="종류">
-          <NameField
-            label="이름"
-            rename="variant"
-            value={variant.name}
-            taken={comp.variants.map((v) => v.name)}
-            onCommit={(name) =>
-              onChange({ ...comp, variants: comp.variants.map((v, i) => (i === cell.v ? { ...v, name } : v)) })
-            }
-          />
-          <div className="mt-2 -ml-2 flex flex-wrap gap-1">
-            <Button variant="ghost" title="Ctrl+D" onClick={() => onDuplicateVariant(cell.v)}>
-              <CopyPlus size={16} strokeWidth={1.5} />
-              종류 복제
-            </Button>
-            {comp.variants.length > 1 && (
-              <Button variant="danger" onClick={() => onDeleteVariant(cell.v)}>
-                <Trash2 size={16} strokeWidth={1.5} />
-                종류 삭제
-              </Button>
-            )}
-          </div>
-        </Section>
-      )}
-
-      {cell && single && size && (
-        <Section title="크기">
-          <NameField
-            label="이름"
-            rename="size"
-            value={size.name}
-            taken={comp.sizes.map((s) => s.name)}
-            onCommit={(name) => setSize({ name })}
-          />
-          <div className="mt-2 -ml-2 flex flex-wrap gap-1">
-            <Button variant="ghost" onClick={() => onDuplicateSize(cell.s)}>
-              <CopyPlus size={16} strokeWidth={1.5} />
-              크기 복제
-            </Button>
-            {comp.sizes.length > 1 && (
-              <Button variant="danger" onClick={() => onDeleteSize(cell.s)}>
-                <Trash2 size={16} strokeWidth={1.5} />
-                크기 삭제
-              </Button>
-            )}
-          </div>
-        </Section>
-      )}
-
-      <Section title="컴포넌트">
-        <div className="space-y-3">
-          <NameField label="이름" value={comp.name} taken={otherNames} onCommit={(name) => common({ name })} />
-          <div>
-            <p className="mb-1 text-sm font-[550] text-ink-faint">저장 위치</p>
-            <Chip>{file}</Chip>
-          </div>
+      {/* 저장 위치와 코드 복사는 다른 패널처럼 접히는 "코드" 구역에 둔다. */}
+      <FoldSection title="코드" storageKey={CODE_OPEN}>
+        <div>
+          <p className="mb-1 text-sm font-[550] text-ink-faint">저장 위치</p>
+          <Chip>{file}</Chip>
         </div>
-        <div className="mt-2 -ml-2 flex flex-wrap gap-1">
+        <div className="mt-2 -ml-2">
           <Button variant="ghost" onClick={onCopyCss}>
             <Copy size={16} strokeWidth={1.5} />
             CSS 복사
           </Button>
+        </div>
+      </FoldSection>
+
+      {/* 복제와 삭제는 맨 아래에 모은다. 칸 하나를 골랐을 때만 그 칸의 종류와 크기를 복제하고 지울 수 있다. 버튼의 바탕이 닿지 않게 4px 띄운다. */}
+      <Section>
+        <div className="-ml-2 flex flex-wrap gap-1">
+          {cell && single && variant && (
+            <>
+              <Button variant="ghost" title="Ctrl+D" onClick={() => onDuplicateVariant(cell.v)}>
+                <CopyPlus size={16} strokeWidth={1.5} />
+                종류 복제
+              </Button>
+              {comp.variants.length > 1 && (
+                <Button variant="danger" onClick={() => onDeleteVariant(cell.v)}>
+                  <Trash2 size={16} strokeWidth={1.5} />
+                  종류 삭제
+                </Button>
+              )}
+            </>
+          )}
+          {cell && single && size && (
+            <>
+              <Button variant="ghost" onClick={() => onDuplicateSize(cell.s)}>
+                <CopyPlus size={16} strokeWidth={1.5} />
+                크기 복제
+              </Button>
+              {comp.sizes.length > 1 && (
+                <Button variant="danger" onClick={() => onDeleteSize(cell.s)}>
+                  <Trash2 size={16} strokeWidth={1.5} />
+                  크기 삭제
+                </Button>
+              )}
+            </>
+          )}
           <Button variant="danger" onClick={onDelete}>
             <Trash2 size={16} strokeWidth={1.5} />
             컴포넌트 삭제

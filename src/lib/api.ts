@@ -101,5 +101,7 @@ export const putComponents = (system: string, components: unknown[], rev?: strin
 export const putTokens = (system: string, tokens: Token[], rev?: string) =>
   request<Saved>(`/api/systems/${encodeURIComponent(system)}/tokens`, {
     method: 'PUT',
-    body: JSON.stringify({ tokens, rev }),
+    // 색(의미 색 포함)의 주석은 없으면 없다고 알린다. 주석을 아예 안 보내면 서버는 파일의 주석을 그대로 두는데,
+    // 그러면 역할이나 설명을 바꾼 것을 되돌렸을 때 화면만 돌아가고 파일에는 바꾼 주석이 남는다.
+    body: JSON.stringify({ tokens: tokens.map((t) => (t.note === undefined && t.name.startsWith('--color-') ? { ...t, note: '' } : t)), rev }),
   })

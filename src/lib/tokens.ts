@@ -61,7 +61,8 @@ export function shiftTokens(tokens: Token[], names: string[], dir: 1 | -1) {
 }
 
 /** 복사할 때 클립보드에 담는 글자. CSS 변수 선언 그대로라서 코드에 붙여도 쓸 수 있다. */
-export const toCss = (tokens: Token[]) => tokens.map((t) => `${t.name}: ${t.value};`).join('\n')
+// 주석(의미 색의 역할과 설명)도 파일에서처럼 같은 줄 뒤에 붙인다. 그래야 붙여넣었을 때 역할과 설명이 따라온다.
+export const toCss = (tokens: Token[]) => tokens.map((t) => `${t.name}: ${t.value};${t.note ? ` /* ${t.note} */` : ''}`).join('\n')
 
 /**
  * 붙여넣은 글자에서 변수 선언을 찾는다.
@@ -71,12 +72,13 @@ export const toCss = (tokens: Token[]) => tokens.map((t) => `${t.name}: ${t.valu
 export function scanCss(text: string): { tokens: Token[]; skipped: Token[] } {
   const tokens: Token[] = []
   const skipped: Token[] = []
-  for (const m of text.matchAll(/(--[A-Za-z0-9_-]+)\s*:\s*([^;{}\n\r]+)/g)) {
+  // 값 뒤, 같은 줄에 붙은 주석은 그 값의 설명으로 읽는다.
+  for (const m of text.matchAll(/(--[A-Za-z0-9_-]+)\s*:\s*([^;{}\n\r]+)(?:;[ \t]*\/\*[ \t]*([^\n\r]*?)[ \t]*\*\/)?/g)) {
     const name = m[1]
     const value = m[2].trim().replace(/\s+/g, ' ')
     if (!value || [...tokens, ...skipped].some((t) => t.name === name)) continue
     const known = /^--[a-z0-9]+(-[a-z0-9]+)*$/.test(name) && kindOf(name)
-    ;(known ? tokens : skipped).push({ name, value })
+    ;(known ? tokens : skipped).push(m[3] ? { name, value, note: m[3] } : { name, value })
   }
   return { tokens, skipped }
 }
@@ -128,7 +130,8 @@ export function pasteTokens(tokens: Token[], pasted: Token[], intoGroup: string 
     let name = COLOR_REF.test(p.value) ? p.name : pasteName(p.name, intoGroup)
     if (taken.has(name) && overwrite) {
       const at = next.findIndex((t) => t.name === name)
-      next[at] = { name, value: p.value }
+      // 덮어쓸 때 붙여넣은 쪽에 설명이 없으면 있던 설명을 그대로 둔다(파일도 그렇게 한다).
+      next[at] = { ...next[at], value: p.value, ...(p.note ? { note: p.note } : {}) }
       added.push(name)
       replaced++
       continue
@@ -137,7 +140,7 @@ export function pasteTokens(tokens: Token[], pasted: Token[], intoGroup: string 
     taken.add(name)
     let at = next.findLastIndex(siblingTest(name))
     if (at === -1) at = next.findLastIndex((t) => kind.matches(t.name))
-    next.splice(at === -1 ? next.length : at + 1, 0, { name, value: p.value })
+    next.splice(at === -1 ? next.length : at + 1, 0, p.note ? { name, value: p.value, note: p.note } : { name, value: p.value })
     added.push(name)
   }
   return { next, added, replaced }

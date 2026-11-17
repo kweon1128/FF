@@ -16,11 +16,14 @@ const DEFAULT_STEP = 500
  */
 export function NewGroupForm({
   existing,
+  why,
   group,
   onCreate,
   onCancel,
 }: {
   existing: Set<string>
+  /** 그 이름을 왜 쓸 수 없는지. 무엇과 겹치는지를 알려 준다. */
+  why?: (name: string) => string
   /** 이미 있는 빈 목록에 첫 색을 넣을 때의 목록 이름. 주면 이름 칸 없이 단계와 색만 묻는다. */
   group?: string
   /** scale이 참이면 그 색을 기준으로 50~950의 나머지 단계도 함께 만든다. */
@@ -50,7 +53,7 @@ export function NewGroupForm({
     if (group === undefined) {
       if (!n) next.name = '이름을 입력해 주세요.'
       else if (!SLUG.test(n)) next.name = '영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.'
-      else if (existing.has(n)) next.name = '같은 이름이 이미 있어요.'
+      else if (existing.has(n)) next.name = why?.(n) ?? '같은 이름이 이미 있어요.'
     }
     if (step.trim() && !STEP.test(step.trim())) next.step = '영문 소문자와 숫자만 쓸 수 있어요.'
     if (color.trim() && !typedColor) next.color = '#rrggbb로 적어 주세요.'

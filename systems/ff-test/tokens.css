@@ -22,17 +22,17 @@
   --color-red-800: oklch(0.38549 0.15759 28.051);
   --color-red-900: oklch(0.32503 0.13303 28.441);
   --color-red-950: oklch(0.24662 0.09907 27.927);
-  --color-orange-50: oklch(0.9771 0.01151 37.422);
-  --color-orange-100: oklch(0.94354 0.02872 33.675);
-  --color-orange-200: oklch(0.89291 0.05704 34.374);
-  --color-orange-300: oklch(0.82113 0.09968 33.76);
-  --color-orange-400: oklch(0.72677 0.1683 33.343);
-  --color-orange-500: oklch(0.64237 0.21229 33.724);
-  --color-orange-600: oklch(0.55923 0.20482 33.283);
-  --color-orange-700: oklch(0.47667 0.17298 33.643);
-  --color-orange-800: oklch(0.40368 0.14954 32.851);
+  --color-orange-50: oklch(0.97517 0.01217 29.869);
+  --color-orange-100: oklch(0.94138 0.02982 33.096);
+  --color-orange-200: oklch(0.88712 0.05986 31.087);
+  --color-orange-300: oklch(0.81297 0.10646 31.585);
+  --color-orange-400: oklch(0.71508 0.1771 31.571);
+  --color-orange-500: oklch(0.62765 0.1925 31.903);
+  --color-orange-600: oklch(0.54899 0.1928 31.712);
+  --color-orange-700: oklch(0.47096 0.17777 31.664);
+  --color-orange-800: oklch(0.40157 0.1541 31.545);
   --color-orange-900: oklch(0.343 0.13115 31.676);
-  --color-orange-950: oklch(0.26026 0.10541 29.667);
+  --color-orange-950: oklch(0.25968 0.09654 31.741);
   --color-green-50: oklch(0.97541 0.01992 150.106);
   --color-green-100: oklch(0.94308 0.04437 148.272);
   --color-green-200: oklch(0.89083 0.07798 148.733);
@@ -61,8 +61,6 @@
   --color-ink-soft: var(--color-gray-600); /* 글자: 선택되지 않은 메뉴 항목, 보조 설명 */
   --color-ink-faint: var(--color-gray-500); /* 글자: 묶음 이름, 입력칸 이름표. 이보다 옅은 글자는 쓰지 않는다 */
   --color-on-primary: var(--color-white); /* 글자: 주요 버튼 위의 글자 */
-  --color-danger: var(--color-red-600); /* 글자: 삭제 버튼, 잘못된 입력의 안내 */
-  --color-success: var(--color-green-500); /* 글자: 저장됨 표시 */
   --color-canvas: var(--color-white); /* 바탕: 왼쪽 메뉴, 오른쪽 패널, 상단 바, 판 */
   --color-workspace: var(--color-gray-50); /* 바탕: 가운데 작업 영역 */
   --color-hover: var(--color-gray-100); /* 바탕: 마우스를 올린 줄, 선택된 메뉴 항목, 값 이름표 */
@@ -71,35 +69,30 @@
   --color-hairline-soft: var(--color-gray-100); /* 테두리: 패널 안에서 묶음을 나누는 옅은 선 */
   --color-guide: var(--color-orange-500); /* 테두리: 판을 끌 때의 맞춤 안내선, 간격 표시 */
   --color-selection: var(--color-blue-400); /* 테두리: 선택과 포커스 표시 전용. 버튼 바탕이나 장식으로 쓰지 않는다 */
-  --color-primary: var(--color-black); /* 버튼: 주요 버튼. 한 화면에 하나만 둔다 */
-  --font-sans: "SUIT Variable", system-ui, sans-serif;
-  --font-display: "Pretendard Variable", system-ui, sans-serif;
+  --color-primary: var(--color-black); /* 채움: 주요 버튼. 한 화면에 하나만 둔다 */
+  --color-danger: var(--color-red-600); /* 상태: 삭제 버튼, 잘못된 입력의 안내 */
+  --color-success: var(--color-green-500); /* 상태: 저장됨 표시 */
+  --font-sans: "SUIT Variable", SUIT, Pretendard, system-ui, sans-serif;
+  --font-mono: ui-monospace, Consolas, monospace;
   --text-xs: 12px;
   --text-xs--line-height: 16px;
   --text-sm: 14px;
   --text-sm--line-height: 20px;
   --text-base: 16px;
   --text-base--line-height: 24px;
-  --text-lg: 19px;
-  --text-lg--line-height: 28px;
-  --text-lg--letter-spacing: -0.005em;
-  --text-xl: 23px;
-  --text-xl--line-height: 32px;
-  --text-xl--letter-spacing: -0.01em;
-  --text-2xl: 28px;
-  --text-2xl--line-height: 36px;
-  --text-2xl--letter-spacing: -0.015em;
-  --text-3xl: 33px;
-  --text-3xl--line-height: 42px;
-  --text-3xl--letter-spacing: -0.02em;
-  --text-4xl: 40px;
-  --text-4xl--line-height: 50px;
-  --text-4xl--letter-spacing: -0.02em;
-  --text-5xl: 48px;
-  --text-5xl--line-height: 60px;
-  --text-5xl--letter-spacing: -0.02em;
   --font-weight-regular: 400;
-  --font-weight-medium: 500;
-  --font-weight-semibold: 600;
-  --font-weight-bold: 700;
+  --font-weight-medium: 550;
+  --font-weight-semibold: 650;
+  --type-title: var(--font-weight-semibold) var(--text-base)/var(--text-base--line-height) var(--font-sans); /* 화면과 판의 제목 */
+  --type-heading: var(--font-weight-semibold) var(--text-sm)/var(--text-sm--line-height) var(--font-sans); /* 패널의 제목, 구역의 제목 */
+  --type-body: var(--font-weight-regular) var(--text-sm)/var(--text-sm--line-height) var(--font-sans); /* 본문, 입력한 값, 메뉴 항목 */
+  --type-label: var(--font-weight-medium) var(--text-sm)/var(--text-sm--line-height) var(--font-sans); /* 버튼, 입력칸의 이름표, 본문 속 강조 */
+  --type-caption: var(--font-weight-regular) var(--text-xs)/var(--text-xs--line-height) var(--font-sans); /* 보조 설명, 판에 적힌 값 */
+  --type-caption-strong: var(--font-weight-medium) var(--text-xs)/var(--text-xs--line-height) var(--font-sans); /* 묶음의 이름, 작은 이름표 */
+  --type-code: var(--font-weight-regular) var(--text-sm)/var(--text-sm--line-height) var(--font-mono); /* 판에 적힌 색 값과 변수 이름 */
+  --type-code-sm: var(--font-weight-regular) var(--text-xs)/var(--text-xs--line-height) var(--font-mono); /* 작은 칸의 숫자와 이름, 코드 표시 */
+  --shadow-sm: 0 1px 1px rgb(0 0 0 / 0.04), 0 2px 4px rgb(0 0 0 / 0.04);
+  --shadow-md: 0 2px 4px rgb(0 0 0 / 0.04), 0 8px 16px rgb(0 0 0 / 0.06);
+  --shadow-lg: 0 4px 8px rgb(0 0 0 / 0.04), 0 16px 32px rgb(0 0 0 / 0.08);
+  --shadow-xl: 0 8px 16px rgb(0 0 0 / 0.05), 0 32px 64px rgb(0 0 0 / 0.1);
 }

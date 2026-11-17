@@ -50,7 +50,7 @@ import {
   type Colors,
   type Comp,
 } from './lib/components'
-import { contrast, hexToLch, isColor, lchToHex, showColor, toHex, toOklch } from './lib/color'
+import { isColor, showColor, toHex, toOklch } from './lib/color'
 import { SCALE_STEPS, grayOf, makeScale } from './lib/scale'
 import { adoptColors, defaultColorOrder, duplicateTokens, kindOf, followLine, followTrack, lineOf, pasteName, pasteTokens, scanCss, shiftTokens, suggestLine, toCss, trackOf, withLine, withTrack } from './lib/tokens'
 import type { Placed } from './lib/arrange'
@@ -58,7 +58,7 @@ import { BatchRename } from './BatchRename'
 import { BoardInspector, ImageInspector } from './BoardInspector'
 import { Canvas, defaultPos, defaultWidth } from './Canvas'
 import { NewRoleForm, RoleInspector } from './Roles'
-import { defaultRoleOrder, moveRole, moveRoleGroup, refOf, refTo, resolveColor, roleGroups, surroundings, type RoleUse } from './lib/roles'
+import { defaultRoleOrder, moveRole, moveRoleGroup, shiftRoles, refOf, refTo, surroundings, type RoleUse } from './lib/roles'
 import { onFilesChanged } from './lib/watch'
 import { SwatchContext } from './ColorPicker'
 import { PreviewFontContext } from './ColorUses'
@@ -108,6 +108,9 @@ function storeColors(tokens: Token[]): Token[] {
 const NOTICE_MS = 2000
 
 /** 입력칸에 글자를 쓰는 중인지. 쓰는 중에는 단축키가 동작하지 않는다. */
+/** 지나온 자리 하나. 화면과 거기서 골라 두었던 것(값, 판, 컴포넌트와 그 칸). */
+type Place = { screen: ScreenId; selected: string[]; boards: string[]; compIndex: number; cells: Cell[] }
+
 const isTyping = (t: EventTarget | null) =>
   t instanceof HTMLElement && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)
 
@@ -256,6 +259,8 @@ export function App() {
   const [focusNonce, setFocusNonce] = useState(0)
   const [compIndex, setCompIndex] = useState(0)
   const [cells, setCells] = useState<Cell[]>([])
+  // 지나온 자리들. "쓰이는 곳"이나 찾기로 다른 값이나 컴포넌트로 건너뛸 때마다 떠나온 자리를 쌓아 두고, 뒤로와 앞으로로 오간다.
+  const [trail, setTrail] = useState<{ back: Place[]; forward: Place[] }>({ back: [], forward: [] })
   // 다른 항목을 고를 때만 올린다. 이름을 바꿀 때는 그대로 두어 입력 중인 칸이 유지되게 한다.
   const [selectionId, setSelectionId] = useState(0)
   const [status, setStatus] = useState<SaveStatus>('idle')
@@ -403,6 +408,7 @@ export function App() {
       setSelected([])
       setCells([])
       setCompIndex(0)
+      setTrail({ back: [], forward: [] })
       setStatus('idle')
       setLoadError(null)
       remember(name)
@@ -903,7 +909,6 @@ export function App() {
     // 글자 크기를 지우면 묶인 줄 높이와 글자 사이도 함께 지운다.
     const gone = new Set([...names, ...names.filter((n) => SIZE.matches(n)).flatMap(boundNames)])
     const rest = tokens.filter((t) => !gone.has(t.name))
-    commit(rest)
     // 색을 하나씩 지우다가 목록이 비면 목록은 빈 채로 남겨 둔다(다시 채울 수 있게).
     // 한 번에 색을 둘 이상 지워서 비운 것은 목록을 통째로 지우려는 것이므로 목록도 함께 없앤다.
     const groupName = (name: string) => (COLOR.matches(name) ? groupOf(shortName(COLOR, name)) : '')
@@ -914,6 +919,8 @@ export function App() {
         !rest.some((t) => groupName(t.name) === g) &&
         names.filter((n) => groupName(n) === g).length === 1,
     )
+    // 빈 목록은 저장하기 전에 센다. 저장하고 나면 지운 의미 색(text-muted)이 더는 의미 색으로 가려지지 않아, 단계 색으로 읽혀 text라는 빈 목록이 생긴다.
+    commit(rest)
     if (emptied.length) saveBoards(boards, images, [...keptGroups, ...emptied])
     select([])
     setConfirm(null)
@@ -1028,10 +1035,35 @@ export function App() {
     setSelectedBoards((picked) => picked.filter((id) => !ids.includes(id)))
   }
 
+  /** 지금 있는 자리. 어느 화면에서 무엇을 골라 두었는지. */
+  const here = (): Place => ({ screen, selected, boards: selectedBoards, compIndex, cells })
+
+  /** 건너뛰기 직전에 부른다. 떠나는 자리를 뒤로 갈 곳으로 쌓고, 앞으로 갈 곳은 비운다(브라우저의 뒤로·앞으로와 같다). 쉰 곳까지 기억한다. */
+  function leave() {
+    setTrail((t) => ({ back: [...t.back, here()].slice(-50), forward: [] }))
+  }
+
+  /** 뒤로(-1)나 앞으로(1) 한 자리 간다. 그 자리에서 골라 두었던 것이 다시 골라지고, 값 하나였으면 화면 가운데로 온다. 그 사이에 지워진 값은 고르지 않는다. */
+  function walk(dir: -1 | 1) {
+    const to = (dir === -1 ? trail.back : trail.forward).at(-1)
+    if (!to) return
+    setTrail(dir === -1 ? { back: trail.back.slice(0, -1), forward: [...trail.forward, here()] } : { back: [...trail.back, here()], forward: trail.forward.slice(0, -1) })
+    const names = to.selected.filter((n) => tokens.some((t) => t.name === n))
+    if (isTokenScreen(to.screen) && boards[to.screen]?.hidden) moveBoards({ [to.screen]: { hidden: false } })
+    setScreen(to.screen)
+    setCompIndex(Math.min(to.compIndex, Math.max(0, comps.length - 1)))
+    setSelectedBoards(to.boards)
+    select(names)
+    setCells(to.cells)
+    setFocusToken(names.length === 1 ? names[0] : null)
+    setFocusNonce((n) => n + 1)
+  }
+
   /** 값 하나를 선택하고 그 값이 화면 가운데에 오게 이동한다. */
   function goToken(name: string) {
     const id = TOKEN_SCREEN_IDS.find((s) => TOKEN_SCREENS[s].kinds.some((k) => k.matches(name)))
     if (!id) return
+    leave()
     if (boards[id]?.hidden) moveBoards({ [id]: { hidden: false } })
     setScreen(id)
     setSelectedBoards([])
@@ -1045,6 +1077,7 @@ export function App() {
   const comp = comps[compIndex] ?? null
 
   function openComp(index: number) {
+    leave()
     setScreen('components')
     setCompIndex(index)
     setSelectedBoards([])
@@ -1058,18 +1091,24 @@ export function App() {
     setRenameAsk((ask) => ({ what, n: (ask?.n ?? 0) + 1 }))
   }
 
+  /** 순서를 바꾼 결과를 저장한다. 끌었다가 제자리에 놓은 것처럼 순서가 그대로면 저장하지 않는다(빈 되돌리기 단계가 생기지 않게). */
+  function commitIfMoved(next: Token[]) {
+    if (next.some((t, i) => t.name !== tokens[i]?.name)) commit(next)
+  }
+
   /** 색 목록의 이름을 통째로 바꾼다. 그 목록의 색이 모두 새 이름을 따라간다. 바꿀 수 없으면 이유를 돌려준다. */
   function renameGroup(from: string, to: string): string | null {
     if (!SLUG.test(to)) return '영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.'
-    if (tokens.some((t) => COLOR.matches(t.name) && groupOf(shortName(COLOR, t.name)) === to)) return '같은 이름의 목록이 이미 있어요.'
+    if (groupTaken.has(to)) return takenWhy(to)
     const head = `${COLOR.prefix}${from}-`
-    renameMany(
-      Object.fromEntries(
-        tokens
-          .filter((t) => t.name.startsWith(head) && groupOf(shortName(COLOR, t.name)) === from)
-          .map((t) => [t.name, `${COLOR.prefix}${to}-${t.name.slice(head.length)}`]),
-      ),
+    // 그 목록의 단계 색만 따라간다. 이름이 같은 말로 시작하는 의미 색(primary-hover)은 목록에 속하지 않는다.
+    const moved = Object.fromEntries(
+      tokens
+        .filter((t) => COLOR.matches(t.name) && t.name.startsWith(head) && groupOf(shortName(COLOR, t.name)) === from)
+        .map((t) => [t.name, `${COLOR.prefix}${to}-${t.name.slice(head.length)}`]),
     )
+    if (Object.values(moved).some((name) => tokens.some((t) => t.name === name))) return '같은 이름의 색이 이미 있어요.'
+    renameMany(moved)
     return null
   }
 
@@ -1115,8 +1154,8 @@ export function App() {
     // 한 목록을 통째로 골랐으면(색이 둘 이상) 목록을 복제한다. 같은 목록에 copy가 끼어들지 않고 "이름-copy"라는 새 목록이 생긴다.
     if (movableGroup && selected.length > 1) {
       const head = `${COLOR.prefix}${movableGroup}-`
-      const list = tokens.filter((t) => t.name.startsWith(head) && groupOf(shortName(COLOR, t.name)) === movableGroup)
-      const name = freshName([...colorGroups], `${movableGroup}-copy`)
+      const list = tokens.filter((t) => COLOR.matches(t.name) && t.name.startsWith(head) && groupOf(shortName(COLOR, t.name)) === movableGroup)
+      const name = freshName([...groupTaken], `${movableGroup}-copy`)
       const copies = list.map((t) => ({ name: `${COLOR.prefix}${name}-${t.name.slice(head.length)}`, value: t.value }))
       const at = tokens.indexOf(list.at(-1)!) + 1
       commit([...tokens.slice(0, at), ...copies, ...tokens.slice(at)])
@@ -1333,6 +1372,12 @@ export function App() {
     }
     if (isTyping(e.target) || dialog) return
 
+    // Alt+← / Alt+→: 지나온 자리로 뒤로, 앞으로(브라우저와 같다).
+    if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && (e.code === 'ArrowLeft' || e.code === 'ArrowRight')) {
+      e.preventDefault()
+      return walk(e.code === 'ArrowLeft' ? -1 : 1)
+    }
+
     // Ctrl+Alt+C / V: 속성 복사와 붙여넣기(피그마와 같다).
     if (mod && e.altKey && !e.shiftKey && (e.code === 'KeyC' || e.code === 'KeyV')) {
       e.preventDefault()
@@ -1357,6 +1402,8 @@ export function App() {
       const dir = e.code === 'BracketRight' ? 1 : -1
       // 한 색 목록을 통째로 골랐으면 목록을 위아래로 옮기고, 아니면 고른 값을 묶음 안에서 옮긴다.
       if (movableGroup !== null) moveGroup(movableGroup, dir)
+      // 의미 색은 같은 역할 묶음 안에서만 옮긴다(파일에서 이웃한 다른 묶음의 색과 자리를 바꾸지 않는다).
+      else if (selected.every((n) => ROLE.matches(n))) commitIfMoved(shiftRoles(tokens, selected, dir))
       else commit(shiftTokens(tokens, selected, dir))
     } else if (e.code === 'Tab' && !mod && !e.altKey) {
       if (stepSelection(e.shiftKey ? -1 : 1)) e.preventDefault()
@@ -1419,8 +1466,8 @@ export function App() {
     },
     onReorderGroup: reorderGroup,
     rolesFolded,
-    onMoveRole: (name: string, before: string | null) => commit(moveRole(tokens, name, before)),
-    onMoveRoleGroup: (use: RoleUse, before: RoleUse | null) => commit(moveRoleGroup(tokens, use, before)),
+    onMoveRole: (name: string, before: string | null) => commitIfMoved(moveRole(tokens, name, before)),
+    onMoveRoleGroup: (use: RoleUse, before: RoleUse | null) => commitIfMoved(moveRoleGroup(tokens, use, before)),
     onSelectGroup: (names: string[], additive: boolean, rename: boolean) => {
       setSelectedBoards([])
       select(additive ? [...selected, ...names.filter((n) => !selected.includes(n))] : names)
@@ -1432,6 +1479,25 @@ export function App() {
     ...tokens.filter((t) => COLOR.matches(t.name)).map((t) => groupOf(shortName(COLOR, t.name))),
     ...keptGroups,
   ])
+  /**
+   * 새 목록이나 예외 색의 이름으로 쓸 수 없는 것들. 목록 이름, 색의 이름(의미 색 포함), 그리고 의미 색 이름의 앞머리(text-muted의 text)다.
+   * 의미 색과 단계 색은 이름이 똑같이 --color-로 시작해서, 겹치면 같은 이름의 값이 둘이 되어 저장이 거절된다.
+   */
+  const groupTaken = new Set([
+    ...colorGroups,
+    ...tokens.filter((t) => t.name.startsWith(COLOR.prefix)).flatMap((t) => [t.name.slice(COLOR.prefix.length), groupOf(t.name.slice(COLOR.prefix.length))]),
+  ])
+  groupTaken.delete('')
+  /** 그 이름을 왜 쓸 수 없는지. 화면에 그 이름이 안 보여도(의미 색 text-muted 때문에 text를 못 쓰는 경우) 무엇과 겹치는지 알 수 있게 적는다. */
+  const takenWhy = (name: string) => {
+    if (colorGroups.has(name)) return '같은 이름의 목록이 이미 있어요.'
+    const same = tokens.find((t) => t.name === COLOR.prefix + name)
+    // 이름 뒤에 조사를 붙이지 않는다. 영문 이름은 받침을 알 수 없어 "ink과"처럼 어색해진다.
+    if (same) return ROLE.matches(same.name) ? `같은 이름의 의미 색(${name})이 이미 있어요.` : `같은 이름의 색(${name})이 이미 있어요.`
+    const role = tokens.find((t) => ROLE.matches(t.name) && groupOf(t.name.slice(COLOR.prefix.length)) === name)
+    if (role) return `이 이름으로 시작하는 의미 색(${role.name.slice(COLOR.prefix.length)})이 있어서 쓸 수 없어요.`
+    return '같은 이름이 이미 있어요.'
+  }
   const selectedTokens = tokens.filter((t) => selected.includes(t.name))
   const selectedKinds = selectedTokens.map((t) => ALL_KINDS.find((k) => k.matches(t.name)) ?? null)
   const commonKind = selectedKinds.every((k) => k === selectedKinds[0]) ? (selectedKinds[0] ?? null) : null
@@ -1472,7 +1538,7 @@ export function App() {
     const next = defaultColorOrder(tokens)
     return sameOrder(next) ? null : next
   })()
-  // 의미 색 판은 묶음을 글자, 바탕, 테두리, 버튼 순서로, 묶음 안은 가리키는 색을 기준으로 놓는다(무채색 먼저).
+  // 의미 색 판은 묶음을 글자, 바탕, 테두리, 채움, 상태, 차트 순서로, 묶음 안은 가리키는 색을 기준으로 놓는다(무채색 먼저).
   const rolesSorted = (() => {
     const next = defaultRoleOrder(tokens)
     return sameOrder(next) ? null : next
@@ -1518,35 +1584,6 @@ export function App() {
   const around = surroundings(tokens)
   const baseInk = toHex(around.ink)?.slice(0, 7) ?? '#000000'
   const baseSurface = toHex(around.surface)?.slice(0, 7) ?? '#ffffff'
-  // 견본의 색을 한 번에 바꾸는 조합들. 같은 조합은 한 번만.
-  const roleHex = (t: Token) => toHex(resolveColor(tokens, t.value) ?? '')?.slice(0, 7)
-  const rolesOf = (use: RoleUse) => roleGroups(tokens).find((g) => g.use === use)?.items ?? []
-  // 조합은 넷까지. 서로 조건이 다른 것만 둔다: 높은 대비의 밝은 바탕, 높은 대비의 짙은 바탕, 색이 있는 글자, 낮은 대비.
-  const named = (use: RoleUse) => rolesOf(use).flatMap((t) => ((hex) => (hex ? [{ short: shortName(ROLE, t.name), hex }] : []))(roleHex(t)))
-  const vivid = (hex: string) => hexToLch(hex).c >= 0.08
-  const readable = (hex: string) => hex !== baseInk && contrast(hex, baseSurface) >= 2
-  const everyRole = (['fill', 'border', 'text', 'surface'] as const).flatMap(named)
-  // 색 글자는 하나만. 브랜드 색처럼 쓰이는 이름을 먼저 찾고, 없으면 버튼 역할의 색, 그래도 없으면 아무 선명한 색.
-  const colored = everyRole.filter((r) => vivid(r.hex) && readable(r.hex))
-  const accent =
-    ['primary', 'brand', 'accent', 'selection', 'link'].flatMap((n) => colored.filter((r) => r.short === n))[0] ??
-    colored.find((r) => named('fill').some((f) => f.short === r.short)) ??
-    colored[0]
-  // 옅은 글자도 하나만. 글자 역할의 회색 가운데 기본 바탕에서 가장 옅게 보이는 것. 획이 가는 글꼴은 여기서 먼저 안 읽힌다.
-  const faint = named('text')
-    .filter((r) => !vivid(r.hex) && readable(r.hex))
-    .sort((x, y) => contrast(x.hex, baseSurface) - contrast(y.hex, baseSurface))[0]
-  // 옅은 글자는 완전한 회색이 아니라 파란 기운이 도는 회색이다(oklch 색조 250°, 선명함 0.06). 밝기는 그 회색 그대로라 대비는 낮은 채로다.
-  // 여러 색조를 늘어놓고 견주어 고른 색이다.
-  const faintInk = faint ? lchToHex({ l: hexToLch(faint.hex).l, c: 0.06, h: (250 * Math.PI) / 180 }) : null
-  const samplePairs = [
-    { name: '기본', ink: baseInk, surface: baseSurface },
-    // 짙은 바탕의 밝은 글자는 같은 굵기라도 더 굵고 번져 보인다.
-    { name: '뒤집기', ink: baseSurface, surface: baseInk },
-    // 색은 정해 둔 그대로 쓴다. 글자로는 조금 밝더라도 더 짙은 단계로 바꾸지 않는다.
-    ...(accent ? [{ name: accent.short, ink: accent.hex, surface: baseSurface }] : []),
-    ...(faintInk ? [{ name: '옅은 글자', ink: faintInk, surface: baseSurface }] : []),
-  ].filter((p, i, all) => all.findIndex((q) => q.ink === p.ink && q.surface === p.surface) === i)
   const sampleLook = {
     sizes: tokens
       .filter((t) => SIZE.matches(t.name) && Number.isFinite(px(t.value)))
@@ -1554,7 +1591,6 @@ export function App() {
       .map((t) => ({ size: t.value, line: lineOf(tokens, t.name) ?? suggestLine(t.value) ?? 'normal' })),
     ink: baseInk,
     surface: baseSurface,
-    pairs: samplePairs,
   }
 
   // 색 선택 창 아래에 견본으로 보여 줄, 이 디자인 시스템의 색들. 색상 판처럼 목록마다 한 줄이고, 예외 색은 맨 아래 줄이다.
@@ -1583,6 +1619,8 @@ export function App() {
         saveError={saveError}
         onSelect={openSystem}
         onNew={() => setCreating(true)}
+        onBack={trail.back.length ? () => walk(-1) : undefined}
+        onForward={trail.forward.length ? () => walk(1) : undefined}
       />}
 
       <div className="flex min-h-0 flex-1">
@@ -1774,6 +1812,7 @@ export function App() {
               file={file}
               uses={usesOf(comps, selectedTokens[0].name)}
               onOpenComponent={openComp}
+              onOpenToken={goToken}
               onRename={(to) => renameToken(selectedTokens[0].name, to)}
               onChange={(patch) => commit(tokens.map((t) => (t.name === selectedTokens[0].name ? { ...t, ...patch } : t)))}
               onCopy={(text) => copyText(text, '코드를 복사했어요.')}
@@ -1786,6 +1825,7 @@ export function App() {
               file={file}
               uses={usesOf(comps, selectedTokens[0].name)}
               onOpenComponent={openComp}
+              onOpenToken={goToken}
               onRename={(to) => renameToken(selectedTokens[0].name, to)}
               onChange={(patch) => commit(tokens.map((t) => (t.name === selectedTokens[0].name ? { ...t, ...patch } : t)))}
               onTrack={(value) => commit(withTypeTrack(tokens, selectedTokens[0].name, value))}
@@ -1862,7 +1902,8 @@ export function App() {
         <Modal title="예외 색 추가" onClose={() => setAddingSolo(false)}>
           <NewSoloForm
             // 예외 색의 이름은 다른 예외 색과도, 목록 이름과도 겹치면 안 된다.
-            existing={new Set([...colorGroups, ...tokens.filter((t) => COLOR.matches(t.name)).map((t) => shortName(COLOR, t.name))])}
+            existing={groupTaken}
+            why={takenWhy}
             onCancel={() => setAddingSolo(false)}
             onCreate={addSolo}
           />
@@ -1918,7 +1959,8 @@ export function App() {
       {addingFirst !== null && (
         <Modal title={`${addingFirst}의 첫 색`} onClose={() => setAddingFirst(null)}>
           <NewGroupForm
-            existing={colorGroups}
+            existing={groupTaken}
+            why={takenWhy}
             group={addingFirst}
             onCancel={() => setAddingFirst(null)}
             onCreate={(group, step, value, scale) => {
@@ -1931,7 +1973,7 @@ export function App() {
 
       {addingGroup && (
         <Modal title="색 목록 추가" onClose={() => setAddingGroup(false)}>
-          <NewGroupForm existing={colorGroups} onCancel={() => setAddingGroup(false)} onCreate={addGroup} />
+          <NewGroupForm existing={groupTaken} why={takenWhy} onCancel={() => setAddingGroup(false)} onCreate={addGroup} />
         </Modal>
       )}
 

@@ -5,6 +5,8 @@
 export type Lch = { l: number; c: number; h: number }
 
 const HEX = /^#[0-9a-f]{6}([0-9a-f]{2})?$/i
+/** 줄여 적은 #rgb, #rgba를 #rrggbb, #rrggbbaa로 늘린다. 다른 글자는 그대로 돌려준다. */
+const widen = (text: string) => (/^#[0-9a-f]{3,4}$/i.test(text) ? `#${[...text.slice(1)].map((c) => c + c).join('')}` : text)
 
 const toLinear = (v: number) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)
 const fromLinear = (v: number) => (v <= 0.0031308 ? v * 12.92 : 1.055 * v ** (1 / 2.4) - 0.055)
@@ -70,7 +72,7 @@ type Parsed = { lch: Lch; alpha: number }
 
 /** oklch(…), #rrggbb(aa), rgb(…), hsl(…)을 읽는다. 읽을 수 없는 값(이름으로 된 색, var(…) 등)은 null. */
 function parse(value: string): Parsed | null {
-  const text = value.trim().toLowerCase()
+  const text = widen(value.trim().toLowerCase())
   if (HEX.test(text)) return { lch: hexToLch(text), alpha: text.length === 9 ? parseInt(text.slice(7), 16) / 255 : 1 }
 
   const call = /^(oklch|rgba?|hsla?)\(([^()]+)\)$/.exec(text)
@@ -142,10 +144,10 @@ export function toOklch(value: string): string {
 /** 화면에 보여 줄 글자. 색으로 읽히면 #, 아니면 적힌 그대로. */
 export const showColor = (value: string) => toHex(value) ?? value
 
-/** 사람이 적은 #rrggbb(aa). #을 빼고 적어도 받는다. 색 값이 아니면 null. */
+/** 사람이 적은 #rrggbb(aa). #을 빼고 적어도 받는다. #을 붙여 적은 #rgb(a)도 받는다(#fff → #ffffff). 색 값이 아니면 null. */
 export function asHex(text: string): string | null {
   const t = text.trim().toLowerCase()
-  const hex = t.startsWith('#') ? t : `#${t}`
+  const hex = t.startsWith('#') ? widen(t) : `#${t}`
   return HEX.test(hex) ? hex : null
 }
 

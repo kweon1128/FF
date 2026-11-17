@@ -43,9 +43,7 @@ const SCALE_BUTTON =
 const TRIM = 'block [text-box:trim-both_cap_alphabetic]'
 
 /** 견본을 그릴 때 따르는 이 디자인 시스템의 값들. 글자 크기와 줄 높이(작은 것부터), 기본 글자색과 바탕색. */
-/** 글자색과 바탕색의 한 조합. 견본의 색을 한 번에 바꿀 때 쓴다. */
-export type SamplePair = { name: string; ink: string; surface: string }
-export type SampleLook = { sizes: { size: string; line: string }[]; ink: string; surface: string; pairs?: SamplePair[] }
+export type SampleLook = { sizes: { size: string; line: string }[]; ink: string; surface: string }
 export const SampleContext = createContext<SampleLook>({ sizes: [], ink: '#000000', surface: '#ffffff' })
 
 /** 글자 크기가 아직 하나도 없는 시스템에서 쓰는 크기들. 본문 16px, 단계 사이 보통으로 만든 한 벌이다. */

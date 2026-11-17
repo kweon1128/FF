@@ -1,5 +1,5 @@
 // 의미 색: 실제로 쓰는 색에 쓰임새의 이름을 붙인 것.
-// 파일에는 `--color-primary: var(--color-blue-600); /* 버튼: 가장 중요한 버튼 */`처럼,
+// 파일에는 `--color-primary: var(--color-blue-600); /* 채움: 가장 중요한 버튼 */`처럼,
 // 색상 판의 색 하나를 가리키는 값과 그 뒤의 주석(역할: 설명)으로 적는다.
 
 import type { Token } from './api'
@@ -7,13 +7,23 @@ import { COLOR_REF, groupOf } from './catalog'
 import { toHex, toOklch } from './color'
 
 /** 색이 맡는 역할. 판에 그리는 예시가 이것에 따라 달라진다. */
-export type RoleUse = 'text' | 'surface' | 'border' | 'fill'
+export type RoleUse = 'text' | 'surface' | 'border' | 'fill' | 'status' | 'chart'
 
-export const ROLE_USES: { id: RoleUse; label: string }[] = [
-  { id: 'text', label: '글자' },
-  { id: 'surface', label: '바탕' },
-  { id: 'border', label: '테두리' },
-  { id: 'fill', label: '버튼' },
+/**
+ * 역할의 묶음들. 앞의 넷은 색이 어디에 칠해지는지로 나눈 것이고, 뒤의 둘은 그것으로 나눌 수 없는 색이다.
+ * 상태 색은 뜻이 먼저다. 위험 색 하나가 글자에도 바탕에도 테두리에도 버튼에도 쓰이므로, 칠해지는 곳으로 흩지 않고 한 묶음에 모은다(뜻이 상태면 어디에 칠하든 상태).
+ * 차트 색은 글자도 바탕도 아니고 계열끼리 구분하려고 쓴다.
+ * 채움은 버튼만이 아니라 뱃지, 칩, 토글, 선택 표시처럼 색으로 채우는 것 모두다. 컴포넌트마다 묶음을 나누지 않는다. 같은 색이 버튼에도 켜진 토글에도 쓰여서,
+ * 나누면 같은 색을 가리키는 의미 색이 묶음마다 따로 생긴다. 어느 컴포넌트가 어느 색을 쓰는지는 컴포넌트 화면에서 정한다.
+ * hint는 그 묶음에 드는 것들. 역할을 고르는 칸에 함께 적는다.
+ */
+export const ROLE_USES: { id: RoleUse; label: string; hint: string }[] = [
+  { id: 'text', label: '글자', hint: '본문, 링크, 아이콘' },
+  { id: 'surface', label: '바탕', hint: '화면, 카드, 호버' },
+  { id: 'border', label: '테두리', hint: '구분선, 초점' },
+  { id: 'fill', label: '채움', hint: '버튼, 뱃지, 칩, 토글, 선택' },
+  { id: 'status', label: '상태', hint: '성공, 경고, 위험, 정보' },
+  { id: 'chart', label: '차트', hint: '그래프의 계열' },
 ]
 
 const labelOf = (use: RoleUse) => ROLE_USES.find((u) => u.id === use)!.label
@@ -27,6 +37,9 @@ export const refTo = (name: string) => `var(${name})`
 export function guessUse(short: string): RoleUse {
   const parts = short.split('-')
   const has = (...words: string[]) => parts.some((p) => words.includes(p))
+  // 뜻이 상태면 어디에 칠하든 상태다(text-danger도 상태). 그래서 가장 먼저 본다.
+  if (has('danger', 'error', 'critical', 'negative', 'success', 'positive', 'warning', 'warn', 'caution', 'info', 'notice')) return 'status'
+  if (has('chart', 'series', 'data', 'graph', 'viz')) return 'chart'
   if (has('text', 'fg', 'foreground', 'ink', 'on', 'label', 'heading', 'body', 'link')) return 'text'
   if (has('border', 'line', 'outline', 'divider', 'ring', 'stroke')) return 'border'
   if (has('bg', 'background', 'surface', 'canvas', 'page', 'card', 'panel', 'overlay')) return 'surface'
@@ -36,8 +49,9 @@ export function guessUse(short: string): RoleUse {
 /** 주석에서 역할과 설명을 읽는다. "글자: 본문 글자"처럼 역할로 시작하지 않으면 주석 전체가 설명이고 역할은 이름에서 짐작한다. */
 export function readNote(note: string | undefined, short: string): { use: RoleUse; text: string } {
   const all = (note ?? '').trim()
-  const m = /^(글자|바탕|테두리|버튼)\s*(?::\s*(.*))?$/.exec(all)
-  const use = m && ROLE_USES.find((u) => u.label === m[1])
+  // "버튼"은 "채움"의 예전 이름이다. 예전에 적어 둔 주석도 그대로 읽는다(다음에 역할이나 설명을 고칠 때 채움으로 적힌다).
+  const m = /^(글자|바탕|테두리|버튼|채움|상태|차트)\s*(?::\s*(.*))?$/.exec(all)
+  const use = m && ROLE_USES.find((u) => u.label === (m[1] === '버튼' ? '채움' : m[1]))
   return use ? { use: use.id, text: (m[2] ?? '').trim() } : { use: guessUse(short), text: all }
 }
 
@@ -133,6 +147,21 @@ export function moveRole(tokens: Token[], name: string, before: string | null): 
   return place(tokens, groups)
 }
 
+/** 고른 의미 색들을 같은 묶음 안에서 한 칸 뒤(1)나 앞(-1)으로 옮긴다. 묶음의 끝에 닿으면 그대로 둔다. */
+export function shiftRoles(tokens: Token[], names: string[], dir: 1 | -1): Token[] {
+  const groups = roleGroups(tokens)
+  for (const g of groups) {
+    const order = g.items.map((_, i) => i).filter((i) => names.includes(g.items[i].name))
+    if (dir === 1) order.reverse()
+    for (const i of order) {
+      const j = i + dir
+      if (j < 0 || j >= g.items.length || names.includes(g.items[j].name)) continue
+      ;[g.items[i], g.items[j]] = [g.items[j], g.items[i]]
+    }
+  }
+  return place(tokens, groups)
+}
+
 /** oklch(밝기 선명함 색조)에서 밝기와 선명함을 읽는다. 색이 아니면 null. */
 function lightChroma(value: string): { l: number; c: number } | null {
   const hex = toHex(value)
@@ -145,7 +174,7 @@ const NEUTRAL_CHROMA = 0.04
 
 /**
  * 판 안의 순서를 기본으로 돌려놓는다.
- * 묶음은 글자, 바탕, 테두리, 버튼 순서. 묶음 안에서는 무채색(회색·검정·흰색)을 가리키는 색을 먼저, 색깔 있는 것을 뒤에 둔다.
+ * 묶음은 글자, 바탕, 테두리, 채움, 상태, 차트 순서. 묶음 안에서는 무채색(회색·검정·흰색)을 가리키는 색을 먼저, 색깔 있는 것을 뒤에 둔다.
  * 글자·테두리·버튼은 진한 것부터, 바탕은 밝은 것부터 놓는다. 색깔 있는 것은 색상 판의 목록 순서를 따르고, 같은 목록 안에서는 같은 밝기 규칙을 쓴다.
  * 가리키는 색이 없는 것은 맨 뒤에 둔다. 조건이 같으면 지금 순서 그대로다.
  */

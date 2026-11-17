@@ -168,7 +168,9 @@ export function cellStyle(comp: Comp, cell: Cell, tokens: Token[]): CSSPropertie
     // 굵기만 정하고 색을 비운 종류는 투명한 테두리를 둬서, 테두리가 있는 종류와 크기가 같게 한다.
     border: width ? `${width} solid ${border ?? 'transparent'}` : undefined,
     borderRadius: value(comp.radius),
-    ...(look ? { fontFamily: look.family, fontWeight: look.weight, fontSize: look.size, lineHeight: look.line ?? lineFallback(look.size), letterSpacing: look.track } : {}),
+    // 의미 글꼴이 가리키는 값이 하나라도 없어졌으면 글자의 모습을 비운다. 코드에서 font: var(--type-이름)이 통째로 무효가 되는 것과 같다.
+    ...(look && look.broken ? { letterSpacing: look.track } : {}),
+    ...(look && !look.broken ? { fontFamily: look.family, fontWeight: look.weight, fontSize: look.size, lineHeight: look.line ?? lineFallback(look.size), letterSpacing: look.track } : {}),
     ...(look ? {} : {
     fontFamily: value(comp.font),
     fontWeight: value(comp.weight),

@@ -48,12 +48,15 @@ function drawnWeight(value: string, want: number) {
 function StepWeight({ name, rule, custom, onChange }: { name: string; rule: number; custom: number | null; onChange: (weight: number | null) => void }) {
   // 적는 중인 글자. 5를 거쳐 550을 적는 동안처럼 아직 값이 되지 못한 것도 칸에는 그대로 보여야 한다.
   const [draft, setDraft] = useState<string | null>(null)
+  // 받을 수 없는 값(100 미만, 900 초과)을 적는 동안은 칸을 빨갛게 한다. 글자 크기 창의 칸들과 같다.
+  const bad = !!draft && (Number(draft) < WEIGHT_MIN || Number(draft) > WEIGHT_MAX)
   return (
     <input
       aria-label={`${name} 굵기`}
+      aria-invalid={bad || undefined}
       inputMode="numeric"
       title={custom === null ? '숫자를 고치면 이 단계의 굵기를 직접 정해요' : `직접 정한 굵기예요. 비우면 정해 둔 값(${rule})으로 돌아가요`}
-      className={`h-6 w-12 shrink-0 rounded-sm border border-hairline bg-canvas text-center font-mono text-xs outline-none placeholder:text-ink-faint/50 hover:border-ink-faint focus:border-selection ${
+      className={`h-6 w-12 shrink-0 rounded-sm border bg-canvas text-center ${bad ? 'border-danger' : 'border-hairline hover:border-ink-faint focus:border-selection'} font-mono text-xs outline-none placeholder:text-ink-faint/50 ${
         custom !== null ? 'font-bold text-ink' : 'text-ink-soft'
       }`}
       value={draft ?? String(custom ?? rule)}

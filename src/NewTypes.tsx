@@ -30,7 +30,7 @@ type Row = { key: string; on: boolean; name: string; note: string; parts: TypePa
  * 어느 묶음에도 없는 것은 맨 아래 "그 밖"에 모인다.
  */
 const GROUPS: [label: string, keys: string[]][] = [
-  ['제목', ['display-lg', 'display', 'title-lg', 'title-md', 'title-sm']],
+  ['제목', ['display-xl', 'display-lg', 'display', 'title-lg', 'title-md', 'title-sm']],
   ['본문', ['body-lg', 'body', 'body-strong', 'body-sm', 'quote']],
   ['보조', ['caption', 'overline', 'label']],
   ['버튼', ['button-lg', 'button', 'button-sm']],
@@ -95,10 +95,11 @@ export function NewTypesForm({
 }) {
   // 처음 열었을 때의 후보들. "원래대로"가 돌아갈 곳이다.
   const [first] = useState<Row[]>(() =>
-    typeCandidates(tokens).map(({ token, track }) => ({
+    typeCandidates(tokens).map(({ on, token, track }) => ({
       key: shortName(STYLE, token.name),
-      // 처음에는 모든 후보가 켜져 있다. 다 놓인 화면을 먼저 보고 안 쓸 것을 끄는 쪽이, 흐린 것들 사이에서 쓸 것을 찾아 켜는 쪽보다 쉽다.
-      on: true,
+      // 처음에는 자주 쓰는 것(제목 셋, 본문, 본문 강조, 보조 설명, 이름표, 버튼)과 내세우는 자리들이 켜져 있다. 이것들만으로 판에 있는 크기가 모두 쓰인다.
+      // 나머지는 서비스에 따라 쓰는 것이라 화면을 보고 켠다.
+      on,
       name: shortName(STYLE, token.name),
       note: token.note ?? '',
       parts: readType(token.value)!,

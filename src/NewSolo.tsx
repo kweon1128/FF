@@ -13,11 +13,14 @@ const FALLBACK = '#868686'
 /** 단계 목록에 속하지 않는 예외 색(white, black 등)을 만드는 양식. 이름과 색을 정한다. */
 export function NewSoloForm({
   existing,
+  why,
   onCreate,
   onCancel,
 }: {
   /** 이미 있는 예외 색의 이름과 목록 이름들. */
   existing: Set<string>
+  /** 그 이름을 왜 쓸 수 없는지. 무엇과 겹치는지를 알려 준다. */
+  why?: (name: string) => string
   onCreate: (name: string, color: string) => void
   onCancel: () => void
 }) {
@@ -36,7 +39,7 @@ export function NewSoloForm({
     const n = name.trim()
     if (!n) next.name = '이름을 입력해 주세요.'
     else if (!NAME.test(n)) next.name = '영문 소문자와 숫자만 쓸 수 있어요.'
-    else if (existing.has(n)) next.name = '같은 이름이 이미 있어요.'
+    else if (existing.has(n)) next.name = why?.(n) ?? '같은 이름이 이미 있어요.'
     if (color.trim() && !typed) next.color = '#rrggbb로 적어 주세요.'
     setError(next)
     if (Object.keys(next).length === 0) onCreate(n, typed ?? suggested)

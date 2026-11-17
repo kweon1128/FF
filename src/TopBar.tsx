@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Check, ChevronDown, Folder, Plus } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, ChevronDown, Folder, Plus } from 'lucide-react'
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
@@ -10,6 +10,8 @@ export function TopBar({
   saveError,
   onSelect,
   onNew,
+  onBack,
+  onForward,
 }: {
   systems: string[]
   current: string | null
@@ -17,11 +19,15 @@ export function TopBar({
   saveError: string | null
   onSelect: (name: string) => void
   onNew: () => void
+  /** 지나온 자리로 돌아간다. 돌아갈 곳이 없으면 주지 않는다(버튼이 꺼진다). */
+  onBack?: () => void
+  onForward?: () => void
 }) {
   const [open, setOpen] = useState(false)
 
   return (
     <header className="flex h-11 shrink-0 items-center justify-between border-b border-hairline px-3">
+      <div className="flex items-center gap-1">
       <div className="relative">
         <button
           type="button"
@@ -72,6 +78,24 @@ export function TopBar({
             </div>
           </>
         )}
+      </div>
+        {/* 뒤로와 앞으로. "쓰이는 곳"이나 찾기로 건너뛴 뒤에, 떠나온 자리로 돌아가거나 다시 간다. 갈 곳이 없으면 꺼져 있다. 두 버튼의 바탕이 닿지 않게 4px 띄운다. */}
+        {[
+          { run: onBack, label: '뒤로', keys: 'Alt+←', Icon: ArrowLeft },
+          { run: onForward, label: '앞으로', keys: 'Alt+→', Icon: ArrowRight },
+        ].map(({ run, label, keys, Icon }) => (
+          <button
+            key={label}
+            type="button"
+            aria-label={label}
+            title={`${label} (${keys})`}
+            disabled={!run}
+            onClick={run}
+            className="flex size-8 items-center justify-center rounded-md text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2 disabled:pointer-events-none disabled:opacity-30"
+          >
+            <Icon size={16} strokeWidth={1.5} />
+          </button>
+        ))}
       </div>
 
       <span className="text-xs" role="status">

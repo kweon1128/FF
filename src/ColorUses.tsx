@@ -1,14 +1,17 @@
 // 색이 쓰인 모습. 색을 고민하는 순간에, 이 색이 실제 화면에서 어떻게 보일지를 작은 견본으로 바로 보여 준다.
-// 밝은 바탕 위의 버튼·글자·테두리·옅은 배경, 그리고 어두운 바탕 위의 버튼과 글자.
+// 버튼·글자·테두리·옅은 배경을 카드 하나에 놓는다. 바탕은 밝은 것이 기본이고, 카드 오른쪽 위의 버튼으로 어두운 바탕으로 바꿔 본다.
 // 이 안은 사용자의 색을 보여 주는 미리보기 틀이라, FF 도구의 흑백 규칙을 따르지 않는다.
 
 import { createContext, useContext, useState, type CSSProperties } from 'react'
+import { Moon, Sun } from 'lucide-react'
 import { contrast } from './lib/color'
 import { SCALE_STEPS, makeScale, nearestStep } from './lib/scale'
 
 /** 견본에 쓰는 바탕과 글자. 밝은 쪽은 흰 바탕에 거의 검은 글자, 어두운 쪽은 그 반대. */
 export const LIGHT = { surface: '#ffffff', ink: '#1a1a1a' }
 export const DARK = { surface: '#18181b', ink: '#f4f4f5' }
+/** 견본의 바탕을 어둡게 해 두었는지를 브라우저에 기억하는 이름. 패널과 색 선택 창이 함께 쓴다. */
+const DARK_KEY = 'ff.usesDark'
 /** 비활성 버튼은 이 색을 이만큼만 진하게 보여 준다. */
 const DISABLED_OPACITY = 0.4
 
@@ -83,23 +86,48 @@ export function ColorUses({ color, step, compact = false }: { color: string; ste
     color,
   })
 
-  // 밝은 바탕과 어두운 바탕에 똑같은 구성을 놓는다. 같은 자리끼리 견주어 볼 수 있다.
-  // 다른 것은 바탕과 글자색, 그리고 옅은 배경에 색을 섞는 양뿐이다(어두운 바탕에서는 더 많이 섞어야 보인다).
-  const surfaces = [
-    { ...LIGHT, mix: 12, edge: 'shadow-[inset_0_0_0_1px_rgb(0_0_0/0.1)]' },
-    { ...DARK, mix: 24, edge: '' },
-  ]
+  // 카드는 하나다. 밝은 바탕과 어두운 바탕을 위아래로 다 늘어놓으면 패널의 절반을 차지해서, 값을 고치러 온 패널에서 견본이 주인공이 된다.
+  // 바탕은 카드 오른쪽 위의 버튼으로 바꾸고, 고른 쪽을 기억한다. 두 바탕의 구성은 똑같고, 다른 것은 바탕과 글자색, 옅은 배경에 색을 섞는 양뿐이다(어두운 바탕에서는 더 많이 섞어야 보인다).
+  const [dark, setDark] = useState(() => {
+    try {
+      return localStorage.getItem(DARK_KEY) === '1'
+    } catch {
+      return false
+    }
+  })
+  function toggleDark() {
+    setDark(!dark)
+    try {
+      localStorage.setItem(DARK_KEY, dark ? '0' : '1')
+    } catch {
+      // 기억하지 못해도 바꿔 보는 데는 문제가 없다.
+    }
+  }
+  const s = dark ? { ...DARK, mix: 24, edge: '' } : { ...LIGHT, mix: 12, edge: 'shadow-[inset_0_0_0_1px_rgb(0_0_0/0.1)]' }
+  const Icon = dark ? Sun : Moon
 
   return (
-    <div className={gap} style={{ fontFamily: font }}>
-      {surfaces.map((s) => (
-        <div key={s.surface} className={`${gap} ${pad} rounded-md ${s.edge}`} style={{ background: s.surface }}>
-          <div className="flex flex-wrap gap-2">
+    <div style={{ fontFamily: font }}>
+      {[s].map((s) => (
+        <div key={s.surface} data-uses={dark ? 'dark' : 'light'} className={`${gap} ${pad} rounded-md ${s.edge}`} style={{ background: s.surface }}>
+          <div className="flex flex-wrap items-center gap-2">
             <LiveButton color={color} hover={hover} pressed={pressed} />
             {/* 비활성: 같은 색을 흐리게. 쓸 수 없는 상태에서도 색이 남는지, 너무 사라지는지 본다. */}
             <span className={BUTTON} style={{ background: color, color: inkOn(color), opacity: DISABLED_OPACITY }}>
               <span className={TRIM}>비활성</span>
             </span>
+            {/* 바탕 바꾸기. 글자색은 지금 바탕의 글자색을 따라서 어느 바탕에서나 보인다. */}
+            <button
+              type="button"
+              aria-pressed={dark}
+              aria-label={dark ? '밝은 바탕으로 보기' : '어두운 바탕으로 보기'}
+              title={dark ? '밝은 바탕으로 보기' : '어두운 바탕으로 보기'}
+              onClick={toggleDark}
+              className="ml-auto flex size-7 shrink-0 items-center justify-center rounded-md opacity-60 outline-selection hover:opacity-100 focus-visible:outline-2"
+              style={{ color: s.ink }}
+            >
+              <Icon size={16} strokeWidth={1.5} />
+            </button>
           </div>
           {/* 같은 색이어도 글자가 작아지면 덜 읽힌다. 큰 글자와 작은 글자를 함께 본다. */}
           <div style={{ color }}>
