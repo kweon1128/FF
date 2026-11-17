@@ -1,12 +1,12 @@
 // 의미 간격 판의 내용. 쓰임마다 이름과 가리키는 간격, 설명, 예시를 보여 준다.
 
-import { useContext, useState, type FormEvent, type ReactNode } from 'react'
+import { useContext, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import { Copy } from 'lucide-react'
 import type { Token } from './lib/api'
 import { KINDS, SLUG, SPACE_REF, shortName, type Kind } from './lib/catalog'
 import { surroundings, type Around } from './lib/roles'
 import { SPACE_USES, SPACE_WORDS, guessSpaceUse, isSpaceListShape, readSpaceNote, writeSpaceNote, type SpaceShape, type SpaceUse } from './lib/spacing'
-import { PreviewFontContext } from './ColorUses'
+import { PreviewFontContext, PreviewSpaceContext } from './ColorUses'
 import { CODE_OPEN, FoldSection, ICON_BUTTON, Section, WHERE_OPEN } from './Inspector'
 import { HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
 import { Button, Chip, Field, Phrases, UsePicker, inputClass } from './ui'
@@ -25,6 +25,7 @@ const MARK = 'color-mix(in oklab, var(--color-guide) 30%, transparent)'
  */
 export function SpaceSample({ shape, value, around, words: written = '' }: { shape: SpaceShape; value: string; around: Around; words?: string }) {
   const font = useContext(PreviewFontContext)
+  const space = useContext(PreviewSpaceContext)
   const all = written || SPACE_WORDS[shape]
   const list = isSpaceListShape(shape)
     ? all
@@ -50,17 +51,17 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
     </span>
   )
   const outline = (round: string) => <span className={`pointer-events-none absolute inset-0 border ${round}`} style={{ borderColor: line }} />
-  const bar = (width: string) => <span className={`mt-2 block h-2 rounded-sm ${width}`} style={{ background: faint }} />
+  const bar = (width: string) => <span className={`mt-blocks block h-2 rounded-sm ${width}`} style={{ background: faint }} />
   // 내용은 상자의 가운데에 놓는다(효과 판의 예시와 같다).
   const frame = (body: ReactNode) => (
-    <span className={`flex w-full items-center justify-center overflow-hidden rounded-md px-3 py-3 ${EDGE}`} style={{ background: around.surface, color: around.ink, fontFamily: font }}>
+    <span className={`flex w-full items-center justify-center overflow-hidden rounded-md px-board-row py-board-row ${EDGE}`} style={{ ...space, background: around.surface, color: around.ink, fontFamily: font }}>
       {body}
     </span>
   )
   // 버튼 하나. 나란히 놓인 버튼의 마지막은 채운 버튼이다(취소, 추가처럼 끝의 것이 주된 동작이다).
   const chip = (text: string, filled = false) => (
     <span
-      className={`flex h-7 items-center rounded-md px-2 font-[550] whitespace-nowrap ${TEXT}`}
+      className={`flex h-7 items-center rounded-md px-button-x font-[550] whitespace-nowrap ${TEXT}`}
       style={filled ? { background: around.ink, color: around.surface } : { boxShadow: `inset 0 0 0 1px ${line}` }}
     >
       {text}
@@ -70,7 +71,7 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
   // 이름표(입력칸 위의 작은 글자)와 입력칸. 입력칸의 값이 없으면 빈 칸이다.
   const tag = (text: string) => <span className={`block font-[550] ${TEXT}`} style={{ color: soft }}>{text}</span>
   const box = (text = '') => (
-    <span className={`flex h-7 w-40 max-w-full items-center rounded-md px-2 whitespace-nowrap ${TEXT}`} style={{ boxShadow: `inset 0 0 0 1px ${line}` }}>
+    <span className={`flex h-7 w-40 max-w-full items-center rounded-md px-input-x whitespace-nowrap ${TEXT}`} style={{ boxShadow: `inset 0 0 0 1px ${line}` }}>
       {text}
     </span>
   )
@@ -102,7 +103,7 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
           {list.map((text, i) => (
             <span key={i} className="block">
               {i > 0 && wide}
-              <span className={`flex h-7 items-center rounded-md px-2 whitespace-nowrap ${TEXT}`} style={i === 0 ? { background: `color-mix(in oklab, ${around.ink} 6%, ${around.surface})` } : undefined}>
+              <span className={`flex h-7 items-center rounded-md px-row-x whitespace-nowrap ${TEXT}`} style={i === 0 ? { background: `color-mix(in oklab, ${around.ink} 6%, ${around.surface})` } : undefined}>
                 {text}
               </span>
             </span>
@@ -117,7 +118,7 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
             <span key={i} className="block">
               {i > 0 && wide}
               {tag(text)}
-              <span className="mt-1 block">{box()}</span>
+              <span className="mt-label block">{box()}</span>
             </span>
           ))}
         </span>,
@@ -130,7 +131,7 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
             <span key={i} className="block">
               {i > 0 && wide}
               <span className={`block font-[550] ${TEXT}`}>{text}</span>
-              <span className="mt-2 block rounded-md px-2 py-2" style={{ boxShadow: `inset 0 0 0 1px ${faint}` }}>
+              <span className="mt-title block rounded-md px-blocks py-blocks" style={{ boxShadow: `inset 0 0 0 1px ${faint}` }}>
                 <span className="block h-2 w-24 rounded-sm" style={{ background: faint }} />
               </span>
             </span>
@@ -140,7 +141,7 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
     case 'icon':
       // 테두리 버튼 안의 아이콘(네모로 자리만 그린다)과 글자 사이.
       return frame(
-        <span className={`relative inline-flex h-7 items-stretch px-2 font-[550] whitespace-nowrap ${TEXT}`}>
+        <span className={`relative inline-flex h-7 items-stretch px-button-x font-[550] whitespace-nowrap ${TEXT}`}>
           <span className="flex items-center">
             <span className="block size-4 rounded-sm" style={{ background: soft }} />
           </span>
@@ -193,9 +194,9 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
         return frame(
           <span className="relative inline-flex max-w-full items-stretch">
             {tall}
-            <span className="block py-3">
+            <span className="block py-section-y">
               <span className={`block font-[550] ${TEXT}`}>{all}</span>
-              <span className="mt-2 block">{box()}</span>
+              <span className="mt-title block">{box()}</span>
             </span>
             {tall}
             {outline('rounded-lg')}
@@ -211,7 +212,7 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
           <span className={`${strip} -inset-x-[2000px] bottom-0`} style={{ height: value, background: MARK }} />
           <span className="relative block">
             {content}
-            <span className="mt-4 flex justify-end gap-2">
+            <span className="mt-dialog-actions flex justify-end gap-actions">
               <span className="block h-6 w-12 rounded-md" style={{ boxShadow: `inset 0 0 0 1px ${line}` }} />
               <span className="block h-6 w-12 rounded-md" style={{ background: around.ink }} />
             </span>
@@ -227,6 +228,17 @@ const SPACE = KINDS.space
 
 /** 의미 간격이 가리키는 토대 간격의 변수 이름. 가리키지 않으면 null. */
 export const spaceRefOf = (value: string) => SPACE_REF.exec(value.trim())?.[1] ?? null
+
+/** 그림에 깔아 줄 간격 변수들. 토대는 적힌 길이 그대로, 의미 간격은 가리키는 토대의 길이로 풀어서 넣는다(가리키는 값이 없어진 것은 뺀다). */
+export function spaceVars(tokens: Token[]): CSSProperties {
+  const vars: Record<string, string> = {}
+  for (const t of tokens) {
+    if (!t.name.startsWith(SPACE.prefix)) continue
+    const length = spaceRefOf(t.value) ? resolveSpace(tokens, t.value) : t.value
+    if (length) vars[t.name] = length
+  }
+  return vars as CSSProperties
+}
 
 /** 의미 간격의 실제 길이(가리키는 토대 간격의 값). 가리키는 값이 없어졌으면 null. */
 export function resolveSpace(tokens: Token[], value: string): string | null {

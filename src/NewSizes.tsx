@@ -1,6 +1,6 @@
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Check as CheckIcon, Minus, Plus, RotateCcw } from 'lucide-react'
-import { PreviewFontContext } from './ColorUses'
+import { PreviewFontContext, PreviewSpaceContext } from './ColorUses'
 import { shownFont } from './lib/fonts'
 import { BASE_MAX, BASE_MIN, SPREAD_START, SPREAD_STEPS, UPS_MAX, UPS_MIN, UPS_START, baseLineRange, lineFor, sizeScale, trackFor, type SizeStep } from './lib/presets'
 import { SetNotice, StepName, nameProblem } from './StepName'
@@ -143,72 +143,72 @@ function pageRows(ups: number): PageRow[] {
     return [
       soft('xs', '설정 › 알림'),
       strong('xl', '알림 설정'),
-      body('어떤 일이 있을 때 알림을 받을지 정합니다. 바꾼 내용은 바로 적용됩니다.', 'mt-2'),
-      strong('lg', '이메일', 'mt-6'),
-      body('새 주문이 들어오면 바로 알려 드립니다. 주문이 많은 날에는 한 시간마다 모아서 보냅니다.', 'mt-2'),
-      soft('sm', '받는 주소는 계정 설정에서 바꿀 수 있습니다.', 'mt-2'),
-      strong('lg', '문자', 'mt-4'),
-      body('배송이 하루 넘게 늦어질 때만 보냅니다.', 'mt-2'),
-      soft('sm', '밤 9시부터 아침 8시까지는 보내지 않습니다.', 'mt-2'),
-      soft('xs', '마지막으로 바꾼 날 · 2025년 4월 12일', 'mt-6'),
+      body('어떤 일이 있을 때 알림을 받을지 정합니다. 바꾼 내용은 바로 적용됩니다.', 'mt-blocks'),
+      strong('lg', '이메일', 'mt-groups'),
+      body('새 주문이 들어오면 바로 알려 드립니다. 주문이 많은 날에는 한 시간마다 모아서 보냅니다.', 'mt-blocks'),
+      soft('sm', '받는 주소는 계정 설정에서 바꿀 수 있습니다.', 'mt-blocks'),
+      strong('lg', '문자', 'mt-settings'),
+      body('배송이 하루 넘게 늦어질 때만 보냅니다.', 'mt-blocks'),
+      soft('sm', '밤 9시부터 아침 8시까지는 보내지 않습니다.', 'mt-blocks'),
+      soft('xs', '마지막으로 바꾼 날 · 2025년 4월 12일', 'mt-groups'),
     ]
   // 6단계: 주문 상세.
   if (ups === 3)
     return [
       soft('xs', '주문 › ORD-0412-0087'),
       strong('2xl', '주문 상세'),
-      soft('lg', '4월 12일 오전에 들어온 주문입니다.', 'mt-2'),
-      strong('xl', '배송 정보', 'mt-6'),
-      body('서울 마포구 월드컵북로 21, 3층. 받는 분은 김하늘 님이고 오늘 오후에 출고합니다.', 'mt-2'),
-      soft('sm', '문 앞에 놓아 주세요.', 'mt-2'),
-      strong('xl', '주문한 상품', 'mt-6'),
-      strong('lg', '한라봉 선물세트', 'mt-2'),
-      body('3kg 상자 둘, 모두 38,000원입니다.', 'mt-2'),
-      soft('sm', '선물 포장을 함께 신청했습니다.', 'mt-2'),
-      soft('xs', '2분 전에 바뀜', 'mt-6'),
+      soft('lg', '4월 12일 오전에 들어온 주문입니다.', 'mt-blocks'),
+      strong('xl', '배송 정보', 'mt-groups'),
+      body('서울 마포구 월드컵북로 21, 3층. 받는 분은 김하늘 님이고 오늘 오후에 출고합니다.', 'mt-blocks'),
+      soft('sm', '문 앞에 놓아 주세요.', 'mt-blocks'),
+      strong('xl', '주문한 상품', 'mt-groups'),
+      strong('lg', '한라봉 선물세트', 'mt-blocks'),
+      body('3kg 상자 둘, 모두 38,000원입니다.', 'mt-blocks'),
+      soft('sm', '선물 포장을 함께 신청했습니다.', 'mt-blocks'),
+      soft('xs', '2분 전에 바뀜', 'mt-groups'),
     ]
   // 7단계: 공지 글.
   if (ups === 4)
     return [
       soft('xs', '공지 · 2025년 4월 12일'),
       strong('2xl', '배송이 더 빨라집니다'),
-      soft('lg', '오후 2시 전에 주문하면 그날 바로 보내 드립니다.', 'mt-2'),
-      soft('xs', '주문부터 도착까지', 'mt-6'),
+      soft('lg', '오후 2시 전에 주문하면 그날 바로 보내 드립니다.', 'mt-blocks'),
+      soft('xs', '주문부터 도착까지', 'mt-groups'),
       strong('3xl', '평균 1.2일'),
-      strong('xl', '달라지는 점', 'mt-6'),
-      body('지금까지는 주문한 다음 날 출고했지만, 이제 오후 2시 전에 들어온 주문은 당일에 포장해서 보냅니다. 수도권은 다음 날, 그 밖의 지역은 이틀 안에 받아 보실 수 있습니다.', 'mt-2'),
-      strong('lg', '당일 출고', 'mt-4'),
-      body('평일 오후 2시 전 주문이 대상입니다. 주말과 공휴일 주문은 다음 평일에 출고합니다.', 'mt-2'),
-      soft('sm', '제주와 도서 지역은 하루 더 걸릴 수 있습니다.', 'mt-2'),
+      strong('xl', '달라지는 점', 'mt-groups'),
+      body('지금까지는 주문한 다음 날 출고했지만, 이제 오후 2시 전에 들어온 주문은 당일에 포장해서 보냅니다. 수도권은 다음 날, 그 밖의 지역은 이틀 안에 받아 보실 수 있습니다.', 'mt-blocks'),
+      strong('lg', '당일 출고', 'mt-settings'),
+      body('평일 오후 2시 전 주문이 대상입니다. 주말과 공휴일 주문은 다음 평일에 출고합니다.', 'mt-blocks'),
+      soft('sm', '제주와 도서 지역은 하루 더 걸릴 수 있습니다.', 'mt-blocks'),
     ]
   // 8단계: 요약 화면.
   if (ups === 5)
     return [
       soft('xs', '요약 · 2025년 4월'),
       strong('2xl', '이번 달 요약'),
-      soft('lg', '지난달보다 주문이 12% 늘었습니다.', 'mt-2'),
-      soft('xs', '매출', 'mt-6'),
+      soft('lg', '지난달보다 주문이 12% 늘었습니다.', 'mt-blocks'),
+      soft('xs', '매출', 'mt-groups'),
       strong('4xl', '1,248만 원'),
-      soft('xs', '주문', 'mt-4'),
+      soft('xs', '주문', 'mt-settings'),
       strong('3xl', '318건'),
-      strong('xl', '많이 팔린 상품', 'mt-6'),
-      strong('lg', '한라봉 선물세트', 'mt-2'),
-      body('142상자가 나갔고 전체 주문의 45%입니다. 선물 포장을 함께 신청한 주문이 절반을 넘습니다.', 'mt-2'),
-      soft('sm', '반품과 취소는 뺀 숫자입니다.', 'mt-2'),
+      strong('xl', '많이 팔린 상품', 'mt-groups'),
+      strong('lg', '한라봉 선물세트', 'mt-blocks'),
+      body('142상자가 나갔고 전체 주문의 45%입니다. 선물 포장을 함께 신청한 주문이 절반을 넘습니다.', 'mt-blocks'),
+      soft('sm', '반품과 취소는 뺀 숫자입니다.', 'mt-blocks'),
     ]
   // 9단계: 소개 페이지.
   return [
     soft('xs', '제주에서 바로 보냅니다'),
     strong('5xl', '오늘 주문, 오늘 출발'),
-    soft('lg', '오후 2시 전에 주문하면 그날 바로 보내 드립니다.', 'mt-2'),
-    soft('xs', '당일에 출고한 주문', 'mt-6'),
+    soft('lg', '오후 2시 전에 주문하면 그날 바로 보내 드립니다.', 'mt-blocks'),
+    soft('xs', '당일에 출고한 주문', 'mt-groups'),
     strong('4xl', '98%'),
-    soft('xs', '주문부터 도착까지 평균', 'mt-4'),
+    soft('xs', '주문부터 도착까지 평균', 'mt-settings'),
     strong('3xl', '1.2일'),
-    strong('2xl', '왜 빠른가요', 'mt-6'),
-    strong('xl', '아침에 따서 오후에 보냅니다', 'mt-4'),
-    body('농장 옆에 포장하는 곳이 있어서 창고를 거치지 않습니다. 수도권은 다음 날, 그 밖의 지역은 이틀 안에 받아 보실 수 있습니다.', 'mt-2'),
-    soft('sm', '제주와 도서 지역은 하루 더 걸릴 수 있습니다.', 'mt-2'),
+    strong('2xl', '왜 빠른가요', 'mt-groups'),
+    strong('xl', '아침에 따서 오후에 보냅니다', 'mt-settings'),
+    body('농장 옆에 포장하는 곳이 있어서 창고를 거치지 않습니다. 수도권은 다음 날, 그 밖의 지역은 이틀 안에 받아 보실 수 있습니다.', 'mt-blocks'),
+    soft('sm', '제주와 도서 지역은 하루 더 걸릴 수 있습니다.', 'mt-blocks'),
   ]
 }
 
@@ -356,6 +356,7 @@ export function NewSizesForm({
   onCancel: () => void
 }) {
   const firstFont = useContext(PreviewFontContext)
+  const previewSpace = useContext(PreviewSpaceContext)
   // 견본을 그릴 글꼴 종류. 처음에는 첫 번째 것이다.
   const [fontName, setFontName] = useState(fonts[0]?.name ?? null)
   const font = fonts.find((f) => f.name === fontName)?.value ?? firstFont
@@ -786,7 +787,7 @@ export function NewSizesForm({
                         className={`inline-flex items-center outline-offset-2 outline-selection ${hot === size ? 'outline-1' : ''} ${cell.box}`}
                         style={{ fontFamily: font, fontSize: step.size, lineHeight: step.line, letterSpacing: step.track ?? undefined, fontWeight: kind.weight, height: parseFloat(step.line) + cell.pad * 2, paddingInline: Math.round(((parseFloat(step.line) + cell.pad * 2) * kind.side) / 2) * 2 }}
                       >
-                        {kind.icon && <CheckIcon size={size === 'xs' ? 14 : 16} strokeWidth={2} className="mr-1 shrink-0" />}
+                        {kind.icon && <CheckIcon size={size === 'xs' ? 14 : 16} strokeWidth={2} className="mr-button-icon shrink-0" />}
                         {/* 글자의 자리는 손대지 않는다. 컴포넌트로 내보낼 때와 같이 줄 상자를 상자 가운데에 놓을 뿐이라, 아래에 적는 숫자가 실제 결과물의 것이다. */}
                         <span data-ex={`${kind.id}:${size}`}>{kind.text}</span>
                       </span>
@@ -811,7 +812,7 @@ export function NewSizesForm({
           창이 넓으면(1700px 이상) 표의 오른쪽에, 좁으면 표의 아래에 놓인다.
           이 안은 사용자의 글꼴을 보여 주는 미리보기라, FF 도구의 글자 규칙을 따르지 않는다. */}
       <div data-screen className="w-full shrink-0 rounded-md border border-hairline bg-canvas text-ink min-[1700px]:min-h-0 min-[1700px]:w-[560px] min-[1700px]:overflow-y-auto">
-        <div className="p-board">
+        <div className="p-board" style={previewSpace}>
           {pageRows(upCount).map((row, i) => {
             const stepName = row.step
             const s = steps.find((x) => x.name === stepName)

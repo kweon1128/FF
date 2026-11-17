@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type FormEvent } from 'react'
 import { SLUG } from './lib/catalog'
 import { Check, Minus, Plus, RotateCcw, X } from 'lucide-react'
+import { PreviewSpaceContext } from './ColorUses'
 import { CATALOG, FALLBACKS, commonFonts, fontValue, loadCatalog, loadFont, nameForFont, parseFontValue, inkShift, recordFont, systemFamilies, typeOfFont, weightsOf } from './lib/fonts'
 import { useUndo } from './lib/useUndo'
 import { Button, inputClass } from './ui'
@@ -127,6 +128,7 @@ export function FontSample({
   className?: string
 }) {
   const look = useContext(SampleContext)
+  const space = useContext(PreviewSpaceContext)
   const picked = sampleSizes(look)
   const type = (step: { size: string; line: string }) => ({ fontSize: step.size, lineHeight: step.line })
   const small = type(picked.small)
@@ -165,7 +167,7 @@ export function FontSample({
     // 견본의 줄 하나하나가 격자의 한 줄이다. 나란히 놓은 카드들이 같은 격자의 줄을 함께 쓰면(subgrid), 글꼴마다 줄이 차지하는
     // 높이가 조금씩 달라도 같은 줄이 정확히 같은 높이에 온다. 혼자 그려질 때(패널)는 그냥 위에서부터 쌓인다.
     // 글과 글 사이의 여백은 견본 화면의 규칙을 따른다: 이름표와 그것이 가리키는 글은 0, 바로 이어지는 글은 4px, 덩어리 사이는 16px.
-    <div className={`${SUBGRID} ${className}`} style={{ gridRow: `span ${SAMPLE_ROWS}`, fontFamily: family, color: text, background: back, zoom: scale }}>
+    <div className={`${SUBGRID} ${className}`} style={{ ...space, gridRow: `span ${SAMPLE_ROWS}`, fontFamily: family, color: text, background: back, zoom: scale }}>
       {/* 한 줄짜리 글은 높이를 줄 높이 그대로 고정한다(1lh). 글꼴마다 글자가 차지하는 높이가 달라 줄 상자가 1~2px씩 커지는데, 그대로 두면 글꼴을 바꿀 때마다 아래 줄들이 밀린다. */}
       {/* 머리말. 제목 위의 작은 글자다. 이름표와 그것이 가리키는 글 사이라 띄우지 않는다. */}
       <p className={`${LINE} opacity-70`} style={{ ...small, ...read }}>
@@ -175,7 +177,7 @@ export function FontSample({
         한라봉 선물세트
       </p>
       {/* 금액과, 그 줄의 오른쪽 끝에 상태 표시. 상태 표시는 연한 배경 버튼의 모양이다(글자색을 옅게 깐 바탕). */}
-      <div className="mt-1 flex items-center justify-between gap-2">
+      <div className="mt-label flex items-center justify-between gap-row-gap">
         <p className={LINE} style={{ ...sub, fontWeight: W_HEADING }}>
           38,000원 · 2상자
         </p>
@@ -187,7 +189,7 @@ export function FontSample({
       </div>
       {/* 문단의 높이는 정해 두지 않는다. 나란히 놓인 카드들은 격자의 줄을 함께 쓰므로, 글꼴마다 줄 수가 달라도 이 줄은 가장 긴 카드에 맞춰지고 아래 줄들은 같은 높이에 온다. */}
       {/* 문단도 첫 줄의 글자 높이를 다른 글꼴과 맞춘다. 첫 줄의 위 여백을 잘라 내고, 줄 높이와 대문자 높이의 차이의 절반만큼 다시 띄운다. */}
-      <p className="mt-1 box-border pt-[calc((1lh-1cap)/2)] [text-box:trim-start_cap_alphabetic]" style={{ ...body, ...read }}>
+      <p className="mt-label box-border pt-[calc((1lh-1cap)/2)] [text-box:trim-start_cap_alphabetic]" style={{ ...body, ...read }}>
         {/* 영문은 한글 두 문장을 그대로 옮긴 것이다. 한쪽만 옮기면 읽다가 말이 끊긴다. */}
         오후 2시 전에 준비를 마치면 당일에 출고됩니다. 수도권은 내일, 그 밖의 지역은 모레 도착합니다. Ships today if packed by 2 PM. Arrives tomorrow in the Seoul area, in two days elsewhere.
       </p>
@@ -201,10 +203,10 @@ export function FontSample({
       </div>
       {/* 받는 분: 이름표, 그리고 입력칸과 그 옆의 보조 버튼(테두리만). 입력칸이 줄을 혼자 다 차지하지 않고 버튼과 한 줄을 이룬다.
           입력칸 안의 글자는 본문 크기라, 옆의 버튼도 높이가 같도록 본문 크기의 버튼(큰 버튼)을 쓴다. */}
-      <p className={`mt-4 ${LINE} opacity-70`} style={{ ...sm, fontWeight: W_CONTROL }}>
+      <p className={`mt-settings ${LINE} opacity-70`} style={{ ...sm, fontWeight: W_CONTROL }}>
         받는 분
       </p>
-      <div data-input className="mt-1 flex gap-2">
+      <div data-input className="mt-label flex gap-field-row">
         <span className="flex min-w-0 flex-1 items-center rounded-md" style={{ ...box(picked.body, 8, 0.34), ...read, border: `1px solid color-mix(in srgb, ${text} 20%, transparent)` }}>
           <span className={TRIM} style={centered('김하늘', weight)}>
             김하늘
@@ -217,11 +219,11 @@ export function FontSample({
         </span>
       </div>
       {/* 주문 번호와 날짜. 숫자와 기호가 섞인 줄이다. */}
-      <p className={`mt-4 ${LINE} opacity-70`} style={{ ...small, ...read }}>
+      <p className={`mt-settings ${LINE} opacity-70`} style={{ ...small, ...read }}>
         ORD-0412-0087 · 2026.04.12 09:41
       </p>
       {/* 화면의 맨 아래: 주요 버튼(글자색을 바탕으로, 바탕색을 글자로 뒤집음)이 남는 폭을 차지하고, 그 옆에 비활성 버튼(주요 버튼을 흐리게)이 있다. */}
-      <div data-controls className="mt-4 flex gap-2">
+      <div data-controls className="mt-settings flex gap-actions">
         <span className="inline-flex min-w-0 flex-1 items-center justify-center rounded-md" style={{ ...box(picked.sm, 8), fontWeight: W_CONTROL, background: text, color: back }}>
           <span className={TRIM} style={centered('배송 준비', W_CONTROL)}>
             배송 준비
@@ -236,7 +238,7 @@ export function FontSample({
       {/* 여기는 화면이 아니라 이 글꼴에 대한 것이다. 카드의 맨 아래에 붙이고 옅은 선으로 나눈다(견본의 마지막 줄이 카드의 남는 높이를 차지하고, 이 줄은 그 아래 끝에 놓인다).
           이 글꼴에 굵기가 몇 단계 있는지. 100부터 900까지 아홉 칸이 한 줄이고, 칸마다 그 굵기로 쓴 글자와 숫자가 있다.
           없는 굵기는 숫자만 아주 옅게 남긴다. 지금 읽는 글이 실제로 그려지고 있는 굵기의 칸을 밑줄로 표시한다(청한 굵기가 없으면 대신 그려지는 굵기). */}
-      <div data-weights className="mt-4 grid grid-cols-9 self-end pt-4" style={{ borderTop: `1px solid color-mix(in srgb, ${text} 12%, transparent)` }}>
+      <div data-weights className="mt-settings grid grid-cols-9 self-end pt-settings" style={{ borderTop: `1px solid color-mix(in srgb, ${text} 12%, transparent)` }}>
         {WEIGHT_SLOTS.map((w) => {
           const has = weights.includes(w)
           return (

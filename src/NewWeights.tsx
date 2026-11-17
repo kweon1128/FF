@@ -1,6 +1,6 @@
 import { useContext, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Minus, Plus, RotateCcw } from 'lucide-react'
-import { PreviewFontContext } from './ColorUses'
+import { PreviewFontContext, PreviewSpace } from './ColorUses'
 import { shownWeight } from './NewFont'
 import { parseFontValue, shownFont, weightsOf } from './lib/fonts'
 import { WEIGHT_SETS, type WeightRole, type WeightStep } from './lib/presets'
@@ -289,7 +289,9 @@ export function NewWeightsForm({
         {/* 이 굵기들이 실제 화면에 놓인 모습. 쓰임마다 맡은 단계의 굵기로 그린다. 굵기는 혼자가 아니라 옆의 글과 함께 놓였을 때 판단할 수 있다.
             이 안은 사용자의 글꼴을 보여 주는 미리보기라, FF 도구의 글자 규칙을 따르지 않는다. */}
         <div data-uses className="mt-blocks rounded-md border border-hairline bg-canvas p-board text-ink">
-          <PlainScreen short looks={looks} groups={groups} hot={hot} onHot={setHot} />
+          <PreviewSpace>
+            <PlainScreen short looks={looks} groups={groups} hot={hot} onHot={setHot} />
+          </PreviewSpace>
         </div>
       </div>
       </div>

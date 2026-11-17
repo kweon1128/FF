@@ -2,7 +2,7 @@
 // 버튼·글자·테두리·옅은 배경을 카드 하나에 놓는다. 바탕은 밝은 것이 기본이고, 카드 오른쪽 위의 버튼으로 어두운 바탕으로 바꿔 본다.
 // 이 안은 사용자의 색을 보여 주는 미리보기 틀이라, FF 도구의 흑백 규칙을 따르지 않는다.
 
-import { createContext, useContext, useState, type CSSProperties } from 'react'
+import { createContext, useContext, useState, type CSSProperties, type ReactNode } from 'react'
 import { Moon, Sun } from 'lucide-react'
 import { contrast } from './lib/color'
 import { SCALE_STEPS, makeScale, nearestStep } from './lib/scale'
@@ -20,6 +20,20 @@ const DISABLED_OPACITY = 0.4
  * 패널과 색 선택 창 어디에 놓이든 같은 글꼴을 쓰도록 App이 넣어 준다.
  */
 export const PreviewFontContext = createContext<string | undefined>(undefined)
+
+/**
+ * 그림(예시, 견본, 화면 예시)에 깔아 줄, 보여 주는 디자인 시스템의 간격 변수들(--spacing-이름: 길이).
+ * 그림 안의 여백과 틈은 FF 화면과 같은 의미 간격 클래스(px-button-x, gap-actions)로 적는다. 그 클래스는 var(--spacing-이름)을 읽으므로,
+ * 그림의 뿌리에 이 변수들을 깔면 그 안에서는 그 시스템의 값으로 그려진다. 그 시스템에 없는 이름은 FF의 값이 그대로 쓰인다.
+ * 색과 글꼴은 그 시스템의 것을 읽으면서 간격만 FF의 숫자로 그리면, 그 시스템이 버튼 여백을 바꿔도 그림은 따라가지 않는다.
+ */
+export const PreviewSpaceContext = createContext<CSSProperties>({})
+
+/** 그림을 감싸 그 안에 보여 주는 시스템의 간격 변수를 깔아 주는 상자. 뿌리 요소에 직접 깔 수 없는 그림에 쓴다. */
+export function PreviewSpace({ children }: { children: ReactNode }) {
+  const space = useContext(PreviewSpaceContext)
+  return <div style={space}>{children}</div>
+}
 
 /**
  * 이 색이 버튼일 때 마우스를 올리고 눌렀을 때의 색. 이 색에서 한 단계, 두 단계 짙은 색을 "단계 생성"과 같은 계산으로 만든다.
@@ -46,8 +60,8 @@ export function inkOn(hex: string) {
  * 줄 상자에서 그 여백을 잘라 내고(대문자 높이에서 기준선까지만 남김) 글자 자체를 가운데에 놓는다.
  */
 export const TRIM = 'block [text-box:trim-both_cap_alphabetic]'
-const BUTTON = 'flex h-7 shrink-0 items-center rounded-md px-2 text-sm font-[550] whitespace-nowrap select-none'
-const BOX = 'flex h-7 min-w-0 items-center justify-center rounded-md px-2 text-sm whitespace-nowrap'
+const BUTTON = 'flex h-7 shrink-0 items-center rounded-md px-button-x text-sm font-[550] whitespace-nowrap select-none'
+const BOX = 'flex h-7 min-w-0 items-center justify-center rounded-md px-input-x text-sm whitespace-nowrap'
 
 /**
  * 실제로 반응하는 버튼. 마우스를 올리면 한 단계 짙은 색, 누르면 두 단계 짙은 색이 된다.
@@ -77,9 +91,10 @@ function LiveButton({ color, hover, pressed }: { color: string; hover: string; p
  */
 export function ColorUses({ color, step, compact = false }: { color: string; step?: number; compact?: boolean }) {
   const font = useContext(PreviewFontContext)
+  const space = useContext(PreviewSpaceContext)
   const { hover, pressed } = statesOf(color, step)
-  const pad = compact ? 'p-2' : 'p-3'
-  const gap = compact ? 'space-y-1' : 'space-y-2'
+  const pad = compact ? 'p-blocks' : 'p-board-row'
+  const gap = compact ? 'space-y-rows' : 'space-y-blocks'
   // 옅은 배경: 이 색을 바탕에 조금만 섞는다. 밝은 쪽은 흰색에 12%, 어두운 쪽은 짙은 바탕에 24%.
   const soft = (surface: string, amount: number): CSSProperties => ({
     background: `color-mix(in oklab, ${color} ${amount}%, ${surface})`,
@@ -107,10 +122,10 @@ export function ColorUses({ color, step, compact = false }: { color: string; ste
   const Icon = dark ? Sun : Moon
 
   return (
-    <div style={{ fontFamily: font }}>
+    <div style={{ ...space, fontFamily: font }}>
       {[s].map((s) => (
         <div key={s.surface} data-uses={dark ? 'dark' : 'light'} className={`${gap} ${pad} rounded-md ${s.edge}`} style={{ background: s.surface }}>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-actions">
             <LiveButton color={color} hover={hover} pressed={pressed} />
             {/* 비활성: 같은 색을 흐리게. 쓸 수 없는 상태에서도 색이 남는지, 너무 사라지는지 본다. */}
             <span className={BUTTON} style={{ background: color, color: inkOn(color), opacity: DISABLED_OPACITY }}>
@@ -134,7 +149,7 @@ export function ColorUses({ color, step, compact = false }: { color: string; ste
             <p className="truncate text-base font-[650]">큰 글자 가나다 Aa</p>
             <p className="truncate text-xs">작은 글자 가나다라마바사 Aa 123</p>
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-field-row">
             <span className={BOX} style={{ border: `1px solid ${color}`, color: s.ink }}>
               <span className={TRIM}>테두리</span>
             </span>

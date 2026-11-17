@@ -1,7 +1,8 @@
 // 의미 글꼴: 글꼴 판의 재료 가운데 실제로 쓰는 조합(글꼴 종류 · 글자 크기 · 굵기)에 쓰임새의 이름을 붙여 모아 둔 판과, 그것을 만들고 고치는 양식.
 // 한 줄에 조합 하나. 이름과 가리키는 값, 설명, 그 조합으로 적은 견본을 나란히 보여 준다.
 
-import { useRef, useState, type CSSProperties, type PointerEvent } from 'react'
+import { useContext, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
+import { PreviewSpaceContext } from './ColorUses'
 import { ArrowUpRight, Copy, TriangleAlert, X } from 'lucide-react'
 import type { Token } from './lib/api'
 import { KINDS, SLUG, lineName, shortName, trackName, type Kind } from './lib/catalog'
@@ -80,6 +81,7 @@ const figures = (look: TypeLook) => [[look.size, look.line, look.track].filter(B
  */
 export function TypeSample({ shape, look, around, words: written = '' }: { shape: TypeShape; look: TypeLook; around: Around; words?: string }) {
   const own = styleOf(look)
+  const space = useContext(PreviewSpaceContext)
   // 예시 문구. 줄에 적어 둔 것이 있으면 그것(그 시스템이 실제로 쓰는 말), 없으면 모양의 기본 문구다. 늘어놓는 모양은 ", "로 나눈다.
   const all = written || SHAPE_WORDS[shape]
   const list = isListShape(shape) ? all.split(', ').map((w) => w.trim()).filter(Boolean) : [all]
@@ -99,68 +101,68 @@ export function TypeSample({ shape, look, around, words: written = '' }: { shape
         return (
           <>
             {words(all, 'break-words')}
-            {bar('w-3/4', 'mt-3')}
-            {bar('w-1/2', 'mt-2')}
+            {bar('w-3/4', 'mt-fields')}
+            {bar('w-1/2', 'mt-blocks')}
           </>
         )
       case 'caption':
         return (
           <>
             {bar('w-32')}
-            {words(all, 'mt-2 break-words')}
+            {words(all, 'mt-blocks break-words')}
           </>
         )
       case 'button':
         return (
-          <span className="flex flex-wrap items-center gap-2">
+          <span className="flex flex-wrap items-center gap-actions">
             {/* 첫 버튼은 채우고 나머지는 테두리만 둔다. */}
-            {list.map((text, i) => words(text, 'rounded-md px-3 py-2 whitespace-nowrap', i === 0 ? { background: around.ink, color: around.surface } : { boxShadow: `inset 0 0 0 1px ${faint}` }))}
+            {list.map((text, i) => words(text, 'rounded-md px-button-x py-blocks whitespace-nowrap', i === 0 ? { background: around.ink, color: around.surface } : { boxShadow: `inset 0 0 0 1px ${faint}` }))}
           </span>
         )
       case 'field':
         return (
           <>
             {words(all, 'break-words')}
-            <span className="mt-2 flex h-8 w-40 items-center rounded-md px-2" style={{ boxShadow: `inset 0 0 0 1px ${faint}` }}>
+            <span className="mt-label flex h-8 w-40 items-center rounded-md px-input-x" style={{ boxShadow: `inset 0 0 0 1px ${faint}` }}>
               {bar('w-16')}
             </span>
           </>
         )
       case 'menu':
         return (
-          <span className="block w-40 space-y-1">
-            {list.map((text) => words(text, 'rounded-md px-2 py-1 whitespace-nowrap'))}
+          <span className="block w-40 space-y-rows">
+            {list.map((text) => words(text, 'rounded-md px-row-x py-menu whitespace-nowrap'))}
           </span>
         )
       case 'menu-on':
         // 고른 줄만 글자다. 고르지 않은 줄은 다른 조합(보통 굵기)으로 적히는 자리라 막대로 둔다.
         return (
-          <span className="block w-40 space-y-1">
-            <span className="flex h-6 items-center px-2">{bar('w-12')}</span>
-            {words(all, 'rounded-md px-2 py-1 whitespace-nowrap', { background: soft })}
-            <span className="flex h-6 items-center px-2">{bar('w-16')}</span>
+          <span className="block w-40 space-y-rows">
+            <span className="flex h-6 items-center px-row-x">{bar('w-12')}</span>
+            {words(all, 'rounded-md px-row-x py-menu whitespace-nowrap', { background: soft })}
+            <span className="flex h-6 items-center px-row-x">{bar('w-16')}</span>
           </span>
         )
       case 'tab':
         return (
-          <span className="flex flex-wrap gap-4" style={{ boxShadow: `inset 0 -1px 0 ${faint}` }}>
-            {list.map((text, i) => words(text, 'py-2 whitespace-nowrap', i === 0 ? { boxShadow: `inset 0 -2px 0 ${around.ink}` } : undefined))}
+          <span className="flex flex-wrap gap-columns" style={{ boxShadow: `inset 0 -1px 0 ${faint}` }}>
+            {list.map((text, i) => words(text, 'py-blocks whitespace-nowrap', i === 0 ? { boxShadow: `inset 0 -2px 0 ${around.ink}` } : undefined))}
           </span>
         )
       case 'badge':
         return (
-          <span className="flex flex-wrap items-center gap-2">
+          <span className="flex flex-wrap items-center gap-blocks">
             {/* 첫 뱃지는 옅은 바탕, 나머지는 채운다. */}
-            {list.map((text, i) => words(text, 'rounded-full px-2 py-1 whitespace-nowrap', i === 0 ? { background: soft } : { background: around.ink, color: around.surface }))}
+            {list.map((text, i) => words(text, 'rounded-full px-row-x py-menu whitespace-nowrap', i === 0 ? { background: soft } : { background: around.ink, color: around.surface }))}
           </span>
         )
       case 'number':
         return (
-          <span className="flex flex-wrap gap-x-6 gap-y-2">
+          <span className="flex flex-wrap gap-x-groups gap-y-blocks">
             {list.map((value) => (
               <span key={value}>
                 {bar('w-12')}
-                {words(value, 'mt-2 break-words')}
+                {words(value, 'mt-blocks break-words')}
               </span>
             ))}
           </span>
@@ -169,7 +171,7 @@ export function TypeSample({ shape, look, around, words: written = '' }: { shape
         return (
           <>
             {bar('w-12')}
-            <span className="mt-2 flex">{words(all, 'rounded-sm px-1 break-all', { background: soft })}</span>
+            <span className="mt-blocks flex">{words(all, 'rounded-sm px-chip-x break-all', { background: soft })}</span>
           </>
         )
       default:
@@ -177,7 +179,7 @@ export function TypeSample({ shape, look, around, words: written = '' }: { shape
     }
   }
   return (
-    <span className={`block w-full overflow-hidden rounded-md px-4 py-3 ${EDGE}`} style={{ background: around.surface, color: around.ink }}>
+    <span className={`block w-full overflow-hidden rounded-md px-section-x py-section-y ${EDGE}`} style={{ ...space, background: around.surface, color: around.ink }}>
       {scene()}
     </span>
   )

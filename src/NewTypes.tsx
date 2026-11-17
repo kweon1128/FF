@@ -11,6 +11,7 @@ import { SetNotice, StepName, nameProblem } from './StepName'
 import { useUndo } from './lib/useUndo'
 import { TypeScreen, type SlotProps } from './TypeScreen'
 import { styleOf } from './Types'
+import { PreviewSpace } from './ColorUses'
 import { Button } from './ui'
 
 const STYLE = KINDS.style
@@ -217,7 +218,9 @@ export function NewTypesForm({
 
           {/* 그 조합들로 짠 화면 하나. 이 안은 사용자의 글꼴을 보여 주는 미리보기라, FF 도구의 글자 규칙을 따르지 않는다. */}
           <div data-screen className="min-w-0 flex-1 overflow-y-auto rounded-lg border border-hairline bg-canvas p-board text-ink">
-            <TypeScreen T={T} has={has} />
+            <PreviewSpace>
+              <TypeScreen T={T} has={has} />
+            </PreviewSpace>
           </div>
         </div>
 

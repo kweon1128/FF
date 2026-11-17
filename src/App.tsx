@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Plus } from 'lucide-react'
 import {
   ConflictError,
@@ -61,7 +61,7 @@ import { NewRoleForm, RoleInspector } from './Roles'
 import { defaultRoleOrder, moveRole, moveRoleGroup, shiftRoles, refOf, refTo, surroundings, type RoleUse } from './lib/roles'
 import { onFilesChanged } from './lib/watch'
 import { SwatchContext } from './ColorPicker'
-import { PreviewFontContext } from './ColorUses'
+import { PreviewFontContext, PreviewSpaceContext } from './ColorUses'
 import { ComponentInspector } from './ComponentInspector'
 import { ComponentScreen } from './ComponentScreen'
 import { Inspector, MultiInspector } from './Inspector'
@@ -75,7 +75,7 @@ import { NewWeightsForm } from './NewWeights'
 import { TypeInspector } from './Types'
 import { EffectInspector } from './Effects'
 import { isEffectKind } from './lib/effects'
-import { NewSpaceUseForm, SpaceUseInspector } from './Spacing'
+import { NewSpaceUseForm, SpaceUseInspector, spaceVars } from './Spacing'
 import { autoOrder, defaultFreeOrder, isAutoOrdered, moveException, moveInKind } from './lib/order'
 import { NewTypesForm } from './NewTypes'
 import { defaultTypeOrder, followTypeRefs, moveType, moveTypeGroup, nextType, shiftTypes, syncTypes, typeUsers, withTypeTrack, type TypeUse } from './lib/types'
@@ -1612,6 +1612,8 @@ export function App() {
 
   // "쓰인 모습" 견본의 글자에 쓸 글꼴. 글꼴 판에 값이 있으면 맨 앞의 것을 쓰고, 없으면 FF의 글꼴 그대로 둔다.
   const previewFont = tokens.find((t) => KINDS.font.matches(t.name))?.value
+  // 그림(예시, 견본)에 깔아 줄 이 디자인 시스템의 간격. 값 목록이 바뀔 때만 다시 만든다.
+  const previewSpace = useMemo(() => spaceVars(tokens), [tokens])
   // 글꼴 견본이 따르는 값: 이 시스템의 글자 크기와 줄 높이(작은 것부터), 기본 글자색과 바탕색.
   const px = (value: string) => parseFloat(value) * (value.trim().endsWith('rem') ? 16 : 1)
   const around = surroundings(tokens)
@@ -1643,6 +1645,7 @@ export function App() {
   return (
     <SwatchContext.Provider value={swatches}>
     <PreviewFontContext.Provider value={previewFont}>
+    <PreviewSpaceContext.Provider value={previewSpace}>
     <SampleContext.Provider value={sampleLook}>
     <div className="flex h-full flex-col">
       {!bare && <TopBar
@@ -2105,6 +2108,7 @@ export function App() {
       )}
     </div>
     </SampleContext.Provider>
+    </PreviewSpaceContext.Provider>
     </PreviewFontContext.Provider>
     </SwatchContext.Provider>
   )

@@ -46,7 +46,7 @@ export function TypeScreen({ T, has = () => true }: { T: ComponentType<SlotProps
       {/* 큰 숫자의 자리는 그만큼 큰 크기가 있을 때만 나온다(단계가 적은 한 벌에는 내세우는 조합이 없다).
           하나에서 셋까지, 있는 만큼 큰 것부터 놓는다. 가장 큰 자리가 가장 무거운 숫자(올해 누적)를 맡는다. 폭이 모자라면 아래 줄로 넘어간다(줄 사이 8px). */}
       {stats.length > 0 && (
-        <div className="mt-2 flex flex-wrap items-end gap-x-6 gap-y-2">
+        <div className="mt-blocks flex flex-wrap items-end gap-x-groups gap-y-blocks">
           {stats.map((use, i) => (
             <div key={use}>
               <T use="caption" as="p" className="text-ink-soft">
@@ -61,10 +61,10 @@ export function TypeScreen({ T, has = () => true }: { T: ComponentType<SlotProps
       )}
 
       {/* 화면 제목과 소개 글과 본문은 8px씩 띄워 잇는다. */}
-      <div className={`space-y-2 ${stats.length > 0 ? 'mt-6' : ''}`}>
+      <div className={`space-y-blocks ${stats.length > 0 ? 'mt-groups' : ''}`}>
         {/* 큰 버튼은 화면에 하나뿐인 주된 일이라 화면 제목의 오른쪽에 둔다. 카드 안의 버튼(중간 크기)과 같은 줄에 나란히 놓지 않는다. 크기가 다른 버튼이 같은 자리에 있으면 어긋나 보인다. */}
-        <div className="flex items-center justify-between gap-6">
-          <div className="space-y-2">
+        <div className="flex items-center justify-between gap-groups">
+          <div className="space-y-blocks">
             <T use="title-lg" as="h3">
               주문 관리
             </T>
@@ -72,7 +72,7 @@ export function TypeScreen({ T, has = () => true }: { T: ComponentType<SlotProps
               오늘 들어온 주문과 배송 상태를 한눈에 봅니다.
             </T>
           </div>
-          <T use="button-lg" className="inline-flex shrink-0 rounded-md bg-ink px-4 py-3 whitespace-nowrap text-white">
+          <T use="button-lg" className="inline-flex shrink-0 rounded-md bg-ink px-button-x py-fields whitespace-nowrap text-white">
             새 주문 등록
           </T>
         </div>
@@ -93,27 +93,27 @@ export function TypeScreen({ T, has = () => true }: { T: ComponentType<SlotProps
       {/* 구역 하나. 제목과 탭 아래에 카드 둘이 나란히 놓인다. 왼쪽은 주문 한 건, 오른쪽은 그 주문의 배송지다.
           두 카드는 같은 짜임이다: 맨 위에 카드 제목, 가운데에 내용, 맨 아래에 버튼. 높이를 서로 맞추고 버튼은 아래 끝에 붙여서, 내용의 길이가 달라도 위와 아래의 선이 맞는다.
           구역 제목을 둘로 나누어 나란히 놓지 않는다. 같은 높이의 제목 아래에 서로 상관없는 것이 놓이면 한 화면으로 읽히지 않는다. */}
-      <div className="mt-6">
+      <div className="mt-groups">
         <T use="title-md" as="h3">
           최근 주문
         </T>
         {/* 고른 항목은 굵기로도 구분한다. 항목마다 바탕이 생길 수 있으므로 4px 띄운다. */}
         {has('tab') && (
-          <div className="mt-4 flex gap-1">
-            <T use="tab-on" className="inline-flex rounded-md bg-hover px-2 py-1">
+          <div className="mt-settings flex gap-actions-tight">
+            <T use="tab-on" className="inline-flex rounded-md bg-hover px-row-x py-menu">
               전체
             </T>
-            <T use="tab" className="inline-flex rounded-md px-2 py-1 text-ink-soft">
+            <T use="tab" className="inline-flex rounded-md px-row-x py-menu text-ink-soft">
               배송 준비
             </T>
-            <T use="tab" className="inline-flex rounded-md px-2 py-1 text-ink-soft">
+            <T use="tab" className="inline-flex rounded-md px-row-x py-menu text-ink-soft">
               완료
             </T>
           </div>
         )}
-        <div className="mt-4 grid grid-cols-2 gap-4">
-          <div className="flex flex-col rounded-lg border border-hairline p-6">
-            <div className="flex items-baseline justify-between gap-3">
+        <div className="mt-settings grid grid-cols-2 gap-columns">
+          <div className="flex flex-col rounded-lg border border-hairline p-board">
+            <div className="flex items-baseline justify-between gap-grid">
               <T use="title-sm" as="h3">
                 한라봉 선물세트
               </T>
@@ -121,51 +121,51 @@ export function TypeScreen({ T, has = () => true }: { T: ComponentType<SlotProps
                 38,000원
               </T>
             </div>
-            <T use="body-sm" as="p" className="mt-2 text-ink-soft">
+            <T use="body-sm" as="p" className="mt-blocks text-ink-soft">
               서울 마포구 · 2상자 · 문 앞에 놓아 주세요
               <br />
               오늘 오후 2시 전 출고 예정
             </T>
             {/* 주문 번호 줄은 읽는 글이 아니라 다른 덩어리(번호와 그것을 복사하는 버튼)라 16px 띄운다. */}
-            <div className="mt-4 flex items-center gap-2">
-              <T use="code" className="rounded-sm bg-hover px-1">
+            <div className="mt-settings flex items-center gap-actions">
+              <T use="code" className="rounded-sm bg-hover px-chip-x">
                 ORD-0412-0087
               </T>
-              <T use="button-sm" className="inline-flex rounded-sm border border-hairline px-2 py-1">
+              <T use="button-sm" className="inline-flex rounded-sm border border-hairline px-row-x py-menu">
                 복사
               </T>
               <T use="caption" className="text-ink-faint">
                 2분 전
               </T>
             </div>
-            <div className="mt-auto flex gap-2 pt-4">
-              <T use="button" className="inline-flex rounded-md border border-ink bg-ink px-4 py-2 text-white">
+            <div className="mt-auto flex gap-actions pt-settings">
+              <T use="button" className="inline-flex rounded-md border border-ink bg-ink px-button-x py-blocks text-white">
                 배송 준비
               </T>
-              <T use="button" className="inline-flex rounded-md border border-hairline px-4 py-2">
+              <T use="button" className="inline-flex rounded-md border border-hairline px-button-x py-blocks">
                 주문 보기
               </T>
             </div>
           </div>
 
-          <div className="flex flex-col rounded-lg border border-hairline p-6">
+          <div className="flex flex-col rounded-lg border border-hairline p-board">
             <T use="title-sm" as="h3">
               배송지
             </T>
-            <div className="mt-4">
-              <T use="label" as="p" className="mb-1 text-ink-soft">
+            <div className="mt-settings">
+              <T use="label" as="p" className="mb-label text-ink-soft">
                 받는 분
               </T>
-              <T use="body" as="p" className="rounded-md border border-hairline px-3 py-2">
+              <T use="body" as="p" className="rounded-md border border-hairline px-input-x py-blocks">
                 김하늘
               </T>
-              <T use="caption" as="p" className="mt-2 text-ink-faint">
+              <T use="caption" as="p" className="mt-blocks text-ink-faint">
                 택배 기사님이 보는 이름이에요.
               </T>
             </div>
-            <div className="mt-auto pt-4">
+            <div className="mt-auto pt-settings">
               {/* 옆 카드의 버튼과 같은 크기다. 나란한 카드의 버튼은 크기가 같아야 아랫선과 높이가 함께 맞는다. */}
-              <T use="button" className="inline-flex rounded-md border border-ink bg-ink px-4 py-2 text-white">
+              <T use="button" className="inline-flex rounded-md border border-ink bg-ink px-button-x py-blocks text-white">
                 배송지 저장
               </T>
             </div>
@@ -175,7 +175,7 @@ export function TypeScreen({ T, has = () => true }: { T: ComponentType<SlotProps
 
       {/* 받은 분이 남긴 말. 카드 안에 두면 카드 제목과 크기가 맞먹어 위계가 흐려지므로 화면의 한 묶음으로 따로 둔다.
           혼자 떠 있지 않게, 누가 무엇을 두고 한 말인지를 바로 아래에 붙인다(8px). 왼쪽 선이 둘을 한 덩어리로 묶는다. */}
-      <div className="mt-6 space-y-2 border-l-2 border-hairline pl-3">
+      <div className="mt-groups space-y-blocks border-l-2 border-hairline pl-board-row">
         <T use="quote" as="p">
           상자를 열자마자 향이 달랐어요.
           <br />
@@ -196,7 +196,7 @@ export function TypeScreen({ T, has = () => true }: { T: ComponentType<SlotProps
  */
 export function ShortScreen({ T, has = () => true }: { T: ComponentType<SlotProps>; has?: (use: string) => boolean }) {
   return (
-    <div className="grid grid-cols-2 gap-6">
+    <div className="grid grid-cols-2 gap-groups">
       <div>
         <T use="caption" as="p" className="text-ink-soft">
           최근 주문 · 2분 전
@@ -204,47 +204,47 @@ export function ShortScreen({ T, has = () => true }: { T: ComponentType<SlotProp
         <T use="title-sm" as="h3">
           한라봉 선물세트
         </T>
-        <p className="mt-1">
+        <p className="mt-label">
           <T use="numeric">38,000원</T>
           <T use="body-sm" className="text-ink-soft">
             {' '}
             · 2상자
           </T>
         </p>
-        <p className="mt-1">
+        <p className="mt-label">
           <T use="body">오후 2시 전에 준비를 마치면 </T>
           <T use="body-strong">당일에 출고</T>
           <T use="body">됩니다. 수도권은 내일, 그 밖의 지역은 모레 도착합니다.</T>
         </p>
-        <T use="code" as="p" className="mt-4 w-fit rounded-sm bg-hover px-1">
+        <T use="code" as="p" className="mt-settings w-fit rounded-sm bg-hover px-chip-x">
           ORD-0412-0087
         </T>
       </div>
       <div>
         {has('tab') && (
-          <div className="flex gap-1">
-            <T use="tab-on" className="inline-flex rounded-md bg-hover px-2 py-1">
+          <div className="flex gap-actions-tight">
+            <T use="tab-on" className="inline-flex rounded-md bg-hover px-row-x py-menu">
               전체
             </T>
-            <T use="tab" className="inline-flex rounded-md px-2 py-1 text-ink-soft">
+            <T use="tab" className="inline-flex rounded-md px-row-x py-menu text-ink-soft">
               배송 준비
             </T>
-            <T use="tab" className="inline-flex rounded-md px-2 py-1 text-ink-soft">
+            <T use="tab" className="inline-flex rounded-md px-row-x py-menu text-ink-soft">
               완료
             </T>
           </div>
         )}
-        <T use="label" as="p" className="mt-4 mb-1 text-ink-soft">
+        <T use="label" as="p" className="mt-settings mb-label text-ink-soft">
           받는 분
         </T>
-        <T use="body" as="p" className="rounded-md border border-hairline px-3 py-2">
+        <T use="body" as="p" className="rounded-md border border-hairline px-input-x py-blocks">
           김하늘
         </T>
-        <div className="mt-4 flex gap-2">
-          <T use="button" className="inline-flex rounded-md border border-ink bg-ink px-4 py-2 text-white">
+        <div className="mt-settings flex gap-actions">
+          <T use="button" className="inline-flex rounded-md border border-ink bg-ink px-button-x py-blocks text-white">
             배송 준비
           </T>
-          <T use="button" className="inline-flex rounded-md border border-hairline px-4 py-2">
+          <T use="button" className="inline-flex rounded-md border border-hairline px-button-x py-blocks">
             주문 보기
           </T>
         </div>

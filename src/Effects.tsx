@@ -7,7 +7,7 @@ import type { Token } from './lib/api'
 import { SLUG, shortName, type Kind } from './lib/catalog'
 import { EFFECT_WORDS, nextLayer, parseShadow, splitLayers, readEffectNote, writeEffectNote, writeShadow, type EffectKind, type EffectShape, type ShadowLayer } from './lib/effects'
 import { surroundings, type Around } from './lib/roles'
-import { PreviewFontContext } from './ColorUses'
+import { PreviewFontContext, PreviewSpaceContext } from './ColorUses'
 import { CODE_OPEN, FoldSection, ICON_BUTTON, Section, WHERE_OPEN } from './Inspector'
 import { HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
 import { Button, Chip, Field, Phrases, UnitInput, inputClass } from './ui'
@@ -24,6 +24,7 @@ const EDGE = 'shadow-[inset_0_0_0_1px_rgb(0_0_0/0.1)]'
  */
 export function EffectSample({ shape, value, around, words: written = '' }: { shape: EffectShape; value: string; around: Around; words?: string }) {
   const font = useContext(PreviewFontContext)
+  const space = useContext(PreviewSpaceContext)
   const all = written || EFFECT_WORDS[shape]
   const faint = `color-mix(in oklab, ${around.ink} 16%, ${around.surface})`
   const bar = (width: string, more = '') => <span className={`block h-2 rounded-sm ${width} ${more}`} style={{ background: faint }} />
@@ -31,7 +32,7 @@ export function EffectSample({ shape, value, around, words: written = '' }: { sh
   // 그림자는 상자 밖으로 지므로, 잘리지 않게 상자 둘레에 24px을 비워 둔다.
   // 내용은 상자의 가운데에 놓는다. 예시는 읽는 글이 아니라 물건 하나를 보여 주는 것이라, 왼쪽에 붙이면 오른쪽만 비어 덜 만든 것처럼 보인다.
   const frame = (body: ReactNode, roomy = false) => (
-    <span className={`flex w-full items-center justify-center overflow-hidden rounded-md ${roomy ? 'p-6' : 'px-3 py-3'} ${EDGE}`} style={{ background: around.surface, color: around.ink, fontFamily: font }}>
+    <span className={`flex w-full items-center justify-center overflow-hidden rounded-md ${roomy ? 'p-board' : 'px-board-row py-board-row'} ${EDGE}`} style={{ ...space, background: around.surface, color: around.ink, fontFamily: font }}>
       {body}
     </span>
   )
@@ -40,13 +41,13 @@ export function EffectSample({ shape, value, around, words: written = '' }: { sh
   switch (shape) {
     case 'menu':
       return frame(
-        <span className="block w-40 space-y-1 rounded-lg p-1" style={lifted}>
+        <span className="block w-40 space-y-rows rounded-lg p-menu" style={lifted}>
           {all
             .split(', ')
             .map((w) => w.trim())
             .filter(Boolean)
             .map((text) => (
-              <span key={text} data-sample className="block rounded-md px-2 py-1 text-sm leading-5 whitespace-nowrap">
+              <span key={text} data-sample className="block rounded-md px-row-x py-menu text-sm leading-5 whitespace-nowrap">
                 {text}
               </span>
             ))}
@@ -55,13 +56,13 @@ export function EffectSample({ shape, value, around, words: written = '' }: { sh
       )
     case 'dialog':
       return frame(
-        <span className="block w-full max-w-56 rounded-lg p-4" style={lifted}>
+        <span className="block w-full max-w-56 rounded-lg p-dialog" style={lifted}>
           <span data-sample className={`block break-words ${STRONG}`}>
             {all}
           </span>
-          {bar('w-3/4', 'mt-3')}
-          {bar('w-1/2', 'mt-2')}
-          <span className="mt-4 flex justify-end gap-2">
+          {bar('w-3/4', 'mt-fields')}
+          {bar('w-1/2', 'mt-blocks')}
+          <span className="mt-dialog-actions flex justify-end gap-actions">
             <span className="block h-6 w-12 rounded-md" style={{ boxShadow: `inset 0 0 0 1px ${faint}` }} />
             <span className="block h-6 w-12 rounded-md" style={{ background: around.ink }} />
           </span>
@@ -70,28 +71,28 @@ export function EffectSample({ shape, value, around, words: written = '' }: { sh
       )
     case 'toast':
       return frame(
-        <span data-sample className="inline-flex h-8 items-center rounded-md px-3 text-sm leading-5 whitespace-nowrap" style={{ background: around.ink, color: around.surface, boxShadow: value }}>
+        <span data-sample className="inline-flex h-8 items-center rounded-md px-bar-x text-sm leading-5 whitespace-nowrap" style={{ background: around.ink, color: around.surface, boxShadow: value }}>
           {all}
         </span>,
         true,
       )
     case 'card':
       return frame(
-        <span className="block w-full max-w-56 rounded-lg p-4" style={lifted}>
+        <span className="block w-full max-w-56 rounded-lg p-card" style={lifted}>
           <span data-sample className={`block break-words ${STRONG}`}>
             {all}
           </span>
-          {bar('w-3/4', 'mt-3')}
+          {bar('w-3/4', 'mt-fields')}
         </span>,
         true,
       )
     case 'disabled': {
       // 같은 버튼을 켜진 것과 꺼진 것으로 나란히 놓아, 얼마나 옅어지는지 견주어 본다.
-      const BUTTON = `flex h-7 items-center rounded-md px-2 whitespace-nowrap ${STRONG}`
+      const BUTTON = `flex h-7 items-center rounded-md px-button-x whitespace-nowrap ${STRONG}`
       return frame(
         // 채운 버튼 한 쌍과 테두리 버튼 한 쌍. 쌍끼리는 떨어지지 않게 묶어, 좁은 칸에서는 쌍 단위로 줄이 바뀐다.
-        <span className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <span className="flex items-center gap-2">
+        <span className="flex flex-wrap items-center gap-x-columns gap-y-blocks">
+          <span className="flex items-center gap-actions">
             <span className={BUTTON} style={{ background: around.ink, color: around.surface }}>
               {all}
             </span>
@@ -99,7 +100,7 @@ export function EffectSample({ shape, value, around, words: written = '' }: { sh
               {all}
             </span>
           </span>
-          <span className="flex items-center gap-2">
+          <span className="flex items-center gap-actions">
             <span className={BUTTON} style={{ boxShadow: `inset 0 0 0 1px ${faint}` }}>
               {all}
             </span>
@@ -115,22 +116,22 @@ export function EffectSample({ shape, value, around, words: written = '' }: { sh
       return frame(
         <span className="relative block h-20 w-full">
           {bar('w-3/4')}
-          {bar('w-1/2', 'mt-2')}
-          {bar('w-2/3', 'mt-2')}
-          {bar('w-1/3', 'mt-2')}
+          {bar('w-1/2', 'mt-blocks')}
+          {bar('w-2/3', 'mt-blocks')}
+          {bar('w-1/3', 'mt-blocks')}
           <span data-sample className="absolute -inset-3" style={{ background: around.ink, opacity: value }} />
-          <span className="absolute top-1/2 left-1/2 block h-12 w-24 -translate-x-1/2 -translate-y-1/2 rounded-md p-2" style={{ background: around.surface }}>
+          <span className="absolute top-1/2 left-1/2 block h-12 w-24 -translate-x-1/2 -translate-y-1/2 rounded-md p-blocks" style={{ background: around.surface }}>
             {bar('w-3/4')}
-            {bar('w-1/2', 'mt-2')}
+            {bar('w-1/2', 'mt-blocks')}
           </span>
         </span>,
       )
     case 'glass':
       // 뒤에 놓인 것이 얼마나 흐려지는지. 왼쪽은 그대로, 오른쪽은 흐려진 것이다.
       return frame(
-        <span className="flex items-center gap-4">
+        <span className="flex items-center gap-columns">
           {[undefined, `blur(${value})`].map((filter, i) => (
-            <span key={i} {...(filter ? { 'data-sample': true } : {})} className="block w-24 space-y-2" style={{ filter }}>
+            <span key={i} {...(filter ? { 'data-sample': true } : {})} className="block w-24 space-y-blocks" style={{ filter }}>
               <span className="block h-2 w-full rounded-sm" style={{ background: around.ink }} />
               <span className="block h-2 w-2/3 rounded-sm" style={{ background: around.ink }} />
               <span className="block h-2 w-3/4 rounded-sm" style={{ background: around.ink }} />
@@ -143,8 +144,8 @@ export function EffectSample({ shape, value, around, words: written = '' }: { sh
       return frame(
         <span className="relative block h-12 w-full">
           {bar('w-3/4')}
-          {bar('w-1/2', 'mt-2')}
-          {bar('w-2/3', 'mt-2')}
+          {bar('w-1/2', 'mt-blocks')}
+          {bar('w-2/3', 'mt-blocks')}
           <span data-sample className="absolute inset-y-0 left-4 w-24 rounded-md" style={{ background: around.ink, opacity: value }} />
         </span>,
       )

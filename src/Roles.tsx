@@ -7,7 +7,7 @@ import type { Token } from './lib/api'
 import { KINDS, SLUG, groupOf, shortName, type Kind } from './lib/catalog'
 import { contrast, showColor } from './lib/color'
 import { ROLE_USES, ROLE_WORDS, guessUse, isRoleListShape, readNote, refOf, refTo, resolveColor, roleGroups, surroundings, writeNote, type Around, type RoleShape, type RoleUse } from './lib/roles'
-import { DARK, PreviewFontContext, inkOn } from './ColorUses'
+import { DARK, PreviewFontContext, PreviewSpaceContext, inkOn } from './ColorUses'
 import { CODE_OPEN, FoldSection, ICON_BUTTON, Section, WHERE_OPEN } from './Inspector'
 import { HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
 import { Button, Chip, Field, UsePicker, inputClass, swatchBackground } from './ui'
@@ -28,6 +28,7 @@ const refName = (value: string) => (refOf(value) ?? value).replace(/^--color-/, 
  */
 export function RoleSample({ shape, color, around, words: written = '' }: { shape: RoleShape; color: string; around: Around; words?: string }) {
   const font = useContext(PreviewFontContext)
+  const space = useContext(PreviewSpaceContext)
   const rgb = color.slice(0, 7)
   const light = (hex: string) => contrast(hex.slice(0, 7), '#ffffff') < 3
   const all = written || ROLE_WORDS[shape]
@@ -35,7 +36,7 @@ export function RoleSample({ shape, color, around, words: written = '' }: { shap
   // 막대의 색. 그 면에 놓이는 글자 색을 면에 옅게 섞는다.
   const faintOn = (ink: string, surface: string) => `color-mix(in oklab, ${ink} 16%, ${surface})`
   const frame = (background: string, body: ReactNode) => (
-    <span className={`block w-full overflow-hidden rounded-md px-3 py-3 ${light(background) ? EDGE : ''}`} style={{ background: swatchBackground(background), fontFamily: font }}>
+    <span className={`block w-full overflow-hidden rounded-md px-board-row py-board-row ${light(background) ? EDGE : ''}`} style={{ ...space, background: swatchBackground(background), fontFamily: font }}>
       {body}
     </span>
   )
@@ -57,7 +58,7 @@ export function RoleSample({ shape, color, around, words: written = '' }: { shap
           <span data-sample className={`block break-words ${STRONG}`} style={{ color }}>
             {all}
           </span>
-          {bar('w-3/4', faintOn(color, back), 'mt-2')}
+          {bar('w-3/4', faintOn(color, back), 'mt-blocks')}
         </>,
       )
     }
@@ -70,8 +71,8 @@ export function RoleSample({ shape, color, around, words: written = '' }: { shap
           <span data-sample className={`block break-words ${STRONG}`} style={{ color: ink }}>
             {all}
           </span>
-          {bar('w-3/4', faintOn(ink, color), 'mt-2')}
-          {bar('w-1/2', faintOn(ink, color), 'mt-2')}
+          {bar('w-3/4', faintOn(ink, color), 'mt-blocks')}
+          {bar('w-1/2', faintOn(ink, color), 'mt-blocks')}
         </>,
       )
     }
@@ -80,19 +81,19 @@ export function RoleSample({ shape, color, around, words: written = '' }: { shap
       const ink = contrast(around.ink.slice(0, 7), rgb) >= 3 ? around.ink : inkOn(color)
       return frame(
         around.surface,
-        <span className="block space-y-1">
-          <span className="flex h-6 items-center px-2">{bar('w-12', faint)}</span>
-          <span data-sample className={`block rounded-md px-2 py-1 break-words ${STRONG}`} style={{ background: color, color: ink }}>
+        <span className="block space-y-rows">
+          <span className="flex h-6 items-center px-row-x">{bar('w-12', faint)}</span>
+          <span data-sample className={`block rounded-md px-row-x py-menu break-words ${STRONG}`} style={{ background: color, color: ink }}>
             {all}
           </span>
-          <span className="flex h-6 items-center px-2">{bar('w-16', faint)}</span>
+          <span className="flex h-6 items-center px-row-x">{bar('w-16', faint)}</span>
         </span>,
       )
     }
     case 'border':
       return frame(
         around.surface,
-        <span data-sample className={`flex h-8 items-center rounded-md px-2 ${STRONG}`} style={{ boxShadow: `inset 0 0 0 1px ${color}`, color: around.ink }}>
+        <span data-sample className={`flex h-8 items-center rounded-md px-input-x ${STRONG}`} style={{ boxShadow: `inset 0 0 0 1px ${color}`, color: around.ink }}>
           <span className="min-w-0 truncate">{all}</span>
         </span>,
       )
@@ -101,7 +102,7 @@ export function RoleSample({ shape, color, around, words: written = '' }: { shap
         around.surface,
         <>
           {bar('w-1/2', faint)}
-          <span className="my-2 block h-px w-full" style={{ background: color }} />
+          <span className="my-blocks block h-px w-full" style={{ background: color }} />
           {bar('w-3/4', faint)}
         </>,
       )
@@ -109,9 +110,9 @@ export function RoleSample({ shape, color, around, words: written = '' }: { shap
       // 채운 버튼 위의 글자. 버튼은 이 시스템의 글자 색으로 채운다.
       return frame(
         around.surface,
-        <span className="flex flex-wrap items-center gap-2">
+        <span className="flex flex-wrap items-center gap-actions">
           {list.map((text) => (
-            <span key={text} data-sample className={`flex h-7 items-center rounded-md px-2 whitespace-nowrap ${STRONG}`} style={{ background: around.ink, color }}>
+            <span key={text} data-sample className={`flex h-7 items-center rounded-md px-button-x whitespace-nowrap ${STRONG}`} style={{ background: around.ink, color }}>
               {text}
             </span>
           ))}
@@ -121,9 +122,9 @@ export function RoleSample({ shape, color, around, words: written = '' }: { shap
       // 첫 뱃지는 이 색을 옅게 깐 바탕에 이 색 글자, 나머지는 이 색으로 채운다.
       return frame(
         around.surface,
-        <span className="flex flex-wrap items-center gap-2">
+        <span className="flex flex-wrap items-center gap-blocks">
           {list.map((text, i) => (
-            <span key={text} data-sample className={`flex h-6 items-center rounded-full px-2 whitespace-nowrap ${SMALL}`} style={i === 0 ? { background: soft, color } : { background: color, color: inkOn(color) }}>
+            <span key={text} data-sample className={`flex h-6 items-center rounded-full px-row-x whitespace-nowrap ${SMALL}`} style={i === 0 ? { background: soft, color } : { background: color, color: inkOn(color) }}>
               {text}
             </span>
           ))}
@@ -135,15 +136,15 @@ export function RoleSample({ shape, color, around, words: written = '' }: { shap
       const corner = { background: around.surface, boxShadow: `inset 0 0 0 1px ${color}` }
       return frame(
         around.surface,
-        <span className="flex flex-col items-center px-1 pt-1">
-          <span className="relative flex h-8 w-full items-center px-2" style={{ boxShadow: `0 0 0 1px ${color}` }}>
+        <span className="flex flex-col items-center px-chip-x pt-label">
+          <span className="relative flex h-8 w-full items-center px-input-x" style={{ boxShadow: `0 0 0 1px ${color}` }}>
             {bar('w-1/2', faint)}
             <span className={`${HANDLE} -top-1 -left-1`} style={corner} />
             <span className={`${HANDLE} -top-1 -right-1`} style={corner} />
             <span className={`${HANDLE} -bottom-1 -left-1`} style={corner} />
             <span className={`${HANDLE} -right-1 -bottom-1`} style={corner} />
           </span>
-          <span data-sample className={`mt-2 rounded-xs px-1 whitespace-nowrap ${SMALL}`} style={{ background: color, color: onMark(color) }}>
+          <span data-sample className={`mt-blocks rounded-xs px-chip-x whitespace-nowrap ${SMALL}`} style={{ background: color, color: onMark(color) }}>
             {all}
           </span>
         </span>,
@@ -153,12 +154,12 @@ export function RoleSample({ shape, color, around, words: written = '' }: { shap
       // 판을 끌 때의 모습. 두 상자의 왼쪽 가장자리가 맞았다고 알리는 세로 선과, 두 상자 사이의 간격을 적은 숫자.
       return frame(
         around.surface,
-        <span className="relative block pl-2">
+        <span className="relative block pl-blocks">
           <span className="absolute inset-y-0 left-2 w-px" style={{ background: color }} />
           <span className="block h-4 w-24 rounded-sm" style={{ background: faint }} />
-          <span className="relative my-1 flex h-6 w-16 items-center justify-center">
+          <span className="relative my-label flex h-6 w-16 items-center justify-center">
             <span className="absolute inset-y-0 left-1/2 w-px" style={{ background: color }} />
-            <span data-sample className={`relative rounded-xs px-1 whitespace-nowrap ${SMALL}`} style={{ background: color, color: onMark(color) }}>
+            <span data-sample className={`relative rounded-xs px-chip-x whitespace-nowrap ${SMALL}`} style={{ background: color, color: onMark(color) }}>
               {all}
             </span>
           </span>
@@ -170,7 +171,7 @@ export function RoleSample({ shape, color, around, words: written = '' }: { shap
         around.surface,
         <>
           {bar('w-1/2', faint)}
-          <span data-sample className="mt-2 block text-xs leading-4 break-words" style={{ color }}>
+          <span data-sample className="mt-blocks block text-xs leading-4 break-words" style={{ color }}>
             {all}
           </span>
         </>,
@@ -180,7 +181,7 @@ export function RoleSample({ shape, color, around, words: written = '' }: { shap
       const bars = [40, 65, 50, 85, 60, 100, 75]
       return frame(
         around.surface,
-        <span className="flex h-10 items-end gap-1">
+        <span className="flex h-10 items-end gap-actions-tight">
           {bars.map((h, i) => (
             <span key={i} className="w-4 rounded-t-sm" style={{ height: `${h}%`, background: color }} />
           ))}
@@ -191,9 +192,9 @@ export function RoleSample({ shape, color, around, words: written = '' }: { shap
       // 버튼: 이 색으로 채운 버튼들.
       return frame(
         around.surface,
-        <span className="flex flex-wrap items-center gap-2">
+        <span className="flex flex-wrap items-center gap-actions">
           {list.map((text) => (
-            <span key={text} data-sample className={`flex h-7 items-center rounded-md px-2 whitespace-nowrap ${STRONG}`} style={{ background: color, color: inkOn(color) }}>
+            <span key={text} data-sample className={`flex h-7 items-center rounded-md px-button-x whitespace-nowrap ${STRONG}`} style={{ background: color, color: inkOn(color) }}>
               {text}
             </span>
           ))}
