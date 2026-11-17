@@ -20,16 +20,19 @@
     종류와 그 모양: 그림자(메뉴, 창, 알림, 카드), 투명도(꺼짐, 가림막, 겹침), 흐림(유리)
     효과의 이름은 단계(sm, md)보다 쓰임(float, dialog, disabled)으로 짓는다.
 
-  간격(--spacing-이름)의 주석
-    간격(모양): 설명 | 문구 | 모양: 문구
-    예) 간격(사이): 버튼 사이, 입력칸의 좌우 여백 | 취소, 추가 | 입력칸: 이름
-    모양: 사이, 쌓임, 이름표, 줄, 칸, 묶음, 버튼, 입력칸, 면, 면 좌우
+  의미 간격(--spacing-이름: var(--spacing-숫자))의 주석
+    묶음(모양): 설명 | 문구 | 모양: 문구
+    예) 버튼(사이): 나란한 버튼 사이 | 취소, 추가
+    묶음: 버튼, 입력칸, 목록, 판, 패널, 창
+    모양: 사이, 아이콘, 쌓임, 이름표, 줄, 칸, 묶음, 버튼, 입력칸, 면, 면 좌우
+    간격은 숫자 이름의 값(--spacing-2: 8px)을 화면에 바로 쓰지 않는다. 쓰임마다 의미 간격을 두고 그 이름을 쓴다(gap-actions, px-input-x).
+    의미 간격은 (모양)을 적은 값에만 예시가 그려진다.
 
   설명은 이 값을 화면 어디에 쓰는지다.
   문구는 그 자리에 실제로 적혀 있는 말이다. 지어내지 않고 화면에 있는 말을 옮긴다.
   모양은 그 값이 놓인 자리다. (모양)을 빼면 FF가 이름에서 짐작한다.
   한 값을 여러 자리에 쓰면 뒤에 " | 모양: 문구"를 자리마다 이어 적는다.
-  여럿을 늘어놓는 모양(버튼, 버튼 글자, 메뉴, 탭, 뱃지, 숫자, 그림자의 메뉴, 간격의 사이·쌓임·이름표·줄·칸·묶음)은 문구를 쉼표와 빈칸으로 나눈다.
+  여럿을 늘어놓는 모양(버튼, 버튼 글자, 메뉴, 탭, 뱃지, 숫자, 그림자의 메뉴, 의미 간격의 사이·쌓임·이름표·줄·칸·묶음)은 문구를 쉼표와 빈칸으로 나눈다.
   주석은 값과 같은 줄에 한 줄로 적는다.
   파일 끝의 ff:type 구역은 FF가 저장할 때마다 다시 쓰므로 고치지 않는다.
 ff:guide 끝 */
@@ -129,11 +132,45 @@ ff:guide 끝 */
   --type-caption-strong: var(--font-weight-medium) var(--text-xs)/var(--text-xs--line-height) var(--font-sans); /* 조작(뱃지): 묶음의 이름, 작은 이름표 | ink · #000000 | 제목: 이 디자인 시스템의 색 */
   --type-code: var(--font-weight-regular) var(--text-sm)/var(--text-sm--line-height) var(--font-mono); /* 숫자·코드: 판에 적힌 색 값과 변수 이름 | --color-ink */
   --type-code-sm: var(--font-weight-regular) var(--text-xs)/var(--text-xs--line-height) var(--font-mono); /* 숫자·코드: 작은 칸의 숫자와 이름, 코드 표시 | sans · sm · medium */
-  --spacing-1: 4px; /* 간격(이름표): 이름표와 입력칸 사이, 목록의 줄 사이, 버튼 안의 아이콘과 글자 사이 | 이름, float | 줄: float, dialog */
-  --spacing-2: 8px; /* 간격(사이): 버튼 사이, 입력칸의 좌우 여백, 메뉴 줄의 아이콘과 글자 사이 | 취소, 추가 | 입력칸: float */
-  --spacing-3: 12px; /* 간격(버튼): 채운 버튼과 테두리 버튼의 좌우 여백, 판의 줄 안쪽 여백, 창 안의 칸 사이 | 취소 | 칸: 쓰임, 이름 */
-  --spacing-4: 16px; /* 간격(면 좌우): 오른쪽 패널 구역의 좌우 여백, 판의 줄에서 이름 칸과 예시 사이 | 이름 */
-  --spacing-6: 24px; /* 간격(면): 창의 안쪽 여백, 판 안의 묶음 사이 | 그림자 추가 | 묶음: 그림자, 투명도 */
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-6: 24px;
+  --spacing-button-x: var(--spacing-3); /* 버튼(버튼): 채운 버튼과 테두리 버튼의 좌우 여백 | 취소 */
+  --spacing-button-quiet-x: var(--spacing-2); /* 버튼(버튼): 바탕 없는 버튼의 좌우 여백. 글줄에 맞출 때 같은 값만큼 왼쪽으로 당긴다 | 원래대로 */
+  --spacing-button-icon: var(--spacing-1); /* 버튼(아이콘): 버튼 안의 아이콘과 글자 사이, 접는 구역 제목 줄의 글자와 화살표 사이 | 추가 */
+  --spacing-actions: var(--spacing-2); /* 버튼(사이): 나란한 버튼 사이 | 취소, 추가 */
+  --spacing-actions-tight: var(--spacing-1); /* 버튼: 바탕 없는 버튼과 아이콘 버튼 사이, 숫자를 올리고 내리는 버튼 사이, 전환 버튼의 칸 사이. 마우스를 올린 바탕끼리 닿지 않을 만큼만 띄운다 */
+  --spacing-input-x: var(--spacing-2); /* 입력칸(입력칸): 입력칸의 좌우 여백 | float */
+  --spacing-input-inner: var(--spacing-1); /* 입력칸: 입력칸 안의 값과 단위 사이 */
+  --spacing-chip-x: var(--spacing-1); /* 입력칸: 칩, 작은 입력칸, 키 표시, 선택 이름표의 좌우 여백 */
+  --spacing-label: var(--spacing-1); /* 입력칸(이름표): 이름표와 입력칸 사이, 입력칸과 그 아래 안내 글 사이, 값과 딸린 설명 사이 | 이름, float */
+  --spacing-field-row: var(--spacing-2); /* 입력칸: 가로로 나란한 칸 사이, 색 견본과 입력칸 사이 */
+  --spacing-fields: var(--spacing-3); /* 입력칸(칸): 위아래로 놓인 칸 사이 | 쓰임, 이름 */
+  --spacing-settings: var(--spacing-4); /* 입력칸: 한 벌 만들기 창의 설정 묶음 사이, 구분선 위아래 */
+  --spacing-row-x: var(--spacing-2); /* 목록: 메뉴 줄과 목록 줄의 좌우 여백 */
+  --spacing-row-gap: var(--spacing-2); /* 목록(아이콘): 줄 안의 아이콘과 글자 사이, 이름과 옅은 덧글 사이 | 색상 */
+  --spacing-rows: var(--spacing-1); /* 목록(줄): 줄과 줄 사이. 마우스를 올린 바탕끼리 닿지 않게 한다 | float, dialog */
+  --spacing-menu: var(--spacing-1); /* 목록: 목록 상자와 떠 있는 메뉴의 안쪽 여백, 전환 버튼의 안쪽 여백 */
+  --spacing-nav: var(--spacing-2); /* 목록: 왼쪽 메뉴의 안쪽 여백 */
+  --spacing-board: var(--spacing-6); /* 판: 판, 작업 영역, 미리보기를 담는 상자의 안쪽 여백 */
+  --spacing-groups: var(--spacing-6); /* 판(묶음): 판 안의 묶음 사이, 창 안의 열 사이 | 그림자, 투명도 */
+  --spacing-head: var(--spacing-4); /* 판: 판 머리의 버튼 줄과 내용 사이, 창 제목과 내용 사이 */
+  --spacing-title: var(--spacing-2); /* 판: 묶음 제목과 그 내용 사이, 패널 구역 제목과 내용 사이 */
+  --spacing-board-row: var(--spacing-3); /* 판: 값 줄의 좌우 여백, 견본이 큰 줄의 위아래 여백 */
+  --spacing-board-row-y: var(--spacing-2); /* 판: 값 줄의 위아래 여백 */
+  --spacing-columns: var(--spacing-4); /* 판: 값 줄 안의 이름 칸과 예시 사이 */
+  --spacing-grid: var(--spacing-3); /* 판: 격자의 칸 사이, 표의 칸 사이 */
+  --spacing-grid-y: var(--spacing-4); /* 판: 이름이 딸린 색 격자의 줄 사이 */
+  --spacing-card: var(--spacing-4); /* 판: 네모 칸과 카드의 안쪽 여백 */
+  --spacing-section-x: var(--spacing-4); /* 패널(면 좌우): 패널 구역의 좌우 여백, 표 상자의 좌우 여백 | 이름 */
+  --spacing-section-y: var(--spacing-3); /* 패널: 패널 구역의 위아래 여백, 표 상자의 위아래 여백 */
+  --spacing-blocks: var(--spacing-2); /* 패널: 구역 안의 덩어리 사이, 한 줄에 쌓인 예시 사이, 견본과 그 아래 이름 사이 */
+  --spacing-dialog: var(--spacing-6); /* 창(면): 창의 안쪽 여백 | 그림자 추가 */
+  --spacing-dialog-actions: var(--spacing-4); /* 창: 창의 내용과 아래 버튼 줄 사이 */
+  --spacing-popover: var(--spacing-3); /* 창: 색 선택 창의 안쪽 여백과 그 안의 덩어리 사이 */
+  --spacing-bar-x: var(--spacing-3); /* 창: 상단 바와 알림의 좌우 여백 */
   --shadow-float: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 16px rgb(0 0 0 / 0.06); /* 그림자(메뉴): 화면 위에 잠깐 떠 있는 것. 드롭다운 목록, 확대 도구, 알림 | ff-test, 새 디자인 시스템 | 알림: 코드를 복사했어요. */
   --shadow-dialog: 0 2px 4px rgb(0 0 0 / 0.04), 0 8px 32px rgb(0 0 0 / 0.1); /* 그림자(창): 화면을 덮고 뜨는 창, 빠른 실행, 색 선택 창 | 새 디자인 시스템 */
   --opacity-disabled: 0.4; /* 투명도(꺼짐): 누를 수 없는 버튼 | 원래대로 */

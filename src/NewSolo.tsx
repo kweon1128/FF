@@ -46,7 +46,7 @@ export function NewSoloForm({
   }
 
   return (
-    <form onSubmit={submit} className="space-y-3">
+    <form onSubmit={submit} className="space-y-fields">
       <Field label="이름" error={error.name}>
         <input
           autoFocus
@@ -60,7 +60,7 @@ export function NewSoloForm({
         />
       </Field>
       <Field label="색" error={error.color}>
-        <span className="flex items-center gap-2">
+        <span className="flex items-center gap-field-row">
           <ColorSwatch
             label="색 고르기"
             preview
@@ -82,7 +82,7 @@ export function NewSoloForm({
           />
         </span>
       </Field>
-      <div className="flex justify-end gap-2 pt-1">
+      <div className="mt-dialog-actions flex justify-end gap-actions">
         <Button variant="ghost" onClick={onCancel}>
           취소
         </Button>

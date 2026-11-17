@@ -38,15 +38,15 @@ export function PasteDialog({
 
   return (
     <Modal title="붙여넣기" onClose={onCancel}>
-      <div className="space-y-4">
+      <div className="space-y-settings">
         <p className="text-ink-soft">
           값 <span className="type-label text-ink">{total}개</span>를 붙여넣어요.
         </p>
 
         {job.conflicts > 0 && (
           <div>
-            <p className="mb-1 type-label text-ink-faint">이름이 같은 값 {job.conflicts}개</p>
-            <div role="group" aria-label="이름이 같은 값" className="flex gap-1 rounded-md bg-hover p-1">
+            <p className="mb-label type-label text-ink-faint">이름이 같은 값 {job.conflicts}개</p>
+            <div role="group" aria-label="이름이 같은 값" className="flex gap-actions-tight rounded-md bg-hover p-menu">
               {[
                 { on: true, label: '덮어쓰기' },
                 { on: false, label: '따로 만들기' },
@@ -67,17 +67,17 @@ export function PasteDialog({
 
         {job.skipped.length > 0 && (
           <div>
-            <p className="mb-1 type-label text-ink-faint">읽지 못한 값 {job.skipped.length}개</p>
-            <ul className="max-h-36 space-y-1 overflow-y-auto rounded-md border border-hairline p-2">
+            <p className="mb-label type-label text-ink-faint">읽지 못한 값 {job.skipped.length}개</p>
+            <ul className="max-h-36 space-y-rows overflow-y-auto rounded-md border border-hairline p-blocks">
               {job.skipped.map((t) => (
-                <li key={t.name} className="flex items-baseline gap-2 type-code-sm">
+                <li key={t.name} className="flex items-baseline gap-row-gap type-code-sm">
                   <span className="min-w-0 flex-1 truncate">{t.name}</span>
                   <span className="max-w-[45%] shrink-0 truncate text-ink-faint">{t.value}</span>
                 </li>
               ))}
             </ul>
             {job.adoptable.length > 0 && (
-              <div className="mt-2">
+              <div className="mt-blocks">
                 <Check checked={adopt} onChange={setAdopt}>
                   색으로 보이는 {job.adoptable.length}개는 이름 앞에 <span className="type-code-sm">--color-</span>를 붙여 가져오기
                 </Check>
@@ -87,7 +87,7 @@ export function PasteDialog({
         )}
       </div>
 
-      <div className="mt-4 flex justify-end gap-2">
+      <div className="mt-dialog-actions flex justify-end gap-actions">
         <Button variant="ghost" onClick={onCancel}>
           취소
         </Button>

@@ -72,7 +72,7 @@ export const isAdditive = (e: MouseEvent) => e.shiftKey || e.ctrlKey || e.metaKe
 export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGroup, onRename, onSelectGroup, emptyGroups, pickedGroup, onPickGroup, folded, onReorderGroup, rolesFolded, onMoveRole, onMoveRoleGroup, onMoveType, onMoveTypeGroup, onResetTypes, onMoveInKind, resetOf, onMakeSizes, onMakeWeights, onMakeTypes }: SectionProps & { kinds: Kind[] }) {
   const single = kinds.length === 1
   return (
-    <div className="space-y-6">
+    <div className="space-y-groups">
       {kinds.map((kind) => {
         const items = tokens.filter((t) => kind.matches(t.name))
         // 차례를 손으로 바꿀 수 있는 종류에만 끌기를 준다. 크기 있는 종류(글자 크기, 간격…)는 값의 크기순으로 저절로 놓인다.
@@ -95,9 +95,9 @@ export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGr
               const canAdd = kind.id !== 'color' && kind.id !== 'role' && !kind.legacy
               if (single && !canAdd && !makeSet) return null
               return (
-                <div className="mb-2 flex h-6 items-center justify-between">
+                <div className="mb-title flex h-6 items-center justify-between">
                   {single ? <span /> : <h2 className="type-heading">{kind.title}</h2>}
-                  <span className="flex gap-1">
+                  <span className="flex gap-actions-tight">
                     {isFreeKind(kind) && <ResetButton title="기본 순서로 돌려놓아요" onReset={resetOf(kind)} />}
                     {kind.id === 'style' && <ResetButton title="묶음과 그 안의 조합을 기본 순서로 돌려놓아요" onReset={onResetTypes} />}
                     {makeSet && (
@@ -125,9 +125,9 @@ export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGr
             ) : isEffectKind(kind.id) ? (
               // 효과(그림자, 투명도, 흐림)는 의미 판처럼 한 줄에 하나씩, 쓰인 모습과 함께 보여 준다.
               <EffectList kind={kind} items={items} all={tokens} selected={selected} onSelect={onSelect} onRename={onRename} onMove={onMove} />
-            ) : kind.id === 'space' ? (
-              // 간격도 효과처럼 한 줄에 하나씩, 그 값이 쓰인 모습과 함께 보여 준다.
-              <SpaceList kind={kind} items={items} all={tokens} selected={selected} onSelect={onSelect} onRename={onRename} />
+            ) : kind.id === 'spaceuse' ? (
+              // 의미 간격은 묶음마다 한 줄에 하나씩, 그 간격이 쓰인 모습과 함께 보여 준다.
+              <SpaceList kind={kind} items={items} all={tokens} selected={selected} onSelect={onSelect} onSelectGroup={onSelectGroup} onRename={onRename} />
             ) : kind.tiles ? (
               <TileGrid {...list} />
             ) : (
@@ -175,7 +175,7 @@ export function AddColorButtons({
   reset?: { run?: () => void }
 }) {
   return (
-    <span className="flex gap-2">
+    <span className="flex gap-actions">
       {reset && <ResetButton title="목록과 그 안의 색을 기본 순서로 돌려놓아요" onReset={reset.run} />}
       {onToggleFold && <FoldButton folded={!!folded} title="색 아래의 이름과 값 글자를 모두 숨기거나 보여요" onToggle={onToggleFold} />}
       <Button onClick={onAddGroup}>
@@ -215,7 +215,7 @@ export function SelectionHandles() {
 /** 선택한 항목 바로 아래에 붙는 파란 이름표(이름 · 값). 주변에 무엇이 있든 가장 위에 겹쳐 보인다. */
 export function SelectionTag({ name, value }: { name: string; value?: string }) {
   return (
-    <span className="pointer-events-none absolute top-full left-1/2 z-20 mt-2 origin-top -translate-x-1/2 [scale:var(--unzoom)] rounded-xs bg-selection px-1 type-caption-strong whitespace-nowrap text-white">
+    <span className="pointer-events-none absolute top-full left-1/2 z-20 mt-blocks origin-top -translate-x-1/2 [scale:var(--unzoom)] rounded-xs bg-selection px-chip-x type-caption-strong whitespace-nowrap text-white">
       {value === undefined ? name : `${name} · ${value}`}
     </span>
   )
@@ -289,20 +289,20 @@ function ColorGroups({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-groups">
       {/*
         목록이 아직 하나도 없으면 "primary"라는 본보기 목록을 흐리게 보여 준다. 예외 색 목록만 덩그러니 있으면 무엇을 하는 곳인지 알기 어렵다.
         실제 값이 아니라 자리 표시다. 누르면 목록 추가 창이 열린다.
       */}
       {groups.size === 1 && (
         <button type="button" aria-label="목록 추가" onClick={onAddGroup} className="group block w-full text-left outline-selection focus-visible:outline-2">
-          <span className="mb-2 block type-title text-ink-faint">primary</span>
-          <span className={`grid grid-cols-11 gap-x-3 ${folded ? 'gap-y-3' : 'gap-y-4'}`}>
+          <span className="mb-title block type-title text-ink-faint">primary</span>
+          <span className={`grid grid-cols-11 gap-x-grid ${folded ? 'gap-y-grid' : 'gap-y-grid-y'}`}>
             {SCALE_STEPS.map((step) => (
               <span key={step}>
                 {/* 아직 없는 목록의 자리를 보여 주는 점선 상자. */}
                 <span className="block h-16 rounded-md dash-box bg-canvas group-hover:bg-hover group-hover:bg-none" />
-                {!folded && <span className="mt-2 block type-body text-ink-faint">{step}</span>}
+                {!folded && <span className="mt-blocks block type-body text-ink-faint">{step}</span>}
               </span>
             ))}
           </span>
@@ -320,7 +320,7 @@ function ColorGroups({
           {/* 영문 목록 이름은 소문자라 작아 보여서 16px, 한글인 '예외 색'은 다른 제목과 같은 14px. */}
           {/* 목록 이름을 누르면 그 목록의 색이 모두 선택되고, 더블클릭하면 오른쪽 패널의 목록 이름 칸으로 간다. */}
           {/* 색이 없는 빈 목록은 이름 자체가 선택되고(파란 선), 그 상태에서 Delete를 누르면 목록이 지워진다. */}
-          <div className="mb-2 -ml-1 flex items-center gap-1">
+          <div className="mb-title -ml-chip-x flex items-center gap-actions-tight">
           <button
             type="button"
             data-group-name={group}
@@ -362,7 +362,7 @@ function ColorGroups({
               setDrop(null)
             }}
             onDoubleClick={() => list.length > 0 && onSelectGroup(list.map((t) => t.name), false, true)}
-            className={`rounded-sm px-1 outline-selection hover:bg-hover focus-visible:outline-2 ${group ? 'type-title' : 'type-heading'} ${
+            className={`rounded-sm px-chip-x outline-selection hover:bg-hover focus-visible:outline-2 ${group ? 'type-title' : 'type-heading'} ${
               list.length === 0 && pickedGroup === group ? 'line-1' : ''
             }`}
             style={{ '--edge': '0px' } as CSSProperties}
@@ -381,7 +381,7 @@ function ColorGroups({
           </button>
           </div>
           {/* 한 줄에 11칸. 50부터 950까지 11단계인 한 목록이 한 줄에 들어간다. 접으면 글자가 없어지므로 줄 사이를 좁힌다. */}
-          <div className={`grid grid-cols-11 gap-x-3 ${folded ? 'gap-y-3' : 'gap-y-4'}`}>
+          <div className={`grid grid-cols-11 gap-x-grid ${folded ? 'gap-y-grid' : 'gap-y-grid-y'}`}>
             {list.map((t, i) => {
               const short = shortName(kind, t.name)
               const isSelected = selected.includes(t.name)
@@ -415,7 +415,7 @@ function ColorGroups({
                   {/* 접으면 이름과 값 글자를 숨긴다. 색을 고르면 뜨는 파란 이름표로는 여전히 볼 수 있다. */}
                   {!folded && (
                   <span>
-                    <span data-name className="mt-2 block truncate type-body text-ink-soft">
+                    <span data-name className="mt-blocks block truncate type-body text-ink-soft">
                       {group ? short.slice(group.length + 1) : short}
                     </span>
                     <span
@@ -463,7 +463,7 @@ function TileGrid({ kind, items, selected, onSelect, onRename, onMove }: ListPro
   // 값이 없으면 아무것도 그리지 않는다. 추가는 묶음 제목 줄의 버튼으로 한다.
   if (items.length === 0) return null
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(112px,1fr))] gap-3">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(112px,1fr))] gap-grid">
       {items.map((t, i) => {
         const short = shortName(kind, t.name)
         const isSelected = selected.includes(t.name)
@@ -477,11 +477,11 @@ function TileGrid({ kind, items, selected, onSelect, onRename, onMove }: ListPro
             onClick={(e) => !reorder.justDragged() && onSelect(t.name, isAdditive(e))}
             onDoubleClick={() => onRename(t.name)}
             {...reorder.grab(t.name)}
-            className={`relative flex flex-col items-center rounded-lg border border-hairline bg-canvas p-4 select-none ${reorder.moving(t.name) ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
+            className={`relative flex flex-col items-center rounded-lg border border-hairline bg-canvas p-card select-none ${reorder.moving(t.name) ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
           >
             {reorder.line(t.name, i)}
             <TileSample kind={kind} value={t.value} />
-            <span data-name className="mt-3 block max-w-full truncate type-body text-ink-soft">{short}</span>
+            <span data-name className="mt-board-row block max-w-full truncate type-body text-ink-soft">{short}</span>
             <span className="block max-w-full truncate type-code text-ink-faint">{t.value}</span>
             {isSelected && selected.length === 1 && <SelectionLabel name={short} value={t.value} />}
           </button>
@@ -507,7 +507,7 @@ function RowList({
   // 값이 없으면 빈 상자를 남기지 않는다. 추가는 묶음 제목 줄의 버튼으로 한다.
   if (items.length === 0) return null
   return (
-    <div className="space-y-1 rounded-lg border border-hairline bg-canvas p-1">
+    <div className="space-y-rows rounded-lg border border-hairline bg-canvas p-menu">
       {items.map((t, i) => {
         const short = shortName(kind, t.name)
         const isSelected = selected.includes(t.name)
@@ -527,7 +527,7 @@ function RowList({
             onClick={(e) => !reorder.justDragged() && onSelect(t.name, isAdditive(e))}
             onDoubleClick={() => onRename(t.name)}
             {...reorder.grab(t.name)}
-            className={`group relative w-full rounded-md px-3 py-3 text-left select-none ${stacked ? 'block' : 'flex items-center gap-4'} ${reorder.moving(t.name) ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
+            className={`group relative w-full rounded-md px-board-row py-board-row text-left select-none ${stacked ? 'block' : 'flex items-center gap-columns'} ${reorder.moving(t.name) ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
           >
             {reorder.line(t.name, i)}
             {stacked ? (
@@ -536,7 +536,7 @@ function RowList({
                 <span data-name className="block type-body text-ink-soft">{short}</span>
                 {/* 다른 줄의 값(14px)보다 작게 12px로 적어 견본 문장이 주인공이 되게 한다. */}
                 <span className="block type-code-sm break-words text-ink-faint">{shown}</span>
-                <span className="mt-2 block overflow-hidden">
+                <span className="mt-blocks block overflow-hidden">
                   <RowSample kind={kind} value={t.value} />
                 </span>
               </>

@@ -84,7 +84,7 @@ export function BatchRename({
           if (ready) onApply(Object.fromEntries(rows.filter((r) => r.full !== r.old).map((r) => [r.old, r.full])))
         }}
       >
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-field-row">
           <Field label="시작 번호">
             <input autoFocus className={inputClass} inputMode="numeric" value={start} onChange={(e) => setStart(e.target.value)} />
           </Field>
@@ -93,11 +93,11 @@ export function BatchRename({
           </Field>
         </div>
 
-        <ul className="mt-3 max-h-[280px] space-y-1 overflow-y-auto rounded-md border border-hairline p-2">
+        <ul className="mt-fields max-h-[280px] space-y-rows overflow-y-auto rounded-md border border-hairline p-blocks">
           {rows.map((r) => {
             const problem = problemOf(r)
             return (
-              <li key={r.old} className="flex items-baseline gap-2 type-code">
+              <li key={r.old} className="flex items-baseline gap-row-gap type-code">
                 <span className="min-w-0 flex-1 truncate text-ink-faint">{r.short}</span>
                 <span className="shrink-0 text-ink-faint">→</span>
                 <span className={`min-w-0 flex-1 truncate ${problem ? 'text-danger' : r.full === r.old ? 'text-ink-faint' : 'text-ink'}`}>
@@ -109,7 +109,7 @@ export function BatchRename({
           })}
         </ul>
 
-        <div className="mt-4 flex justify-end gap-2">
+        <div className="mt-dialog-actions flex justify-end gap-actions">
           <Button variant="ghost" onClick={onClose}>
             취소
           </Button>

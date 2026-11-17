@@ -75,7 +75,7 @@ import { NewWeightsForm } from './NewWeights'
 import { TypeInspector } from './Types'
 import { EffectInspector } from './Effects'
 import { isEffectKind } from './lib/effects'
-import { readSpaceNote, writeSpaceNote } from './lib/spacing'
+import { NewSpaceUseForm, SpaceUseInspector } from './Spacing'
 import { autoOrder, defaultFreeOrder, isAutoOrdered, moveException, moveInKind } from './lib/order'
 import { NewTypesForm } from './NewTypes'
 import { defaultTypeOrder, followTypeRefs, moveType, moveTypeGroup, nextType, shiftTypes, syncTypes, typeUsers, withTypeTrack, type TypeUse } from './lib/types'
@@ -278,6 +278,8 @@ export function App() {
   const [addingSolo, setAddingSolo] = useState(false)
   // 효과(그림자, 투명도, 흐림)를 만드는 창이 어느 종류로 떠 있는지.
   const [addingEffect, setAddingEffect] = useState<Kind | null>(null)
+  // 의미 간격을 만드는 창이 떠 있는지.
+  const [addingSpaceUse, setAddingSpaceUse] = useState(false)
   const [addingRole, setAddingRole] = useState(false)
   const [addingFont, setAddingFont] = useState(false)
   const [makingSizes, setMakingSizes] = useState(false)
@@ -648,6 +650,8 @@ export function App() {
     if (kind.id === 'font') return setAddingFont(true)
     // 효과는 단계가 아니라 쓰임으로 이름 붙이므로, 무엇에 쓸지를 묻고 그 쓰임의 이름과 추천 값으로 만든다.
     if (isEffectKind(kind.id)) return setAddingEffect(kind)
+    // 의미 간격은 이름과 가리키는 간격을 정해야 만들 수 있다.
+    if (kind.id === 'spaceuse') return setAddingSpaceUse(true)
     // 의미 글꼴은 기본 한 벌 가운데 아직 없는 것이 차례로 생긴다. 짝지을 재료(글꼴 종류, 글자 크기, 굵기)가 모자라면 무엇을 먼저 만들지 알리는 창을 연다.
     if (kind.id === 'style') {
       const made = nextType(tokens)
@@ -1695,7 +1699,7 @@ export function App() {
                 content: (
                   <>
                     {id === 'color' && (
-                      <div className="mb-4 flex justify-end">
+                      <div className="mb-head flex justify-end">
                         <AddColorButtons
                           onAddGroup={sectionProps.onAddGroup}
                           folded={folded}
@@ -1705,7 +1709,7 @@ export function App() {
                       </div>
                     )}
                     {id === 'role' && (
-                      <div className="mb-4 flex justify-end gap-2">
+                      <div className="mb-head flex justify-end gap-actions">
                         <ResetButton
                           title="묶음과 그 안의 색을 기본 순서로 돌려놓아요"
                           onReset={rolesSorted ? () => commit(rolesSorted) : undefined}
@@ -1726,7 +1730,7 @@ export function App() {
           </main>
         ) : (
           <main
-            className="min-w-0 flex-1 overflow-y-auto bg-workspace p-6"
+            className="min-w-0 flex-1 overflow-y-auto bg-workspace p-board"
             onClick={(e) => {
               // 항목이나 버튼이 아닌 빈 곳을 누르면 선택을 푼다.
               if ((e.target as HTMLElement).closest('button, input, a, label')) return
@@ -1737,8 +1741,8 @@ export function App() {
             {loadError ? (
               <EmptyState title="불러오지 못했어요" body={loadError} />
             ) : systems === null ? null : !system ? (
-              <div className="mx-auto mt-6 w-[360px] rounded-lg border border-hairline bg-canvas p-6">
-                <p className="mb-4 type-title">첫 디자인 시스템을 만들어 보세요</p>
+              <div className="mx-auto mt-groups w-[360px] rounded-lg border border-hairline bg-canvas p-dialog">
+                <p className="mb-head type-title">첫 디자인 시스템을 만들어 보세요</p>
                 <NewSystemForm
                   onCreated={(name) => {
                     setSystems((list) => [...(list ?? []), name].sort())
@@ -1760,7 +1764,7 @@ export function App() {
                 />
               ) : (
                 <div className="mx-auto max-w-[960px]">
-                  <h1 className="mb-4 flex h-8 items-center type-title">컴포넌트</h1>
+                  <h1 className="mb-head flex h-8 items-center type-title">컴포넌트</h1>
                   <div className="rounded-lg border border-hairline bg-canvas">
                     <EmptyState title="첫 컴포넌트를 만들어 보세요">
                       <Button onClick={() => setAddingComp(true)}>
@@ -1773,7 +1777,7 @@ export function App() {
               )
             ) : screen !== 'canvas' ? (
               <div className="mx-auto max-w-[960px]">
-                <h1 className="mb-4 flex h-8 items-center type-title">{PLACEHOLDER_SCREENS[screen].title}</h1>
+                <h1 className="mb-head flex h-8 items-center type-title">{PLACEHOLDER_SCREENS[screen].title}</h1>
                 <div className="rounded-lg border border-hairline bg-canvas">
                   <EmptyState title="다음 단계에서 만들 화면이에요" />
                 </div>
@@ -1860,6 +1864,19 @@ export function App() {
               onTrack={(value) => commit(withTypeTrack(tokens, selectedTokens[0].name, value))}
               onCopy={(text) => copyText(text, '코드를 복사했어요.')}
             />
+          ) : selectedTokens.length === 1 && commonKind?.id === 'spaceuse' ? (
+            <SpaceUseInspector
+              key={selectionId}
+              token={selectedTokens[0]}
+              kind={commonKind}
+              tokens={tokens}
+              file={file}
+              uses={usesOf(comps, selectedTokens[0].name)}
+              onOpenComponent={openComp}
+              onRename={(to) => renameToken(selectedTokens[0].name, to)}
+              onChange={(patch) => commit(tokens.map((t) => (t.name === selectedTokens[0].name ? { ...t, ...patch } : t)))}
+              onCopy={(text) => copyText(text, '코드를 복사했어요.')}
+            />
           ) : selectedTokens.length === 1 && commonKind && isEffectKind(commonKind.id) ? (
             <EffectInspector
               key={selectionId}
@@ -1906,15 +1923,6 @@ export function App() {
               onTrack={(value) => commit(withTrack(tokens, selectedTokens[0].name, value))}
               scaleMissing={scaleOf(selectedTokens[0].name)?.missing.length ?? null}
               onMakeScale={() => fillScale(selectedTokens[0].name)}
-              // 간격은 값마다 어디에 쓰는지를 주석에 적는다. 같은 주석에 적혀 있는 예시(모양과 문구)는 그대로 둔다.
-              describe={
-                commonKind.id === 'space'
-                  ? (() => {
-                      const { text, picked, words, more } = readSpaceNote(selectedTokens[0].note)
-                      return { text, onSave: (next: string) => commit(tokens.map((t) => (t.name === selectedTokens[0].name ? { ...t, note: writeSpaceNote(next, picked, words, more) } : t))) }
-                    })()
-                  : undefined
-              }
             />
           ) : selectedTokens.length > 1 ? (
             <MultiInspector
@@ -1957,6 +1965,19 @@ export function App() {
             why={takenWhy}
             onCancel={() => setAddingSolo(false)}
             onCreate={addSolo}
+          />
+        </Modal>
+      )}
+
+      {addingSpaceUse && (
+        <Modal title="의미 간격 추가" onClose={() => setAddingSpaceUse(false)}>
+          <NewSpaceUseForm
+            tokens={tokens}
+            onCancel={() => setAddingSpaceUse(false)}
+            onCreate={(name, value, note) => {
+              setAddingSpaceUse(false)
+              insert({ name, value, note }, (t) => KINDS.spaceUse.matches(t.name) || KINDS.space.matches(t.name))
+            }}
           />
         </Modal>
       )}
@@ -2063,7 +2084,7 @@ export function App() {
       {notice && (
         <div
           role="status"
-          className="pointer-events-none fixed bottom-6 left-1/2 z-50 flex h-8 -translate-x-1/2 items-center rounded-md bg-ink px-3 type-body whitespace-nowrap text-white shadow-float"
+          className="pointer-events-none fixed bottom-6 left-1/2 z-50 flex h-8 -translate-x-1/2 items-center rounded-md bg-ink px-bar-x type-body whitespace-nowrap text-white shadow-float"
         >
           {notice}
         </div>
@@ -2072,7 +2093,7 @@ export function App() {
       {confirm && (
         <Modal title={confirm.title} onClose={() => setConfirm(null)}>
           <p className="text-ink-soft">{confirm.body}</p>
-          <div className="mt-4 flex justify-end gap-2">
+          <div className="mt-dialog-actions flex justify-end gap-actions">
             <Button variant="ghost" onClick={() => setConfirm(null)}>
               취소
             </Button>
@@ -2128,7 +2149,7 @@ function NewNameForm({
           }}
         />
       </Field>
-      <div className="mt-4 flex justify-end gap-2">
+      <div className="mt-dialog-actions flex justify-end gap-actions">
         <Button variant="ghost" onClick={onCancel}>
           취소
         </Button>

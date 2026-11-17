@@ -941,7 +941,7 @@ export function Canvas({
             >
               <div
                 data-board-handle={board.id}
-                className={`mb-1 inline-flex origin-bottom-left items-center gap-1 align-top [scale:var(--unzoom)] whitespace-nowrap ${
+                className={`mb-label inline-flex origin-bottom-left items-center gap-button-icon align-top [scale:var(--unzoom)] whitespace-nowrap ${
                   isSelected ? 'type-caption-strong text-selection' : 'type-caption text-ink-faint hover:text-ink'
                 }`}
               >
@@ -956,7 +956,7 @@ export function Canvas({
                 style={{ '--edge': '0px', '--line-color': measured === board.id ? 'var(--color-guide)' : undefined } as CSSProperties}
               >
                 <div
-                  className="border-solid p-6"
+                  className="border-solid p-board"
                   style={{
                     opacity: look.opacity / 100,
                     borderRadius: look.radius,
@@ -1038,7 +1038,7 @@ export function Canvas({
                 const { along, aside } = labelPlace(g)
                 return (
                   <span
-                    className="absolute -translate-x-1/2 -translate-y-1/2 [scale:var(--unzoom)] rounded-xs bg-guide px-1 type-caption-strong whitespace-nowrap text-white tabular-nums!"
+                    className="absolute -translate-x-1/2 -translate-y-1/2 [scale:var(--unzoom)] rounded-xs bg-guide px-chip-x type-caption-strong whitespace-nowrap text-white tabular-nums!"
                     style={g.vertical ? { left: aside, top: along } : { left: along, top: aside }}
                   >
                     {g.label}
@@ -1079,7 +1079,7 @@ export function Canvas({
 
       <div
         data-canvas-tools
-        className="absolute right-4 bottom-4 z-30 flex items-center rounded-lg border border-hairline bg-canvas p-1 shadow-float"
+        className="absolute right-4 bottom-4 z-30 flex items-center rounded-lg border border-hairline bg-canvas p-menu shadow-float"
         onPointerDown={(e) => e.stopPropagation()}
       >
         <button

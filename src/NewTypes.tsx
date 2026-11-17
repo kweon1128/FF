@@ -44,7 +44,7 @@ function grouped(rows: Row[]): [label: string, list: Row[]][] {
   return made.filter(([, list]) => list.length > 0)
 }
 
-const PICK = 'h-6 min-w-0 rounded-sm border border-hairline bg-canvas px-1 type-caption text-ink-soft outline-none focus:border-selection disabled:opacity-disabled'
+const PICK = 'h-6 min-w-0 rounded-sm border border-hairline bg-canvas px-chip-x type-caption text-ink-soft outline-none focus:border-selection disabled:opacity-disabled'
 
 const ScreenContext = createContext<{ rows: Row[]; tokens: Token[]; hot: string | null; setHot: (key: string | null) => void; toggle: (key: string) => void }>({
   rows: [],
@@ -122,7 +122,7 @@ export function NewTypesForm({
         <p className="type-body text-ink-soft">
           의미 글꼴은 글꼴 판의 값을 짝지어 만들어요. 글꼴 판에서 <span className="type-label text-ink">{missing.join(', ')}</span>부터 만들어 주세요.
         </p>
-        <div className="mt-3 flex justify-end">
+        <div className="mt-dialog-actions flex justify-end">
           <Button onClick={onCancel}>닫기</Button>
         </div>
       </div>
@@ -167,15 +167,15 @@ export function NewTypesForm({
     <ScreenContext.Provider value={{ rows, tokens, hot, setHot, toggle: (key) => patch(key, { on: !rows.find((r) => r.key === key)?.on }) }}>
       {/* 창의 높이는 화면에 맞춰 고정되어 있다(Modal의 tall). 목록이 길면 목록만 스크롤되고, 아래 버튼 줄은 늘 보인다. */}
       <form onSubmit={submit} className="flex h-full flex-col">
-        <div className="flex min-h-0 flex-1 items-stretch gap-6">
+        <div className="flex min-h-0 flex-1 items-stretch gap-groups">
           {/* 후보 조합들. 쓸 것에 표시하고, 이름과 가리키는 값을 고친다. */}
           <div data-list className="w-[676px] shrink-0 overflow-y-auto [scrollbar-gutter:stable]">
             {grouped(rows).map(([label, list]) => (
             <div key={label} data-group={label} className="first:[&>p]:pt-0">
               {/* 묶음의 이름표. 글꼴 종류 추가 창의 목록과 같은 모양이다. */}
-              <p className="px-2 pt-2 pb-1 type-caption-strong text-ink-faint">{label}</p>
+              <p className="px-row-x pt-blocks pb-label type-caption-strong text-ink-faint">{label}</p>
               {/* 마우스를 올린 줄의 바탕이 서로 닿지 않게 줄 사이를 4px 띄운다. */}
-              <div className="space-y-1">
+              <div className="space-y-rows">
             {list.map((r) => (
               <div
                 key={r.key}
@@ -185,7 +185,7 @@ export function NewTypesForm({
                 // 줄의 어디를 눌러도 쓸지 말지가 바뀐다. 이름 칸과 고르는 칸은 그 칸의 일을 한다.
                 // 바탕의 좌우 여백은 그 끝에 놓인 것의 위아래 여백과 같게 한다. 왼쪽 끝은 체크 상자(16px, 위아래 8px)라 8px, 오른쪽 끝은 고르는 칸(24px, 위아래 4px)이라 4px.
                 onClick={(e) => !(e.target as HTMLElement).closest('input, select, label') && patch(r.key, { on: !r.on })}
-                className={`flex h-8 cursor-pointer items-center gap-2 rounded-md pr-1 pl-2 ${hot === r.key ? 'bg-hover' : ''}`}
+                className={`flex h-8 cursor-pointer items-center gap-row-gap rounded-md pr-menu pl-row-x ${hot === r.key ? 'bg-hover' : ''}`}
               >
                 <label className="flex shrink-0 items-center">
                   <input type="checkbox" aria-label={`${r.name} 쓰기`} className="peer sr-only" checked={r.on} onChange={(e) => patch(r.key, { on: e.target.checked })} />
@@ -216,12 +216,12 @@ export function NewTypesForm({
           </div>
 
           {/* 그 조합들로 짠 화면 하나. 이 안은 사용자의 글꼴을 보여 주는 미리보기라, FF 도구의 글자 규칙을 따르지 않는다. */}
-          <div data-screen className="min-w-0 flex-1 overflow-y-auto rounded-lg border border-hairline bg-canvas p-6 text-ink">
+          <div data-screen className="min-w-0 flex-1 overflow-y-auto rounded-lg border border-hairline bg-canvas p-board text-ink">
             <TypeScreen T={T} has={has} />
           </div>
         </div>
 
-        <div className="mt-3 flex shrink-0 items-center justify-end gap-2">
+        <div className="mt-dialog-actions flex shrink-0 items-center justify-end gap-actions">
           {/* 바꾼 것을 모두 처음으로 돌린다. 다른 한 벌 만들기 창들과 같은 자리다. 바꾼 것이 없으면 꺼져 있다. */}
           <Button variant="ghost" className="mr-auto" disabled={!changed} title="쓸지 말지와 고친 이름, 값을 모두 처음으로 돌려요" onClick={() => setRows(first)}>
             <RotateCcw size={16} strokeWidth={1.5} />
@@ -229,12 +229,12 @@ export function NewTypesForm({
           </Button>
           {/* 이미 있는 조합이 새 값으로 바뀌는 것은 되돌리기 전에 알아야 하는 일이라 알린다. */}
           {problem ? (
-            <span role="alert" className="mr-1 type-body text-danger">
+            <span role="alert" className="mr-actions-tight type-body text-danger">
               {problem}
             </span>
           ) : (
             <>
-              <span className="mr-1 type-body text-ink-faint">{used.length}개를 만들어요.</span>
+              <span className="mr-actions-tight type-body text-ink-faint">{used.length}개를 만들어요.</span>
               <SetNotice
                 made={used.map((r) => r.name)}
                 existing={tokens.filter((x) => STYLE.matches(x.name)).map((x) => shortName(STYLE, x.name))}

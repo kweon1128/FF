@@ -41,7 +41,7 @@ export function NewEffectForm({
   }
 
   return (
-    <form onSubmit={submit} className="space-y-3">
+    <form onSubmit={submit} className="space-y-fields">
       <Field label="쓰임">
         <UsePicker
           label="쓰임"
@@ -69,7 +69,7 @@ export function NewEffectForm({
           }}
         />
       </Field>
-      <div className="flex justify-end gap-2 pt-1">
+      <div className="mt-dialog-actions flex justify-end gap-actions">
         <Button variant="ghost" onClick={onCancel}>
           취소
         </Button>

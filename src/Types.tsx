@@ -55,7 +55,7 @@ function Spec({ look, tokens }: { look: TypeLook; tokens: Token[] }) {
 function Follows({ label, bound, own, onClear }: { label: string; bound: string; own?: string; onClear: () => void }) {
   return (
     <Field label={label}>
-      <span className="flex h-8 items-center gap-1 type-body">
+      <span className="flex h-8 items-center gap-actions-tight type-body">
         <span data-follows={label} className={`min-w-0 flex-1 truncate ${own ? 'type-label text-ink' : 'text-ink-soft'}`}>
           {own ?? (bound || '정해지지 않음')}
         </span>
@@ -290,13 +290,13 @@ export function TypeList({
           data-broken={broken.length}
           title="누르면 첫 조합을 골라요. 오른쪽에서 없어진 값을 다시 골라 주세요"
           onClick={() => onSelect(broken[0].name, false)}
-          className={`mb-2 flex h-8 items-center gap-2 rounded-md px-3 type-body text-danger ${HOVER} ${OUTLINE}`}
+          className={`mb-blocks flex h-8 items-center gap-row-gap rounded-md px-button-x type-body text-danger ${HOVER} ${OUTLINE}`}
         >
           <TriangleAlert size={16} strokeWidth={1.5} />
           가리키는 값이 없어진 조합 {broken.length}개
         </button>
       )}
-      <div className="space-y-6">
+      <div className="space-y-groups">
         {groups.map(({ use, items: list }, gi) => {
           const groupDrop = drop?.what === 'group' && drop.id !== use ? drop : null
           const rowDrop = drop?.what === 'row' && drop.use === use ? drop : null
@@ -307,18 +307,18 @@ export function TypeList({
                 <span className={`${DROP_LINE} inset-x-0 -bottom-3 h-[calc(var(--line)*2)] translate-y-1/2`} />
               )}
               {/* 묶음 제목을 누르면 그 묶음의 조합이 모두 선택되고, 잡고 위아래로 끌면 묶음이 통째로 옮겨진다. */}
-              <div className="mb-2 -ml-1 flex">
+              <div className="mb-title -ml-chip-x flex">
                 <button
                   type="button"
                   data-type-title={use}
                   onClick={(e) => !dragged.current && onSelectGroup(list.map((t) => t.name), isAdditive(e), false)}
                   {...grab('group', use, use)}
-                  className="rounded-sm px-1 type-heading outline-selection hover:bg-hover focus-visible:outline-2"
+                  className="rounded-sm px-chip-x type-heading outline-selection hover:bg-hover focus-visible:outline-2"
                 >
                   {TYPE_USES.find((u) => u.id === use)!.label}
                 </button>
               </div>
-              <div className="space-y-1 rounded-lg border border-hairline bg-canvas p-1">
+              <div className="space-y-rows rounded-lg border border-hairline bg-canvas p-menu">
                 {list.map((t, i) => {
                   const short = shortName(STYLE, t.name)
                   const { text, shape, words, more } = readTypeNote(t.note, short)
@@ -338,7 +338,7 @@ export function TypeList({
                       onClick={(e) => !dragged.current && onSelect(t.name, isAdditive(e))}
                       onDoubleClick={() => onRename(t.name)}
                       {...grab('row', t.name, use)}
-                      className={`group relative flex w-full items-center gap-4 rounded-md px-3 py-2 text-left select-none ${moving ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
+                      className={`group relative flex w-full items-center gap-columns rounded-md px-board-row py-board-row-y text-left select-none ${moving ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
                     >
                       {lineBefore && <span className={`${DROP_LINE} inset-x-0 top-0 h-[calc(var(--line)*2)] -translate-y-1/2`} />}
                       {lineAfter && <span className={`${DROP_LINE} inset-x-0 bottom-0 h-[calc(var(--line)*2)] translate-y-1/2`} />}
@@ -351,13 +351,13 @@ export function TypeList({
                           {look ? <Spec look={look} tokens={all} /> : <span className="text-danger">읽을 수 없는 값</span>}
                         </span>
                         {text && (
-                          <span className="mt-1 block type-caption break-words text-ink-faint">
+                          <span className="mt-label block type-caption break-words text-ink-faint">
                             <Phrases text={text} />
                           </span>
                         )}
                       </span>
                       {/* 쓰임이 여럿인 조합은 예시도 여럿이다. 위아래로 8px 띄워 쌓는다. */}
-                      <span className="min-w-0 flex-1 space-y-2">
+                      <span className="min-w-0 flex-1 space-y-blocks">
                         {look && [{ shape, words }, ...more].map((e, k) => <TypeSample key={k} shape={e.shape} look={look} around={around} words={e.words} />)}
                       </span>
                       {isSelected && selected.length === 1 && <SelectionLabel name={short} value={look ? figures(look) : undefined} />}
@@ -398,7 +398,7 @@ function PartField({
   return (
     <Field label={label} error={missing ? '고른 값이 없어졌어요. 다시 골라 주세요.' : null}>
       {/* 고르는 칸 옆에, 고른 값이 글꼴 판의 어디에 있는지 보러 가는 버튼. "쓰이는 곳"의 반대 방향이다. 고른 값이 없어졌으면 갈 곳이 없어 꺼진다. */}
-      <span className="flex items-center gap-1">
+      <span className="flex items-center gap-actions-tight">
       <select aria-label={label} className={`${inputClass} min-w-0 flex-1 ${missing ? 'border-danger' : ''}`} value={value} onChange={(e) => onChange(e.target.value)}>
         {missing && <option value={value}>{shortName(kind, value)} (없어짐)</option>}
         {options.map((t) => (
@@ -500,19 +500,19 @@ export function TypeInspector({
           onBlur={commitName}
           onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
         />
-        {nameError && <span className="mt-1 block type-body text-danger">{nameError}</span>}
+        {nameError && <span className="mt-label block type-body text-danger">{nameError}</span>}
       </Section>
 
       <Section title="조합">
         {look ? (
-          <div className="space-y-2">
+          <div className="space-y-blocks">
             <PartField label="글꼴 종류" kind={FONT} tokens={tokens} value={look.parts.font} show={(t) => shownFont(t.value)} onChange={(font) => set({ font })} onOpen={onOpenToken} />
             <PartField label="글자 크기" kind={SIZE} tokens={tokens} value={look.parts.size} show={(t) => t.value} onChange={(size) => set({ size })} onOpen={onOpenToken} />
             {/* 차례는 글꼴 판과 같다: 크기, 줄 높이, 글자 사이, 그다음 굵기. 줄 높이와 글자 사이는 크기에 딸린 값이라 크기 바로 아래에 둔다. */}
             {/* 줄 높이와 글자 사이는 고르지 않는다. 고른 글자 크기에 묶인 값을 그대로 따르고, 여기서는 그 값을 보여 주기만 한다.
                 의미 색이 색상 판의 색만 가리키듯, 의미 글꼴도 글꼴 판에 있는 값만 쓴다. 다른 줄 높이가 필요하면 글꼴 판에 크기 단계를 하나 더 만들어 고른다.
                 예전에 직접 적어 둔 값이 있는 조합은 그 값으로 그리되 진하게 적고, 지우는 버튼만 둔다(말없이 사라지지 않게). */}
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-field-row">
               <Follows label="줄 높이" bound={get(lineName(look.parts.size))} own={look.parts.line} onClear={() => set({ line: undefined })} />
               <Follows label="글자 사이" bound={get(trackName(look.parts.size)) || '0em'} own={trackOverride(tokens, token.name) ?? undefined} onClear={() => onTrack(null)} />
             </div>
@@ -540,16 +540,16 @@ export function TypeInspector({
       </Section>
 
       <FoldSection title="쓰이는 곳" storageKey={WHERE_OPEN} startOpen note={uses.length > 0 ? String(uses.length) : '없음'} empty={uses.length === 0}>
-          <div className="space-y-2">
+          <div className="space-y-blocks">
             {uses.map((u) => (
               <div key={u.index}>
                 <button
                   type="button"
                   onClick={() => onOpenComponent(u.index)}
-                  className="-ml-2 flex h-8 max-w-full items-center rounded-md px-2 type-label outline-selection hover:bg-hover focus-visible:outline-2"
+                  className="-ml-button-quiet-x flex h-8 max-w-full items-center rounded-md px-button-quiet-x type-label outline-selection hover:bg-hover focus-visible:outline-2"
                 >
                   <span className="truncate">{u.name}</span>
-                  <span className="ml-2 shrink-0 type-body text-ink-faint">{u.where.length}곳</span>
+                  <span className="ml-row-gap shrink-0 type-body text-ink-faint">{u.where.length}곳</span>
                 </button>
                 <p className="type-body text-ink-faint">{u.where.join(', ')}</p>
               </div>
@@ -558,13 +558,13 @@ export function TypeInspector({
       </FoldSection>
 
       <FoldSection title="코드" storageKey={CODE_OPEN}>
-        <div className="space-y-2">
+        <div className="space-y-blocks">
           <div>
-            <p className="mb-1 type-label text-ink-faint">쓰는 법</p>
+            <p className="mb-label type-label text-ink-faint">쓰는 법</p>
             {/* 클래스가 먼저다. FF가 저장할 때 의미 글꼴마다 type-이름 클래스를 함께 적어 두므로, 코드에서는 이 한 단어로 글꼴, 크기, 굵기, 줄 높이를 모두 정한다. CSS로 직접 적을 때의 한 줄은 그 아래에 둔다. */}
-            <div className="space-y-1">
+            <div className="space-y-rows">
               {[{ shown: className, copied: className, label: '클래스 복사' }, { shown: `font: var(${token.name})`, copied: `font: var(${token.name});`, label: 'CSS 복사' }].map((row) => (
-                <span key={row.label} className="flex items-center gap-1">
+                <span key={row.label} className="flex items-center gap-actions-tight">
                   <span className="min-w-0 flex-1">
                     <Chip>{row.shown}</Chip>
                   </span>
@@ -576,11 +576,11 @@ export function TypeInspector({
             </div>
           </div>
           <div>
-            <p className="mb-1 type-label text-ink-faint">저장된 값</p>
+            <p className="mb-label type-label text-ink-faint">저장된 값</p>
             <Chip>{token.value}</Chip>
           </div>
           <div>
-            <p className="mb-1 type-label text-ink-faint">저장 위치</p>
+            <p className="mb-label type-label text-ink-faint">저장 위치</p>
             <Chip>{file}</Chip>
           </div>
         </div>

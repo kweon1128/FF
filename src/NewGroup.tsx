@@ -63,7 +63,7 @@ export function NewGroupForm({
   }
 
   return (
-    <form onSubmit={submit} className="space-y-3">
+    <form onSubmit={submit} className="space-y-fields">
       {group === undefined && (
         <Field label="목록 이름" error={error.name}>
           <input
@@ -78,7 +78,7 @@ export function NewGroupForm({
           />
         </Field>
       )}
-      <div className="grid grid-cols-[96px_1fr] gap-2">
+      <div className="grid grid-cols-[96px_1fr] gap-field-row">
         <Field label="단계" error={error.step}>
           <input
             autoFocus={group !== undefined}
@@ -92,7 +92,7 @@ export function NewGroupForm({
           />
         </Field>
         <Field label="색" error={error.color}>
-          <span className="flex items-center gap-2">
+          <span className="flex items-center gap-field-row">
             <ColorSwatch
               label="색 고르기"
               preview
@@ -118,7 +118,7 @@ export function NewGroupForm({
       <Check checked={scale && canScale} disabled={!canScale} onChange={setScale}>
         50~950 단계 함께 만들기
       </Check>
-      <div className="flex justify-end gap-2 pt-1">
+      <div className="mt-dialog-actions flex justify-end gap-actions">
         <Button variant="ghost" onClick={onCancel}>
           취소
         </Button>

@@ -306,7 +306,7 @@ export function RoleList({
   })
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-groups">
       {groups.map(({ use, items: list }, gi) => {
         const groupDrop = drop?.what === 'group' && drop.id !== use ? drop : null
         const rowDrop = drop?.what === 'row' && drop.use === use ? drop : null
@@ -317,18 +317,18 @@ export function RoleList({
               <span className={`${DROP_LINE} inset-x-0 -bottom-3 h-[calc(var(--line)*2)] translate-y-1/2`} />
             )}
             {/* 묶음 제목을 누르면 그 묶음의 색이 모두 선택되고, 잡고 위아래로 끌면 묶음이 통째로 옮겨진다. */}
-            <div className="mb-2 -ml-1 flex">
+            <div className="mb-title -ml-chip-x flex">
               <button
                 type="button"
                 data-role-title={use}
                 onClick={(e) => !dragged.current && onSelectGroup(list.map((t) => t.name), isAdditive(e), false)}
                 {...grab('group', use, use)}
-                className="rounded-sm px-1 type-heading outline-selection hover:bg-hover focus-visible:outline-2"
+                className="rounded-sm px-chip-x type-heading outline-selection hover:bg-hover focus-visible:outline-2"
               >
                 {ROLE_USES.find((u) => u.id === use)!.label}
               </button>
             </div>
-            <div className={folded ? 'grid grid-cols-3 gap-1 rounded-lg border border-hairline bg-canvas p-1' : 'space-y-1 rounded-lg border border-hairline bg-canvas p-1'}>
+            <div className={folded ? 'grid grid-cols-3 gap-rows rounded-lg border border-hairline bg-canvas p-menu' : 'space-y-rows rounded-lg border border-hairline bg-canvas p-menu'}>
               {list.map((t, i) => {
                 const short = shortName(kind, t.name)
                 const { text, shape, words, more } = readNote(t.note, short)
@@ -349,8 +349,8 @@ export function RoleList({
                     onClick={(e) => !dragged.current && onSelect(t.name, isAdditive(e))}
                     onDoubleClick={() => onRename(t.name)}
                     {...grab('row', t.name, use)}
-                    className={`relative w-full items-center rounded-md px-3 py-2 text-left select-none ${
-                      folded ? 'flex gap-3' : 'grid grid-cols-[40px_176px_minmax(0,1fr)_280px] gap-4'
+                    className={`relative w-full items-center rounded-md px-board-row py-board-row-y text-left select-none ${
+                      folded ? 'flex gap-board-row' : 'grid grid-cols-[40px_176px_minmax(0,1fr)_280px] gap-columns'
                     } ${moving ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
                   >
                     {lineBefore && (
@@ -383,7 +383,7 @@ export function RoleList({
                     {/* 쓰임이 여럿인 색은 예시도 여럿이다. 위아래로 8px 띄워 쌓는다. */}
                     {!folded &&
                       (color ? (
-                        <span className="block space-y-2">
+                        <span className="block space-y-blocks">
                           {[{ shape, words }, ...more].map((e, k) => (
                             <RoleSample key={k} shape={e.shape} color={color} around={around} words={e.words} />
                           ))}
@@ -417,12 +417,12 @@ function RefPicker({ tokens, value, onChange }: { tokens: Token[]; value: string
   if (solo) groups.set('', solo)
   if (groups.size === 0) return <p className="type-body text-ink-faint">색상 판에 색이 아직 없어요.</p>
   return (
-    <div className="max-h-56 space-y-2 overflow-y-auto">
+    <div className="max-h-56 space-y-blocks overflow-y-auto">
       {[...groups].map(([group, list]) => (
         <div key={group}>
-          <p className="mb-1 type-body text-ink-faint">{group || '예외 색'}</p>
+          <p className="mb-label type-body text-ink-faint">{group || '예외 색'}</p>
           {/* 한 줄에 11칸. 50부터 950까지 한 목록이 한 줄에 들어간다. */}
-          <div className="grid grid-cols-11 gap-1">
+          <div className="grid grid-cols-11 gap-actions-tight">
             {list.map((t) => {
               const short = shortName(COLOR, t.name)
               const picked = t.name === value
@@ -482,7 +482,7 @@ export function NewRoleForm({
   }
 
   return (
-    <form onSubmit={submit} className="space-y-3">
+    <form onSubmit={submit} className="space-y-fields">
       <Field label="이름" error={error.name}>
         <input
           autoFocus
@@ -497,8 +497,8 @@ export function NewRoleForm({
       </Field>
       {/* 견본 버튼들이 label 안에 있으면 한 번 누를 때 첫 버튼이 함께 눌린다. 그래서 Field를 쓰지 않는다. */}
       <div>
-        <p className="mb-1 type-label text-ink-faint">
-          가리키는 색{ref && <span className="ml-2 type-code text-ink">{refName(ref)}</span>}
+        <p className="mb-label type-label text-ink-faint">
+          가리키는 색{ref && <span className="ml-row-gap type-code text-ink">{refName(ref)}</span>}
         </p>
         <RefPicker
           tokens={tokens}
@@ -508,16 +508,16 @@ export function NewRoleForm({
             setError({ ...error, ref: undefined })
           }}
         />
-        {error.ref && <span className="mt-1 block type-body text-danger">{error.ref}</span>}
+        {error.ref && <span className="mt-label block type-body text-danger">{error.ref}</span>}
       </div>
       <div>
-        <p className="mb-1 type-label text-ink-faint">역할</p>
+        <p className="mb-label type-label text-ink-faint">역할</p>
         <UsePicker label="역할" options={ROLE_USES} value={shownUse} onChange={setUse} />
       </div>
       <Field label="설명">
         <input className={inputClass} value={text} onChange={(e) => setText(e.target.value)} />
       </Field>
-      <div className="flex justify-end gap-2 pt-1">
+      <div className="mt-dialog-actions flex justify-end gap-actions">
         <Button variant="ghost" onClick={onCancel}>
           취소
         </Button>
@@ -602,11 +602,11 @@ export function RoleInspector({
           onBlur={commitName}
           onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
         />
-        {nameError && <span className="mt-1 block type-body text-danger">{nameError}</span>}
+        {nameError && <span className="mt-label block type-body text-danger">{nameError}</span>}
       </Section>
 
       <Section title="가리키는 색">
-        <div className="mb-3 flex items-center gap-2">
+        <div className="mb-fields flex items-center gap-field-row">
           <span className={`block size-8 shrink-0 rounded-md ${EDGE}`} style={{ background: swatchBackground(color ?? 'transparent') }} />
           <span className="min-w-0">
             <Chip>{refName(token.value)}</Chip>
@@ -643,16 +643,16 @@ export function RoleInspector({
       </Section>
 
       <FoldSection title="쓰이는 곳" storageKey={WHERE_OPEN} startOpen note={uses.length > 0 ? String(uses.length) : '없음'} empty={uses.length === 0}>
-          <div className="space-y-2">
+          <div className="space-y-blocks">
             {uses.map((u) => (
               <div key={u.index}>
                 <button
                   type="button"
                   onClick={() => onOpenComponent(u.index)}
-                  className="-ml-2 flex h-8 max-w-full items-center rounded-md px-2 type-label outline-selection hover:bg-hover focus-visible:outline-2"
+                  className="-ml-button-quiet-x flex h-8 max-w-full items-center rounded-md px-button-quiet-x type-label outline-selection hover:bg-hover focus-visible:outline-2"
                 >
                   <span className="truncate">{u.name}</span>
-                  <span className="ml-2 shrink-0 type-body text-ink-faint">{u.where.length}곳</span>
+                  <span className="ml-row-gap shrink-0 type-body text-ink-faint">{u.where.length}곳</span>
                 </button>
                 <p className="type-body text-ink-faint">{u.where.join(', ')}</p>
               </div>
@@ -661,10 +661,10 @@ export function RoleInspector({
       </FoldSection>
 
       <FoldSection title="코드" storageKey={CODE_OPEN}>
-        <div className="space-y-2">
+        <div className="space-y-blocks">
           <div>
-            <p className="mb-1 type-label text-ink-faint">변수 이름</p>
-            <span className="flex items-center gap-1">
+            <p className="mb-label type-label text-ink-faint">변수 이름</p>
+            <span className="flex items-center gap-actions-tight">
               <span className="min-w-0 flex-1">
                 <Chip>{token.name}</Chip>
               </span>
@@ -680,11 +680,11 @@ export function RoleInspector({
             </span>
           </div>
           <div>
-            <p className="mb-1 type-label text-ink-faint">저장된 값</p>
+            <p className="mb-label type-label text-ink-faint">저장된 값</p>
             <Chip>{token.value}</Chip>
           </div>
           <div>
-            <p className="mb-1 type-label text-ink-faint">저장 위치</p>
+            <p className="mb-label type-label text-ink-faint">저장 위치</p>
             <Chip>{file}</Chip>
           </div>
         </div>

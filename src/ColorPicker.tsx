@@ -65,7 +65,7 @@ function useDrag(onMove: (x: number, y: number) => void) {
 // 손잡이: 피그마처럼 두꺼운 흰 고리에 가운데로 그 자리의 색이 보인다. 옅은 그림자로 밝은 색 위에서도 보이게 한다.
 const KNOB =
   'pointer-events-none absolute size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-white shadow-[0_0_0_0.5px_rgb(0_0_0/0.25),0_1px_3px_rgb(0_0_0/0.35)]'
-const FIELD = 'h-8 min-w-0 rounded-md border border-hairline bg-canvas px-2 type-code outline-none focus:border-selection'
+const FIELD = 'h-8 min-w-0 rounded-md border border-hairline bg-canvas px-input-x type-code outline-none focus:border-selection'
 
 function Panel({
   anchor,
@@ -175,7 +175,7 @@ function Panel({
       ref={box}
       role="dialog"
       aria-label="색 선택"
-      className="fixed z-[60] rounded-lg border border-hairline bg-canvas p-3 shadow-dialog"
+      className="fixed z-[60] rounded-lg border border-hairline bg-canvas p-popover shadow-dialog"
       style={{ width: WIDTH, left: pos?.left ?? -9999, top: pos?.top ?? 0 }}
     >
       <div
@@ -187,7 +187,7 @@ function Panel({
         <span className={KNOB} style={{ left: `${hsv.s * 100}%`, top: `${(1 - hsv.v) * 100}%`, background: rgb }} />
       </div>
 
-      <div className="mt-3 flex items-center gap-2">
+      <div className="mt-popover flex items-center gap-field-row">
         {EyeDropper && (
           <button
             type="button"
@@ -199,7 +199,7 @@ function Panel({
             <Pipette size={16} strokeWidth={1.5} />
           </button>
         )}
-        <div className="min-w-0 flex-1 space-y-2">
+        <div className="min-w-0 flex-1 space-y-blocks">
           <div
             {...hue}
             role="slider"
@@ -229,7 +229,7 @@ function Panel({
         </div>
       </div>
 
-      <div className="mt-3 flex items-center gap-2">
+      <div className="mt-popover flex items-center gap-field-row">
         <span className="size-8 shrink-0 rounded-md border border-hairline" style={{ background: swatchBackground(value) }} />
         <input
           aria-label="색 값"
@@ -246,7 +246,7 @@ function Panel({
           onBlur={() => setDraft(rgb.slice(1))}
         />
         {allowAlpha && (
-          <label className={`${FIELD} flex w-[72px] shrink-0 items-center gap-1 focus-within:border-selection`}>
+          <label className={`${FIELD} flex w-[72px] shrink-0 items-center gap-input-inner focus-within:border-selection`}>
             <input
               aria-label="투명도 (%)"
               inputMode="numeric"
@@ -267,18 +267,18 @@ function Panel({
 
       {/* 고르는 중인 색이 버튼, 글자, 테두리, 옅은 배경으로 쓰이면 어떤지. 색을 끄는 동안 함께 바뀐다. */}
       {preview && (
-        <div className="mt-3 border-t border-hairline pt-3">
+        <div className="mt-popover border-t border-hairline pt-popover">
           <ColorUses color={value} compact />
         </div>
       )}
 
       {swatches.length > 0 && (
-        <div className="mt-3 border-t border-hairline pt-3">
-          <p className="mb-2 type-caption-strong text-ink-faint">이 디자인 시스템의 색</p>
+        <div className="mt-popover border-t border-hairline pt-popover">
+          <p className="mb-title type-caption-strong text-ink-faint">이 디자인 시스템의 색</p>
           {/* 색상 판처럼 목록마다 한 줄. 한 줄에 11칸이라 50부터 950까지가 한 줄에 들어가고, 줄끼리 같은 단계가 위아래로 맞는다. */}
-          <div className="max-h-40 space-y-1 overflow-y-auto">
+          <div className="max-h-40 space-y-rows overflow-y-auto">
             {swatches.map((row) => (
-              <div key={row.group} data-swatch-row={row.group} className="grid grid-cols-11 gap-1">
+              <div key={row.group} data-swatch-row={row.group} className="grid grid-cols-11 gap-actions-tight">
                 {row.colors.map((color) => (
                   <button
                     key={color.name}

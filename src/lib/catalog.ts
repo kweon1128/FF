@@ -11,6 +11,7 @@ export type PreviewType =
   | 'leading'
   | 'tracking'
   | 'space'
+  | 'spaceuse'
   | 'radius'
   | 'border'
   | 'shadow'
@@ -61,8 +62,15 @@ export const COLOR_REF = /^var\(\s*(--color-[a-z0-9-]+)\s*\)$/
  */
 const roleNames = new Set<string>()
 
+/** 다른 간격을 가리키는 값. var(--spacing-3)처럼 간격 변수 하나를 그대로 가리킨다. */
+export const SPACE_REF = /^var\(\s*(--spacing-[a-z0-9-]+)\s*\)$/
+/** 의미 간격의 이름들. 의미 색처럼 이름만으로는 토대의 간격과 가릴 수 없어서, 값이 다른 간격을 가리키는지로 가린다. */
+const spaceUseNames = new Set<string>()
+
 export function markRoles(tokens: { name: string; value: string }[]) {
   roleNames.clear()
+  spaceUseNames.clear()
+  for (const t of tokens) if (t.name.startsWith('--spacing-') && SPACE_REF.test(t.value)) spaceUseNames.add(t.name)
   for (const t of tokens) if (t.name.startsWith('--color-') && COLOR_REF.test(t.value)) roleNames.add(t.name)
 }
 
@@ -167,11 +175,23 @@ const space: Kind = {
   id: 'space',
   title: '간격',
   prefix: '--spacing-',
-  matches: starts('--spacing-'),
+  matches: (n) => n.startsWith('--spacing-') && !spaceUseNames.has(n),
   defaultValue: '16px',
   addLabel: '간격 추가',
   valueLabel: '길이',
   emptyTitle: '첫 간격을 추가해 보세요',
+}
+
+/** 의미 간격. 실제로 쓰는 간격에 쓰임새의 이름을 붙인 것으로, 간격 판의 값 하나를 가리킨다(--spacing-actions: var(--spacing-2)). */
+const spaceUse: Kind = {
+  id: 'spaceuse',
+  title: '의미 간격',
+  prefix: '--spacing-',
+  matches: (n) => spaceUseNames.has(n),
+  defaultValue: '',
+  addLabel: '의미 간격 추가',
+  valueLabel: '가리키는 간격',
+  emptyTitle: '의미 간격이 아직 없어요',
 }
 
 const radius: Kind = {
@@ -310,6 +330,7 @@ export const KINDS = {
   leading,
   tracking,
   space,
+  spaceUse,
   radius,
   border,
   shadow,
@@ -325,7 +346,7 @@ export const KINDS = {
 
 export const ALL_KINDS: Kind[] = Object.values(KINDS)
 
-export type TokenScreenId = 'color' | 'role' | 'style' | 'type' | 'spacing' | 'radius' | 'border' | 'effect' | 'layout' | 'motion'
+export type TokenScreenId = 'color' | 'role' | 'style' | 'spaceuse' | 'type' | 'spacing' | 'radius' | 'border' | 'effect' | 'layout' | 'motion'
 export type PlaceholderScreenId = 'layouts' | 'assets'
 export type ScreenId = 'canvas' | 'components' | TokenScreenId | PlaceholderScreenId
 
@@ -356,6 +377,7 @@ export const TOKEN_SCREENS: Record<TokenScreenId, { title: string; kinds: Kind[]
   // 나중에 생긴 판이라 맨 뒤에 둔다. 앞의 판들은 순서대로 기본 자리가 정해져 있어서, 사이에 끼우면 모두 밀린다.
   role: { title: '의미 색', kinds: [role] },
   style: { title: '의미 글꼴', kinds: [style] },
+  spaceuse: { title: '의미 간격', kinds: [spaceUse] },
 }
 
 export const PLACEHOLDER_SCREENS: Record<PlaceholderScreenId, { title: string }> = {

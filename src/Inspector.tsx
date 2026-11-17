@@ -37,25 +37,6 @@ type Props = {
   /** 이 색을 기준으로 50~950 단계를 만들 수 있으면, 아직 없는 단계의 수. 만들 수 없는 색이면 null. */
   scaleMissing: number | null
   onMakeScale: () => void
-  /** 설명을 주석에 적는 종류(간격)에서만 준다. text는 지금 설명, onSave는 고친 설명을 저장한다. */
-  describe?: { text: string; onSave: (text: string) => void }
-}
-
-/** 설명 구역. 칸을 벗어나거나 Enter를 누르면 저장한다. */
-function Describe({ text, onSave }: { text: string; onSave: (text: string) => void }) {
-  const [draft, setDraft] = useState(text)
-  return (
-    <Section title="설명">
-      <input
-        className={inputClass}
-        aria-label="설명"
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={() => draft.trim() !== text && onSave(draft)}
-        onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-      />
-    </Section>
-  )
 }
 
 export const ICON_BUTTON =
@@ -70,8 +51,8 @@ const PLAIN = /^[a-z0-9]+$/
 /** 패널의 한 구역. 구역 사이에만 전체 폭 구분선을 둔다. */
 export function Section({ title, children }: { title?: string; children: ReactNode }) {
   return (
-    <section className="border-b border-hairline px-4 py-3 last:border-b-0">
-      {title && <h3 className="mb-2 type-heading">{title}</h3>}
+    <section className="border-b border-hairline px-section-x py-section-y last:border-b-0">
+      {title && <h3 className="mb-title type-heading">{title}</h3>}
       {children}
     </section>
   )
@@ -122,7 +103,7 @@ export function FoldSection({
   if (empty)
     return (
       <section className="border-b border-hairline last:border-b-0">
-        <h3 className="flex h-11 items-center gap-1 px-4 type-heading">
+        <h3 className="flex h-11 items-center gap-button-icon px-section-x type-heading">
           <span className="flex-1">{title}</span>
           {note && <span className="type-body text-ink-faint">{note}</span>}
         </h3>
@@ -135,14 +116,14 @@ export function FoldSection({
           type="button"
           aria-expanded={open}
           onClick={toggle}
-          className="flex h-11 w-full items-center gap-1 px-4 type-heading outline-selection hover:bg-hover focus-visible:outline-2 focus-visible:-outline-offset-2"
+          className="flex h-11 w-full items-center gap-button-icon px-section-x type-heading outline-selection hover:bg-hover focus-visible:outline-2 focus-visible:-outline-offset-2"
         >
           <span className="flex-1 text-left">{title}</span>
           {note && <span className="type-body text-ink-faint">{note}</span>}
           <Arrow size={16} strokeWidth={1.5} className="text-ink-soft" />
         </button>
       </h3>
-      {open && <div className="px-4 pt-1 pb-3">{children}</div>}
+      {open && <div className="px-section-x pt-label pb-section-y">{children}</div>}
     </section>
   )
 }
@@ -173,7 +154,6 @@ export function Inspector({
   onTrack,
   scaleMissing,
   onMakeScale,
-  describe,
 }: Props) {
   const short = shortName(kind, token.name)
   const isColor = kind.id === 'color'
@@ -333,7 +313,7 @@ export function Inspector({
 
       <Section title="이름">
         {isColor ? (
-          <div className="space-y-2">
+          <div className="space-y-blocks">
             <Field label="목록" error={groupError}>
               <input
                 className={inputClass}
@@ -354,7 +334,7 @@ export function Inspector({
         ) : (
           <>
             {nameInput}
-            {nameError && <span className="mt-1 block type-body text-danger">{nameError}</span>}
+            {nameError && <span className="mt-label block type-body text-danger">{nameError}</span>}
           </>
         )}
       </Section>
@@ -379,7 +359,7 @@ export function Inspector({
             onBlur={() => !digits && savedDigits && changeDigits(savedDigits)}
           />
         )}
-        <span className={isFont || unit ? 'hidden' : 'flex items-center gap-2'}>
+        <span className={isFont || unit ? 'hidden' : 'flex items-center gap-field-row'}>
           {/* 칸에 #을 빼고 적었어도 지금 색에서 시작하도록, 적은 글자가 아니라 읽어 낸 색을 넘긴다. */}
           {isColor && <ColorSwatch label="색 고르기" value={liveColor ?? valueDraft} alpha preview onChange={changeValue} />}
           <input
@@ -412,9 +392,9 @@ export function Inspector({
             </button>
           )}
         </span>
-        {valueError && <span className="mt-1 block type-body text-danger">{valueError}</span>}
+        {valueError && <span className="mt-label block type-body text-danger">{valueError}</span>}
         {line !== undefined && (
-          <div className="mt-2">
+          <div className="mt-blocks">
             <Field label="줄 높이" error={lineError}>
               <UnitInput
                 label="줄 높이"
@@ -431,7 +411,7 @@ export function Inspector({
         )}
         {/* 글자 크기에 묶인 글자 사이. 비어 있으면 글꼴이 정한 그대로다. */}
         {track !== undefined && (
-          <div className="mt-2">
+          <div className="mt-blocks">
             <Field label="글자 사이" error={trackError}>
               <UnitInput
                 label="글자 사이"
@@ -448,7 +428,7 @@ export function Inspector({
           </div>
         )}
         {isFont && (
-          <Button variant="ghost" className="-ml-2" onClick={() => setPickingFont(true)}>
+          <Button variant="ghost" className="-ml-button-quiet-x" onClick={() => setPickingFont(true)}>
             <Type size={16} strokeWidth={1.5} />
             글꼴 고르기
           </Button>
@@ -469,7 +449,7 @@ export function Inspector({
         {scaleMissing !== null && (
           <Button
             variant="ghost"
-            className="mt-2 -ml-2"
+            className="mt-blocks -ml-button-quiet-x"
             disabled={!HEX6.test(liveColor ?? '')}
             title={
               scaleMissing === 0
@@ -486,23 +466,21 @@ export function Inspector({
 
       {/* 구역의 차례는 어느 패널이나 같다: 이름, 값, 설명, 쓰이는 곳, 코드. 고치는 것은 늘 펼쳐 두고, 보기만 하는 것(쓰이는 곳, 코드)은 접을 수 있다.
           "쓰인 모습" 구역은 두지 않는다. 패널은 값을 고치는 곳이고, 쓰인 모습은 판(의미 색과 의미 글꼴의 예시)과 색 선택 창, 글꼴 추가 창이 보여 준다. */}
-      {describe && <Describe text={describe.text} onSave={describe.onSave} />}
-
       <FoldSection title="쓰이는 곳" storageKey={WHERE_OPEN} startOpen note={uses.length + roles.length > 0 ? String(uses.length + roles.length) : '없음'} empty={uses.length + roles.length === 0}>
         {uses.length === 0 && roles.length === 0 ? (
           <p className="type-body text-ink-faint">이 값을 쓰는 곳이 아직 없어요.</p>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-blocks">
             {/* 이 색을 가리키는 의미 색. 누르면 의미 색 판의 그 색으로 간다. */}
             {roles.map((name) => (
               <button
                 key={name}
                 type="button"
                 onClick={() => onOpenToken(name)}
-                className="-ml-2 flex h-8 max-w-full items-center rounded-md px-2 type-label outline-selection hover:bg-hover focus-visible:outline-2"
+                className="-ml-button-quiet-x flex h-8 max-w-full items-center rounded-md px-button-quiet-x type-label outline-selection hover:bg-hover focus-visible:outline-2"
               >
                 <span className="truncate">{name.startsWith('--type-') ? name.slice('--type-'.length) : name.slice(kind.prefix.length)}</span>
-                <span className="ml-2 shrink-0 type-body text-ink-faint">{name.startsWith('--type-') ? '의미 글꼴' : '의미 색'}</span>
+                <span className="ml-row-gap shrink-0 type-body text-ink-faint">{name.startsWith('--type-') ? '의미 글꼴' : '의미 색'}</span>
               </button>
             ))}
             {uses.map((u) => (
@@ -510,10 +488,10 @@ export function Inspector({
                 <button
                   type="button"
                   onClick={() => onOpenComponent(u.index)}
-                  className="-ml-2 flex h-8 max-w-full items-center rounded-md px-2 type-label outline-selection hover:bg-hover focus-visible:outline-2"
+                  className="-ml-button-quiet-x flex h-8 max-w-full items-center rounded-md px-button-quiet-x type-label outline-selection hover:bg-hover focus-visible:outline-2"
                 >
                   <span className="truncate">{u.name}</span>
-                  <span className="ml-2 shrink-0 type-body text-ink-faint">{u.where.length}곳</span>
+                  <span className="ml-row-gap shrink-0 type-body text-ink-faint">{u.where.length}곳</span>
                 </button>
                 <p className="type-body text-ink-faint">{u.where.join(', ')}</p>
               </div>
@@ -523,10 +501,10 @@ export function Inspector({
       </FoldSection>
 
       <FoldSection title="코드" storageKey={CODE_OPEN}>
-        <div className="space-y-2">
+        <div className="space-y-blocks">
           <div>
-            <p className="mb-1 type-label text-ink-faint">변수 이름</p>
-            <span className="flex items-center gap-1">
+            <p className="mb-label type-label text-ink-faint">변수 이름</p>
+            <span className="flex items-center gap-actions-tight">
               <span className="min-w-0 flex-1">
                 <Chip>{token.name}</Chip>
               </span>
@@ -543,8 +521,8 @@ export function Inspector({
           </div>
           {(isColor || isFont) && (
             <div>
-              <p className="mb-1 type-label text-ink-faint">저장된 값</p>
-              <span className="flex items-center gap-1">
+              <p className="mb-label type-label text-ink-faint">저장된 값</p>
+              <span className="flex items-center gap-actions-tight">
                 <span className="min-w-0 flex-1">
                   <Chip>{token.value}</Chip>
                 </span>
@@ -553,12 +531,12 @@ export function Inspector({
                 </button>
               </span>
               {isColor && isApprox(token.value) && (
-                <p className="mt-1 type-body text-ink-faint">화면이 낼 수 없는 선명한 색이라, 위의 # 값은 가장 가까운 색이에요.</p>
+                <p className="mt-label type-body text-ink-faint">화면이 낼 수 없는 선명한 색이라, 위의 # 값은 가장 가까운 색이에요.</p>
               )}
             </div>
           )}
           <div>
-            <p className="mb-1 type-label text-ink-faint">저장 위치</p>
+            <p className="mb-label type-label text-ink-faint">저장 위치</p>
             <Chip>{file}</Chip>
           </div>
         </div>
@@ -610,12 +588,12 @@ export function MultiInspector({
             onBlur={commitGroup}
             onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
           />
-          {error && <span className="mt-1 block type-body text-danger">{error}</span>}
+          {error && <span className="mt-label block type-body text-danger">{error}</span>}
         </Section>
       )}
 
       <Section title="선택한 값">
-        <div className="flex flex-wrap gap-1">
+        <div className="flex flex-wrap gap-actions-tight">
           {tokens.map((t) => (
             <Chip key={t.name}>{t.name}</Chip>
           ))}
@@ -623,7 +601,7 @@ export function MultiInspector({
       </Section>
 
       <Section>
-        <Button variant="ghost" className="-ml-2" title="Ctrl+R" onClick={onRename}>
+        <Button variant="ghost" className="-ml-button-quiet-x" title="Ctrl+R" onClick={onRename}>
           <PencilLine size={16} strokeWidth={1.5} />
           번호 다시 매기기
         </Button>

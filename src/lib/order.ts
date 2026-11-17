@@ -35,7 +35,8 @@ const stepOf = (t: Token): number | null => {
 /** 이 값의 차례가 저절로 정해지는지. 그런 값은 단축키로도 옮기지 않는다. */
 export function isAutoOrdered(token: Token): boolean {
   const kind = kindOfName(token.name)
-  return (kind !== undefined && isScaleKind(kind)) || stepOf(token) !== null
+  // 의미 간격은 아직 끌어 옮길 수 없어서 단축키로도 옮기지 않는다(끌기와 단축키는 언제나 함께다).
+  return (kind !== undefined && (isScaleKind(kind) || kind.id === 'spaceuse')) || stepOf(token) !== null
 }
 
 /** 값의 크기. 단위가 달라도 견줄 수 있게 px과 ms로 맞춘다. 숫자 하나로 읽을 수 없는 값(clamp(), var())은 NaN. */

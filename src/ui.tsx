@@ -8,10 +8,10 @@ import { stepValue } from './lib/tokens'
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
 
 const BUTTON_STYLES: Record<ButtonVariant, string> = {
-  primary: 'bg-primary text-on-primary px-3 hover:bg-primary/85',
-  secondary: 'bg-canvas text-ink px-3 border border-hairline hover:bg-hover',
-  ghost: 'text-ink-soft px-2 hover:bg-hover hover:text-ink',
-  danger: 'text-danger px-2 hover:bg-hover',
+  primary: 'bg-primary text-on-primary px-button-x hover:bg-primary/85',
+  secondary: 'bg-canvas text-ink px-button-x border border-hairline hover:bg-hover',
+  ghost: 'text-ink-soft px-button-quiet-x hover:bg-hover hover:text-ink',
+  danger: 'text-danger px-button-quiet-x hover:bg-hover',
 }
 
 export function Button({
@@ -23,7 +23,7 @@ export function Button({
   return (
     <button
       type="button"
-      className={`inline-flex h-8 shrink-0 items-center gap-1 rounded-md type-label whitespace-nowrap outline-selection focus-visible:outline-2 focus-visible:outline-offset-1 disabled:opacity-disabled ${BUTTON_STYLES[variant]} ${className}`}
+      className={`inline-flex h-8 shrink-0 items-center gap-button-icon rounded-md type-label whitespace-nowrap outline-selection focus-visible:outline-2 focus-visible:outline-offset-1 disabled:opacity-disabled ${BUTTON_STYLES[variant]} ${className}`}
       {...rest}
     >
       {children}
@@ -56,7 +56,7 @@ export function Check({
   children: ReactNode
 }) {
   return (
-    <label className={`flex items-start gap-2 ${disabled ? 'text-ink-faint' : ''}`}>
+    <label className={`flex items-start gap-row-gap ${disabled ? 'text-ink-faint' : ''}`}>
       <input type="checkbox" className="peer sr-only" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
       {/* 글자 한 줄의 높이(20px)만큼의 자리 안에서 상자를 가운데에 둔다. 위아래로 2px씩 남아 정확히 가운데다. */}
       <span className="flex h-5 shrink-0 items-center outline-selection peer-focus-visible:[&>span]:outline-2">
@@ -74,7 +74,7 @@ export function Check({
 }
 
 export const inputClass =
-  'h-8 w-full rounded-md border border-hairline bg-canvas px-2 type-body text-ink outline-none placeholder:text-ink-faint focus:border-selection'
+  'h-8 w-full rounded-md border border-hairline bg-canvas px-input-x type-body text-ink outline-none placeholder:text-ink-faint focus:border-selection'
 
 /** 변수 이름이나 값처럼 코드 글꼴로 적는 칸. 의미 글꼴 클래스는 한 요소에 하나만 붙이므로, inputClass에 글꼴 클래스를 덧붙이지 않고 이것을 쓴다. */
 export const monoInputClass = inputClass.replace('type-body', 'type-code')
@@ -130,8 +130,8 @@ export function UnitInput({
   onBlur?: () => void
 }) {
   const box = small
-    ? `h-6 rounded-sm bg-canvas px-1 type-code-sm hover:border-ink-faint ${invalid ? 'border-danger' : 'border-hairline'}`
-    : `h-8 w-full rounded-md bg-canvas px-2 type-body ${invalid ? 'border-danger focus-within:border-danger' : 'border-hairline'}`
+    ? `h-6 rounded-sm bg-canvas px-chip-x type-code-sm hover:border-ink-faint ${invalid ? 'border-danger' : 'border-hairline'}`
+    : `h-8 w-full rounded-md bg-canvas px-input-x type-body ${invalid ? 'border-danger focus-within:border-danger' : 'border-hairline'}`
   // 마우스로 눌러서 고치기 시작했는지. 누른 손을 뗄 때 브라우저가 방금 한 전체 선택을 풀어 버리지 않게 막는 데 쓴다.
   const picking = useRef(false)
   // 숫자 칸의 폭은 적힌 글자가 실제로 차지하는 폭이다. 그래야 단위가 숫자 바로 뒤에 온다.
@@ -140,7 +140,7 @@ export function UnitInput({
   const ghosts = small ? [digits, placeholder ?? ''] : [digits || placeholder || '']
   const font = 'tabular-nums'
   return (
-    <label title={title} className={`flex cursor-text items-center gap-1 border focus-within:border-selection ${width ? `${width} shrink-0 justify-between` : ''} ${box}`}>
+    <label title={title} className={`flex cursor-text items-center gap-input-inner border focus-within:border-selection ${width ? `${width} shrink-0 justify-between` : ''} ${box}`}>
       <span className={`inline-grid ${small ? 'min-w-[2ch]' : 'min-w-[1ch]'} ${font}`}>
         {ghosts.map((text, i) => (
           <span key={i} aria-hidden className="invisible col-start-1 row-start-1 h-0 overflow-hidden pr-px whitespace-pre">
@@ -209,12 +209,12 @@ export function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-1 block type-label text-ink-faint">{label}</span>
+      <span className="mb-label block type-label text-ink-faint">{label}</span>
       {children}
       {error ? (
-        <span className="mt-1 block type-body text-danger">{error}</span>
+        <span className="mt-label block type-body text-danger">{error}</span>
       ) : hint ? (
-        <span className="mt-1 block type-body text-ink-faint">{hint}</span>
+        <span className="mt-label block type-body text-ink-faint">{hint}</span>
       ) : null}
     </label>
   )
@@ -222,7 +222,7 @@ export function Field({
 
 export function Chip({ children }: { children: ReactNode }) {
   return (
-    <span className="inline-block max-w-full rounded-sm bg-hover px-1 type-code break-all text-ink">
+    <span className="inline-block max-w-full rounded-sm bg-hover px-chip-x type-code break-all text-ink">
       {children}
     </span>
   )
@@ -239,10 +239,10 @@ export function EmptyState({
   children?: ReactNode
 }) {
   return (
-    <div className="flex flex-col items-center p-6 text-center">
+    <div className="flex flex-col items-center p-board text-center">
       <p className="type-heading">{title}</p>
-      {body && <p className="mt-1 text-ink-soft">{body}</p>}
-      {children && <div className="mt-4">{children}</div>}
+      {body && <p className="mt-label text-ink-soft">{body}</p>}
+      {children && <div className="mt-dialog-actions">{children}</div>}
     </div>
   )
 }
@@ -281,9 +281,9 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={`${wide === '2xl' ? 'w-[1720px]' : wide === 'xl' ? 'w-[1440px]' : wide === 'lg' ? 'w-[1160px]' : wide ? 'w-[720px]' : 'w-[360px]'} ${tall ? 'flex h-[calc(100vh-48px)] flex-col' : 'max-h-[calc(100vh-48px)] overflow-y-auto'} max-w-[calc(100vw-48px)] rounded-lg border border-hairline bg-canvas p-6 shadow-dialog`}
+        className={`${wide === '2xl' ? 'w-[1720px]' : wide === 'xl' ? 'w-[1440px]' : wide === 'lg' ? 'w-[1160px]' : wide ? 'w-[720px]' : 'w-[360px]'} ${tall ? 'flex h-[calc(100vh-48px)] flex-col' : 'max-h-[calc(100vh-48px)] overflow-y-auto'} max-w-[calc(100vw-48px)] rounded-lg border border-hairline bg-canvas p-dialog shadow-dialog`}
       >
-        <h2 className="mb-4 shrink-0 type-title">{title}</h2>
+        <h2 className="mb-head shrink-0 type-title">{title}</h2>
         {tall ? <div className="min-h-0 flex-1">{children}</div> : children}
       </div>
     </div>
@@ -340,7 +340,7 @@ export function UsePicker<T extends string>({
           const at = options.indexOf(now) + (e.key === 'ArrowDown' ? 1 : -1)
           if (options[at]) onChange(options[at].id)
         }}
-        className={`${inputClass} flex items-center gap-2 text-left`}
+        className={`${inputClass} flex items-center gap-row-gap text-left`}
       >
         {line(now)}
         <ChevronDown size={16} strokeWidth={1.5} className="shrink-0 text-ink-faint" />
@@ -350,7 +350,7 @@ export function UsePicker<T extends string>({
           {/* 목록 바깥을 누르면 닫는다. */}
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
           {/* 줄의 바탕(올렸을 때, 고른 것)이 서로 닿지 않게 줄 사이를 4px 띄운다. */}
-          <div role="listbox" aria-label={label} className="absolute top-9 right-0 left-0 z-20 space-y-1 rounded-lg border border-hairline bg-canvas p-1 shadow-float">
+          <div role="listbox" aria-label={label} className="absolute top-9 right-0 left-0 z-20 space-y-rows rounded-lg border border-hairline bg-canvas p-menu shadow-float">
             {options.map((u) => (
               <button
                 key={u.id}
@@ -359,7 +359,7 @@ export function UsePicker<T extends string>({
                 aria-selected={u.id === value}
                 data-use-option={u.id}
                 onClick={() => pick(u.id)}
-                className={`flex h-8 w-full items-center gap-2 rounded-md px-2 text-left type-body outline-selection focus-visible:outline-2 ${u.id === value ? 'bg-hover' : 'hover:bg-hover'}`}
+                className={`flex h-8 w-full items-center gap-row-gap rounded-md px-row-x text-left type-body outline-selection focus-visible:outline-2 ${u.id === value ? 'bg-hover' : 'hover:bg-hover'}`}
               >
                 {line(u)}
                 {u.id === value && <CheckIcon size={16} strokeWidth={1.5} className="shrink-0" />}

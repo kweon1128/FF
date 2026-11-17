@@ -20,7 +20,7 @@ const weightOf = (name: string) => (name === 'base' || name === 'sm' || name ===
 /** 글자가 가운데에서 밀린 양(px). 양수면 위로, 음수면 아래로 밀린 것이다. 위아래 여백의 차이의 절반이다. */
 const shiftOf = (gap: { top: number; bottom: number }) => (gap.bottom - gap.top) / 2
 
-const LABEL = 'mb-1 type-label text-ink-faint'
+const LABEL = 'mb-label type-label text-ink-faint'
 const STEP_BUTTON =
   'flex size-8 shrink-0 items-center justify-center rounded-md text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2 disabled:opacity-disabled disabled:hover:bg-transparent'
 
@@ -540,11 +540,11 @@ export function NewSizesForm({
     // 창의 높이는 화면에 맞춰 고정되어 있다(Modal의 tall). 이 양식이 그 높이를 채우고, 아래의 버튼 줄은 늘 같은 자리에 있다.
     // 고르는 값에 따라 달라지는 것은 표의 내용뿐이고, 표가 남는 높이를 넘으면 표 안에서만 스크롤된다.
     <form onSubmit={submit} className="flex h-full flex-col">
-      <div className="flex min-h-0 flex-1 gap-6">
-      <div className="min-h-0 w-56 shrink-0 space-y-4 overflow-y-auto">
+      <div className="flex min-h-0 flex-1 gap-groups">
+      <div className="min-h-0 w-56 shrink-0 space-y-settings overflow-y-auto">
         <div>
           <p className={LABEL}>본문 크기</p>
-          <span className="flex h-8 items-center gap-1">
+          <span className="flex h-8 items-center gap-actions-tight">
             <button type="button" aria-label="본문 작게" disabled={base <= BASE_MIN} onClick={() => changeBase(base - 1)} className={STEP_BUTTON}>
               <Minus size={16} strokeWidth={1.5} />
             </button>
@@ -559,7 +559,7 @@ export function NewSizesForm({
         {/* 줄 높이는 본문의 줄 높이(px)로 고른다. 언제나 짝수 px이라 2px씩 움직이고, 다른 단계는 같은 비율로 따라간다(글자가 클수록 덜 띄우는 것은 그대로다). */}
         <div>
           <p className={LABEL}>본문 줄 높이</p>
-          <span className="flex h-8 items-center gap-1">
+          <span className="flex h-8 items-center gap-actions-tight">
             <button type="button" aria-label="줄 높이 좁게" disabled={baseLine <= lineRange.min} onClick={() => stepLine(-1)} className={STEP_BUTTON}>
               <Minus size={16} strokeWidth={1.5} />
             </button>
@@ -574,9 +574,9 @@ export function NewSizesForm({
         {/* 설정은 두 묶음이다. 위의 둘(본문 크기, 본문 줄 높이)은 기준이 되는 한 줄을 정하고, 아래의 둘(단계 수, 단계 사이)은 그 기준에서 한 벌을 어떻게 펼칠지를 정한다.
             나머지 값이 모두 본문에서 계산되므로 본문이 먼저다. 묶음 사이는 묶음 안(16px)보다 넓게 24px 띄운다. */}
         {/* 단계의 수. 본문 아래의 둘과 본문은 늘 있고, 본문보다 큰 단계를 둘에서 여섯까지 고른다. 전체로는 5단계에서 9단계다. */}
-        <div className="pt-2">
+        <div className="pt-blocks">
           <p className={LABEL}>단계 수</p>
-          <span className="flex h-8 items-center gap-1">
+          <span className="flex h-8 items-center gap-actions-tight">
             <button type="button" aria-label="단계 줄이기" disabled={upCount <= UPS_MIN} onClick={() => changeUps(upCount - 1)} className={STEP_BUTTON}>
               <Minus size={16} strokeWidth={1.5} />
             </button>
@@ -597,7 +597,7 @@ export function NewSizesForm({
         {/* 본문 크기처럼 - +로 조절한다. 세 가지 가운데 고르게 하면 그 사이의 값이나 더 큰 대비를 원할 때 단계마다 손으로 고쳐야 한다. */}
         <div>
           <p className={LABEL}>단계 사이</p>
-          <span className="flex h-8 items-center gap-1">
+          <span className="flex h-8 items-center gap-actions-tight">
             <button type="button" aria-label="단계 사이 좁게" disabled={spreadAt <= 0} onClick={() => stepSpread(-1)} className={STEP_BUTTON}>
               <Minus size={16} strokeWidth={1.5} />
             </button>
@@ -611,9 +611,9 @@ export function NewSizesForm({
           </span>
         </div>
         {/* 글자 사이를 글자 크기에 묶을지. 큰 글자일수록 좁힌다. 16px 이하의 글자는 어느 쪽을 골라도 글꼴이 정한 그대로다. */}
-        <div className="pt-2">
+        <div className="pt-blocks">
           <p className={LABEL}>글자 사이</p>
-          <div role="radiogroup" aria-label="글자 사이" className="grid grid-cols-2 gap-1 rounded-md bg-hover p-1">
+          <div role="radiogroup" aria-label="글자 사이" className="grid grid-cols-2 gap-actions-tight rounded-md bg-hover p-menu">
             {[
               { on: false, label: '그대로' },
               { on: true, label: '큰 글자 좁게' },
@@ -639,14 +639,14 @@ export function NewSizesForm({
         {/* 위의 것들은 만들어지는 값을 정하고, 이것은 보기만 바꾼다. 그래서 구분선 아래 맨 끝에 둔다.
             견본을 그리는 글꼴. 글꼴 종류가 둘 이상이면 고를 수 있다. 글꼴마다 글자가 줄 안에 앉는 자리가 달라서, 글꼴을 바꾸면 오른쪽의 위아래 여백 숫자가 달라진다. */}
         {fonts.length > 0 && (
-          <div className="border-t border-hairline pt-4">
+          <div className="border-t border-hairline pt-settings">
             <p className={LABEL}>견본의 글꼴</p>
             {fonts.length === 1 ? (
               <p className="type-body">
                 <span className="type-code text-ink-faint">{fonts[0].name}</span> {shownFont(fonts[0].value)}
               </p>
             ) : (
-              <div role="radiogroup" aria-label="견본의 글꼴" className="space-y-1">
+              <div role="radiogroup" aria-label="견본의 글꼴" className="space-y-rows">
                 {fonts.map((f) => (
                   <button
                     key={f.name}
@@ -654,7 +654,7 @@ export function NewSizesForm({
                     role="radio"
                     aria-checked={f.name === fontName}
                     onClick={() => setFontName(f.name)}
-                    className={`flex h-8 w-full items-center gap-2 rounded-md px-2 text-left type-body outline-selection focus-visible:outline-2 ${
+                    className={`flex h-8 w-full items-center gap-row-gap rounded-md px-row-x text-left type-body outline-selection focus-visible:outline-2 ${
                       f.name === fontName ? 'bg-selection-soft' : 'hover:bg-hover'
                     }`}
                   >
@@ -669,22 +669,22 @@ export function NewSizesForm({
       </div>
 
       {/* 창이 좁으면 표, 예시 상자, 화면 예시가 위아래로 놓이고 이 상자가 통째로 스크롤된다. 넓으면 표와 화면 예시가 좌우로 놓이고 저마다 높이를 채운다. */}
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-y-auto min-[1700px]:flex-row min-[1700px]:gap-6 min-[1700px]:overflow-visible">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-blocks overflow-y-auto min-[1700px]:flex-row min-[1700px]:gap-groups min-[1700px]:overflow-visible">
       <div className="min-w-0 flex-1 min-[1700px]:flex min-[1700px]:min-h-0 min-[1700px]:flex-col">
         {/* 큰 것부터 작은 것 순서로, 한 줄에 한 단계. 높이는 가장 크게 골랐을 때에 맞춰 고정해서 고르는 동안 창이 늘었다 줄었다 하지 않는다. */}
-        <div ref={scale} data-scale className="min-h-[360px] space-y-1 rounded-md border border-hairline px-4 py-3 min-[1700px]:min-h-0 min-[1700px]:flex-1 min-[1700px]:overflow-y-auto">
+        <div ref={scale} data-scale className="min-h-[360px] space-y-rows rounded-md border border-hairline px-section-x py-section-y min-[1700px]:min-h-0 min-[1700px]:flex-1 min-[1700px]:overflow-y-auto">
           {[...steps].reverse().map((s) => (
             <div
               key={s.name}
               data-step={s.name}
               onMouseEnter={() => setHot(s.name)}
               onMouseLeave={() => setHot(null)}
-              className="flex items-center gap-3"
+              className="flex items-center gap-grid"
             >
               {/* 마우스를 올렸을 때의 회색 바탕은 이름, 값, 쓰이는 곳까지만 덮는다(높이 32px). 줄 전체를 덮으면 견본 문장의 크기에 따라 줄마다 높이가 달라진다.
                   견본 문장은 바탕 밖에 두고, 화면 예시의 글자처럼 1px 선을 둘러 표시한다.
                   바탕의 좌우 여백은 그 끝에 놓인 것의 위아래 여백과 같게 한다. 왼쪽 끝은 이름 칸(24px, 위아래 4px)이라 4px, 오른쪽 끝은 쓰이는 곳의 글자(줄 높이 16px, 위아래 8px)라 8px. */}
-              <span data-hot={hot === s.name || undefined} className={`-ml-1 flex h-8 shrink-0 items-center gap-3 rounded-md pr-2 pl-1 ${hot === s.name ? 'bg-hover' : ''}`}>
+              <span data-hot={hot === s.name || undefined} className={`-ml-chip-x flex h-8 shrink-0 items-center gap-grid rounded-md pr-row-x pl-chip-x ${hot === s.name ? 'bg-hover' : ''}`}>
               {/* 이름은 미리 채워져 있고, 다른 이름을 쓰고 싶을 때만 고친다. */}
               <StepName label={`${s.name} 이름`} value={nameOf(s.name)} onChange={(name) => setNames({ ...names, [s.name]: name })} />
               {/* 크기, 줄 높이, 글자 사이는 단계마다 직접 고칠 수 있다(본문 줄의 크기 칸은 왼쪽의 본문 크기와 같은 값이다). 줄 높이와 글자 사이는 고친 크기에 맞춰 따라오고, 직접 고친 것은 따라가지 않는다. */}
@@ -702,7 +702,7 @@ export function NewSizesForm({
                     onChange={(px) => setSize(s.name, px)}
                   />
                 )}
-                <span className="px-1">/</span>
+                <span className="px-chip-x">/</span>
                 <StepField
                   key={`line:${base}:${spread}:${leading}`}
                   label={`${s.name} 줄 높이`}
@@ -713,7 +713,7 @@ export function NewSizesForm({
                   valid={validLine}
                   onChange={(d) => setLines((now) => put(now, s.name, d))}
                 />
-                <span className="px-1">/</span>
+                <span className="px-chip-x">/</span>
                 <StepField
                   key={`track:${base}:${spread}:${tighten}`}
                   label={`${s.name} 글자 사이`}
@@ -750,7 +750,7 @@ export function NewSizesForm({
         </div>
         {/* 이 크기들이 실제로 들어가는 것들. 높이가 정해진 상자 안에 글이 놓이는 버튼, 칩, 뱃지, 입력칸은 위아래 가운데가 조금만 어긋나도 눈에 띈다.
             상자의 높이는 그 크기의 줄 높이에 위아래 여백을 더한 것이라, 줄 높이를 바꾸면 함께 바뀐다. */}
-        <div data-examples className="mt-2 grid shrink-0 grid-cols-[84px_repeat(5,minmax(0,1fr))] items-start gap-x-4 gap-y-3 rounded-md border border-hairline px-4 py-3">
+        <div data-examples className="mt-blocks grid shrink-0 grid-cols-[84px_repeat(5,minmax(0,1fr))] items-start gap-x-columns gap-y-grid rounded-md border border-hairline px-section-x py-section-y">
           {/* 머리 줄: 열마다의 종류. */}
           <span />
           {EXAMPLE_ROWS.map((kind) => (
@@ -794,7 +794,7 @@ export function NewSizesForm({
                     {/* 글자가 상자의 가운데에서 어느 쪽으로 얼마나 밀렸는지만 적는다. 알고 싶은 것은 치우침이지 여백의 크기가 아니다. 위아래 여백은 마우스를 올리면 나온다. */}
                     <p
                       title={gap ? `위 여백 ${gap.top.toFixed(1)}px · 아래 여백 ${gap.bottom.toFixed(1)}px` : undefined}
-                      className={`mt-1 type-code-sm whitespace-nowrap tabular-nums! ${gap && Math.abs(shift) > OFF ? 'text-danger' : 'text-ink-faint'}`}
+                      className={`mt-label type-code-sm whitespace-nowrap tabular-nums! ${gap && Math.abs(shift) > OFF ? 'text-danger' : 'text-ink-faint'}`}
                     >
                       {gap ? (Math.abs(shift) < 0.05 ? '가운데' : `${shift > 0 ? '위로' : '아래로'} ${Math.abs(shift).toFixed(1)}`) : '\u00a0'}
                     </p>
@@ -811,7 +811,7 @@ export function NewSizesForm({
           창이 넓으면(1700px 이상) 표의 오른쪽에, 좁으면 표의 아래에 놓인다.
           이 안은 사용자의 글꼴을 보여 주는 미리보기라, FF 도구의 글자 규칙을 따르지 않는다. */}
       <div data-screen className="w-full shrink-0 rounded-md border border-hairline bg-canvas text-ink min-[1700px]:min-h-0 min-[1700px]:w-[560px] min-[1700px]:overflow-y-auto">
-        <div className="p-6">
+        <div className="p-board">
           {pageRows(upCount).map((row, i) => {
             const stepName = row.step
             const s = steps.find((x) => x.name === stepName)
@@ -834,7 +834,7 @@ export function NewSizesForm({
       </div>
       </div>
       </div>
-        <div className="mt-3 flex shrink-0 items-center justify-end gap-2">
+        <div className="mt-dialog-actions flex shrink-0 items-center justify-end gap-actions">
           {/* 바꾼 것을 모두 처음으로 돌린다. 만들기와 취소처럼 창 전체에 대한 일이라 같은 줄에 두되, 실수로 누르지 않게 반대쪽 끝에 둔다. 바꾼 것이 없으면 꺼져 있다. */}
           <Button variant="ghost" className="mr-auto" disabled={!changed} title="설정과 직접 고친 값을 모두 처음으로 돌려요" onClick={reset}>
             <RotateCcw size={16} strokeWidth={1.5} />
@@ -842,7 +842,7 @@ export function NewSizesForm({
           </Button>
           {/* 이미 있는 단계가 새 값으로 바뀌는 것은 되돌리기 전에 알아야 하는 일이라 알린다. */}
           {problem ? (
-            <span role="alert" className="mr-1 type-body text-danger">
+            <span role="alert" className="mr-actions-tight type-body text-danger">
               {problem}
             </span>
           ) : (

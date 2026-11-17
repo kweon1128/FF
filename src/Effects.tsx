@@ -186,7 +186,7 @@ export function EffectList({
   const id = kind.id as EffectKind
   const around = surroundings(all)
   return (
-    <div className="space-y-1 rounded-lg border border-hairline bg-canvas p-1">
+    <div className="space-y-rows rounded-lg border border-hairline bg-canvas p-menu">
       {items.map((t, i) => {
         const short = shortName(kind, t.name)
         const { text, shape, words, more } = readEffectNote(id, t.note, short)
@@ -201,7 +201,7 @@ export function EffectList({
             onClick={(e) => !reorder.justDragged() && onSelect(t.name, isAdditive(e))}
             onDoubleClick={() => onRename(t.name)}
             {...reorder.grab(t.name)}
-            className={`group relative flex w-full items-center gap-4 rounded-md px-3 py-2 text-left select-none ${reorder.moving(t.name) ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
+            className={`group relative flex w-full items-center gap-columns rounded-md px-board-row py-board-row-y text-left select-none ${reorder.moving(t.name) ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
           >
             {reorder.line(t.name, i)}
             <span className="w-56 shrink-0">
@@ -220,13 +220,13 @@ export function EffectList({
                 <span className="block type-code-sm break-words text-ink-faint">{shownValue(id, t.value)}</span>
               )}
               {text && (
-                <span className="mt-1 block type-caption break-words text-ink-faint">
+                <span className="mt-label block type-caption break-words text-ink-faint">
                   <Phrases text={text} />
                 </span>
               )}
             </span>
             {/* 쓰임이 여럿인 값은 예시도 여럿이다. 위아래로 8px 띄워 쌓는다. */}
-            <span className="block min-w-0 flex-1 space-y-2">
+            <span className="block min-w-0 flex-1 space-y-blocks">
               {[{ shape, words }, ...more].map((e, k) => (
                 <EffectSample key={k} shape={e.shape} value={t.value} around={around} words={e.words} />
               ))}
@@ -297,11 +297,11 @@ function ShadowFields({ value, onChange }: { value: string; onChange: (value: st
   )
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-settings">
       {layers.map((l, i) => (
         <div key={i} data-layer={i}>
           {/* 겹이 하나뿐이면 지울 수 없다. 겹이 없는 그림자는 값이 아니다. */}
-          <div className="mb-1 flex h-8 items-center justify-between">
+          <div className="mb-label flex h-8 items-center justify-between">
             <p className="type-label">겹 {i + 1}</p>
             {layers.length > 1 && (
               <button
@@ -319,7 +319,7 @@ function ShadowFields({ value, onChange }: { value: string; onChange: (value: st
               </button>
             )}
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-field-row">
             {cell(i, 'x', '가로', 'px', true)}
             {cell(i, 'y', '세로', 'px', true)}
             {cell(i, 'blur', '흐림', 'px')}
@@ -448,7 +448,7 @@ export function EffectInspector({
           onBlur={commitName}
           onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
         />
-        {nameError && <span className="mt-1 block type-body text-danger">{nameError}</span>}
+        {nameError && <span className="mt-label block type-body text-danger">{nameError}</span>}
       </Section>
 
       <Section title={kind.title}>
@@ -475,16 +475,16 @@ export function EffectInspector({
       </Section>
 
       <FoldSection title="쓰이는 곳" storageKey={WHERE_OPEN} startOpen note={uses.length > 0 ? String(uses.length) : '없음'} empty={uses.length === 0}>
-        <div className="space-y-2">
+        <div className="space-y-blocks">
           {uses.map((u) => (
             <div key={u.index}>
               <button
                 type="button"
                 onClick={() => onOpenComponent(u.index)}
-                className="-ml-2 flex h-8 max-w-full items-center rounded-md px-2 type-label outline-selection hover:bg-hover focus-visible:outline-2"
+                className="-ml-button-quiet-x flex h-8 max-w-full items-center rounded-md px-button-quiet-x type-label outline-selection hover:bg-hover focus-visible:outline-2"
               >
                 <span className="truncate">{u.name}</span>
-                <span className="ml-2 shrink-0 type-body text-ink-faint">{u.where.length}곳</span>
+                <span className="ml-row-gap shrink-0 type-body text-ink-faint">{u.where.length}곳</span>
               </button>
               <p className="type-body text-ink-faint">{u.where.join(', ')}</p>
             </div>
@@ -493,15 +493,15 @@ export function EffectInspector({
       </FoldSection>
 
       <FoldSection title="코드" storageKey={CODE_OPEN}>
-        <div className="space-y-2">
+        <div className="space-y-blocks">
           <div>
-            <p className="mb-1 type-label text-ink-faint">쓰는 법</p>
-            <div className="space-y-1">
+            <p className="mb-label type-label text-ink-faint">쓰는 법</p>
+            <div className="space-y-rows">
               {[
                 { shown: className, label: '클래스 복사' },
                 { shown: `var(${token.name})`, label: '변수 복사' },
               ].map((row) => (
-                <span key={row.label} className="flex items-center gap-1">
+                <span key={row.label} className="flex items-center gap-actions-tight">
                   <span className="min-w-0 flex-1">
                     <Chip>{row.shown}</Chip>
                   </span>
@@ -513,11 +513,11 @@ export function EffectInspector({
             </div>
           </div>
           <div>
-            <p className="mb-1 type-label text-ink-faint">저장된 값</p>
+            <p className="mb-label type-label text-ink-faint">저장된 값</p>
             <Chip>{token.value}</Chip>
           </div>
           <div>
-            <p className="mb-1 type-label text-ink-faint">저장 위치</p>
+            <p className="mb-label type-label text-ink-faint">저장 위치</p>
             <Chip>{file}</Chip>
           </div>
         </div>

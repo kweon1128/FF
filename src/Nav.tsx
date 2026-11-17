@@ -11,6 +11,7 @@ import {
   Plus,
   Tags,
   Ruler,
+  RulerDimensionLine,
   Sparkles,
   Square,
   SquareRoundCorner,
@@ -32,6 +33,7 @@ const SECTIONS: { title?: string; items: Item[] }[] = [
       { id: 'type', label: '글꼴', icon: Type },
       { id: 'style', label: '의미 글꼴', icon: CaseSensitive },
       { id: 'spacing', label: '간격', icon: Ruler },
+      { id: 'spaceuse', label: '의미 간격', icon: RulerDimensionLine },
       { id: 'radius', label: '모서리', icon: SquareRoundCorner },
       { id: 'border', label: '테두리', icon: Square },
       { id: 'effect', label: '효과', icon: Sparkles },
@@ -49,7 +51,7 @@ const SECTIONS: { title?: string; items: Item[] }[] = [
   },
 ]
 
-const ROW = 'flex h-8 w-full items-center gap-2 rounded-md px-2 text-left'
+const ROW = 'flex h-8 w-full items-center gap-row-gap rounded-md px-row-x text-left'
 const IDLE = 'type-menu text-ink-soft hover:bg-hover hover:text-ink'
 
 export function Nav({
@@ -79,15 +81,15 @@ export function Nav({
   const MARK =
     'absolute top-1 right-1 flex size-6 items-center justify-center rounded-sm text-ink-faint outline-selection hover:bg-canvas hover:text-ink focus-visible:outline-2'
   return (
-    <nav className="w-[220px] shrink-0 overflow-y-auto border-r border-hairline p-2">
+    <nav className="w-[220px] shrink-0 overflow-y-auto border-r border-hairline p-nav">
       {SECTIONS.map((section, i) => (
         <div key={i}>
-          {section.title && <p className="px-2 pt-3 pb-1 type-label text-ink-faint">{section.title}</p>}
-          <div className="space-y-1">
+          {section.title && <p className="px-row-x pt-section-y pb-label type-label text-ink-faint">{section.title}</p>}
+          <div className="space-y-rows">
             {section.items.map(({ id, label, icon: Icon }) => {
               const selected = id === screen
               return (
-                <div key={id} className="relative space-y-1">
+                <div key={id} className="relative space-y-rows">
                   <button
                     type="button"
                     aria-current={selected ? 'page' : undefined}

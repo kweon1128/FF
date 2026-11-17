@@ -38,7 +38,7 @@ export function Palette({ items, onClose }: { items: PaletteItem[]; onClose: () 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-[18vh]" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div role="dialog" aria-modal="true" aria-label="빠른 실행" className="w-[480px] overflow-hidden rounded-lg border border-hairline bg-canvas shadow-dialog">
-        <label className="flex h-11 items-center gap-2 border-b border-hairline px-3">
+        <label className="flex h-11 items-center gap-row-gap border-b border-hairline px-bar-x">
           <Search size={16} strokeWidth={1.5} className="shrink-0 text-ink-faint" />
           <input
             autoFocus
@@ -62,9 +62,9 @@ export function Palette({ items, onClose }: { items: PaletteItem[]; onClose: () 
             }}
           />
         </label>
-        <div ref={list} role="listbox" className="max-h-[320px] overflow-y-auto p-1">
+        <div ref={list} role="listbox" className="max-h-[320px] overflow-y-auto p-menu">
           {found.length === 0 ? (
-            <p className="px-2 py-6 text-center text-ink-faint">맞는 것이 없어요.</p>
+            <p className="px-row-x py-board text-center text-ink-faint">맞는 것이 없어요.</p>
           ) : (
             found.map((item, i) => (
               <button
@@ -74,7 +74,7 @@ export function Palette({ items, onClose }: { items: PaletteItem[]; onClose: () 
                 aria-selected={i === at}
                 onPointerMove={() => setIndex(i)}
                 onClick={() => run(item)}
-                className={`flex h-8 w-full items-center gap-2 rounded-md px-2 text-left ${i === at ? 'bg-hover' : ''}`}
+                className={`flex h-8 w-full items-center gap-row-gap rounded-md px-row-x text-left ${i === at ? 'bg-hover' : ''}`}
               >
                 <span className="w-10 shrink-0 type-caption text-ink-faint">{item.group}</span>
                 <span className="min-w-0 flex-1 truncate">{item.label}</span>

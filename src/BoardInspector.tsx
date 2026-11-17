@@ -73,7 +73,7 @@ export function NumberField({
     // 이름표와 숫자를 한 칸 안에 나란히 둔다. 이름표가 길어도 숫자와 겹치지 않는다.
     <label
       title={label}
-      className={`flex h-8 min-w-0 items-center gap-2 rounded-md border border-hairline px-2 focus-within:border-selection ${
+      className={`flex h-8 min-w-0 items-center gap-row-gap rounded-md border border-hairline px-input-x focus-within:border-selection ${
         readOnly ? 'bg-hover' : 'bg-canvas'
       }`}
     >
@@ -133,7 +133,7 @@ function ColorField({ label, value, onCommit }: { label: string; value: string |
   }
 
   return (
-    <span className="flex items-center gap-2">
+    <span className="flex items-center gap-field-row">
       <ColorSwatch label={`${label} 고르기`} value={value} fallback="#ffffff" onChange={onCommit} />
       <input
         aria-label={label}
@@ -164,13 +164,13 @@ export function ImageInspector({
         <h2 className="type-heading">{many ? `사진 ${picked.length}개 선택됨` : '사진'}</h2>
       </Section>
       <Section title="위치">
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-field-row">
           <NumberField tag="X" label="가로 위치" value={shared(picked.map((b) => b.x))} onCommit={(x) => all({ x })} />
           <NumberField tag="Y" label="세로 위치" value={shared(picked.map((b) => b.y))} onCommit={(y) => all({ y })} />
         </div>
       </Section>
       <Section title="크기">
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-field-row">
           <NumberField
             tag="W"
             label="너비"
@@ -221,7 +221,7 @@ export function BoardInspector({
   return (
     <div>
       <Section>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-actions-tight">
           <h2 className="min-w-0 flex-1 truncate type-heading">{many ? `판 ${picked.length}개 선택됨` : `${titles[picked[0].id]} 판`}</h2>
           <button
             type="button"
@@ -246,8 +246,8 @@ export function BoardInspector({
       </Section>
 
       <Section title="위치">
-        <p className="mb-1 type-label text-ink-faint">정렬</p>
-        <div className="mb-3 flex gap-1">
+        <p className="mb-label type-label text-ink-faint">정렬</p>
+        <div className="mb-fields flex gap-actions-tight">
           {ALIGN.map(({ action, label, icon: Icon }, i) => (
             <button
               key={action}
@@ -259,22 +259,22 @@ export function BoardInspector({
                 const moves = arrange(action, picked)
                 if (moves) onMove(moves)
               }}
-              className={`flex size-8 items-center justify-center rounded-md text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2 disabled:pointer-events-none disabled:opacity-disabled ${i === 3 ? 'ml-2' : ''}`}
+              className={`flex size-8 items-center justify-center rounded-md text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2 disabled:pointer-events-none disabled:opacity-disabled ${i === 3 ? 'ml-blocks' : ''}`}
             >
               <Icon size={16} strokeWidth={1.5} />
             </button>
           ))}
         </div>
-        <p className="mb-1 type-label text-ink-faint">위치</p>
-        <div className="grid grid-cols-2 gap-2">
+        <p className="mb-label type-label text-ink-faint">위치</p>
+        <div className="grid grid-cols-2 gap-field-row">
           <NumberField tag="X" label="가로 위치" value={x} readOnly={anyLocked} onCommit={(v) => all(() => ({ x: v }))} />
           <NumberField tag="Y" label="세로 위치" value={y} readOnly={anyLocked} onCommit={(v) => all(() => ({ y: v }))} />
         </div>
       </Section>
 
       <Section title="배치">
-        <p className="mb-1 type-label text-ink-faint">크기</p>
-        <div className="grid grid-cols-2 gap-2">
+        <p className="mb-label type-label text-ink-faint">크기</p>
+        <div className="grid grid-cols-2 gap-field-row">
           <NumberField
             tag="W"
             label="너비 (판마다 정해져 있어요)"
@@ -285,8 +285,8 @@ export function BoardInspector({
         </div>
         {many && (
           <>
-            <p className="mt-3 mb-1 type-label text-ink-faint">간격</p>
-            <div className="grid grid-cols-2 gap-2">
+            <p className="mt-fields mb-label type-label text-ink-faint">간격</p>
+            <div className="grid grid-cols-2 gap-field-row">
               <NumberField
                 tag="가로"
                 label="가로 간격"
@@ -305,7 +305,7 @@ export function BoardInspector({
       </Section>
 
       <Section title="모양">
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-field-row">
           <NumberField
             tag="%"
             label="투명도 (0~100)"
@@ -326,7 +326,7 @@ export function BoardInspector({
       </Section>
 
       <Section title="테두리">
-        <div className="space-y-2">
+        <div className="space-y-blocks">
           <ColorField label="테두리 색" value={stroke} onCommit={(v) => all(() => ({ stroke: v }))} />
           <NumberField
             tag="굵기"

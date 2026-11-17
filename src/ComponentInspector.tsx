@@ -97,7 +97,7 @@ function TokenField({
       error={missing ? '고른 값이 기본 값에서 없어졌어요. 다시 골라 주세요.' : null}
       hint={options.length + roles.length === 0 ? `${kind.title} 값을 먼저 만들어 주세요.` : undefined}
     >
-      <span className="flex items-center gap-2">
+      <span className="flex items-center gap-field-row">
         {kind.id === 'color' && (
           <span
             className="size-8 shrink-0 rounded-md border border-hairline"
@@ -145,7 +145,7 @@ function IconPicker({ value, onChange }: { value: string | undefined; onChange: 
   const results = matches.slice(0, ICON_RESULTS)
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-blocks">
       <Field label="아이콘" hint={isIconName(value) ? `고른 아이콘: ${value}` : '아직 고르지 않았어요.'}>
         <input
           className={inputClass}
@@ -157,7 +157,7 @@ function IconPicker({ value, onChange }: { value: string | undefined; onChange: 
       {results.length === 0 ? (
         <p className="type-body text-ink-faint">맞는 아이콘이 없어요.</p>
       ) : (
-        <div className="grid grid-cols-6 gap-1">
+        <div className="grid grid-cols-6 gap-actions-tight">
           {results.map((name) => (
             <button
               key={name}
@@ -249,13 +249,13 @@ export function ComponentInspector({
       <Section>
         <h2 className="type-heading break-all">{comp.name}</h2>
         {cell && (
-          <p className="mt-1 type-body text-ink-faint">{single ? cellLabel(comp, cell) : `${cells.length}칸 선택됨`}</p>
+          <p className="mt-label type-body text-ink-faint">{single ? cellLabel(comp, cell) : `${cells.length}칸 선택됨`}</p>
         )}
       </Section>
 
       {/* 이름은 맨 위다. 값, 의미 색, 의미 글꼴 패널과 같은 자리다. 칸 하나를 골랐으면 그 칸의 종류와 크기의 이름도 여기서 고친다. */}
       <Section title="이름">
-        <div className="space-y-3">
+        <div className="space-y-fields">
           <NameField label="컴포넌트" value={comp.name} taken={otherNames} onCommit={(name) => common({ name })} />
           {cell && single && variant && (
             <NameField
@@ -276,8 +276,8 @@ export function ComponentInspector({
 
       {cell && size && (
         <Section title="배치">
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-fields">
+            <div className="grid grid-cols-2 gap-field-row">
               <TokenField {...field} label="좌우 여백" kind={KINDS.space} value={size.padX} onChange={(padX) => setSize({ padX })} />
               <TokenField {...field} label="위아래 여백" kind={KINDS.space} value={size.padY} onChange={(padY) => setSize({ padY })} />
             </div>
@@ -304,7 +304,7 @@ export function ComponentInspector({
       )}
 
       <Section title="테두리">
-        <div className="space-y-3">
+        <div className="space-y-fields">
           {colors && (
             <TokenField
               {...field}
@@ -327,7 +327,7 @@ export function ComponentInspector({
       </Section>
 
       <Section title="글자">
-        <div className="space-y-3">
+        <div className="space-y-fields">
           {colors && (
             <TokenField
               {...field}
@@ -345,7 +345,7 @@ export function ComponentInspector({
           {!(cell && size?.type) && (
             <>
               <TokenField {...field} label="글꼴" kind={KINDS.font} value={comp.font} onChange={(font) => common({ font })} />
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-field-row">
                 <TokenField {...field} label="굵기" kind={KINDS.weight} value={comp.weight} onChange={(weight) => common({ weight })} />
                 {cell && size && (
                   <TokenField {...field} label="크기" kind={KINDS.size} value={size.textSize} onChange={(textSize) => setSize({ textSize })} />
@@ -360,8 +360,8 @@ export function ComponentInspector({
       </Section>
 
       <Section title="아이콘">
-        <div className="space-y-3">
-          <div role="group" aria-label="아이콘 위치" className="flex gap-1 rounded-md bg-hover p-1">
+        <div className="space-y-fields">
+          <div role="group" aria-label="아이콘 위치" className="flex gap-actions-tight rounded-md bg-hover p-menu">
             {ICON_POSITIONS.map(({ id, label }) => (
               <button
                 key={id}
@@ -383,10 +383,10 @@ export function ComponentInspector({
       {/* 저장 위치와 코드 복사는 다른 패널처럼 접히는 "코드" 구역에 둔다. */}
       <FoldSection title="코드" storageKey={CODE_OPEN}>
         <div>
-          <p className="mb-1 type-label text-ink-faint">저장 위치</p>
+          <p className="mb-label type-label text-ink-faint">저장 위치</p>
           <Chip>{file}</Chip>
         </div>
-        <div className="mt-2 -ml-2">
+        <div className="mt-blocks -ml-button-quiet-x">
           <Button variant="ghost" onClick={onCopyCss}>
             <Copy size={16} strokeWidth={1.5} />
             CSS 복사
@@ -396,7 +396,7 @@ export function ComponentInspector({
 
       {/* 복제와 삭제는 맨 아래에 모은다. 칸 하나를 골랐을 때만 그 칸의 종류와 크기를 복제하고 지울 수 있다. 버튼의 바탕이 닿지 않게 4px 띄운다. */}
       <Section>
-        <div className="-ml-2 flex flex-wrap gap-1">
+        <div className="-ml-button-quiet-x flex flex-wrap gap-actions-tight">
           {cell && single && variant && (
             <>
               <Button variant="ghost" title="Ctrl+D" onClick={() => onDuplicateVariant(cell.v)}>

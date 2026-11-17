@@ -44,7 +44,7 @@ export function NewSystemForm({
           }}
         />
       </Field>
-      <div className="mt-4 flex justify-end gap-2">
+      <div className="mt-dialog-actions flex justify-end gap-actions">
         {onCancel && (
           <Button variant="ghost" onClick={onCancel}>
             취소

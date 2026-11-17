@@ -64,9 +64,9 @@ export function ComponentScreen({
   return (
     <div className="mx-auto max-w-[960px]">
       {/* 이름 줄. 종류와 크기를 추가하는 버튼은 격자 끝의 점선 상자가 아니라 여기에 둔다. 크기는 모든 종류가 함께 쓰므로 종류마다 두지 않는다. */}
-      <div className="mb-4 flex h-8 items-center justify-between">
+      <div className="mb-head flex h-8 items-center justify-between">
         <h1 className="type-title">{comp.name}</h1>
-        <span className="flex gap-1">
+        <span className="flex gap-actions-tight">
           <Button variant="ghost" onClick={onAddVariant}>
             <Plus size={16} strokeWidth={1.5} />
             종류 추가
@@ -78,30 +78,30 @@ export function ComponentScreen({
         </span>
       </div>
 
-      <div className="flex min-h-40 items-center justify-center rounded-lg border border-hairline bg-canvas p-6">
+      <div className="flex min-h-40 items-center justify-center rounded-lg border border-hairline bg-canvas p-board">
         <LivePreview comp={comp} cell={shown} tokens={tokens} />
       </div>
-      <p className="mt-1 type-caption text-ink-faint">
+      <p className="mt-label type-caption text-ink-faint">
         {comp.variants[shown.v]?.name} · {comp.sizes[shown.s]?.name}
       </p>
 
-      <div className="mt-6 space-y-6">
+      <div className="mt-groups space-y-groups">
         {comp.variants.map((variant, v) => (
           <section key={v}>
-            <h2 className="mb-2 type-caption-strong text-ink-faint">
+            <h2 className="mb-title type-caption-strong text-ink-faint">
               <span data-variant-name={v} onDoubleClick={() => onRenameVariant(v)}>
                 {variant.name}
               </span>
             </h2>
-            <div className="space-y-3">
+            <div className="space-y-grid">
               {comp.sizes.map((size, s) => (
-                <div key={s} className="flex items-start gap-3">
+                <div key={s} className="flex items-start gap-grid">
                   <span className="flex h-24 w-12 shrink-0 items-center type-caption text-ink-soft">
                     <span className="truncate" onDoubleClick={() => onRenameSize(s)}>
                       {size.name}
                     </span>
                   </span>
-                  <div className="grid min-w-0 flex-1 grid-cols-4 gap-3">
+                  <div className="grid min-w-0 flex-1 grid-cols-4 gap-grid">
                     {STATES.map(({ id, label }) => {
                       const here = { v, s, state: id }
                       const isSelected = cells.some((c) => c.v === v && c.s === s && c.state === id)
@@ -117,14 +117,14 @@ export function ComponentScreen({
                           className="group min-w-0 text-left outline-none select-none"
                         >
                           <span
-                            className={`relative flex h-24 items-center justify-center rounded-lg border border-hairline bg-canvas p-3 ${isSelected ? SELECTED : ''} group-hover:line-2 group-focus-visible:line-2 ${OUTLINE}`}
+                            className={`relative flex h-24 items-center justify-center rounded-lg border border-hairline bg-canvas p-card ${isSelected ? SELECTED : ''} group-hover:line-2 group-focus-visible:line-2 ${OUTLINE}`}
                           >
                             <span className="pointer-events-none flex max-w-full overflow-hidden">
                               <CompPreview comp={comp} cell={here} tokens={tokens} />
                             </span>
                             {labeled && <SelectionLabel name={cellLabel(comp, here)} />}
                           </span>
-                          <span className="mt-1 block truncate type-caption text-ink-faint">
+                          <span className="mt-label block truncate type-caption text-ink-faint">
                             {label}
                           </span>
                         </button>

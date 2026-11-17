@@ -33,7 +33,7 @@ const LINE = 'h-[1lh] whitespace-nowrap content-center [text-box:trim-both_cap_a
 /** 견본에서 상자 안에 들어가는 글들(버튼 셋과 입력칸). 글자의 실제 모양을 재서 상자의 한가운데에 놓는다. */
 const BOXED = ['배송 준비', '바꾸기', '더 보기', '결제 완료', '출고 완료', '김하늘']
 /** 설정의 이름표. 값 위에 둔다. 한 벌 만들기 창들의 왼쪽 열과 같다. */
-const LABEL = 'mb-1 type-label text-ink-faint'
+const LABEL = 'mb-label type-label text-ink-faint'
 const SCALE_BUTTON =
   'flex size-8 shrink-0 items-center justify-center rounded-md text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2 disabled:opacity-disabled disabled:hover:bg-transparent'
 /**
@@ -421,7 +421,7 @@ export function NewFontForm({
         aria-selected={on}
         aria-disabled={full}
         onClick={() => toggle(family)}
-        className={`flex h-8 w-full items-center gap-2 overflow-hidden rounded-md px-2 text-left type-body outline-selection focus-visible:outline-2 ${
+        className={`flex h-8 w-full items-center gap-row-gap overflow-hidden rounded-md px-row-x text-left type-body outline-selection focus-visible:outline-2 ${
           on ? 'bg-selection-soft' : full ? 'cursor-default opacity-40' : 'hover:bg-hover'
         }`}
       >
@@ -438,15 +438,15 @@ export function NewFontForm({
     // 창의 높이는 화면에 맞춰 고정되어 있다(Modal의 tall). 이 양식이 그 높이를 채우고, 목록과 카드가 남는 높이를 차지한다.
     // 아래의 버튼 줄은 두 열 아래에 창의 폭을 다 써서 놓인다. 한 벌 만들기 창들처럼 "원래대로"가 창의 왼쪽 끝에 온다.
     <form ref={form} onSubmit={submit} className="flex h-full flex-col">
-      <div className="flex min-h-0 flex-1 gap-6">
+      <div className="flex min-h-0 flex-1 gap-groups">
       <div className="flex min-h-0 w-56 shrink-0 flex-col">
         {/* 이 창의 주된 일은 글꼴을 고르는 것이라 찾기와 목록이 맨 위에 온다. */}
         <div className="flex min-h-0 flex-1 flex-col">
         <input autoFocus data-native-undo aria-label="글꼴 찾기" className={inputClass} value={query} placeholder="찾기" onChange={(e) => setQuery(e.target.value)} />
-        <div role="listbox" aria-label="글꼴 목록" aria-multiselectable className="mt-2 min-h-80 flex-1 basis-0 overflow-y-auto rounded-md border border-hairline p-1">
+        <div role="listbox" aria-label="글꼴 목록" aria-multiselectable className="mt-blocks min-h-80 flex-1 basis-0 overflow-y-auto rounded-md border border-hairline p-menu">
           {/* 목록에 없는 글꼴은 이름만 적어 넣지 못한다. 불러올 곳을 모르는 글꼴은 견본이 다른 글꼴로 그려져 견주는 뜻이 없기 때문이다. 그런 글꼴은 AI가 찾아서 넣는다. */}
           {groups.size === 0 && (
-            <p className="px-2 py-4 type-body text-ink-faint">
+            <p className="px-row-x py-board type-body text-ink-faint">
               목록에 없는 글꼴이에요.
               <br />
               AI에게 추가해 달라고 하세요.
@@ -454,16 +454,16 @@ export function NewFontForm({
           )}
           {[...groups].map(([group, list]) => (
             <div key={group}>
-              <p className="px-2 pt-2 pb-1 type-caption-strong text-ink-faint">{group}</p>
+              <p className="px-row-x pt-blocks pb-label type-caption-strong text-ink-faint">{group}</p>
               {/* 고른 줄과 마우스를 올린 줄의 바탕이 서로 닿지 않게 줄 사이를 4px 띄운다. */}
-              <div className="space-y-1">{list.map((family) => row(family))}</div>
+              <div className="space-y-rows">{list.map((family) => row(family))}</div>
             </div>
           ))}
         </div>
         </div>
         {/* 구분선 아래는 곁들이는 설정이다. 이름표는 값 위에 있고, 설정 사이는 16px이다.
             이름은 만들어지는 값이고, 크기와 굵기는 견본을 보는 방식이다(저장되지 않는다). */}
-        <div className="mt-4 shrink-0 space-y-4 border-t border-hairline pt-4">
+        <div className="mt-settings shrink-0 space-y-settings border-t border-hairline pt-settings">
           {/* 이름. 미리 채워져 있어서 그대로 두어도 되고, 바꾸고 싶을 때만 고친다. 바꾸는 창에서는 이름을 묻지 않는다. */}
           {!edit && (
             <div>
@@ -481,12 +481,12 @@ export function NewFontForm({
                   setNameError(null)
                 }}
               />
-              {nameError && <span className="mt-1 block type-body text-danger">{nameError}</span>}
+              {nameError && <span className="mt-label block type-body text-danger">{nameError}</span>}
             </div>
           )}
           <div>
             <p className={LABEL}>견본 크기</p>
-            <span className="flex h-8 items-center gap-1">
+            <span className="flex h-8 items-center gap-actions-tight">
               <button type="button" aria-label="견본 글자 작게" disabled={size <= SIZE_MIN} onClick={() => stepSize(-1)} className={SCALE_BUTTON}>
                 <Minus size={16} strokeWidth={1.5} />
               </button>
@@ -501,7 +501,7 @@ export function NewFontForm({
           {/* 읽는 글의 굵기. 100씩 바꾼다. 그 굵기가 없는 글꼴은 가장 가까운 굵기로 그려진다(브라우저가 그렇게 한다). */}
           <div>
             <p className={LABEL}>견본 굵기</p>
-            <span className="flex h-8 items-center gap-1">
+            <span className="flex h-8 items-center gap-actions-tight">
               <button type="button" aria-label="견본 글자 얇게" disabled={weight <= 100} onClick={() => stepWeight(-1)} className={SCALE_BUTTON}>
                 <Minus size={16} strokeWidth={1.5} />
               </button>
@@ -520,7 +520,7 @@ export function NewFontForm({
         {/* 창의 높이는 고정이다. 고른 글꼴이나 견본 크기에 따라 늘었다 줄었다 하지 않고, 넘치면 세 카드가 함께 스크롤된다.
             세 카드는 한 격자의 줄을 함께 쓴다(이름 한 줄과 견본의 줄들). 마지막 줄이 남는 높이를 차지한다. */}
         <div
-          className="grid min-h-0 flex-1 grid-cols-3 gap-x-2 overflow-x-hidden overflow-y-auto"
+          className="grid min-h-0 flex-1 grid-cols-3 gap-x-blocks overflow-x-hidden overflow-y-auto"
           style={{ gridTemplateRows: `repeat(${SAMPLE_ROWS}, auto) 1fr` }}
         >
           {Array.from({ length: SLOTS }, (_, i) => {
@@ -552,9 +552,9 @@ export function NewFontForm({
                   style={CARD_ROWS}
                 >
                   {/* 높이를 정해 둔다. 글자를 줄이는 처리(truncate) 때문에 이 줄은 "줄어들어도 되는 줄"로 취급되어, 견본이 카드 영역보다 길어지면 높이가 0에 가깝게 눌린다. */}
-                  <span className="mr-6 block h-10 truncate pt-3 pr-2 pb-2 pl-4 type-label text-ink-faint">{family}</span>
+                  <span className="mr-6 block h-10 truncate pt-section-y pr-row-x pb-blocks pl-section-x type-label text-ink-faint">{family}</span>
                   {/* 견본은 카드의 아래쪽을 가장자리까지 채운다. 바탕색을 고르면 그 색이 카드에 깔린다. 안쪽 여백은 좌우 16px, 아래 12px로, 한 벌 만들기 창의 표 상자와 같다. */}
-                  <FontSample family={valueOf(family)} weights={weightsOf(family)} scale={scale} weight={weight} className="px-4 pt-2 pb-3" />
+                  <FontSample family={valueOf(family)} weights={weightsOf(family)} scale={scale} weight={weight} className="px-section-x pt-blocks pb-section-y" />
                 </div>
                 {/* 선택 선의 두 번째 1px. 견본의 바탕색이 카드를 가장자리까지 채우므로, 그 위에 덧그려야 가려지지 않는다. 카드 안쪽에 그어서 스크롤 영역의 가장자리에서도 잘리지 않는다. */}
                 {on && <span className="pointer-events-none absolute inset-0 rounded-[5px] shadow-[inset_0_0_0_1px_var(--color-selection)]" />}
@@ -572,7 +572,7 @@ export function NewFontForm({
         </div>
       </div>
       </div>
-        <div className="mt-3 flex shrink-0 items-center justify-end gap-2">
+        <div className="mt-dialog-actions flex shrink-0 items-center justify-end gap-actions">
           {/* 바꾼 것을 모두 처음으로 돌린다. 한 벌 만들기 창들과 같은 자리다. 바꾼 것이 없으면 꺼져 있다. */}
           <Button variant="ghost" className="mr-auto" disabled={!changed} title="후보와 이름, 견본을 보는 방식을 모두 처음으로 돌려요" onClick={reset}>
             <RotateCcw size={16} strokeWidth={1.5} />
@@ -580,7 +580,7 @@ export function NewFontForm({
           </Button>
           {/* 알림은 누르려던 버튼 바로 왼쪽에 둔다. 눈이 가 있는 자리라 놓치지 않는다. */}
           {error && (
-            <span role="alert" className="mr-1 type-body whitespace-nowrap text-danger">
+            <span role="alert" className="mr-actions-tight type-body whitespace-nowrap text-danger">
               {error}
             </span>
           )}

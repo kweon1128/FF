@@ -1,13 +1,15 @@
-// 간격 판의 내용. 값마다 어디에 쓰는지를 설명과 예시로 보여 준다.
+// 의미 간격 판의 내용. 쓰임마다 이름과 가리키는 간격, 설명, 예시를 보여 준다.
 
-import { useContext, type ReactNode } from 'react'
+import { useContext, useState, type FormEvent, type ReactNode } from 'react'
+import { Copy } from 'lucide-react'
 import type { Token } from './lib/api'
-import { shortName, type Kind } from './lib/catalog'
+import { KINDS, SLUG, SPACE_REF, shortName, type Kind } from './lib/catalog'
 import { surroundings, type Around } from './lib/roles'
-import { SPACE_WORDS, isSpaceListShape, readSpaceNote, type SpaceShape } from './lib/spacing'
+import { SPACE_USES, SPACE_WORDS, guessSpaceUse, isSpaceListShape, readSpaceNote, writeSpaceNote, type SpaceShape, type SpaceUse } from './lib/spacing'
 import { PreviewFontContext } from './ColorUses'
+import { CODE_OPEN, FoldSection, ICON_BUTTON, Section, WHERE_OPEN } from './Inspector'
 import { HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
-import { Phrases } from './ui'
+import { Button, Chip, Field, Phrases, UsePicker, inputClass } from './ui'
 
 // 예시의 바탕이 판의 바탕과 같은 색이어도 가장자리가 보이게 하는 옅은 선.
 const EDGE = 'shadow-[inset_0_0_0_1px_rgb(0_0_0/0.1)]'
@@ -135,6 +137,18 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
           ))}
         </span>,
       )
+    case 'icon':
+      // 테두리 버튼 안의 아이콘(네모로 자리만 그린다)과 글자 사이.
+      return frame(
+        <span className={`relative inline-flex h-7 items-stretch px-2 font-[550] whitespace-nowrap ${TEXT}`}>
+          <span className="flex items-center">
+            <span className="block size-4 rounded-sm" style={{ background: soft }} />
+          </span>
+          {tall}
+          <span className="flex items-center">{all}</span>
+          {outline('rounded-md')}
+        </span>,
+      )
     case 'stack':
       return frame(
         <span className="block">
@@ -209,9 +223,21 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
   }
 }
 
+const SPACE = KINDS.space
+
+/** 의미 간격이 가리키는 토대 간격의 변수 이름. 가리키지 않으면 null. */
+export const spaceRefOf = (value: string) => SPACE_REF.exec(value.trim())?.[1] ?? null
+
+/** 의미 간격의 실제 길이(가리키는 토대 간격의 값). 가리키는 값이 없어졌으면 null. */
+export function resolveSpace(tokens: Token[], value: string): string | null {
+  const ref = spaceRefOf(value)
+  return ref ? (tokens.find((t) => t.name === ref && SPACE.matches(t.name))?.value ?? null) : null
+}
+
 /**
- * 간격 판의 내용. 한 줄에 값 하나. 왼쪽 칸(224px)에 이름, 값, 설명이 있고 오른쪽에 그 값이 쓰인 모습이 있다.
- * 간격은 값의 크기로 차례가 정해지므로 끌어 옮길 수 없다.
+ * 의미 간격 판의 내용. 묶음(버튼, 입력칸, 목록, 판, 패널, 창)마다 제목을 두고, 한 줄에 쓰임 하나.
+ * 왼쪽 칸(224px)에 이름, 가리키는 간격과 그 길이, 설명이 있고 오른쪽에 그 간격이 쓰인 모습이 있다.
+ * 예시는 주석에 모양을 적어 둔 값에만 있다.
  */
 export function SpaceList({
   kind,
@@ -219,57 +245,312 @@ export function SpaceList({
   all,
   selected,
   onSelect,
+  onSelectGroup,
   onRename,
 }: {
   kind: Kind
   items: Token[]
-  /** 예시의 바탕과 글자 색을 찾을 전체 값 목록. */
+  /** 가리키는 간격의 길이와, 예시의 바탕과 글자 색을 찾을 전체 값 목록. */
   all: Token[]
   selected: string[]
   onSelect: (name: string, additive: boolean) => void
+  onSelectGroup: (names: string[], additive: boolean, focusGroup: boolean) => void
   onRename: (name: string) => void
 }) {
   // 값이 없으면 빈 상자를 남기지 않는다. 추가는 묶음 제목 줄의 버튼으로 한다.
   if (items.length === 0) return null
   const around = surroundings(all)
+  const rows = items.map((t) => ({ t, short: shortName(kind, t.name), ...readSpaceNote(t.note, shortName(kind, t.name)) }))
   return (
-    <div className="space-y-1 rounded-lg border border-hairline bg-canvas p-1">
-      {items.map((t) => {
-        const short = shortName(kind, t.name)
-        const { text, shape, words, more } = readSpaceNote(t.note)
-        const isSelected = selected.includes(t.name)
+    <div className="space-y-groups">
+      {SPACE_USES.filter((u) => rows.some((r) => r.use === u.id)).map((u) => {
+        const list = rows.filter((r) => r.use === u.id)
         return (
-          <button
-            key={t.name}
-            type="button"
-            data-token={t.name}
-            aria-pressed={isSelected}
-            aria-label={`${short} ${t.value}`}
-            onClick={(e) => onSelect(t.name, isAdditive(e))}
-            onDoubleClick={() => onRename(t.name)}
-            className={`group relative flex w-full items-center gap-4 rounded-md px-3 py-2 text-left select-none ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
-          >
-            <span className="w-56 shrink-0">
-              <span data-name className="block type-label break-words">
-                {short}
-              </span>
-              <span className="block type-code-sm break-words text-ink-faint">{t.value}</span>
-              {text && (
-                <span className="mt-1 block type-caption break-words text-ink-faint">
-                  <Phrases text={text} />
-                </span>
-              )}
-            </span>
-            {/* 쓰임이 여럿인 값은 예시도 여럿이다. 위아래로 8px 띄워 쌓는다. */}
-            <span className="block min-w-0 flex-1 space-y-2">
-              {[{ shape, words }, ...more].map((e, k) => (
-                <SpaceSample key={k} shape={e.shape} value={t.value} around={around} words={e.words} />
-              ))}
-            </span>
-            {isSelected && selected.length === 1 && <SelectionLabel name={short} value={t.value} />}
-          </button>
+          <div key={u.id}>
+            <button
+              type="button"
+              onClick={(e) => onSelectGroup(list.map((r) => r.t.name), isAdditive(e), false)}
+              className="mb-title -ml-chip-x rounded-sm px-chip-x type-heading outline-selection hover:bg-hover focus-visible:outline-2"
+            >
+              {u.label}
+            </button>
+            <div className="space-y-rows rounded-lg border border-hairline bg-canvas p-menu">
+              {list.map(({ t, short, text, examples }) => {
+                const isSelected = selected.includes(t.name)
+                const ref = spaceRefOf(t.value)
+                const length = resolveSpace(all, t.value)
+                // 가리키는 간격과 그 길이를 함께 적는다(3 · 12px). 가리키는 값이 없어졌으면 적힌 그대로 보여 준다.
+                const shown = ref && length ? `${shortName(SPACE, ref)} · ${length}` : t.value
+                return (
+                  <button
+                    key={t.name}
+                    type="button"
+                    data-token={t.name}
+                    aria-pressed={isSelected}
+                    aria-label={`${short} ${shown}`}
+                    onClick={(e) => onSelect(t.name, isAdditive(e))}
+                    onDoubleClick={() => onRename(t.name)}
+                    className={`group relative flex w-full items-center gap-columns rounded-md px-board-row py-board-row-y text-left select-none ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
+                  >
+                    <span className={examples.length ? 'w-56 shrink-0' : 'min-w-0 flex-1'}>
+                      <span data-name className="block type-label break-words">
+                        {short}
+                      </span>
+                      <span className={`block type-code-sm break-words ${length ? 'text-ink-faint' : 'text-danger'}`}>{shown}</span>
+                      {text && (
+                        <span className="mt-label block type-caption break-words text-ink-faint">
+                          <Phrases text={text} />
+                        </span>
+                      )}
+                    </span>
+                    {/* 쓰임이 여럿인 값은 예시도 여럿이다. 위아래로 8px 띄워 쌓는다. */}
+                    {examples.length > 0 && (
+                      <span className="block min-w-0 flex-1 space-y-blocks">
+                        {examples.map((e, k) => (
+                          <SpaceSample key={k} shape={e.shape} value={length ?? '0px'} around={around} words={e.words} />
+                        ))}
+                      </span>
+                    )}
+                    {isSelected && selected.length === 1 && <SelectionLabel name={short} value={shown} />}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
         )
       })}
     </div>
+  )
+}
+
+/** 가리킬 수 있는 토대 간격들. 고르는 칸의 줄이 된다(이름은 진하게, 길이는 옅게). */
+const baseOptions = (tokens: Token[]) => tokens.filter((t) => SPACE.matches(t.name)).map((t) => ({ id: t.name, label: shortName(SPACE, t.name), hint: t.value }))
+
+/**
+ * 의미 간격 하나를 고치는 패널. 구역의 차례는 다른 패널과 같다: 이름, 값(가리키는 간격), 묶음, 설명, 쓰이는 곳, 코드.
+ * 예시는 여기서 고치지 않는다. 그 간격이 화면 어디에 쓰였는지는 페이지를 만든 AI가 파일의 주석에 적는다(파일 맨 위의 안내 참고).
+ */
+export function SpaceUseInspector({
+  token,
+  kind,
+  tokens,
+  file,
+  uses,
+  onOpenComponent,
+  onRename,
+  onChange,
+  onCopy,
+}: {
+  token: Token
+  kind: Kind
+  tokens: Token[]
+  file: string
+  /** 이 값을 쓰는 컴포넌트와 그 자리들. */
+  uses: { index: number; name: string; where: string[] }[]
+  onOpenComponent: (index: number) => void
+  onRename: (next: string) => void
+  /** 값(가리키는 간격)이나 주석(묶음, 설명, 예시)을 바꾼다. */
+  onChange: (patch: { value?: string; note?: string }) => void
+  onCopy: (text: string) => void
+}) {
+  const short = shortName(kind, token.name)
+  const { use, text, picked, words, more } = readSpaceNote(token.note, short)
+  const [nameDraft, setNameDraft] = useState(short)
+  const [nameError, setNameError] = useState<string | null>(null)
+  const [textDraft, setTextDraft] = useState(text)
+  const options = baseOptions(tokens)
+  const ref = spaceRefOf(token.value)
+  const length = resolveSpace(tokens, token.value)
+
+  function commitName() {
+    const next = nameDraft.trim()
+    setNameError(null)
+    if (!next) return setNameError('이름을 입력해 주세요.')
+    if (!SLUG.test(next)) return setNameError('영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.')
+    if (next === short) return
+    if (tokens.some((t) => t.name === kind.prefix + next)) return setNameError('같은 이름의 값이 이미 있어요.')
+    onRename(kind.prefix + next)
+  }
+
+  // 같은 주석에 적혀 있는 예시(모양과 문구)는 그대로 둔다.
+  const saveNote = (patch: { use?: SpaceUse; text?: string }) => onChange({ note: writeSpaceNote(patch.use ?? use, patch.text ?? text, picked, words, more) })
+
+  return (
+    <div>
+      <Section>
+        <h2 className="type-heading break-all">{short}</h2>
+      </Section>
+
+      <Section title="이름">
+        <input
+          className={inputClass}
+          value={nameDraft}
+          aria-label="이름"
+          data-rename="token"
+          onChange={(e) => {
+            setNameDraft(e.target.value)
+            setNameError(null)
+          }}
+          onBlur={commitName}
+          onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+        />
+        {nameError && <span className="mt-label block type-body text-danger">{nameError}</span>}
+      </Section>
+
+      <Section title="가리키는 간격">
+        {ref && options.some((o) => o.id === ref) ? (
+          <UsePicker label="가리키는 간격" options={options} value={ref} nameWidth="w-8" onChange={(next) => onChange({ value: `var(${next})` })} />
+        ) : (
+          // 가리키던 간격이 없어졌다. 다시 고르게 한다.
+          <div className="space-y-blocks">
+            <p className="type-body text-danger">가리키는 간격이 없어요.</p>
+            <div className="flex flex-wrap gap-actions-tight">
+              {options.map((o) => (
+                <Button key={o.id} variant="ghost" onClick={() => onChange({ value: `var(${o.id})` })}>
+                  {o.label} · {o.hint}
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
+      </Section>
+
+      <Section title="묶음">
+        <UsePicker label="묶음" options={SPACE_USES} value={use} nameWidth="w-12" onChange={(next) => saveNote({ use: next })} />
+      </Section>
+
+      <Section title="설명">
+        <input
+          className={inputClass}
+          aria-label="설명"
+          value={textDraft}
+          onChange={(e) => setTextDraft(e.target.value)}
+          onBlur={() => textDraft.trim() !== text && saveNote({ text: textDraft })}
+          onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+        />
+      </Section>
+
+      <FoldSection title="쓰이는 곳" storageKey={WHERE_OPEN} startOpen note={uses.length > 0 ? String(uses.length) : '없음'} empty={uses.length === 0}>
+        <div className="space-y-blocks">
+          {uses.map((u) => (
+            <div key={u.index}>
+              <button
+                type="button"
+                onClick={() => onOpenComponent(u.index)}
+                className="-ml-button-quiet-x flex h-8 max-w-full items-center rounded-md px-button-quiet-x type-label outline-selection hover:bg-hover focus-visible:outline-2"
+              >
+                <span className="truncate">{u.name}</span>
+                <span className="ml-row-gap shrink-0 type-body text-ink-faint">{u.where.length}곳</span>
+              </button>
+              <p className="type-body text-ink-faint">{u.where.join(', ')}</p>
+            </div>
+          ))}
+        </div>
+      </FoldSection>
+
+      <FoldSection title="코드" storageKey={CODE_OPEN}>
+        <div className="space-y-blocks">
+          <div>
+            {/* 간격 클래스는 무엇의 간격인지(p, px, gap, mt…) 뒤에 이름을 붙여 쓴다. */}
+            <p className="mb-label type-label text-ink-faint">쓰는 법</p>
+            <div className="space-y-rows">
+              {[
+                { shown: `gap-${short}`, label: '사이 클래스 복사' },
+                { shown: `px-${short}`, label: '여백 클래스 복사' },
+                { shown: `var(${token.name})`, label: '변수 복사' },
+              ].map((row) => (
+                <span key={row.label} className="flex items-center gap-actions-tight">
+                  <span className="min-w-0 flex-1">
+                    <Chip>{row.shown}</Chip>
+                  </span>
+                  <button type="button" title={`${row.shown} 복사`} aria-label={row.label} onClick={() => onCopy(row.shown)} className={ICON_BUTTON}>
+                    <Copy size={16} strokeWidth={1.5} />
+                  </button>
+                </span>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="mb-label type-label text-ink-faint">저장된 값</p>
+            <Chip>{token.value}</Chip>
+            {length && <span className="ml-row-gap type-body text-ink-faint">{length}</span>}
+          </div>
+          <div>
+            <p className="mb-label type-label text-ink-faint">저장 위치</p>
+            <Chip>{file}</Chip>
+          </div>
+        </div>
+      </FoldSection>
+    </div>
+  )
+}
+
+/** 의미 간격을 만드는 양식. 이름, 가리키는 간격, 묶음을 정한다. 설명은 만든 뒤에 패널에서 적는다. */
+export function NewSpaceUseForm({ tokens, onCreate, onCancel }: { tokens: Token[]; onCreate: (name: string, value: string, note: string) => void; onCancel: () => void }) {
+  const options = baseOptions(tokens)
+  const [name, setName] = useState('')
+  const [ref, setRef] = useState(options[0]?.id ?? '')
+  // 묶음은 직접 고르기 전까지 이름에서 짐작한 것을 보여 준다.
+  const [use, setUse] = useState<SpaceUse | null>(null)
+  const [error, setError] = useState<string>()
+  const shownUse = use ?? guessSpaceUse(name.trim())
+
+  function submit(e: FormEvent) {
+    e.preventDefault()
+    const n = name.trim()
+    const problem = !n
+      ? '이름을 입력해 주세요.'
+      : !SLUG.test(n)
+        ? '영문 소문자, 숫자, 하이픈만 쓸 수 있어요.'
+        : /^\d/.test(n)
+          ? '숫자로 시작하는 이름은 토대 간격의 이름이에요.'
+          : tokens.some((t) => t.name === KINDS.spaceUse.prefix + n)
+            ? '같은 이름이 이미 있어요.'
+            : undefined
+    setError(problem)
+    if (problem) return
+    onCreate(KINDS.spaceUse.prefix + n, `var(${ref})`, writeSpaceNote(shownUse, ''))
+  }
+
+  // 가리킬 토대 간격이 하나도 없으면 만들 수 없다. 막다른 곳이라 무엇을 먼저 할지 알려 준다.
+  if (options.length === 0)
+    return (
+      <div>
+        <p className="type-body text-ink-soft">의미 간격은 간격 판의 값을 가리켜요. 간격 판에 값을 먼저 추가해 주세요.</p>
+        <div className="mt-dialog-actions flex justify-end">
+          <Button onClick={onCancel}>닫기</Button>
+        </div>
+      </div>
+    )
+
+  return (
+    <form onSubmit={submit} className="space-y-fields">
+      <Field label="이름" error={error}>
+        <input
+          autoFocus
+          className={inputClass}
+          value={name}
+          placeholder="actions"
+          onChange={(e) => {
+            setName(e.target.value)
+            setError(undefined)
+          }}
+        />
+      </Field>
+      <Field label="가리키는 간격">
+        <UsePicker label="가리키는 간격" options={options} value={ref} nameWidth="w-8" onChange={setRef} />
+      </Field>
+      <Field label="묶음">
+        <UsePicker label="묶음" options={SPACE_USES} value={shownUse} nameWidth="w-12" onChange={setUse} />
+      </Field>
+      <div className="mt-dialog-actions flex justify-end gap-actions">
+        <Button variant="ghost" onClick={onCancel}>
+          취소
+        </Button>
+        <Button variant="primary" type="submit">
+          추가
+        </Button>
+      </div>
+    </form>
   )
 }
