@@ -190,7 +190,7 @@ export function EffectList({
   const around = surroundings(all)
   return (
     <div className="space-y-rows rounded-lg border border-hairline bg-canvas p-menu">
-      {items.map((t, i) => {
+      {items.map((t) => {
         const short = shortName(kind, t.name)
         const { text, shape, words, more } = readEffectNote(id, t.note, short)
         const isSelected = selected.includes(t.name)
@@ -206,7 +206,7 @@ export function EffectList({
             {...reorder.grab(t.name)}
             className={`group relative flex w-full items-center gap-columns rounded-md px-board-row-x py-board-row-y text-left select-none ${reorder.moving(t.name) ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
           >
-            {reorder.line(t.name, i)}
+            {reorder.line(t.name)}
             <span className="w-56 shrink-0">
               <span data-name className="block type-label break-words">
                 {short}

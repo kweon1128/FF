@@ -1,7 +1,7 @@
 // 의미 색: 색상 판의 색 가운데 실제로 쓰는 색에 쓰임새의 이름을 붙여 모아 둔 판과, 그것을 만들고 고치는 양식.
 // 한 줄에 색 하나. 색, 이름과 가리키는 단계, 역할과 설명, 그 역할로 쓰인 예시를 나란히 보여 준다.
 
-import { useContext, useRef, useState, type FormEvent, type PointerEvent, type ReactNode } from 'react'
+import { useContext, useState, type FormEvent, type ReactNode } from 'react'
 import { ArrowUpRight } from 'lucide-react'
 import type { Token } from './lib/api'
 import { KINDS, SLUG, groupOf, shortName, type Kind } from './lib/catalog'
@@ -11,6 +11,7 @@ import { DARK, PreviewFontContext, PreviewSpaceContext, inkOn } from './ColorUse
 import { CODE_OPEN, CodeRows, FoldSection, ICON_BUTTON, Section, WHERE_OPEN } from './Inspector'
 import { HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
 import { Button, Chip, Field, Phrases, UsePicker, inputClass, swatchBackground } from './ui'
+import { useReorder } from './useReorder'
 
 const COLOR = KINDS.color
 const ROLE = KINDS.role
@@ -203,13 +204,6 @@ export function RoleSample({ shape, color, around, words: written = '' }: { shap
   }
 }
 
-type Drag = { what: 'row' | 'group'; id: string; use: RoleUse; x: number; y: number; moved: boolean }
-/** 끄는 중에 놓일 자리. before 앞에 놓인다(맨 끝이면 null). */
-type Drop = { what: 'row' | 'group'; id: string; use: RoleUse; before: string | null }
-
-// 끄는 중에 놓일 자리를 알려 주는 선. 확대 비율과 관계없이 화면에서 같은 굵기로 보인다.
-const DROP_LINE = 'pointer-events-none absolute z-10 bg-selection'
-
 /**
  * 의미 색 판의 내용. 역할(글자, 바탕, 테두리, 채움, 상태, 차트)별로 묶어 보여 준다.
  * 묶음의 순서와 묶음 안의 순서는 파일에 적힌 순서이고, 끌어서 바꾸면 파일의 순서가 바뀐다.
@@ -243,103 +237,36 @@ export function RoleList({
 }) {
   const around = surroundings(all)
   const groups = roleGroups(items)
-  const drag = useRef<Drag | null>(null)
-  // 끌기가 끝난 직후에 따라오는 클릭은 선택으로 치지 않는다.
-  const dragged = useRef(false)
-  const [drop, setDrop] = useState<Drop | null>(null)
-
-  const boxOf = (selector: string) => document.querySelector(selector)?.getBoundingClientRect()
-
-  /** 마우스 자리에서 놓으면 어느 것의 앞에 들어가는지. */
-  function slotAt(d: Drag, x: number, y: number): string | null {
-    if (d.what === 'group') {
-      // 묶음의 세로 한가운데보다 위면 그 묶음 앞이다.
-      for (const g of groups) {
-        const box = boxOf(`[data-role-group="${g.use}"]`)
-        if (box && y < box.top + box.height / 2) return g.use
-      }
-      return null
-    }
-    for (const t of groups.find((g) => g.use === d.use)?.items ?? []) {
-      const box = boxOf(`[data-token="${CSS.escape(t.name)}"]`)
-      if (!box) continue
-      // 펼친 판은 한 줄에 하나라 위아래만 본다. 접은 판은 여러 칸이라 읽는 순서(왼쪽에서 오른쪽, 위에서 아래)로 본다.
-      const first = folded ? y < box.top || (y <= box.bottom && x < box.left + box.width / 2) : y < box.top + box.height / 2
-      if (first) return t.name
-    }
-    return null
-  }
-
-  /** 잡고 끄는 것(묶음 제목이나 색 한 줄)에 붙이는 동작. 조금이라도 끌어야 옮기기로 치고, 그냥 누르면 선택이다. */
-  const grab = (what: Drag['what'], id: string, use: RoleUse) => ({
-    onPointerDown: (e: PointerEvent<HTMLButtonElement>) => {
-      if (e.button !== 0) return
-      // 캔버스가 이 끌기를 영역 선택으로 받지 않게 막는다.
-      e.stopPropagation()
-      // 누르는 순간부터 마우스를 붙잡아 둔다. 빠르게 끌어 밖으로 나가도 계속 따라갈 수 있다.
-      e.currentTarget.setPointerCapture(e.pointerId)
-      drag.current = { what, id, use, x: e.clientX, y: e.clientY, moved: false }
-    },
-    onPointerMove: (e: PointerEvent<HTMLButtonElement>) => {
-      const d = drag.current
-      if (!d) return
-      if (!d.moved) {
-        if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < 5) return
-        d.moved = true
-      }
-      setDrop({ what: d.what, id: d.id, use: d.use, before: slotAt(d, e.clientX, e.clientY) })
-    },
-    onPointerUp: (e: PointerEvent<HTMLButtonElement>) => {
-      const d = drag.current
-      drag.current = null
-      setDrop(null)
-      if (!d?.moved) return
-      dragged.current = true
-      window.setTimeout(() => (dragged.current = false))
-      const before = slotAt(d, e.clientX, e.clientY)
-      if (d.what === 'group') onMoveGroup(d.use, before as RoleUse | null)
-      else onMove(d.id, before)
-    },
-    onPointerCancel: () => {
-      drag.current = null
-      setDrop(null)
-    },
-  })
+  // 줄은 같은 묶음 안에서만 옮겨진다. 접은 판은 한 줄에 세 칸이라 읽는 순서로 자리를 찾는다.
+  const useOf = new Map(groups.flatMap((g) => g.items.map((t) => [t.name, g.use] as const)))
+  const rows = useReorder(groups.flatMap((g) => g.items.map((t) => t.name)), onMove, { grid: folded, gap: 4, scopeOf: (name) => useOf.get(name) ?? '' })
+  const groupDrag = useReorder(groups.map((g) => g.use), (use, before) => onMoveGroup(use as RoleUse, before as RoleUse | null), { attr: 'data-role-group', gap: 24 })
 
   return (
     <div className="space-y-groups">
-      {groups.map(({ use, items: list }, gi) => {
-        const groupDrop = drop?.what === 'group' && drop.id !== use ? drop : null
-        const rowDrop = drop?.what === 'row' && drop.use === use ? drop : null
+      {groups.map(({ use, items: list }) => {
         return (
-          <div key={use} data-role-group={use} className={`relative ${drop?.what === 'group' && drop.id === use ? 'opacity-40' : ''}`}>
-            {groupDrop?.before === use && <span className={`${DROP_LINE} inset-x-0 -top-3 h-[calc(var(--line)*2)] -translate-y-1/2`} />}
-            {groupDrop?.before === null && gi === groups.length - 1 && (
-              <span className={`${DROP_LINE} inset-x-0 -bottom-3 h-[calc(var(--line)*2)] translate-y-1/2`} />
-            )}
+          <div key={use} data-role-group={use} className={`relative ${groupDrag.moving(use) ? 'opacity-40' : ''}`}>
+            {groupDrag.line(use)}
             {/* 묶음 제목을 누르면 그 묶음의 색이 모두 선택되고, 잡고 위아래로 끌면 묶음이 통째로 옮겨진다. */}
             <div className="mb-heading -ml-chip-x flex">
               <button
                 type="button"
                 data-role-title={use}
-                onClick={(e) => !dragged.current && onSelectGroup(list.map((t) => t.name), isAdditive(e), false)}
-                {...grab('group', use, use)}
+                onClick={(e) => !groupDrag.justDragged() && onSelectGroup(list.map((t) => t.name), isAdditive(e), false)}
+                {...groupDrag.grab(use)}
                 className="cursor-grab active:cursor-grabbing rounded-sm px-chip-x type-heading outline-selection hover:bg-hover focus-visible:outline-2"
               >
                 {ROLE_USES.find((u) => u.id === use)!.label}
               </button>
             </div>
             <div className={folded ? 'grid grid-cols-3 gap-rows rounded-lg border border-hairline bg-canvas p-menu' : 'space-y-rows rounded-lg border border-hairline bg-canvas p-menu'}>
-              {list.map((t, i) => {
+              {list.map((t) => {
                 const short = shortName(kind, t.name)
                 const { text, shape, words, more } = readNote(t.note, short)
                 const isSelected = selected.includes(t.name)
                 const color = resolveColor(all, t.value)
                 const ref = refName(t.value)
-                const moving = rowDrop?.id === t.name
-                // 놓일 자리의 선. 펼친 판은 줄 위(맨 끝이면 마지막 줄 아래)에 가로로, 접은 판은 칸 왼쪽(맨 끝이면 마지막 칸 오른쪽)에 세로로 긋는다.
-                const lineBefore = rowDrop && !moving && rowDrop.before === t.name
-                const lineAfter = rowDrop && !moving && rowDrop.before === null && i === list.length - 1
                 return (
                   <button
                     key={t.name}
@@ -347,19 +274,15 @@ export function RoleList({
                     data-token={t.name}
                     aria-pressed={isSelected}
                     aria-label={`${short} ${ref}`}
-                    onClick={(e) => !dragged.current && onSelect(t.name, isAdditive(e))}
+                    onClick={(e) => !rows.justDragged() && onSelect(t.name, isAdditive(e))}
                     onDoubleClick={() => onRename(t.name)}
-                    {...grab('row', t.name, use)}
+                    {...rows.grab(t.name)}
                     className={`relative w-full items-center rounded-md px-board-row-x py-board-row-y text-left select-none ${
                       folded ? 'flex gap-sample' : 'grid grid-cols-[40px_176px_minmax(0,1fr)_280px] gap-columns'
-                    } ${moving ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
+                    } ${rows.moving(t.name) ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
                   >
-                    {lineBefore && (
-                      <span className={`${DROP_LINE} ${folded ? 'inset-y-0 -left-0.5 w-[calc(var(--line)*2)] -translate-x-1/2' : 'inset-x-0 top-0 h-[calc(var(--line)*2)] -translate-y-1/2'}`} />
-                    )}
-                    {lineAfter && (
-                      <span className={`${DROP_LINE} ${folded ? 'inset-y-0 -right-0.5 w-[calc(var(--line)*2)] translate-x-1/2' : 'inset-x-0 bottom-0 h-[calc(var(--line)*2)] translate-y-1/2'}`} />
-                    )}
+                    {/* 놓일 자리의 선. 펼친 판은 줄 위(맨 끝이면 마지막 줄 아래)에 가로로, 접은 판은 칸 왼쪽(맨 끝이면 마지막 칸 오른쪽)에 세로로 긋는다. */}
+                    {rows.line(t.name)}
                     <span
                       className={`block shrink-0 rounded-md ${folded ? 'size-8' : 'size-10'} ${EDGE}`}
                       style={{ background: swatchBackground(color ?? 'transparent') }}

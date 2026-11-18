@@ -103,7 +103,7 @@ ff:guide 끝 */
   --color-ink-faint: var(--color-gray-500); /* 글자: 묶음 이름, 입력칸 이름표, 판에 적힌 값과 설명, 선택하지 않은 판의 제목. 이보다 옅은 글자는 입력칸이 비었을 때 보이는 값뿐이다 | 기본 값 | 글자: 글꼴 종류 */
   --color-on-primary: var(--color-white); /* 글자: 주요 버튼 위의 글자 | 만들기 */
   --color-on-selection: var(--color-white); /* 글자: 선택 이름표와 안내선 숫자처럼 색을 채운 표시 위의 글자 | ink · black */
-  --color-canvas: var(--color-white); /* 바탕: 왼쪽 메뉴, 오른쪽 패널, 상단 바, 판 안의 목록 상자, 창 | 색상 | 면: 쓰이는 곳 | 면: ff-test | 면: float */
+  --color-canvas: var(--color-white); /* 바탕: 왼쪽 메뉴, 오른쪽 패널, 상단 바, 판 안의 목록 상자, 창 | 색상 | 면: 쓰이는 곳 | 면: ff-ds | 면: float */
   --color-workspace: var(--color-gray-50); /* 바탕: 가운데 작업 영역 | 색상 */
   --color-hover: var(--color-gray-100); /* 바탕: 마우스를 올린 줄, 선택된 메뉴 항목, 값 이름표, 전환 버튼의 바탕, 키 표시 | 간격 | 줄: 색상 | 면: --color-ink */
   --color-scrim: var(--color-black); /* 바탕: 창 뒤의 화면을 가리는 막. 40%로 옅게 깐다 */
@@ -174,10 +174,10 @@ ff:guide 끝 */
   --spacing-section-y: var(--spacing-3); /* 패널(면 위아래): 패널 구역의 위아래 여백, 표 상자의 위아래 여백, 왼쪽 메뉴 묶음 이름의 위 | 이름 */
   --spacing-section-x: var(--spacing-4); /* 패널(면 좌우): 패널 구역의 좌우 여백, 표 상자의 좌우 여백 | 이름 */
   --spacing-popover: var(--spacing-3); /* 창(상자): 색 선택 창의 안쪽 여백과 그 안의 덩어리 사이 */
-  --spacing-bar-x: var(--spacing-3); /* 창(막대 좌우): 상단 바와 알림의 좌우 여백, 빠른 실행의 찾는 칸 | ff-test */
+  --spacing-bar-x: var(--spacing-3); /* 창(막대 좌우): 상단 바와 알림의 좌우 여백, 빠른 실행의 찾는 칸 | ff-ds */
   --spacing-dialog-actions: var(--spacing-4); /* 창(버튼 줄): 창의 내용과 아래 버튼 줄 사이 | 취소, 추가 */
   --spacing-dialog: var(--spacing-6); /* 창(면): 창의 안쪽 여백 | 그림자 추가 */
-  --shadow-float: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 16px rgb(0 0 0 / 0.06); /* 그림자(메뉴): 화면 위에 잠깐 떠 있는 것. 드롭다운 목록, 확대 도구, 알림 | ff-test, 새 디자인 시스템 | 알림: 코드를 복사했어요. */
+  --shadow-float: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 16px rgb(0 0 0 / 0.06); /* 그림자(메뉴): 화면 위에 잠깐 떠 있는 것. 드롭다운 목록, 확대 도구, 알림 | ff-ds, 새 디자인 시스템 | 알림: 코드를 복사했어요. */
   --shadow-dialog: 0 2px 4px rgb(0 0 0 / 0.04), 0 8px 32px rgb(0 0 0 / 0.1); /* 그림자(창): 화면을 덮고 뜨는 창, 빠른 실행, 색 선택 창 | 새 디자인 시스템 */
   --opacity-disabled: 0.4; /* 투명도(꺼짐): 누를 수 없는 버튼 | 원래대로 */
 }

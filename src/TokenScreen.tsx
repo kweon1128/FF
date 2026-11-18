@@ -1,4 +1,4 @@
-import { createContext, useRef, useState, type CSSProperties, type MouseEvent } from 'react'
+import { createContext, type CSSProperties, type MouseEvent } from 'react'
 import { ChevronsDownUp, ChevronsUpDown, Plus, RotateCcw, Rows3 } from 'lucide-react'
 import type { Token } from './lib/api'
 import { groupOf, lineName, shortName, trackName, type Kind } from './lib/catalog'
@@ -91,7 +91,7 @@ export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGr
   // 종류의 제목을 끌어 차례를 바꾼다. 값이 있는 종류만 옮길 수 있다(값이 없으면 파일에 자리가 없다). 종류가 하나뿐인 판에서는 옮길 것이 없다.
   const movable = single ? [] : ordered.filter((k) => tokens.some((t) => k.matches(t.name)))
   const byId = (id: string | null) => kinds.find((k) => k.id === id) ?? null
-  const kindDrag = useReorder(movable.map((k) => k.id), single ? undefined : (id, before) => onMoveKind(kinds, byId(id)!, byId(before)), false, 'data-kind')
+  const kindDrag = useReorder(movable.map((k) => k.id), single ? undefined : (id, before) => onMoveKind(kinds, byId(id)!, byId(before)), { attr: 'data-kind', gap: 24 })
   return (
     <DetailsFolded.Provider value={!!detailsFolded}>
     <div className="space-y-groups">
@@ -109,7 +109,7 @@ export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGr
         const trackOf = kind.id === 'size' ? (name: string) => tokens.find((t) => t.name === trackName(name))?.value : undefined
         return (
           <section key={kind.id} data-kind={kind.id} className={`relative ${kindDrag.moving(kind.id) ? 'opacity-40' : ''}`}>
-            {canMove && kindDrag.line(kind.id, movable.indexOf(kind))}
+            {canMove && kindDrag.line(kind.id)}
             {(() => {
               // 묶음의 제목 줄. 왼쪽에 제목, 오른쪽에 버튼. 값을 추가하는 것은 목록 끝의 점선 상자가 아니라 여기의 "추가" 버튼이다.
               // 점선 상자는 늘 한 줄의 자리를 차지하고, 값이 없는 묶음에서도 빈 상자가 남는다.
@@ -311,24 +311,11 @@ function ColorGroups({
     groups.set('', [])
   }
   // 예외 색은 크기의 차례가 없는 낱개 색이라 끌어서 차례를 바꾼다. 목록 안의 단계(50~950)는 숫자순으로 저절로 놓여 끌 수 없다.
-  const reorder = useReorder((groups.get('') ?? []).map((t) => t.name), onMove, true)
+  const reorder = useReorder((groups.get('') ?? []).map((t) => t.name), onMove, { grid: true })
 
   // 목록 이름을 잡고 위아래로 끌면 목록의 순서가 바뀐다. 색이 있는 목록만 옮길 수 있다(빈 목록은 파일에 자리가 없다).
   const movable = [...groups].filter(([, list]) => list.length > 0).map(([g]) => g)
-  const drag = useRef<{ group: string; y: number; moved: boolean } | null>(null)
-  // 끌기가 끝난 직후에 따라오는 클릭은 목록 선택으로 치지 않는다.
-  const dragged = useRef(false)
-  // 끄는 중에 놓일 자리. before 앞에 놓인다(맨 끝이면 null).
-  const [drop, setDrop] = useState<{ group: string; before: string | null } | null>(null)
-
-  /** 마우스 높이에서 놓으면 어느 목록 앞에 들어가는지. 목록의 세로 한가운데보다 위면 그 목록 앞이다. */
-  function slotAt(clientY: number): string | null {
-    for (const g of movable) {
-      const box = document.querySelector(`[data-color-group="${CSS.escape(g)}"]`)?.getBoundingClientRect()
-      if (box && clientY < box.top + box.height / 2) return g
-    }
-    return null
-  }
+  const listDrag = useReorder(movable, onReorderGroup, { attr: 'data-color-group', gap: 24 })
 
   return (
     <div className="space-y-groups">
@@ -351,14 +338,9 @@ function ColorGroups({
         </button>
       )}
       {[...groups].map(([group, list]) => (
-        <div key={group} data-color-group={group} className={`relative ${drop?.group === group ? 'opacity-40' : ''}`}>
+        <div key={group} data-color-group={group} className={`relative ${listDrag.moving(group) ? 'opacity-40' : ''}`}>
           {/* 끄는 중에 놓일 자리를 알려 주는 선. 이 목록 앞에 놓이면 위에, 맨 끝에 놓이면 마지막 목록 아래에 긋는다. */}
-          {drop && drop.before === group && drop.group !== group && (
-            <span className="pointer-events-none absolute inset-x-0 -top-3 h-[calc(var(--line)*2)] -translate-y-1/2 bg-selection" />
-          )}
-          {drop && drop.before === null && movable.at(-1) === group && drop.group !== group && (
-            <span className="pointer-events-none absolute inset-x-0 -bottom-3 h-[calc(var(--line)*2)] translate-y-1/2 bg-selection" />
-          )}
+          {listDrag.line(group)}
           {/* 영문 목록 이름은 소문자라 작아 보여서 16px, 한글인 '예외 색'은 다른 제목과 같은 14px. */}
           {/* 목록 이름을 누르면 그 목록의 색이 모두 선택되고, 더블클릭하면 오른쪽 패널의 목록 이름 칸으로 간다. */}
           {/* 색이 없는 빈 목록은 이름 자체가 선택되고(파란 선), 그 상태에서 Delete를 누르면 목록이 지워진다. */}
@@ -368,41 +350,13 @@ function ColorGroups({
             data-group-name={group}
             aria-pressed={list.length === 0 ? pickedGroup === group : undefined}
             onClick={(e) => {
-              if (dragged.current) return
+              if (listDrag.justDragged()) return
               // 예외 색 목록은 비어 있어도 지울 수 없으므로 선택하지 않는다.
               if (list.length === 0) group && onPickGroup(group)
               else onSelectGroup(list.map((t) => t.name), isAdditive(e), false)
             }}
-            // 이름을 잡고 끌면 목록이 옮겨진다. 캔버스가 이 끌기를 영역 선택으로 받지 않게 막는다.
-            onPointerDown={(e) => {
-              if (e.button !== 0 || list.length === 0) return
-              e.stopPropagation()
-              // 누르는 순간부터 마우스를 붙잡아 둔다. 빠르게 끌어 이름 밖으로 나가도 계속 따라갈 수 있다.
-              e.currentTarget.setPointerCapture(e.pointerId)
-              drag.current = { group, y: e.clientY, moved: false }
-            }}
-            onPointerMove={(e) => {
-              const d = drag.current
-              if (!d) return
-              if (!d.moved) {
-                if (Math.abs(e.clientY - d.y) < 5) return
-                d.moved = true
-              }
-              setDrop({ group: d.group, before: slotAt(e.clientY) })
-            }}
-            onPointerUp={(e) => {
-              const d = drag.current
-              drag.current = null
-              setDrop(null)
-              if (!d?.moved) return
-              dragged.current = true
-              window.setTimeout(() => (dragged.current = false))
-              onReorderGroup(d.group, slotAt(e.clientY))
-            }}
-            onPointerCancel={() => {
-              drag.current = null
-              setDrop(null)
-            }}
+            // 이름을 잡고 끌면 목록이 옮겨진다. 색이 없는 목록은 끌 수 없다.
+            {...(list.length > 0 ? listDrag.grab(group) : {})}
             onDoubleClick={() => list.length > 0 && onSelectGroup(list.map((t) => t.name), false, true)}
             className={`rounded-sm px-chip-x outline-selection hover:bg-hover focus-visible:outline-2 ${list.length > 0 ? 'cursor-grab active:cursor-grabbing' : ''} ${group ? 'type-title' : 'type-heading'} ${
               list.length === 0 && pickedGroup === group ? 'line-1' : ''
@@ -445,7 +399,7 @@ function ColorGroups({
                   // 색은 한 줄에 11개까지. 12번째 칸은 추가 칸의 자리라서, 12번째 색부터는 다음 줄 맨 앞에서 시작한다.
                   className={`group relative text-left outline-none select-none ${reorder.moving(t.name) ? 'opacity-40' : ''} ${i > 0 && i % 11 === 0 ? 'col-start-1' : ''}`}
                 >
-                  {!group && reorder.line(t.name, i)}
+                  {!group && reorder.line(t.name)}
                   <span className="relative block">
                     <span
                       className={`block h-16 rounded-md shadow-[inset_0_0_0_1px_rgb(0_0_0/0.1)] ${isSelected ? SELECTED : ''} group-hover:line-2 group-focus-visible:line-2 ${OUTLINE}`}
@@ -495,12 +449,12 @@ function TileSample({ kind, value }: { kind: Kind; value: string }) {
 }
 
 function TileGrid({ kind, items, selected, onSelect, onRename, onMove }: ListProps) {
-  const reorder = useReorder(items.map((t) => t.name), onMove, true)
+  const reorder = useReorder(items.map((t) => t.name), onMove, { grid: true })
   // 값이 없으면 아무것도 그리지 않는다. 추가는 묶음 제목 줄의 버튼으로 한다.
   if (items.length === 0) return null
   return (
     <div className="grid grid-cols-[repeat(auto-fill,minmax(112px,1fr))] gap-cells">
-      {items.map((t, i) => {
+      {items.map((t) => {
         const short = shortName(kind, t.name)
         const isSelected = selected.includes(t.name)
         return (
@@ -515,7 +469,7 @@ function TileGrid({ kind, items, selected, onSelect, onRename, onMove }: ListPro
             {...reorder.grab(t.name)}
             className={`relative flex flex-col items-center rounded-lg border border-hairline bg-canvas p-card select-none ${reorder.moving(t.name) ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
           >
-            {reorder.line(t.name, i)}
+            {reorder.line(t.name)}
             <TileSample kind={kind} value={t.value} />
             <span data-name className="mt-sample block max-w-full text-center type-body break-words text-ink-soft">{short}</span>
             <span className="block max-w-full text-center type-code break-all text-ink-faint">{t.value}</span>
@@ -544,7 +498,7 @@ function RowList({
   if (items.length === 0) return null
   return (
     <div className="space-y-rows rounded-lg border border-hairline bg-canvas p-menu">
-      {items.map((t, i) => {
+      {items.map((t) => {
         const short = shortName(kind, t.name)
         const isSelected = selected.includes(t.name)
         const line = lineOf?.(t.name)
@@ -565,7 +519,7 @@ function RowList({
             {...reorder.grab(t.name)}
             className={`group relative w-full rounded-md px-board-row-x py-board-row-y text-left select-none ${stacked ? 'block' : 'flex items-center gap-columns'} ${reorder.moving(t.name) ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
           >
-            {reorder.line(t.name, i)}
+            {reorder.line(t.name)}
             {stacked ? (
               // 글꼴 종류는 이름과 글꼴 이름을 한 줄 전체에 쓰고, 견본은 그 아래에 둔다. 글꼴 이름은 좁은 칸에 넣으면 잘린다.
               <>

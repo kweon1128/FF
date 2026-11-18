@@ -1589,6 +1589,17 @@ export function App() {
     if (role) return `이 이름으로 시작하는 의미 색(${role.name.slice(COLOR.prefix.length)})이 있어서 쓸 수 없어요.`
     return '같은 이름이 이미 있어요.'
   }
+  /**
+   * 패널에서 색의 목록과 이름을 고칠 때 쓸 수 없는 까닭. current는 지금의 짧은 이름(자기 자신과 겹치는 것은 문제가 아니다).
+   * 이미 있는 목록으로 옮기는 것은 괜찮다. 막는 것은 둘이다.
+   * 목록 없는 색(예외 색)의 이름이 목록 이름, 다른 색의 이름, 의미 색 이름의 앞머리와 겹칠 때. 예외 색 white를 gray로 바꾸면 목록 이름과 같은 예외 색이 생긴다.
+   * 새 목록 이름(지금 없는 목록)이 색의 이름이나 의미 색 이름의 앞머리와 겹칠 때.
+   */
+  const colorNameProblem = (current: string, group: string, name: string) => {
+    if (!group) return name !== current && groupTaken.has(name) ? { name: takenWhy(name) } : null
+    if (colorGroups.has(group)) return null
+    return groupTaken.has(group) ? { group: takenWhy(group) } : null
+  }
   const selectedTokens = tokens.filter((t) => selected.includes(t.name))
   const selectedKinds = selectedTokens.map((t) => ALL_KINDS.find((k) => k.matches(t.name)) ?? null)
   const commonKind = selectedKinds.every((k) => k === selectedKinds[0]) ? (selectedKinds[0] ?? null) : null
@@ -2006,6 +2017,7 @@ export function App() {
               onTrack={(value) => commit(withTrack(tokens, selectedTokens[0].name, value))}
               scaleMissing={scaleOf(selectedTokens[0].name)?.missing.length ?? null}
               onMakeScale={() => fillScale(selectedTokens[0].name)}
+              nameProblem={commonKind.id === 'color' ? (group, name) => colorNameProblem(shortName(COLOR, selectedTokens[0].name), group, name) : undefined}
             />
           ) : selectedTokens.length > 1 ? (
             <MultiInspector

@@ -508,13 +508,13 @@ export function SpaceList({
   const rows = items.map((t) => ({ t, short: shortName(kind, t.name), ...readSpaceNote(t.note, shortName(kind, t.name)) }))
   // 묶음은 파일에 처음 나오는 차례대로 놓는다. 끌어서 바꾼 차례가 파일에 남는다.
   const uses = [...new Set(rows.map((r) => r.use))]
-  const groupDrag = useReorder(uses, onMoveGroup && ((use, before) => onMoveGroup(use as SpaceUse, before as SpaceUse | null)), false, 'data-space-group')
+  const groupDrag = useReorder(uses, onMoveGroup && ((use, before) => onMoveGroup(use as SpaceUse, before as SpaceUse | null)), { attr: 'data-space-group', gap: 24 })
   // 값이 없으면 빈 상자를 남기지 않는다. 추가는 묶음 제목 줄의 버튼으로 한다.
   if (items.length === 0) return null
   const around = surroundings(all)
   return (
     <div className="space-y-groups">
-      {uses.map((use, at) => {
+      {uses.map((use) => {
         const u = SPACE_USES.find((x) => x.id === use)!
         const list = rows.filter((r) => r.use === u.id)
         // 줄을 묶음의 맨 끝에 놓으면, 파일에서도 이 묶음의 마지막 줄 바로 뒤에 놓는다. 파일의 맨 끝으로 보내면 묶음의 차례가 흐트러진다.
@@ -528,7 +528,7 @@ export function SpaceList({
           })
         return (
           <div key={u.id} data-space-group={u.id} className={`relative ${groupDrag.moving(u.id) ? 'opacity-40' : ''}`}>
-            {groupDrag.line(u.id, at)}
+            {groupDrag.line(u.id)}
             <button
               type="button"
               onClick={(e) => !groupDrag.justDragged() && onSelectGroup(list.map((r) => r.t.name), isAdditive(e), false)}
@@ -571,7 +571,7 @@ function SpaceRows({
   const reorder = useReorder(list.map((r) => r.t.name), onMove)
   return (
             <div className="space-y-rows rounded-lg border border-hairline bg-canvas p-menu">
-              {list.map(({ t, short, text, examples }, i) => {
+              {list.map(({ t, short, text, examples }) => {
                 const isSelected = selected.includes(t.name)
                 const ref = spaceRefOf(t.value)
                 const length = resolveSpace(all, t.value)
@@ -589,7 +589,7 @@ function SpaceRows({
                     {...reorder.grab(t.name)}
                     className={`group relative flex w-full items-center gap-columns rounded-md px-board-row-x py-board-row-y text-left select-none ${reorder.moving(t.name) ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
                   >
-                    {reorder.line(t.name, i)}
+                    {reorder.line(t.name)}
                     <span className={examples.length ? 'w-56 shrink-0' : 'min-w-0 flex-1'}>
                       <span data-name className="block type-label break-words">
                         {short}

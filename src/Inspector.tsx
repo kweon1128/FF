@@ -37,6 +37,11 @@ type Props = {
   /** 이 색을 기준으로 50~950 단계를 만들 수 있으면, 아직 없는 단계의 수. 만들 수 없는 색이면 null. */
   scaleMissing: number | null
   onMakeScale: () => void
+  /**
+   * 색의 이름을 고칠 때, 그 목록과 이름을 쓸 수 없으면 까닭을 돌려준다(목록 칸이나 이름 칸 아래에 적는다). 쓸 수 있으면 null.
+   * 만들 때와 같은 규칙이다. 색 값에서만 준다.
+   */
+  nameProblem?: (group: string, name: string) => { group?: string; name?: string } | null
 }
 
 export const ICON_BUTTON =
@@ -226,6 +231,7 @@ export function Inspector({
   onTrack,
   scaleMissing,
   onMakeScale,
+  nameProblem,
 }: Props) {
   const short = shortName(kind, token.name)
   const isColor = kind.id === 'color'
@@ -323,6 +329,10 @@ export function Inspector({
     const next = group ? `${group}-${name}` : name
     if (next === short) return
     if (allNames.includes(kind.prefix + next)) return setNameError('같은 이름이 이미 있어요.')
+    // 색은 이름이 목록 이름이나 의미 색 이름의 앞머리와 겹쳐도 안 된다(만들 때와 같은 규칙).
+    const problem = nameProblem?.(group, name)
+    if (problem?.group) return setGroupError(problem.group)
+    if (problem?.name) return setNameError(problem.name)
     onRename(kind.prefix + next)
   }
 

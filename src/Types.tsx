@@ -1,7 +1,7 @@
 // 의미 글꼴: 글꼴 판의 재료 가운데 실제로 쓰는 조합(글꼴 종류 · 글자 크기 · 굵기)에 쓰임새의 이름을 붙여 모아 둔 판과, 그것을 만들고 고치는 양식.
 // 한 줄에 조합 하나. 이름과 가리키는 값, 설명, 그 조합으로 적은 견본을 나란히 보여 준다.
 
-import { useContext, useRef, useState, type CSSProperties, type FormEvent, type PointerEvent } from 'react'
+import { useContext, useState, type CSSProperties, type FormEvent } from 'react'
 import { PreviewSpaceContext } from './ColorUses'
 import { ArrowUpRight, TriangleAlert, X } from 'lucide-react'
 import type { Token } from './lib/api'
@@ -12,6 +12,7 @@ import { SHAPE_WORDS, TYPE_USES, guessTypeUse, isListShape, lookOf, nextType, re
 import { CODE_OPEN, CodeRows, FoldSection, ICON_BUTTON, Section, WHERE_OPEN } from './Inspector'
 import { DetailsFolded, HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
 import { Button, Field, Phrases, UsePicker, inputClass } from './ui'
+import { useReorder } from './useReorder'
 
 const STYLE = KINDS.style
 const FONT = KINDS.font
@@ -187,13 +188,6 @@ export function TypeSample({ shape, look, around, words: written = '' }: { shape
   )
 }
 
-type Drag = { what: 'row' | 'group'; id: string; use: TypeUse; x: number; y: number; moved: boolean }
-/** 끄는 중에 놓일 자리. before 앞에 놓인다(맨 끝이면 null). */
-type Drop = { what: 'row' | 'group'; id: string; use: TypeUse; before: string | null }
-
-// 끄는 중에 놓일 자리를 알려 주는 선. 확대 비율과 관계없이 화면에서 같은 굵기로 보인다.
-const DROP_LINE = 'pointer-events-none absolute z-10 bg-selection'
-
 /**
  * 의미 글꼴 판의 내용. 묶음(제목, 본문, 보조, 조작, 숫자·코드)별로 묶어 보여 준다. 의미 색 판과 같은 짜임이다.
  * 묶음의 순서와 묶음 안의 순서는 파일에 적힌 순서이고, 끌어서 바꾸면 파일의 순서가 바뀐다.
@@ -223,69 +217,15 @@ export function TypeList({
 }) {
   // 판을 접었으면 설명과 예시를 숨기고 이름과 값만 보여 준다.
   const plain = useContext(DetailsFolded)
-  const drag = useRef<Drag | null>(null)
-  // 끌기가 끝난 직후에 따라오는 클릭은 선택으로 치지 않는다.
-  const dragged = useRef(false)
-  const [drop, setDrop] = useState<Drop | null>(null)
-  if (items.length === 0) return null
   const around = surroundings(all)
   const groups = typeGroups(items)
+  // 줄은 같은 묶음 안에서만 옮겨진다.
+  const useOf = new Map(groups.flatMap((g) => g.items.map((t) => [t.name, g.use] as const)))
+  const rows = useReorder(groups.flatMap((g) => g.items.map((t) => t.name)), onMove, { scopeOf: (name) => useOf.get(name) ?? '' })
+  const groupDrag = useReorder(groups.map((g) => g.use), (use, before) => onMoveGroup(use as TypeUse, before as TypeUse | null), { attr: 'data-type-group', gap: 24 })
+  if (items.length === 0) return null
   // 가리키는 글꼴 종류, 크기, 굵기 가운데 하나라도 없어진 조합들. 줄마다 빨갛게 적혀 있지만 목록이 길면 몇 개인지 한눈에 알 수 없어서 맨 위에 모아 알린다.
   const broken = items.filter((t) => lookOf(all, t.value, t.name)?.broken ?? true)
-
-  const boxOf = (selector: string) => document.querySelector(selector)?.getBoundingClientRect()
-
-  /** 마우스 자리에서 놓으면 어느 것의 앞에 들어가는지. 세로 한가운데보다 위면 그것의 앞이다. */
-  function slotAt(d: Drag, y: number): string | null {
-    if (d.what === 'group') {
-      for (const g of groups) {
-        const box = boxOf(`[data-type-group="${g.use}"]`)
-        if (box && y < box.top + box.height / 2) return g.use
-      }
-      return null
-    }
-    for (const t of groups.find((g) => g.use === d.use)?.items ?? []) {
-      const box = boxOf(`[data-token="${CSS.escape(t.name)}"]`)
-      if (box && y < box.top + box.height / 2) return t.name
-    }
-    return null
-  }
-
-  /** 잡고 끄는 것(묶음 제목이나 조합 한 줄)에 붙이는 동작. 조금이라도 끌어야 옮기기로 치고, 그냥 누르면 선택이다. */
-  const grab = (what: Drag['what'], id: string, use: TypeUse) => ({
-    onPointerDown: (e: PointerEvent<HTMLButtonElement>) => {
-      if (e.button !== 0) return
-      // 캔버스가 이 끌기를 영역 선택으로 받지 않게 막는다.
-      e.stopPropagation()
-      // 누르는 순간부터 마우스를 붙잡아 둔다. 빠르게 끌어 밖으로 나가도 계속 따라갈 수 있다.
-      e.currentTarget.setPointerCapture(e.pointerId)
-      drag.current = { what, id, use, x: e.clientX, y: e.clientY, moved: false }
-    },
-    onPointerMove: (e: PointerEvent<HTMLButtonElement>) => {
-      const d = drag.current
-      if (!d) return
-      if (!d.moved) {
-        if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < 5) return
-        d.moved = true
-      }
-      setDrop({ what: d.what, id: d.id, use: d.use, before: slotAt(d, e.clientY) })
-    },
-    onPointerUp: (e: PointerEvent<HTMLButtonElement>) => {
-      const d = drag.current
-      drag.current = null
-      setDrop(null)
-      if (!d?.moved) return
-      dragged.current = true
-      window.setTimeout(() => (dragged.current = false))
-      const before = slotAt(d, e.clientY)
-      if (d.what === 'group') onMoveGroup(d.use, before as TypeUse | null)
-      else onMove(d.id, before)
-    },
-    onPointerCancel: () => {
-      drag.current = null
-      setDrop(null)
-    },
-  })
 
   return (
     <div>
@@ -303,37 +243,28 @@ export function TypeList({
         </button>
       )}
       <div className="space-y-groups">
-        {groups.map(({ use, items: list }, gi) => {
-          const groupDrop = drop?.what === 'group' && drop.id !== use ? drop : null
-          const rowDrop = drop?.what === 'row' && drop.use === use ? drop : null
+        {groups.map(({ use, items: list }) => {
           return (
-            <div key={use} data-type-group={use} className={`relative ${drop?.what === 'group' && drop.id === use ? 'opacity-40' : ''}`}>
-              {groupDrop?.before === use && <span className={`${DROP_LINE} inset-x-0 -top-3 h-[calc(var(--line)*2)] -translate-y-1/2`} />}
-              {groupDrop?.before === null && gi === groups.length - 1 && (
-                <span className={`${DROP_LINE} inset-x-0 -bottom-3 h-[calc(var(--line)*2)] translate-y-1/2`} />
-              )}
+            <div key={use} data-type-group={use} className={`relative ${groupDrag.moving(use) ? 'opacity-40' : ''}`}>
+              {groupDrag.line(use)}
               {/* 묶음 제목을 누르면 그 묶음의 조합이 모두 선택되고, 잡고 위아래로 끌면 묶음이 통째로 옮겨진다. */}
               <div className="mb-heading -ml-chip-x flex">
                 <button
                   type="button"
                   data-type-title={use}
-                  onClick={(e) => !dragged.current && onSelectGroup(list.map((t) => t.name), isAdditive(e), false)}
-                  {...grab('group', use, use)}
+                  onClick={(e) => !groupDrag.justDragged() && onSelectGroup(list.map((t) => t.name), isAdditive(e), false)}
+                  {...groupDrag.grab(use)}
                   className="cursor-grab active:cursor-grabbing rounded-sm px-chip-x type-heading outline-selection hover:bg-hover focus-visible:outline-2"
                 >
                   {TYPE_USES.find((u) => u.id === use)!.label}
                 </button>
               </div>
               <div className="space-y-rows rounded-lg border border-hairline bg-canvas p-menu">
-                {list.map((t, i) => {
+                {list.map((t) => {
                   const short = shortName(STYLE, t.name)
                   const { text, shape, words, more } = readTypeNote(t.note, short)
                   const look = lookOf(all, t.value, t.name)
                   const isSelected = selected.includes(t.name)
-                  const moving = rowDrop?.id === t.name
-                  // 놓일 자리의 선. 줄 위(맨 끝이면 마지막 줄 아래)에 가로로 긋는다.
-                  const lineBefore = rowDrop && !moving && rowDrop.before === t.name
-                  const lineAfter = rowDrop && !moving && rowDrop.before === null && i === list.length - 1
                   return (
                     <button
                       key={t.name}
@@ -341,13 +272,12 @@ export function TypeList({
                       data-token={t.name}
                       aria-pressed={isSelected}
                       aria-label={short}
-                      onClick={(e) => !dragged.current && onSelect(t.name, isAdditive(e))}
+                      onClick={(e) => !rows.justDragged() && onSelect(t.name, isAdditive(e))}
                       onDoubleClick={() => onRename(t.name)}
-                      {...grab('row', t.name, use)}
-                      className={`group relative flex w-full items-center gap-columns rounded-md px-board-row-x py-board-row-y text-left select-none ${moving ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
+                      {...rows.grab(t.name)}
+                      className={`group relative flex w-full items-center gap-columns rounded-md px-board-row-x py-board-row-y text-left select-none ${rows.moving(t.name) ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
                     >
-                      {lineBefore && <span className={`${DROP_LINE} inset-x-0 top-0 h-[calc(var(--line)*2)] -translate-y-1/2`} />}
-                      {lineAfter && <span className={`${DROP_LINE} inset-x-0 bottom-0 h-[calc(var(--line)*2)] translate-y-1/2`} />}
+                      {rows.line(t.name)}
                       <span className="w-56 shrink-0">
                         {/* 이름, 가리키는 값, 설명, 예시는 자르지 않는다(말줄임표를 쓰지 않는다). 칸보다 길면 줄을 바꿔 다 보여 준다. */}
                         <span data-name className="block type-label break-words">
