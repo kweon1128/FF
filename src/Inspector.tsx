@@ -1,3 +1,4 @@
+import { ICON_STROKE } from './lib/icons'
 import { useState, type ReactNode } from 'react'
 import { ChevronDown, ChevronRight, Copy, PencilLine, Pipette, Rows3, Type } from 'lucide-react'
 import type { Token } from './lib/api'
@@ -45,7 +46,7 @@ type Props = {
 }
 
 export const ICON_BUTTON =
-  'flex size-icon-button shrink-0 items-center justify-center rounded-md text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2'
+  'flex size-icon-button shrink-0 items-center justify-center rounded-control text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-focus'
 
 const HEX6 = /^#[0-9a-f]{6}$/i
 const PLAIN = /^[a-z0-9]+$/
@@ -56,7 +57,7 @@ const PLAIN = /^[a-z0-9]+$/
 /** 패널의 한 구역. 구역 사이에만 전체 폭 구분선을 둔다. */
 export function Section({ title, children }: { title?: string; children: ReactNode }) {
   return (
-    <section className="border-b border-hairline px-section-x py-section-y last:border-b-0">
+    <section className="border-b-divider border-hairline px-section-x py-section-y last:border-b-0">
       {title && <h3 className="mb-heading type-heading">{title}</h3>}
       {children}
     </section>
@@ -107,7 +108,7 @@ export function FoldSection({
   const Arrow = open ? ChevronDown : ChevronRight
   if (empty)
     return (
-      <section className="border-b border-hairline last:border-b-0">
+      <section className="border-b-divider border-hairline last:border-b-0">
         <h3 className="flex h-bar items-center gap-button-inner px-section-x type-heading">
           <span className="flex-1">{title}</span>
           {note && <span className="type-body text-ink-faint">{note}</span>}
@@ -115,17 +116,17 @@ export function FoldSection({
       </section>
     )
   return (
-    <section className="border-b border-hairline last:border-b-0">
+    <section className="border-b-divider border-hairline last:border-b-0">
       <h3>
         <button
           type="button"
           aria-expanded={open}
           onClick={toggle}
-          className="flex h-bar w-full items-center gap-button-inner px-section-x type-heading outline-selection hover:bg-hover focus-visible:outline-2 focus-visible:-outline-offset-2"
+          className="flex h-bar w-full items-center gap-button-inner px-section-x type-heading outline-selection hover:bg-hover focus-visible:outline-focus focus-visible:-outline-offset-2"
         >
           <span className="flex-1 text-left">{title}</span>
           {note && <span className="type-body text-ink-faint">{note}</span>}
-          <Arrow size={16} strokeWidth={1.5} className="text-ink-soft" />
+          <Arrow size={16} strokeWidth={ICON_STROKE} className="text-ink-soft" />
         </button>
       </h3>
       {open && <div className="px-section-x pt-label pb-section-y">{children}</div>}
@@ -155,7 +156,9 @@ export function classesOf(kind: Kind, short: string): string[] {
       return [`p-${short}`, `gap-${short}`]
     case 'space':
     case 'length':
-      // 토대(간격, 크기)는 클래스로 쓰지 않는다. 의미 간격과 의미 크기가 가리킬 뿐이다.
+    case 'corner':
+    case 'thickness':
+      // 토대(간격, 크기, 모서리, 테두리)는 클래스로 쓰지 않는다. 의미 간격과 의미 크기, 의미 모서리, 의미 테두리가 가리킬 뿐이다.
       return []
     case 'height':
       return [`h-${short}`]
@@ -167,6 +170,8 @@ export function classesOf(kind: Kind, short: string): string[] {
       return [`rounded-${short}`]
     case 'border':
       return [`border-${short}`]
+    case 'outline':
+      return [`outline-${short}`]
     case 'breakpoint':
       return [`${short}:`]
     case 'container':
@@ -190,7 +195,7 @@ export function CodeRows({ uses, value, file, onCopy, note, valueNote }: { uses:
         <Chip>{text}</Chip>
       </span>
       <button type="button" title={`${text} 복사`} aria-label={`${text} 복사`} onClick={() => onCopy(text)} className={ICON_BUTTON}>
-        <Copy size={16} strokeWidth={1.5} />
+        <Copy size={16} strokeWidth={ICON_STROKE} />
       </button>
     </span>
   )
@@ -503,7 +508,7 @@ export function Inspector({
               onClick={onPickColor}
               className={ICON_BUTTON}
             >
-              <Pipette size={16} strokeWidth={1.5} />
+              <Pipette size={16} strokeWidth={ICON_STROKE} />
             </button>
           )}
         </span>
@@ -544,7 +549,7 @@ export function Inspector({
         )}
         {isFont && (
           <Button variant="ghost" className="-ml-button-ghost-x" onClick={() => setPickingFont(true)}>
-            <Type size={16} strokeWidth={1.5} />
+            <Type size={16} strokeWidth={ICON_STROKE} />
             글꼴 고르기
           </Button>
         )}
@@ -573,7 +578,7 @@ export function Inspector({
             }
             onClick={onMakeScale}
           >
-            <Rows3 size={16} strokeWidth={1.5} />
+            <Rows3 size={16} strokeWidth={ICON_STROKE} />
             {scaleMissing === 0 ? '단계 다시 생성' : '단계 생성'}
           </Button>
         )}
@@ -591,7 +596,7 @@ export function Inspector({
                 key={name}
                 type="button"
                 onClick={() => onOpenToken(name)}
-                className="-ml-button-ghost-x flex h-control max-w-full items-center rounded-md px-button-ghost-x type-label outline-selection hover:bg-hover focus-visible:outline-2"
+                className="-ml-button-ghost-x flex h-control max-w-full items-center rounded-control px-button-ghost-x type-label outline-selection hover:bg-hover focus-visible:outline-focus"
               >
                 <span className="truncate">{userOf(name).short}</span>
                 <span className="ml-row-inner shrink-0 type-body text-ink-faint">{userOf(name).title}</span>
@@ -602,7 +607,7 @@ export function Inspector({
                 <button
                   type="button"
                   onClick={() => onOpenComponent(u.index)}
-                  className="-ml-button-ghost-x flex h-control max-w-full items-center rounded-md px-button-ghost-x type-label outline-selection hover:bg-hover focus-visible:outline-2"
+                  className="-ml-button-ghost-x flex h-control max-w-full items-center rounded-control px-button-ghost-x type-label outline-selection hover:bg-hover focus-visible:outline-focus"
                 >
                   <span className="truncate">{u.name}</span>
                   <span className="ml-row-inner shrink-0 type-body text-ink-faint">{u.where.length}곳</span>
@@ -684,7 +689,7 @@ export function MultiInspector({
 
       <Section>
         <Button variant="ghost" className="-ml-button-ghost-x" title="Ctrl+R" onClick={onRename}>
-          <PencilLine size={16} strokeWidth={1.5} />
+          <PencilLine size={16} strokeWidth={ICON_STROKE} />
           번호 다시 매기기
         </Button>
       </Section>

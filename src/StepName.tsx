@@ -10,7 +10,7 @@ export function StepName({ label, value, wide = false, onChange }: { label: stri
     <input
       aria-label={label}
       spellCheck={false}
-      className={`h-compact shrink-0 rounded-sm border border-hairline bg-canvas px-chip-x type-code-sm text-ink-soft outline-none focus:border-selection ${wide === 'xl' ? 'w-[112px]' : wide ? 'w-[80px]' : 'w-[56px]'}`}
+      className={`h-compact shrink-0 rounded-small border-edge border-hairline bg-canvas px-chip-x type-code-sm text-ink-soft outline-none focus:border-selection ${wide === 'xl' ? 'w-cell-long' : wide ? 'w-cell' : 'w-cell-short'}`}
       value={value}
       onFocus={(e) => e.currentTarget.select()}
       onChange={(e) => onChange(e.target.value.trim())}

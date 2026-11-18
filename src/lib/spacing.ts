@@ -9,7 +9,7 @@ export type SpaceUse = 'button' | 'input' | 'list' | 'board' | 'panel' | 'dialog
 
 export const SPACE_USES: { id: SpaceUse; label: string; hint: string }[] = [
   { id: 'button', label: '버튼', hint: '버튼의 여백, 버튼 사이' },
-  { id: 'input', label: '입력칸', hint: '입력칸의 여백, 이름표, 칸 사이' },
+  { id: 'input', label: '입력칸', hint: '입력칸, 이름표, 칸 사이' },
   { id: 'list', label: '목록', hint: '메뉴와 목록의 줄' },
   { id: 'board', label: '판', hint: '판의 여백, 묶음, 격자' },
   { id: 'panel', label: '패널', hint: '패널의 구역과 그 안' },
@@ -36,7 +36,7 @@ export type SpaceShape = 'gap' | 'icon' | 'stack' | 'label' | 'rows' | 'fields' 
 export const SPACE_SHAPES: { id: SpaceShape; label: string; hint: string }[] = [
   { id: 'gap', label: '사이', hint: '나란히 놓인 버튼들 사이' },
   { id: 'icon', label: '아이콘', hint: '아이콘과 그 옆 글자 사이' },
-  { id: 'stack', label: '쌓임', hint: '위아래로 놓인 글자 줄 사이' },
+  { id: 'stack', label: '글줄 사이', hint: '위아래로 놓인 글자 줄 사이' },
   { id: 'label', label: '이름표', hint: '이름표와 그 아래 입력칸 사이' },
   { id: 'rows', label: '줄', hint: '목록의 줄과 줄 사이' },
   { id: 'fields', label: '칸', hint: '이름표가 붙은 입력칸들 사이' },
@@ -60,12 +60,12 @@ export const SPACE_SHAPES: { id: SpaceShape; label: string; hint: string }[] = [
   { id: 'footer', label: '버튼 줄', hint: '창의 내용과 아래 버튼 줄 사이' },
   { id: 'bar', label: '막대 좌우', hint: '상단 바, 알림의 왼쪽과 오른쪽 여백' },
   { id: 'input', label: '입력칸', hint: '입력칸의 왼쪽과 오른쪽 여백' },
-  { id: 'surface', label: '면', hint: '패널, 창, 카드의 네 가장자리 여백' },
-  { id: 'surfacex', label: '면 좌우', hint: '패널, 창, 카드의 왼쪽과 오른쪽 여백' },
-  { id: 'surfacey', label: '면 위아래', hint: '패널 구역의 위와 아래 여백' },
+  { id: 'surface', label: '안쪽 여백', hint: '패널, 창, 카드의 네 가장자리 여백' },
+  { id: 'surfacex', label: '좌우 여백', hint: '패널, 창, 카드의 왼쪽과 오른쪽 여백' },
+  { id: 'surfacey', label: '위아래 여백', hint: '패널 구역의 위와 아래 여백' },
 ]
 
-/** 모양마다의 기본 예시 문구. 사이와 쌓임은 ", "로 나눠 하나씩 놓는다. */
+/** 모양마다의 기본 예시 문구. 사이와 글줄 사이은 ", "로 나눠 하나씩 놓는다. */
 export const SPACE_WORDS: Record<SpaceShape, string> = {
   gap: '취소, 추가',
   icon: '추가',

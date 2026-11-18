@@ -3,7 +3,7 @@ import { ALL_KINDS, KINDS, lineName, shortName, trackName, type Kind } from './c
 
 /**
  * 값을 추가할 때 생기는 것. 아무 이름(new)과 고정된 값이 아니라, 지금 있는 것 다음에 올 단계가 이름과 값을 갖추고 생긴다.
- * 이름과 값은 Tailwind의 관례를 따른다. AI가 짜는 코드가 이 이름(text-lg, rounded-md 등)을 그대로 쓰기 때문이다.
+ * 이름과 값은 Tailwind의 관례를 따른다. AI가 짜는 코드가 이 이름(text-lg, font-medium 등)을 그대로 쓰기 때문이다.
  */
 type Step = [name: string, value: string]
 /** steps는 작은 것에서 큰 것 순서. start는 아무것도 없을 때 처음 생기는 단계의 자리(안 주면 맨 앞). */
@@ -55,25 +55,6 @@ const LADDERS: Partial<Record<Kind['id'], Ladder>> = {
       ['wider', '0.04em'],
     ],
     start: 2,
-  },
-  radius: {
-    steps: px([
-      ['xs', 2],
-      ['sm', 4],
-      ['md', 8],
-      ['lg', 12],
-      ['xl', 16],
-      ['2xl', 24],
-      ['full', 9999],
-    ]),
-    start: 1,
-  },
-  border: {
-    steps: px([
-      ['thin', 1],
-      ['thick', 2],
-      ['heavy', 4],
-    ]),
   },
   shadow: {
     steps: [

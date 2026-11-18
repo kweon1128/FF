@@ -16,7 +16,7 @@ export type PasteJob = {
   into: string | null
 }
 
-const OPTION = 'h-compact flex-1 rounded-sm type-label outline-selection focus-visible:outline-2'
+const OPTION = 'h-compact flex-1 rounded-small type-label outline-selection focus-visible:outline-focus'
 
 /**
  * 붙여넣기 창. 이름이 같은 값이 있거나 읽지 못한 값이 있을 때만 뜬다.
@@ -46,7 +46,7 @@ export function PasteDialog({
         {job.conflicts > 0 && (
           <div>
             <p className="mb-label type-label text-ink-faint">이름이 같은 값 {job.conflicts}개</p>
-            <div role="group" aria-label="이름이 같은 값" className="flex gap-actions-tight rounded-md bg-hover p-menu">
+            <div role="group" aria-label="이름이 같은 값" className="flex gap-actions-tight rounded-control bg-hover p-menu">
               {[
                 { on: true, label: '덮어쓰기' },
                 { on: false, label: '따로 만들기' },
@@ -56,7 +56,7 @@ export function PasteDialog({
                   type="button"
                   aria-pressed={overwrite === on}
                   onClick={() => setOverwrite(on)}
-                  className={`${OPTION} ${overwrite === on ? 'border border-hairline bg-canvas text-ink' : 'text-ink-soft hover:text-ink'}`}
+                  className={`${OPTION} ${overwrite === on ? 'border-edge border-hairline bg-canvas text-ink' : 'text-ink-soft hover:text-ink'}`}
                 >
                   {label}
                 </button>
@@ -68,7 +68,7 @@ export function PasteDialog({
         {job.skipped.length > 0 && (
           <div>
             <p className="mb-label type-label text-ink-faint">읽지 못한 값 {job.skipped.length}개</p>
-            <ul className="max-h-[144px] space-y-rows overflow-y-auto rounded-md border border-hairline p-box">
+            <ul className="max-h-[144px] space-y-rows overflow-y-auto rounded-card border-edge border-hairline p-box">
               {job.skipped.map((t) => (
                 <li key={t.name} className="flex items-baseline gap-row-inner type-code-sm">
                   <span className="min-w-0 flex-1 truncate">{t.name}</span>

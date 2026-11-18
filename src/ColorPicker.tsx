@@ -1,6 +1,7 @@
 // 색 선택 창. 브라우저의 기본 창 대신 FF의 모양에 맞춰 직접 그린다.
 // 위에서부터 채도·밝기 면, 스포이드와 색조 막대, (투명도 막대), 색 값 입력칸, 이 디자인 시스템의 색 견본.
 
+import { ICON_STROKE } from './lib/icons'
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type PointerEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { Pipette } from 'lucide-react'
@@ -64,8 +65,8 @@ function useDrag(onMove: (x: number, y: number) => void) {
 
 // 손잡이: 피그마처럼 두꺼운 흰 고리에 가운데로 그 자리의 색이 보인다. 옅은 그림자로 밝은 색 위에서도 보이게 한다.
 const KNOB =
-  'pointer-events-none absolute size-[16px] -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-white shadow-[0_0_0_0.5px_rgb(0_0_0/0.25),0_1px_3px_rgb(0_0_0/0.35)]'
-const FIELD = 'h-control min-w-0 rounded-md border border-hairline bg-canvas px-input-x type-code outline-none focus:border-selection'
+  'pointer-events-none absolute size-[16px] -translate-x-1/2 -translate-y-1/2 rounded-pill border-[4px] border-white shadow-[0_0_0_0.5px_rgb(0_0_0/0.25),0_1px_3px_rgb(0_0_0/0.35)]'
+const FIELD = 'h-control min-w-0 rounded-control border-edge border-hairline bg-canvas px-input-x type-code outline-none focus:border-selection'
 
 function Panel({
   anchor,
@@ -175,13 +176,13 @@ function Panel({
       ref={box}
       role="dialog"
       aria-label="색 선택"
-      className="fixed z-[60] rounded-lg border border-hairline bg-canvas p-popover shadow-dialog"
+      className="fixed z-[60] rounded-float border-edge border-hairline bg-canvas p-popover shadow-dialog"
       style={{ width: WIDTH, left: pos?.left ?? -9999, top: pos?.top ?? 0 }}
     >
       <div
         {...area}
         data-color-area
-        className="relative h-[144px] touch-none rounded-md"
+        className="relative h-[144px] touch-none rounded-card"
         style={{ background: `linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, hsl(${hsv.h} 100% 50%))` }}
       >
         <span className={KNOB} style={{ left: `${hsv.s * 100}%`, top: `${(1 - hsv.v) * 100}%`, background: rgb }} />
@@ -194,9 +195,9 @@ function Panel({
             title="화면에서 색 찍기 (I)"
             aria-label="화면에서 색 찍기"
             onClick={() => drop.current()}
-            className="flex size-icon-button shrink-0 items-center justify-center rounded-md text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2"
+            className="flex size-icon-button shrink-0 items-center justify-center rounded-control text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-focus"
           >
-            <Pipette size={16} strokeWidth={1.5} />
+            <Pipette size={16} strokeWidth={ICON_STROKE} />
           </button>
         )}
         <div className="min-w-0 flex-1 space-y-blocks">
@@ -207,7 +208,7 @@ function Panel({
             aria-valuenow={Math.round(hsv.h)}
             aria-valuemin={0}
             aria-valuemax={360}
-            className="relative h-[12px] touch-none rounded-full"
+            className="relative h-[12px] touch-none rounded-pill"
             style={{ background: 'linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)' }}
           >
             <span className={`${KNOB} top-1/2`} style={{ left: `${(hsv.h / 360) * 100}%`, background: `hsl(${hsv.h} 100% 50%)` }} />
@@ -220,7 +221,7 @@ function Panel({
               aria-valuenow={Math.round(a * 100)}
               aria-valuemin={0}
               aria-valuemax={100}
-              className="relative h-[12px] touch-none rounded-full"
+              className="relative h-[12px] touch-none rounded-pill"
               style={{ background: swatchBackground(`linear-gradient(to right, transparent, ${rgb})`, 6) }}
             >
               <span className={`${KNOB} top-1/2`} style={{ left: `${a * 100}%`, background: swatchBackground(value, 6) }} />
@@ -230,7 +231,7 @@ function Panel({
       </div>
 
       <div className="mt-popover flex items-center gap-field-row">
-        <span className="size-swatch-button shrink-0 rounded-md border border-hairline" style={{ background: swatchBackground(value) }} />
+        <span className="size-swatch-button shrink-0 rounded-control border-edge border-hairline" style={{ background: swatchBackground(value) }} />
         <input
           aria-label="색 값"
           className={`${FIELD} w-full`}
@@ -267,13 +268,13 @@ function Panel({
 
       {/* 고르는 중인 색이 버튼, 글자, 테두리, 옅은 배경으로 쓰이면 어떤지. 색을 끄는 동안 함께 바뀐다. */}
       {preview && (
-        <div className="mt-popover border-t border-hairline pt-popover">
+        <div className="mt-popover border-t-divider border-hairline pt-popover">
           <ColorUses color={value} compact />
         </div>
       )}
 
       {swatches.length > 0 && (
-        <div className="mt-popover border-t border-hairline pt-popover">
+        <div className="mt-popover border-t-divider border-hairline pt-popover">
           <p className="mb-heading type-caption-strong text-ink-faint">이 디자인 시스템의 색</p>
           {/* 색상 판처럼 목록마다 한 줄. 한 줄에 11칸이라 50부터 950까지가 한 줄에 들어가고, 줄끼리 같은 단계가 위아래로 맞는다. */}
           <div className="max-h-[160px] space-y-rows overflow-y-auto">
@@ -287,7 +288,7 @@ function Panel({
                     aria-label={color.name}
                     aria-pressed={color.hex === value}
                     onClick={() => onChange(color.hex)}
-                    className={`aspect-square rounded-sm border outline-selection focus-visible:outline-2 ${
+                    className={`aspect-square rounded-small border-edge outline-selection focus-visible:outline-focus ${
                       color.hex === value ? 'border-selection' : 'border-hairline hover:border-ink-faint'
                     }`}
                     style={{ background: swatchBackground(color.hex, 6) }}
@@ -336,7 +337,7 @@ export function ColorSwatch({
         aria-haspopup="dialog"
         aria-expanded={anchor !== null}
         onClick={(e) => setAnchor(anchor ? null : e.currentTarget.getBoundingClientRect())}
-        className={`size-swatch-button shrink-0 rounded-md border outline-selection focus-visible:outline-2 ${anchor ? 'border-selection' : 'border-hairline'}`}
+        className={`size-swatch-button shrink-0 rounded-control border-edge outline-selection focus-visible:outline-focus ${anchor ? 'border-selection' : 'border-hairline'}`}
         style={{ background: value ? swatchBackground(value) : undefined }}
       />
       {anchor && (

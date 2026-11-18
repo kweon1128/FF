@@ -1,3 +1,4 @@
+import { ICON_STROKE } from './lib/icons'
 import { useState } from 'react'
 import { Plus } from 'lucide-react'
 import { DynamicIcon, iconNames, type IconName } from 'lucide-react/dynamic'
@@ -68,17 +69,17 @@ export function ComponentScreen({
         <h1 className="type-title">{comp.name}</h1>
         <span className="flex gap-actions-tight">
           <Button variant="ghost" onClick={onAddVariant}>
-            <Plus size={16} strokeWidth={1.5} />
+            <Plus size={16} strokeWidth={ICON_STROKE} />
             종류 추가
           </Button>
           <Button variant="ghost" onClick={onAddSize}>
-            <Plus size={16} strokeWidth={1.5} />
+            <Plus size={16} strokeWidth={ICON_STROKE} />
             크기 추가
           </Button>
         </span>
       </div>
 
-      <div className="flex min-h-[160px] items-center justify-center rounded-lg border border-hairline bg-canvas p-board">
+      <div className="flex min-h-[160px] items-center justify-center rounded-float border-edge border-hairline bg-canvas p-board">
         <LivePreview comp={comp} cell={shown} tokens={tokens} />
       </div>
       <p className="mt-label type-caption text-ink-faint">
@@ -117,7 +118,7 @@ export function ComponentScreen({
                           className="group min-w-0 text-left outline-none select-none"
                         >
                           <span
-                            className={`relative flex h-[96px] items-center justify-center rounded-lg border border-hairline bg-canvas p-card ${isSelected ? SELECTED : ''} group-hover:line-2 group-focus-visible:line-2 ${OUTLINE}`}
+                            className={`relative flex h-[96px] items-center justify-center rounded-float border-edge border-hairline bg-canvas p-card ${isSelected ? SELECTED : ''} group-hover:line-2 group-focus-visible:line-2 ${OUTLINE}`}
                           >
                             <span className="pointer-events-none flex max-w-full overflow-hidden">
                               <CompPreview comp={comp} cell={here} tokens={tokens} />

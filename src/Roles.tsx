@@ -1,6 +1,7 @@
 // 의미 색: 색상 판의 색 가운데 실제로 쓰는 색에 쓰임새의 이름을 붙여 모아 둔 판과, 그것을 만들고 고치는 양식.
 // 한 줄에 색 하나. 색, 이름과 가리키는 단계, 역할과 설명, 그 역할로 쓰인 예시를 나란히 보여 준다.
 
+import { ICON_STROKE } from './lib/icons'
 import { useContext, useState, type FormEvent, type ReactNode } from 'react'
 import { ArrowUpRight } from 'lucide-react'
 import type { Token } from './lib/api'
@@ -15,7 +16,7 @@ import { useReorder } from './useReorder'
 
 const COLOR = KINDS.color
 const ROLE = KINDS.role
-const EDGE = 'shadow-[inset_0_0_0_1px_rgb(0_0_0/0.1)]'
+const EDGE = 'shadow-[inset_0_0_0_var(--border-width-edge)_rgb(0_0_0/0.1)]'
 
 /** 가리키는 색을 짧게 적은 이름. --color-blue-600 → blue-600 */
 const refName = (value: string) => (refOf(value) ?? value).replace(/^--color-/, '')
@@ -37,11 +38,11 @@ export function RoleSample({ shape, color, around, words: written = '' }: { shap
   // 막대의 색. 그 면에 놓이는 글자 색을 면에 옅게 섞는다.
   const faintOn = (ink: string, surface: string) => `color-mix(in oklab, ${ink} 16%, ${surface})`
   const frame = (background: string, body: ReactNode) => (
-    <span className={`block w-full overflow-hidden rounded-md p-sample ${light(background) ? EDGE : ''}`} style={{ ...space, background: swatchBackground(background), fontFamily: font }}>
+    <span className={`block w-full overflow-hidden rounded-card p-sample ${light(background) ? EDGE : ''}`} style={{ ...space, background: swatchBackground(background), fontFamily: font }}>
       {body}
     </span>
   )
-  const bar = (width: string, tone: string, more = '') => <span className={`block h-[8px] rounded-sm ${width} ${more}`} style={{ background: tone }} />
+  const bar = (width: string, tone: string, more = '') => <span className={`block h-[8px] rounded-small ${width} ${more}`} style={{ background: tone }} />
   // 선택 이름표와 간격 숫자 위의 글자. 이런 표시는 밝은 파랑이나 주황 위에 흰 글자를 쓰는 것이 보통이라, 흰 글자가 어느 정도 읽히면 흰색을 쓴다.
   const onMark = (hex: string) => (contrast('#ffffff', hex.slice(0, 7)) >= 2.5 ? '#ffffff' : inkOn(hex))
   const STRONG = 'text-sm leading-5 font-[550]'
@@ -84,7 +85,7 @@ export function RoleSample({ shape, color, around, words: written = '' }: { shap
         around.surface,
         <span className="block space-y-rows">
           <span className="flex h-row items-center px-row-x">{bar('w-[48px]', faint)}</span>
-          <span data-sample className={`block rounded-md px-row-x py-menu break-words ${STRONG}`} style={{ background: color, color: ink }}>
+          <span data-sample className={`block rounded-row px-row-x py-menu break-words ${STRONG}`} style={{ background: color, color: ink }}>
             {all}
           </span>
           <span className="flex h-row items-center px-row-x">{bar('w-[64px]', faint)}</span>
@@ -94,7 +95,7 @@ export function RoleSample({ shape, color, around, words: written = '' }: { shap
     case 'border':
       return frame(
         around.surface,
-        <span data-sample className={`flex h-control items-center rounded-md px-input-x ${STRONG}`} style={{ boxShadow: `inset 0 0 0 1px ${color}`, color: around.ink }}>
+        <span data-sample className={`flex h-control items-center rounded-control px-input-x ${STRONG}`} style={{ boxShadow: `inset 0 0 0 1px ${color}`, color: around.ink }}>
           <span className="min-w-0 truncate">{all}</span>
         </span>,
       )
@@ -113,7 +114,7 @@ export function RoleSample({ shape, color, around, words: written = '' }: { shap
         around.surface,
         <span className="flex flex-wrap items-center gap-actions">
           {list.map((text) => (
-            <span key={text} data-sample className={`flex h-control items-center rounded-md px-button-x whitespace-nowrap ${STRONG}`} style={{ background: around.ink, color }}>
+            <span key={text} data-sample className={`flex h-control items-center rounded-control px-button-x whitespace-nowrap ${STRONG}`} style={{ background: around.ink, color }}>
               {text}
             </span>
           ))}
@@ -125,7 +126,7 @@ export function RoleSample({ shape, color, around, words: written = '' }: { shap
         around.surface,
         <span className="flex flex-wrap items-center gap-blocks">
           {list.map((text, i) => (
-            <span key={text} data-sample className={`flex h-compact items-center rounded-full px-row-x whitespace-nowrap ${SMALL}`} style={i === 0 ? { background: soft, color } : { background: color, color: inkOn(color) }}>
+            <span key={text} data-sample className={`flex h-compact items-center rounded-pill px-row-x whitespace-nowrap ${SMALL}`} style={i === 0 ? { background: soft, color } : { background: color, color: inkOn(color) }}>
               {text}
             </span>
           ))}
@@ -140,12 +141,12 @@ export function RoleSample({ shape, color, around, words: written = '' }: { shap
         <span className="flex flex-col items-center px-chip-x pt-label">
           <span className="relative flex h-control w-full items-center px-input-x" style={{ boxShadow: `0 0 0 1px ${color}` }}>
             {bar('w-1/2', faint)}
-            <span className={`${HANDLE} -top-1 -left-1`} style={corner} />
-            <span className={`${HANDLE} -top-1 -right-1`} style={corner} />
-            <span className={`${HANDLE} -bottom-1 -left-1`} style={corner} />
-            <span className={`${HANDLE} -right-1 -bottom-1`} style={corner} />
+            <span className={`${HANDLE} -top-[4px] -left-[4px]`} style={corner} />
+            <span className={`${HANDLE} -top-[4px] -right-[4px]`} style={corner} />
+            <span className={`${HANDLE} -bottom-[4px] -left-[4px]`} style={corner} />
+            <span className={`${HANDLE} -right-[4px] -bottom-[4px]`} style={corner} />
           </span>
-          <span data-sample className={`mt-blocks rounded-xs px-chip-x whitespace-nowrap ${SMALL}`} style={{ background: color, color: onMark(color) }}>
+          <span data-sample className={`mt-blocks rounded-tag px-chip-x whitespace-nowrap ${SMALL}`} style={{ background: color, color: onMark(color) }}>
             {all}
           </span>
         </span>,
@@ -156,15 +157,15 @@ export function RoleSample({ shape, color, around, words: written = '' }: { shap
       return frame(
         around.surface,
         <span className="relative block pl-blocks">
-          <span className="absolute inset-y-0 left-2 w-px" style={{ background: color }} />
-          <span className="block h-[16px] w-[96px] rounded-sm" style={{ background: faint }} />
+          <span className="absolute inset-y-0 left-blocks w-px" style={{ background: color }} />
+          <span className="block h-[16px] w-[96px] rounded-small" style={{ background: faint }} />
           <span className="relative my-label flex h-[24px] w-[64px] items-center justify-center">
             <span className="absolute inset-y-0 left-1/2 w-px" style={{ background: color }} />
-            <span data-sample className={`relative rounded-xs px-chip-x whitespace-nowrap ${SMALL}`} style={{ background: color, color: onMark(color) }}>
+            <span data-sample className={`relative rounded-tag px-chip-x whitespace-nowrap ${SMALL}`} style={{ background: color, color: onMark(color) }}>
               {all}
             </span>
           </span>
-          <span className="block h-[16px] w-[64px] rounded-sm" style={{ background: faint }} />
+          <span className="block h-[16px] w-[64px] rounded-small" style={{ background: faint }} />
         </span>,
       )
     case 'note':
@@ -184,7 +185,7 @@ export function RoleSample({ shape, color, around, words: written = '' }: { shap
         around.surface,
         <span className="flex h-[40px] items-end gap-actions-tight">
           {bars.map((h, i) => (
-            <span key={i} className="w-[16px] rounded-t-sm" style={{ height: `${h}%`, background: color }} />
+            <span key={i} className="w-[16px] rounded-t-small" style={{ height: `${h}%`, background: color }} />
           ))}
         </span>,
       )
@@ -195,7 +196,7 @@ export function RoleSample({ shape, color, around, words: written = '' }: { shap
         around.surface,
         <span className="flex flex-wrap items-center gap-actions">
           {list.map((text) => (
-            <span key={text} data-sample className={`flex h-control items-center rounded-md px-button-x whitespace-nowrap ${STRONG}`} style={{ background: color, color: inkOn(color) }}>
+            <span key={text} data-sample className={`flex h-control items-center rounded-control px-button-x whitespace-nowrap ${STRONG}`} style={{ background: color, color: inkOn(color) }}>
               {text}
             </span>
           ))}
@@ -255,12 +256,12 @@ export function RoleList({
                 data-role-title={use}
                 onClick={(e) => !groupDrag.justDragged() && onSelectGroup(list.map((t) => t.name), isAdditive(e), false)}
                 {...groupDrag.grab(use)}
-                className="cursor-grab active:cursor-grabbing rounded-sm px-chip-x type-heading outline-selection hover:bg-hover focus-visible:outline-2"
+                className="cursor-grab active:cursor-grabbing rounded-small px-chip-x type-heading outline-selection hover:bg-hover focus-visible:outline-focus"
               >
                 {ROLE_USES.find((u) => u.id === use)!.label}
               </button>
             </div>
-            <div className={folded ? 'grid grid-cols-3 gap-rows rounded-lg border border-hairline bg-canvas p-menu' : 'space-y-rows rounded-lg border border-hairline bg-canvas p-menu'}>
+            <div className={folded ? 'grid grid-cols-3 gap-rows rounded-float border-edge border-hairline bg-canvas p-menu' : 'space-y-rows rounded-float border-edge border-hairline bg-canvas p-menu'}>
               {list.map((t) => {
                 const short = shortName(kind, t.name)
                 const { text, shape, words, more } = readNote(t.note, short)
@@ -277,14 +278,14 @@ export function RoleList({
                     onClick={(e) => !rows.justDragged() && onSelect(t.name, isAdditive(e))}
                     onDoubleClick={() => onRename(t.name)}
                     {...rows.grab(t.name)}
-                    className={`relative w-full items-center rounded-md px-board-row-x py-board-row-y text-left select-none ${
+                    className={`relative w-full items-center rounded-row px-board-row-x py-board-row-y text-left select-none ${
                       folded ? 'flex gap-sample' : 'grid grid-cols-[40px_176px_minmax(0,1fr)_280px] gap-columns'
                     } ${rows.moving(t.name) ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
                   >
                     {/* 놓일 자리의 선. 펼친 판은 줄 위(맨 끝이면 마지막 줄 아래)에 가로로, 접은 판은 칸 왼쪽(맨 끝이면 마지막 칸 오른쪽)에 세로로 긋는다. */}
                     {rows.line(t.name)}
                     <span
-                      className={`block shrink-0 rounded-md ${folded ? 'size-[32px]' : 'size-[40px]'} ${EDGE}`}
+                      className={`block shrink-0 rounded-card ${folded ? 'size-[32px]' : 'size-[40px]'} ${EDGE}`}
                       style={{ background: swatchBackground(color ?? 'transparent') }}
                     />
                     <span className="min-w-0">
@@ -363,7 +364,7 @@ function RefPicker({ tokens, value, onChange }: { tokens: Token[]; value: string
                   aria-pressed={picked}
                   onClick={() => onChange(t.name)}
                   // 고른 색과 마우스를 올린 색은 안쪽에 선을 둘러 표시한다. 선이 칸 밖으로 나가지 않아 옆 칸과 닿지 않는다.
-                  className={`aspect-square rounded-sm outline-selection focus-visible:outline-2 ${
+                  className={`aspect-square rounded-small outline-selection focus-visible:outline-focus ${
                     picked
                       ? 'shadow-[inset_0_0_0_2px_var(--color-selection),inset_0_0_0_3px_#fff]'
                       : `${EDGE} hover:shadow-[inset_0_0_0_2px_var(--color-ink),inset_0_0_0_3px_#fff]`
@@ -546,7 +547,7 @@ export function RoleInspector({
 
       <Section title="가리키는 색">
         <div className="mb-fields flex items-center gap-field-row">
-          <span className={`block size-swatch-button shrink-0 rounded-md ${EDGE}`} style={{ background: swatchBackground(color ?? 'transparent') }} />
+          <span className={`block size-swatch-button shrink-0 rounded-control ${EDGE}`} style={{ background: swatchBackground(color ?? 'transparent') }} />
           <span className="min-w-0">
             <Chip>{refName(token.value)}</Chip>
           </span>
@@ -560,7 +561,7 @@ export function RoleInspector({
             onClick={() => onOpenToken(refOf(token.value)!)}
             className={`${ICON_BUTTON} disabled:pointer-events-none disabled:opacity-disabled`}
           >
-            <ArrowUpRight size={16} strokeWidth={1.5} />
+            <ArrowUpRight size={16} strokeWidth={ICON_STROKE} />
           </button>
         </div>
         <RefPicker tokens={tokens} value={refOf(token.value)} onChange={(name) => onChange({ value: refTo(name) })} />
@@ -588,7 +589,7 @@ export function RoleInspector({
                 <button
                   type="button"
                   onClick={() => onOpenComponent(u.index)}
-                  className="-ml-button-ghost-x flex h-control max-w-full items-center rounded-md px-button-ghost-x type-label outline-selection hover:bg-hover focus-visible:outline-2"
+                  className="-ml-button-ghost-x flex h-control max-w-full items-center rounded-control px-button-ghost-x type-label outline-selection hover:bg-hover focus-visible:outline-focus"
                 >
                   <span className="truncate">{u.name}</span>
                   <span className="ml-row-inner shrink-0 type-body text-ink-faint">{u.where.length}곳</span>

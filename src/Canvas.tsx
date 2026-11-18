@@ -4,12 +4,13 @@
 // 끄는 중에 마우스가 화면 가장자리에 닿거나 밖으로 나가면 화면이 그쪽으로 따라 움직인다.
 // 판을 끌 때는 다른 판의 가장자리와 가운데, 그리고 옆 판들과 간격이 같아지는 자리에 붙고(Ctrl을 누르면 붙지 않는다), Shift를 누르면 가로나 세로로만 움직인다.
 
+import { ICON_STROKE } from './lib/icons'
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from 'react'
 import { Lock, Minus, Plus } from 'lucide-react'
 import { BOARD_DEFAULTS, type Pos } from './lib/api'
 import { arrange, type Arrange, type Placed } from './lib/arrange'
 import { TOKEN_SCREEN_IDS } from './lib/catalog'
-import { HANDLE } from './TokenScreen'
+import { HANDLE, HANDLE_AT } from './TokenScreen'
 
 export const BOARD_WIDTH = 560
 /** 색상 판은 한 줄에 색 11개(50~950)가 들어가도록 넓게 시작한다. */
@@ -950,7 +951,7 @@ export function Canvas({
                 }`}
               >
                 {board.title}
-                {isLocked(board.id) && <Lock size={12} strokeWidth={1.5} aria-label="잠김" />}
+                {isLocked(board.id) && <Lock size={12} strokeWidth={ICON_STROKE} aria-label="잠김" />}
               </div>
               {/* 바깥은 선택 표시가 붙는 틀이고, 안쪽이 판의 실제 모양이다. 투명도를 낮춰도 선택 표시는 흐려지지 않는다. */}
               <div
@@ -973,10 +974,10 @@ export function Canvas({
                 </div>
                 {isSelected && (
                   <>
-                    <span className={`${HANDLE} -top-[3px] -left-[3px]`} />
-                    <span className={`${HANDLE} -top-[3px] -right-[3px]`} />
-                    <span className={`${HANDLE} -bottom-[3px] -left-[3px]`} />
-                    <span className={`${HANDLE} -right-[3px] -bottom-[3px]`} />
+                    <span className={`${HANDLE} ${HANDLE_AT.nw}`} />
+                    <span className={`${HANDLE} ${HANDLE_AT.ne}`} />
+                    <span className={`${HANDLE} ${HANDLE_AT.sw}`} />
+                    <span className={`${HANDLE} ${HANDLE_AT.se}`} />
                   </>
                 )}
               </div>
@@ -1011,7 +1012,7 @@ export function Canvas({
                       key={corner}
                       data-resize={corner}
                       data-resize-id={picture.id}
-                      className={`${HANDLE} ${corner.startsWith('n') ? '-top-[3px]' : '-bottom-[3px]'} ${corner.endsWith('w') ? '-left-[3px]' : '-right-[3px]'}`}
+                      className={`${HANDLE} ${HANDLE_AT[corner]}`}
                       style={{ pointerEvents: 'auto', cursor: corner === 'nw' || corner === 'se' ? 'nwse-resize' : 'nesw-resize' }}
                     />
                   ))}
@@ -1042,7 +1043,7 @@ export function Canvas({
                 const { along, aside } = labelPlace(g)
                 return (
                   <span
-                    className="absolute -translate-x-1/2 -translate-y-1/2 [scale:var(--unzoom)] rounded-xs bg-guide px-chip-x type-caption-strong whitespace-nowrap text-on-selection tabular-nums!"
+                    className="absolute -translate-x-1/2 -translate-y-1/2 [scale:var(--unzoom)] rounded-tag bg-guide px-chip-x type-caption-strong whitespace-nowrap text-on-selection tabular-nums!"
                     style={g.vertical ? { left: aside, top: along } : { left: along, top: aside }}
                   >
                     {g.label}
@@ -1069,7 +1070,7 @@ export function Canvas({
 
       {marquee && (
         <div
-          className="pointer-events-none absolute z-20 border border-selection bg-selection/10"
+          className="pointer-events-none absolute z-20 border-edge border-selection bg-selection/10"
           style={{
             left: marquee.left,
             top: marquee.top,
@@ -1083,22 +1084,22 @@ export function Canvas({
 
       <div
         data-canvas-tools
-        className="absolute right-4 bottom-4 z-30 flex items-center gap-actions-tight rounded-lg border border-hairline bg-canvas p-menu shadow-float"
+        className="absolute right-[16px] bottom-[16px] z-30 flex items-center gap-actions-tight rounded-float border-edge border-hairline bg-canvas p-menu shadow-float"
         onPointerDown={(e) => e.stopPropagation()}
       >
         <button
           type="button"
           aria-label="축소"
           onClick={() => zoomBy(1 / 1.25)}
-          className="flex size-icon-button items-center justify-center rounded-md text-ink-soft hover:bg-hover hover:text-ink"
+          className="flex size-icon-button items-center justify-center rounded-control text-ink-soft hover:bg-hover hover:text-ink"
         >
-          <Minus size={16} strokeWidth={1.5} />
+          <Minus size={16} strokeWidth={ICON_STROKE} />
         </button>
         <button
           type="button"
           title="100%로 되돌리기"
           onClick={() => zoomBy(1 / view.z)}
-          className="h-control w-[56px] rounded-md text-center type-caption tabular-nums! hover:bg-hover"
+          className="h-control w-[56px] rounded-control text-center type-caption tabular-nums! hover:bg-hover"
         >
           {Math.round(view.z * 100)}%
         </button>
@@ -1106,9 +1107,9 @@ export function Canvas({
           type="button"
           aria-label="확대"
           onClick={() => zoomBy(1.25)}
-          className="flex size-icon-button items-center justify-center rounded-md text-ink-soft hover:bg-hover hover:text-ink"
+          className="flex size-icon-button items-center justify-center rounded-control text-ink-soft hover:bg-hover hover:text-ink"
         >
-          <Plus size={16} strokeWidth={1.5} />
+          <Plus size={16} strokeWidth={ICON_STROKE} />
         </button>
       </div>
     </div>

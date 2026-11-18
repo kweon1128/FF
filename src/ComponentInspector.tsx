@@ -1,3 +1,4 @@
+import { ICON_STROKE } from './lib/icons'
 import { useState } from 'react'
 import { Copy, CopyPlus, Trash2 } from 'lucide-react'
 import { DynamicIcon, iconNames } from 'lucide-react/dynamic'
@@ -110,7 +111,7 @@ function TokenField({
       <span className="flex items-center gap-field-row">
         {kind.id === 'color' && (
           <span
-            className="size-swatch-button shrink-0 rounded-md border border-hairline"
+            className="size-swatch-button shrink-0 rounded-control border-edge border-hairline"
             style={{ background: current ? swatchBackground(resolveColor(tokens, current.value) ?? 'transparent') : undefined }}
           />
         )}
@@ -176,11 +177,11 @@ function IconPicker({ value, onChange }: { value: string | undefined; onChange: 
               aria-label={name}
               aria-pressed={name === value}
               onClick={() => onChange(name)}
-              className={`flex size-icon-button items-center justify-center rounded-md outline-selection focus-visible:outline-2 ${
+              className={`flex size-icon-button items-center justify-center rounded-control outline-selection focus-visible:outline-focus ${
                 name === value ? 'bg-selection-soft text-ink' : 'text-ink-soft hover:bg-hover hover:text-ink'
               }`}
             >
-              <DynamicIcon name={name} size={16} strokeWidth={1.5} />
+              <DynamicIcon name={name} size={16} strokeWidth={ICON_STROKE} />
             </button>
           ))}
         </div>
@@ -371,15 +372,15 @@ export function ComponentInspector({
 
       <Section title="아이콘">
         <div className="space-y-fields">
-          <div role="group" aria-label="아이콘 위치" className="flex gap-actions-tight rounded-md bg-hover p-menu">
+          <div role="group" aria-label="아이콘 위치" className="flex gap-actions-tight rounded-control bg-hover p-menu">
             {ICON_POSITIONS.map(({ id, label }) => (
               <button
                 key={id}
                 type="button"
                 aria-pressed={comp.iconPos === id}
                 onClick={() => common({ iconPos: id })}
-                className={`h-compact flex-1 rounded-sm type-label outline-selection focus-visible:outline-2 ${
-                  comp.iconPos === id ? 'border border-hairline bg-canvas text-ink' : 'text-ink-soft hover:text-ink'
+                className={`h-compact flex-1 rounded-small type-label outline-selection focus-visible:outline-focus ${
+                  comp.iconPos === id ? 'border-edge border-hairline bg-canvas text-ink' : 'text-ink-soft hover:text-ink'
                 }`}
               >
                 {label}
@@ -398,7 +399,7 @@ export function ComponentInspector({
         </div>
         <div className="mt-blocks -ml-button-ghost-x">
           <Button variant="ghost" onClick={onCopyCss}>
-            <Copy size={16} strokeWidth={1.5} />
+            <Copy size={16} strokeWidth={ICON_STROKE} />
             CSS 복사
           </Button>
         </div>
@@ -410,12 +411,12 @@ export function ComponentInspector({
           {cell && single && variant && (
             <>
               <Button variant="ghost" title="Ctrl+D" onClick={() => onDuplicateVariant(cell.v)}>
-                <CopyPlus size={16} strokeWidth={1.5} />
+                <CopyPlus size={16} strokeWidth={ICON_STROKE} />
                 종류 복제
               </Button>
               {comp.variants.length > 1 && (
                 <Button variant="danger" onClick={() => onDeleteVariant(cell.v)}>
-                  <Trash2 size={16} strokeWidth={1.5} />
+                  <Trash2 size={16} strokeWidth={ICON_STROKE} />
                   종류 삭제
                 </Button>
               )}
@@ -424,19 +425,19 @@ export function ComponentInspector({
           {cell && single && size && (
             <>
               <Button variant="ghost" onClick={() => onDuplicateSize(cell.s)}>
-                <CopyPlus size={16} strokeWidth={1.5} />
+                <CopyPlus size={16} strokeWidth={ICON_STROKE} />
                 크기 복제
               </Button>
               {comp.sizes.length > 1 && (
                 <Button variant="danger" onClick={() => onDeleteSize(cell.s)}>
-                  <Trash2 size={16} strokeWidth={1.5} />
+                  <Trash2 size={16} strokeWidth={ICON_STROKE} />
                   크기 삭제
                 </Button>
               )}
             </>
           )}
           <Button variant="danger" onClick={onDelete}>
-            <Trash2 size={16} strokeWidth={1.5} />
+            <Trash2 size={16} strokeWidth={ICON_STROKE} />
             컴포넌트 삭제
           </Button>
         </div>

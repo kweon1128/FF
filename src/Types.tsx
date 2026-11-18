@@ -1,6 +1,7 @@
 // 의미 글꼴: 글꼴 판의 재료 가운데 실제로 쓰는 조합(글꼴 종류 · 글자 크기 · 굵기)에 쓰임새의 이름을 붙여 모아 둔 판과, 그것을 만들고 고치는 양식.
 // 한 줄에 조합 하나. 이름과 가리키는 값, 설명, 그 조합으로 적은 견본을 나란히 보여 준다.
 
+import { ICON_STROKE } from './lib/icons'
 import { useContext, useState, type CSSProperties, type FormEvent } from 'react'
 import { PreviewSpaceContext } from './ColorUses'
 import { ArrowUpRight, TriangleAlert, X } from 'lucide-react'
@@ -19,7 +20,7 @@ const FONT = KINDS.font
 const SIZE = KINDS.size
 const WEIGHT = KINDS.weight
 // 예시의 바탕이 판의 바탕과 같은 색이어도 가장자리가 보이게 하는 옅은 선.
-const EDGE = 'shadow-[inset_0_0_0_1px_rgb(0_0_0/0.1)]'
+const EDGE = 'shadow-[inset_0_0_0_var(--border-width-edge)_rgb(0_0_0/0.1)]'
 
 
 /**
@@ -65,7 +66,7 @@ function Follows({ label, bound, own, onClear }: { label: string; bound: string;
         </span>
         {own && (
           <button type="button" aria-label={`직접 정한 ${label} 지우기`} title={`이 조합에만 직접 정해 둔 값이에요. 지우면 글자 크기의 값(${bound || '정해지지 않음'})을 따라요`} onClick={onClear} className={ICON_BUTTON}>
-            <X size={16} strokeWidth={1.5} />
+            <X size={16} strokeWidth={ICON_STROKE} />
           </button>
         )}
       </span>
@@ -92,7 +93,7 @@ export function TypeSample({ shape, look, around, words: written = '' }: { shape
   const faint = `color-mix(in oklab, ${around.ink} 16%, ${around.surface})`
   const soft = `color-mix(in oklab, ${around.ink} 8%, ${around.surface})`
   /** 곁에 놓이는 글의 자리. 높이 8px의 막대이고 폭은 자리마다 다르다. */
-  const bar = (width: string, more = '') => <span className={`block h-[8px] rounded-sm ${width} ${more}`} style={{ background: faint }} />
+  const bar = (width: string, more = '') => <span className={`block h-[8px] rounded-small ${width} ${more}`} style={{ background: faint }} />
   const words = (text: string, more = '', style?: CSSProperties) => (
     <span key={text} data-sample className={`block ${more}`} style={{ ...own, ...style }}>
       {text}
@@ -119,14 +120,14 @@ export function TypeSample({ shape, look, around, words: written = '' }: { shape
         return (
           <span className="flex flex-wrap items-center gap-actions">
             {/* 첫 버튼은 채우고 나머지는 테두리만 둔다. */}
-            {list.map((text, i) => words(text, 'rounded-md px-button-x py-box whitespace-nowrap', i === 0 ? { background: around.ink, color: around.surface } : { boxShadow: `inset 0 0 0 1px ${faint}` }))}
+            {list.map((text, i) => words(text, 'rounded-control px-button-x py-box whitespace-nowrap', i === 0 ? { background: around.ink, color: around.surface } : { boxShadow: `inset 0 0 0 1px ${faint}` }))}
           </span>
         )
       case 'field':
         return (
           <>
             {words(all, 'break-words')}
-            <span className="mt-label flex h-control w-[160px] items-center rounded-md px-input-x" style={{ boxShadow: `inset 0 0 0 1px ${faint}` }}>
+            <span className="mt-label flex h-control w-[160px] items-center rounded-control px-input-x" style={{ boxShadow: `inset 0 0 0 1px ${faint}` }}>
               {bar('w-[64px]')}
             </span>
           </>
@@ -134,7 +135,7 @@ export function TypeSample({ shape, look, around, words: written = '' }: { shape
       case 'menu':
         return (
           <span className="block w-[160px] space-y-rows">
-            {list.map((text) => words(text, 'rounded-md px-row-x py-menu whitespace-nowrap'))}
+            {list.map((text) => words(text, 'rounded-row px-row-x py-menu whitespace-nowrap'))}
           </span>
         )
       case 'menu-on':
@@ -142,7 +143,7 @@ export function TypeSample({ shape, look, around, words: written = '' }: { shape
         return (
           <span className="block w-[160px] space-y-rows">
             <span className="flex h-row items-center px-row-x">{bar('w-[48px]')}</span>
-            {words(all, 'rounded-md px-row-x py-menu whitespace-nowrap', { background: soft })}
+            {words(all, 'rounded-row px-row-x py-menu whitespace-nowrap', { background: soft })}
             <span className="flex h-row items-center px-row-x">{bar('w-[64px]')}</span>
           </span>
         )
@@ -156,7 +157,7 @@ export function TypeSample({ shape, look, around, words: written = '' }: { shape
         return (
           <span className="flex flex-wrap items-center gap-blocks">
             {/* 첫 뱃지는 옅은 바탕, 나머지는 채운다. */}
-            {list.map((text, i) => words(text, 'rounded-full px-row-x py-menu whitespace-nowrap', i === 0 ? { background: soft } : { background: around.ink, color: around.surface }))}
+            {list.map((text, i) => words(text, 'rounded-pill px-row-x py-menu whitespace-nowrap', i === 0 ? { background: soft } : { background: around.ink, color: around.surface }))}
           </span>
         )
       case 'number':
@@ -174,7 +175,7 @@ export function TypeSample({ shape, look, around, words: written = '' }: { shape
         return (
           <>
             {bar('w-[48px]')}
-            <span className="mt-blocks flex">{words(all, 'rounded-sm px-chip-x break-all', { background: soft })}</span>
+            <span className="mt-blocks flex">{words(all, 'rounded-small px-chip-x break-all', { background: soft })}</span>
           </>
         )
       default:
@@ -182,14 +183,14 @@ export function TypeSample({ shape, look, around, words: written = '' }: { shape
     }
   }
   return (
-    <span className={`block w-full overflow-hidden rounded-md px-section-x py-section-y ${EDGE}`} style={{ ...space, background: around.surface, color: around.ink }}>
+    <span className={`block w-full overflow-hidden rounded-card px-section-x py-section-y ${EDGE}`} style={{ ...space, background: around.surface, color: around.ink }}>
       {scene()}
     </span>
   )
 }
 
 /**
- * 의미 글꼴 판의 내용. 묶음(제목, 본문, 보조, 조작, 숫자·코드)별로 묶어 보여 준다. 의미 색 판과 같은 짜임이다.
+ * 의미 글꼴 판의 내용. 묶음(제목, 본문, 보조, 컨트롤, 숫자·코드)별로 묶어 보여 준다. 의미 색 판과 같은 짜임이다.
  * 묶음의 순서와 묶음 안의 순서는 파일에 적힌 순서이고, 끌어서 바꾸면 파일의 순서가 바뀐다.
  * 줄마다 왼쪽에 이름, 가리키는 값, 설명이 있고 오른쪽에 그 조합이 쓰인 장면이 있다.
  */
@@ -236,9 +237,9 @@ export function TypeList({
           data-broken={broken.length}
           title="누르면 첫 조합을 골라요. 오른쪽에서 없어진 값을 다시 골라 주세요"
           onClick={() => onSelect(broken[0].name, false)}
-          className={`mb-blocks flex h-control items-center gap-row-inner rounded-md px-button-x type-body text-danger ${HOVER} ${OUTLINE}`}
+          className={`mb-blocks flex h-control items-center gap-row-inner rounded-control px-button-x type-body text-danger ${HOVER} ${OUTLINE}`}
         >
-          <TriangleAlert size={16} strokeWidth={1.5} />
+          <TriangleAlert size={16} strokeWidth={ICON_STROKE} />
           가리키는 값이 없어진 조합 {broken.length}개
         </button>
       )}
@@ -254,12 +255,12 @@ export function TypeList({
                   data-type-title={use}
                   onClick={(e) => !groupDrag.justDragged() && onSelectGroup(list.map((t) => t.name), isAdditive(e), false)}
                   {...groupDrag.grab(use)}
-                  className="cursor-grab active:cursor-grabbing rounded-sm px-chip-x type-heading outline-selection hover:bg-hover focus-visible:outline-2"
+                  className="cursor-grab active:cursor-grabbing rounded-small px-chip-x type-heading outline-selection hover:bg-hover focus-visible:outline-focus"
                 >
                   {TYPE_USES.find((u) => u.id === use)!.label}
                 </button>
               </div>
-              <div className="space-y-rows rounded-lg border border-hairline bg-canvas p-menu">
+              <div className="space-y-rows rounded-float border-edge border-hairline bg-canvas p-menu">
                 {list.map((t) => {
                   const short = shortName(STYLE, t.name)
                   const { text, shape, words, more } = readTypeNote(t.note, short)
@@ -275,7 +276,7 @@ export function TypeList({
                       onClick={(e) => !rows.justDragged() && onSelect(t.name, isAdditive(e))}
                       onDoubleClick={() => onRename(t.name)}
                       {...rows.grab(t.name)}
-                      className={`group relative flex w-full items-center gap-columns rounded-md px-board-row-x py-board-row-y text-left select-none ${rows.moving(t.name) ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
+                      className={`group relative flex w-full items-center gap-columns rounded-row px-board-row-x py-board-row-y text-left select-none ${rows.moving(t.name) ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
                     >
                       {rows.line(t.name)}
                       <span className="w-row-name shrink-0">
@@ -344,7 +345,7 @@ function PartField({
         ))}
       </select>
         <button type="button" aria-label={`${label} 보러 가기`} title={`글꼴 판에서 ${shortName(kind, value)} 보기`} disabled={missing} onClick={() => onOpen(value)} className={`${ICON_BUTTON} disabled:pointer-events-none disabled:opacity-disabled`}>
-          <ArrowUpRight size={16} strokeWidth={1.5} />
+          <ArrowUpRight size={16} strokeWidth={ICON_STROKE} />
         </button>
       </span>
     </Field>
@@ -482,7 +483,7 @@ export function TypeInspector({
                 <button
                   type="button"
                   onClick={() => onOpenComponent(u.index)}
-                  className="-ml-button-ghost-x flex h-control max-w-full items-center rounded-md px-button-ghost-x type-label outline-selection hover:bg-hover focus-visible:outline-2"
+                  className="-ml-button-ghost-x flex h-control max-w-full items-center rounded-control px-button-ghost-x type-label outline-selection hover:bg-hover focus-visible:outline-focus"
                 >
                   <span className="truncate">{u.name}</span>
                   <span className="ml-row-inner shrink-0 type-body text-ink-faint">{u.where.length}곳</span>

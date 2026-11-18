@@ -1,3 +1,4 @@
+import { ICON_STROKE } from './lib/icons'
 import { useState } from 'react'
 import { ArrowLeft, ArrowRight, Check, ChevronDown, Folder, Plus } from 'lucide-react'
 
@@ -26,7 +27,7 @@ export function TopBar({
   const [open, setOpen] = useState(false)
 
   return (
-    <header className="flex h-bar shrink-0 items-center justify-between border-b border-hairline px-bar-x">
+    <header className="flex h-bar shrink-0 items-center justify-between border-b-divider border-hairline px-bar-x">
       <div className="flex items-center gap-actions-tight">
       <div className="relative">
         <button
@@ -34,11 +35,11 @@ export function TopBar({
           aria-haspopup="menu"
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
-          className="flex h-control items-center gap-row-inner rounded-md px-button-ghost-x type-label hover:bg-hover"
+          className="flex h-control items-center gap-row-inner rounded-control px-button-ghost-x type-label hover:bg-hover"
         >
-          <Folder size={16} strokeWidth={1.5} />
+          <Folder size={16} strokeWidth={ICON_STROKE} />
           {current ?? '디자인 시스템 없음'}
-          <ChevronDown size={16} strokeWidth={1.5} className="text-ink-faint" />
+          <ChevronDown size={16} strokeWidth={ICON_STROKE} className="text-ink-faint" />
         </button>
 
         {open && (
@@ -47,7 +48,8 @@ export function TopBar({
             <div
               role="menu"
               // 줄 사이를 띄워, 마우스를 올린 바탕이 옆 줄과 붙지 않게 한다.
-              className="absolute top-9 left-0 z-20 w-menu space-y-rows rounded-lg border border-hairline bg-canvas p-menu shadow-float"
+              // 버튼 바로 아래에서 4px 띄워 놓는다(고르는 목록과 같다). 버튼의 높이를 숫자로 다시 적지 않으므로 높이가 바뀌어도 붙어 다닌다.
+              className="absolute top-full left-0 mt-[4px] z-20 w-menu space-y-rows rounded-float border-edge border-hairline bg-canvas p-menu shadow-float"
             >
               {systems.map((name) => (
                 <button
@@ -58,13 +60,13 @@ export function TopBar({
                     setOpen(false)
                     onSelect(name)
                   }}
-                  className="flex h-row w-full items-center justify-between rounded-md px-row-x text-left hover:bg-hover"
+                  className="flex h-row w-full items-center justify-between rounded-row px-row-x text-left hover:bg-hover"
                 >
                   <span className="truncate">{name}</span>
-                  {name === current && <Check size={16} strokeWidth={1.5} />}
+                  {name === current && <Check size={16} strokeWidth={ICON_STROKE} />}
                 </button>
               ))}
-              {systems.length > 0 && <div className="my-menu border-t border-hairline-soft" />}
+              {systems.length > 0 && <div className="my-menu border-t-divider border-hairline-soft" />}
               <button
                 type="button"
                 role="menuitem"
@@ -72,9 +74,9 @@ export function TopBar({
                   setOpen(false)
                   onNew()
                 }}
-                className="flex h-row w-full items-center gap-row-inner rounded-md px-row-x text-left text-ink-soft hover:bg-hover hover:text-ink"
+                className="flex h-row w-full items-center gap-row-inner rounded-row px-row-x text-left text-ink-soft hover:bg-hover hover:text-ink"
               >
-                <Plus size={16} strokeWidth={1.5} />새 디자인 시스템
+                <Plus size={16} strokeWidth={ICON_STROKE} />새 디자인 시스템
               </button>
             </div>
           </>
@@ -92,9 +94,9 @@ export function TopBar({
             title={`${label} (${keys})`}
             disabled={!run}
             onClick={run}
-            className="flex size-icon-button items-center justify-center rounded-md text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2 disabled:pointer-events-none disabled:opacity-disabled"
+            className="flex size-icon-button items-center justify-center rounded-control text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-focus disabled:pointer-events-none disabled:opacity-disabled"
           >
-            <Icon size={16} strokeWidth={1.5} />
+            <Icon size={16} strokeWidth={ICON_STROKE} />
           </button>
         ))}
       </div>

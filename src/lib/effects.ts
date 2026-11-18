@@ -12,7 +12,7 @@ export const isEffectKind = (id: string): id is EffectKind => id === 'shadow' ||
 
 /**
  * 예시의 모양. 그 효과를 어떤 자리에 놓아 보여 줄지다. 종류마다 고를 수 있는 모양이 다르다.
- * 적어 두지 않은 값은 이름에서 짐작하고(float는 메뉴, dialog는 창, disabled는 꺼짐), 짐작할 수 없으면 종류의 마지막 모양을 쓴다.
+ * 적어 두지 않은 값은 이름에서 짐작하고(float는 메뉴, dialog는 창, disabled는 비활성), 짐작할 수 없으면 종류의 마지막 모양을 쓴다.
  */
 export type EffectShape = 'menu' | 'dialog' | 'toast' | 'card' | 'disabled' | 'scrim' | 'layer' | 'glass'
 
@@ -21,13 +21,13 @@ export const EFFECT_SHAPES: { id: EffectShape; kind: EffectKind; label: string; 
   { id: 'dialog', kind: 'shadow', label: '창', hint: '화면 위에 뜨는 창' },
   { id: 'toast', kind: 'shadow', label: '알림', hint: '잠깐 뜨는 알림' },
   { id: 'card', kind: 'shadow', label: '카드', hint: '살짝 떠 있는 면' },
-  { id: 'disabled', kind: 'opacity', label: '꺼짐', hint: '누를 수 없는 버튼' },
-  { id: 'scrim', kind: 'opacity', label: '가림막', hint: '창 뒤의 화면을 가리는 막' },
+  { id: 'disabled', kind: 'opacity', label: '비활성', hint: '누를 수 없는 버튼' },
+  { id: 'scrim', kind: 'opacity', label: '배경 가림', hint: '창 뒤의 화면을 가리는 막' },
   { id: 'layer', kind: 'opacity', label: '겹침', hint: '뒤가 비치는 면' },
   { id: 'glass', kind: 'blur', label: '유리', hint: '뒤가 흐려 보이는 면' },
 ]
 
-/** 모양마다의 기본 예시 문구. 글자가 없는 모양(가림막, 겹침, 유리)은 비어 있다. 메뉴는 ", "로 나눠 줄마다 적는다. */
+/** 모양마다의 기본 예시 문구. 글자가 없는 모양(배경 가림, 겹침, 유리)은 비어 있다. 메뉴는 ", "로 나눠 줄마다 적는다. */
 export const EFFECT_WORDS: Record<EffectShape, string> = {
   menu: '이름 바꾸기, 복제, 삭제',
   dialog: '삭제할까요?',

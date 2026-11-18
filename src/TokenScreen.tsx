@@ -1,3 +1,4 @@
+import { ICON_STROKE } from './lib/icons'
 import { createContext, type CSSProperties, type MouseEvent } from 'react'
 import { ChevronsDownUp, ChevronsUpDown, Plus, RotateCcw, Rows3 } from 'lucide-react'
 import type { Token } from './lib/api'
@@ -8,10 +9,14 @@ import { SCALE_STEPS } from './lib/scale'
 import type { RoleUse } from './lib/roles'
 import { suggestLine } from './lib/tokens'
 import { EffectList } from './Effects'
+import { RadiusList } from './Radius'
+import { BorderList } from './Borders'
+import { isBorderKind } from './lib/borders'
 import { isEffectKind } from './lib/effects'
 import { isFreeKind, orderKinds } from './lib/order'
 import type { SpaceUse } from './lib/spacing'
 import type { SizeGroup } from './lib/sizes'
+import type { RadiusGroup } from './lib/radius'
 import { useReorder } from './useReorder'
 import { SpaceList } from './Spacing'
 import { SizeList } from './Sizes'
@@ -60,13 +65,15 @@ export type SectionProps = {
   onMoveKind: (kinds: Kind[], kind: Kind, before: Kind | null) => void
   /** 의미 간격의 묶음을 끌어 다른 자리에 놓는다. */
   onMoveSpaceGroup: (use: SpaceUse, before: SpaceUse | null) => void
-  /** 의미 크기의 묶음을 끌어 같은 종류(높이, 폭, 정사각) 안의 다른 자리에 놓는다. */
+  /** 의미 크기의 묶음을 끌어 같은 종류(높이, 폭, 정사각형) 안의 다른 자리에 놓는다. */
   onMoveSizeGroup: (kind: Kind, group: SizeGroup, before: SizeGroup | null) => void
+  /** 의미 모서리의 묶음을 끌어 다른 자리에 놓는다. */
+  onMoveRadiusGroup: (group: RadiusGroup, before: RadiusGroup | null) => void
   /** 그 종류를 기본 순서로 돌려놓는 일. 이미 기본 순서면 undefined(버튼이 꺼진다). */
   resetOf: (kind: Kind) => (() => void) | undefined
   /** 의미 글꼴 판의 묶음과 조합을 기본 순서로 돌려놓는다. 이미 기본 순서면 없다. */
   onResetTypes?: () => void
-  /** 이 판을 접었는지. 접으면 설명과 예시를 숨기고 이름과 값만 보여 준다(의미 글꼴, 의미 간격, 효과 판). */
+  /** 이 판을 접었는지. 접으면 설명과 예시를 숨기고 이름과 값만 보여 준다(의미 글꼴, 의미 간격, 효과, 의미 모서리, 의미 테두리 판). */
   detailsFolded?: boolean
   /** 접기를 바꾼다. 주면 종류가 하나뿐인 판의 제목 줄에 접기 버튼이 나온다(종류가 여럿인 판은 판 위에 따로 둔다). */
   onToggleDetails?: () => void
@@ -78,17 +85,17 @@ export type SectionProps = {
   onMakeTypes?: () => void
 }
 
-/** 판을 접었는지(설명과 예시를 숨기는지). 판 안의 목록들이 읽는다. 의미 글꼴, 의미 간격, 효과 판에서 쓴다. */
+/** 판을 접었는지(설명과 예시를 숨기는지). 판 안의 목록들이 읽는다. 의미 글꼴, 의미 간격, 효과, 의미 모서리 판에서 쓴다. */
 export const DetailsFolded = createContext(false)
 
 /** 판 안에 묶음 제목이 따로 있는 종류. 그 종류 하나로 된 판에서는 종류의 제목을 두지 않는다. */
-const OWN_TITLES = ['color', 'role', 'style', 'spaceuse']
+const OWN_TITLES = ['color', 'role', 'style', 'spaceuse', 'radius']
 
 /** Shift, Ctrl, Cmd 중 하나를 누른 채 누르면 여러 개 선택이다. */
 export const isAdditive = (e: MouseEvent) => e.shiftKey || e.ctrlKey || e.metaKey
 
 /** 한 화면에 속한 종류들을 차례로 그린다. 전체 보기의 판 안에서도 그대로 쓴다. */
-export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGroup, onRename, onSelectGroup, emptyGroups, pickedGroup, onPickGroup, folded, onReorderGroup, rolesFolded, onMoveRole, onMoveRoleGroup, onMoveType, onMoveTypeGroup, onResetTypes, onMoveInKind, onMoveKind, onMoveSpaceGroup, onMoveSizeGroup, resetOf, detailsFolded, onToggleDetails, onMakeSizes, onMakeWeights, onMakeTypes }: SectionProps & { kinds: Kind[] }) {
+export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGroup, onRename, onSelectGroup, emptyGroups, pickedGroup, onPickGroup, folded, onReorderGroup, rolesFolded, onMoveRole, onMoveRoleGroup, onMoveType, onMoveTypeGroup, onResetTypes, onMoveInKind, onMoveKind, onMoveSpaceGroup, onMoveSizeGroup, onMoveRadiusGroup, resetOf, detailsFolded, onToggleDetails, onMakeSizes, onMakeWeights, onMakeTypes }: SectionProps & { kinds: Kind[] }) {
   const single = kinds.length === 1
   // 값이 있는 종류는 파일에 적힌 차례대로 놓는다(끌어서 바꾼 차례가 파일에 남는다). 값이 없는 종류는 그 뒤에 정해진 차례대로 온다.
   const ordered = orderKinds(tokens, kinds)
@@ -120,13 +127,13 @@ export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGr
               // 글자 크기와 굵기는 낱개보다 한 벌로 정하는 것이라 "한 벌 만들기"를 함께 둔다.
               // 색은 목록마다, 의미 색은 판 위에 추가 버튼이 따로 있다. 이제 쓰지 않는 종류에는 추가가 없다.
               const makeSet = kind.id === 'size' ? onMakeSizes : kind.id === 'weight' ? onMakeWeights : kind.id === 'style' ? onMakeTypes : undefined
-              // 의미 크기(높이, 폭, 정사각)의 추가도 판 위에 하나만 있고, 종류는 창에서 고른다.
-              const canAdd = kind.id !== 'color' && kind.id !== 'role' && kind.id !== 'height' && kind.id !== 'width' && kind.id !== 'square' && !kind.legacy
+              // 의미 크기(높이, 폭, 정사각형)와 의미 테두리(테두리 선, 외곽선)의 추가도 판 위에 하나만 있고, 종류는 창에서 고른다.
+              const canAdd = !['color', 'role', 'height', 'width', 'square', 'border', 'outline'].includes(kind.id) && !kind.legacy
               if (single && !canAdd && !makeSet) return null
               return (
                 <div className="mb-heading flex h-compact items-center justify-between">
                   {/* 종류의 제목. 누르면 그 종류의 값이 모두 선택되고, 끌면 판 안에서 종류의 차례가 바뀐다.
-                      판 안에 묶음 제목이 따로 있는 종류(색, 의미 색, 의미 글꼴, 의미 간격)는 판이 그 종류 하나뿐이라 제목을 두지 않는다. */}
+                      판 안에 묶음 제목이 따로 있는 종류(색, 의미 색, 의미 글꼴, 의미 간격, 의미 모서리)는 판이 그 종류 하나뿐이라 제목을 두지 않는다. */}
                   {single && OWN_TITLES.includes(kind.id) ? (
                     <span />
                   ) : (
@@ -135,7 +142,7 @@ export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGr
                         type="button"
                         onClick={(e) => !kindDrag.justDragged() && items.length > 0 && onSelectGroup(items.map((t) => t.name), isAdditive(e), false)}
                         {...(canMove ? kindDrag.grab(kind.id) : {})}
-                        className={`-ml-chip-x rounded-sm px-chip-x type-heading outline-selection hover:bg-hover focus-visible:outline-2 ${canMove ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                        className={`-ml-chip-x rounded-small px-chip-x type-heading outline-selection hover:bg-hover focus-visible:outline-focus ${canMove ? 'cursor-grab active:cursor-grabbing' : ''}`}
                       >
                         {kind.title}
                       </button>
@@ -148,12 +155,12 @@ export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGr
                     {single && onToggleDetails && <FoldButton folded={!!detailsFolded} title="설명과 예시를 모두 숨기거나 보여요" onToggle={onToggleDetails} />}
                     {makeSet && (
                       <Button variant="ghost" onClick={makeSet}>
-                        <Rows3 size={16} strokeWidth={1.5} />한 벌 만들기
+                        <Rows3 size={16} strokeWidth={ICON_STROKE} />한 벌 만들기
                       </Button>
                     )}
                     {canAdd && (
                       <Button variant="ghost" aria-label={kind.addLabel} onClick={() => onAdd(kind)}>
-                        <Plus size={16} strokeWidth={1.5} />
+                        <Plus size={16} strokeWidth={ICON_STROKE} />
                         추가
                       </Button>
                     )}
@@ -175,8 +182,14 @@ export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGr
               // 의미 간격은 묶음마다 한 줄에 하나씩, 그 간격이 쓰인 모습과 함께 보여 준다.
               <SpaceList kind={kind} items={items} all={tokens} selected={selected} onSelect={onSelect} onSelectGroup={onSelectGroup} onRename={onRename} onMove={onMove} onMoveGroup={onMoveSpaceGroup} />
             ) : kind.id === 'height' || kind.id === 'width' || kind.id === 'square' ? (
-              // 의미 크기(높이, 폭, 정사각)는 묶음마다 한 줄에 하나씩, 그 크기가 실제로 쓰인 모습과 함께 보여 준다.
+              // 의미 크기(높이, 폭, 정사각형)는 묶음마다 한 줄에 하나씩, 그 크기가 실제로 쓰인 모습과 함께 보여 준다.
               <SizeList kind={kind} items={items} all={tokens} selected={selected} onSelect={onSelect} onSelectGroup={onSelectGroup} onRename={onRename} onMove={onMove} onMoveGroup={(group, before) => onMoveSizeGroup(kind, group, before)} />
+            ) : isBorderKind(kind) ? (
+              // 의미 테두리(테두리 선, 외곽선)는 효과처럼 한 줄에 하나씩, 그 선이 그어진 모습과 함께 보여 준다.
+              <BorderList kind={kind} items={items} all={tokens} selected={selected} onSelect={onSelect} onRename={onRename} onMove={onMove} />
+            ) : kind.id === 'radius' ? (
+              // 의미 모서리는 묶음마다 한 줄에 하나씩, 그 둥글기가 실제로 쓰인 모습과 함께 보여 준다.
+              <RadiusList kind={kind} items={items} all={tokens} selected={selected} onSelect={onSelect} onSelectGroup={onSelectGroup} onRename={onRename} onMove={onMove} onMoveGroup={onMoveRadiusGroup} />
             ) : kind.tiles ? (
               <TileGrid {...list} />
             ) : (
@@ -194,7 +207,7 @@ export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGr
 export function FoldButton({ folded, title, onToggle }: { folded: boolean; title: string; onToggle: () => void }) {
   return (
     <Button variant="ghost" aria-pressed={folded} title={title} onClick={onToggle}>
-      {folded ? <ChevronsUpDown size={16} strokeWidth={1.5} /> : <ChevronsDownUp size={16} strokeWidth={1.5} />}
+      {folded ? <ChevronsUpDown size={16} strokeWidth={ICON_STROKE} /> : <ChevronsDownUp size={16} strokeWidth={ICON_STROKE} />}
       {folded ? '펼치기' : '접기'}
     </Button>
   )
@@ -204,7 +217,7 @@ export function FoldButton({ folded, title, onToggle }: { folded: boolean; title
 export function ResetButton({ title, onReset }: { title: string; onReset?: () => void }) {
   return (
     <Button variant="ghost" title={title} disabled={!onReset} onClick={onReset}>
-      <RotateCcw size={16} strokeWidth={1.5} />
+      <RotateCcw size={16} strokeWidth={ICON_STROKE} />
       원래대로
     </Button>
   )
@@ -229,7 +242,7 @@ export function AddColorButtons({
       {reset && <ResetButton title="목록과 그 안의 색을 기본 순서로 돌려놓아요" onReset={reset.run} />}
       {onToggleFold && <FoldButton folded={!!folded} title="색 아래의 이름과 값 글자를 모두 숨기거나 보여요" onToggle={onToggleFold} />}
       <Button variant="ghost" onClick={onAddGroup}>
-        <Plus size={16} strokeWidth={1.5} />
+        <Plus size={16} strokeWidth={ICON_STROKE} />
         목록 추가
       </Button>
     </span>
@@ -248,16 +261,26 @@ type ListProps = {
 }
 
 // 꼭짓점 사각형과 이름표는 확대 비율과 관계없이 화면에서 같은 크기로 보인다.
-export const HANDLE = 'pointer-events-none absolute z-10 size-[7px] border border-selection bg-canvas [scale:var(--unzoom)]'
+export const HANDLE = 'pointer-events-none absolute z-10 size-(--handle) border-edge border-selection bg-canvas [scale:var(--unzoom)] [--handle:7px] [--handle-at:calc((1px-var(--handle))/2)]'
+/**
+ * 손잡이가 놓이는 네 꼭짓점. 손잡이의 한가운데가 선택 테두리(1px) 위에 오도록, 손잡이 크기에서 테두리 굵기를 뺀 것의 절반만큼 바깥으로 내민다.
+ * 자리를 숫자로 따로 적지 않고 손잡이 크기(--handle)에서 계산하므로, 크기를 바꾸면 자리도 따라간다.
+ */
+export const HANDLE_AT = {
+  nw: 'top-(--handle-at) left-(--handle-at)',
+  ne: 'top-(--handle-at) right-(--handle-at)',
+  sw: 'bottom-(--handle-at) left-(--handle-at)',
+  se: 'right-(--handle-at) bottom-(--handle-at)',
+}
 
 /** 선택한 항목의 네 꼭짓점에 붙는 작은 사각형. */
 export function SelectionHandles() {
   return (
     <>
-      <span className={`${HANDLE} -top-[3px] -left-[3px]`} />
-      <span className={`${HANDLE} -top-[3px] -right-[3px]`} />
-      <span className={`${HANDLE} -bottom-[3px] -left-[3px]`} />
-      <span className={`${HANDLE} -right-[3px] -bottom-[3px]`} />
+      <span className={`${HANDLE} ${HANDLE_AT.nw}`} />
+      <span className={`${HANDLE} ${HANDLE_AT.ne}`} />
+      <span className={`${HANDLE} ${HANDLE_AT.sw}`} />
+      <span className={`${HANDLE} ${HANDLE_AT.se}`} />
     </>
   )
 }
@@ -265,7 +288,7 @@ export function SelectionHandles() {
 /** 선택한 항목 바로 아래에 붙는 파란 이름표(이름 · 값). 주변에 무엇이 있든 가장 위에 겹쳐 보인다. */
 export function SelectionTag({ name, value }: { name: string; value?: string }) {
   return (
-    <span className="pointer-events-none absolute top-full left-1/2 z-20 mt-blocks origin-top -translate-x-1/2 [scale:var(--unzoom)] rounded-xs bg-selection px-chip-x type-caption-strong whitespace-nowrap text-on-selection">
+    <span className="pointer-events-none absolute top-full left-1/2 z-20 mt-blocks origin-top -translate-x-1/2 [scale:var(--unzoom)] rounded-tag bg-selection px-chip-x type-caption-strong whitespace-nowrap text-on-selection">
       {value === undefined ? name : `${name} · ${value}`}
     </span>
   )
@@ -332,13 +355,13 @@ function ColorGroups({
         실제 값이 아니라 자리 표시다. 누르면 목록 추가 창이 열린다.
       */}
       {groups.size === 1 && (
-        <button type="button" aria-label="목록 추가" onClick={onAddGroup} className="group block w-full text-left outline-selection focus-visible:outline-2">
+        <button type="button" aria-label="목록 추가" onClick={onAddGroup} className="group block w-full text-left outline-selection focus-visible:outline-focus">
           <span className="mb-heading block type-title text-ink-faint">primary</span>
           <span className={`grid grid-cols-11 gap-x-cells ${folded ? 'gap-y-cells' : 'gap-y-cells-labeled'}`}>
             {SCALE_STEPS.map((step) => (
               <span key={step}>
                 {/* 아직 없는 목록의 자리를 보여 주는 점선 상자. */}
-                <span className="block h-[64px] rounded-md dash-box bg-canvas group-hover:bg-hover group-hover:bg-none" />
+                <span className="block h-[64px] rounded-card dash-box bg-canvas group-hover:bg-hover group-hover:bg-none" />
                 {!folded && <span className="mt-blocks block type-body text-ink-faint">{step}</span>}
               </span>
             ))}
@@ -366,7 +389,7 @@ function ColorGroups({
             // 이름을 잡고 끌면 목록이 옮겨진다. 색이 없는 목록은 끌 수 없다.
             {...(list.length > 0 ? listDrag.grab(group) : {})}
             onDoubleClick={() => list.length > 0 && onSelectGroup(list.map((t) => t.name), false, true)}
-            className={`rounded-sm px-chip-x outline-selection hover:bg-hover focus-visible:outline-2 ${list.length > 0 ? 'cursor-grab active:cursor-grabbing' : ''} ${group ? 'type-title' : 'type-heading'} ${
+            className={`rounded-small px-chip-x outline-selection hover:bg-hover focus-visible:outline-focus ${list.length > 0 ? 'cursor-grab active:cursor-grabbing' : ''} ${group ? 'type-title' : 'type-heading'} ${
               list.length === 0 && pickedGroup === group ? 'line-1' : ''
             }`}
             style={{ '--edge': '0px' } as CSSProperties}
@@ -379,9 +402,9 @@ function ColorGroups({
             title={group ? `${group} 목록에 색 추가` : '예외 색 추가'}
             aria-label={group ? `${group} 목록에 색 추가` : '예외 색 추가'}
             onClick={() => onAdd(kind, group)}
-            className="flex size-icon-button-corner items-center justify-center rounded-sm text-ink-faint outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2"
+            className="flex size-icon-button-corner items-center justify-center rounded-small text-ink-faint outline-selection hover:bg-hover hover:text-ink focus-visible:outline-focus"
           >
-            <Plus size={16} strokeWidth={1.5} />
+            <Plus size={16} strokeWidth={ICON_STROKE} />
           </button>
           </div>
           {/* 한 줄에 11칸. 50부터 950까지 11단계인 한 목록이 한 줄에 들어간다. 접으면 글자가 없어지므로 줄 사이를 좁힌다. */}
@@ -410,7 +433,7 @@ function ColorGroups({
                   {!group && reorder.line(t.name)}
                   <span className="relative block">
                     <span
-                      className={`block h-[64px] rounded-md shadow-[inset_0_0_0_1px_rgb(0_0_0/0.1)] ${isSelected ? SELECTED : ''} group-hover:line-2 group-focus-visible:line-2 ${OUTLINE}`}
+                      className={`block h-[64px] rounded-card shadow-[inset_0_0_0_var(--border-width-edge)_rgb(0_0_0/0.1)] ${isSelected ? SELECTED : ''} group-hover:line-2 group-focus-visible:line-2 ${OUTLINE}`}
                       // 옅은 선은 색 면의 안쪽에 그린다(바깥으로 삐져나오지 않는다). 테두리가 없으므로 선택 선도 면의 가장자리에 딱 맞춘다.
                       style={{ background: swatchBackground(t.value), '--edge': '0px' } as CSSProperties}
                     />
@@ -441,19 +464,13 @@ function ColorGroups({
   )
 }
 
-/** 네모 칸 하나에 값이 적용된 모습. */
-function TileSample({ kind, value }: { kind: Kind; value: string }) {
-  const BOX = 'block size-[64px]'
-  switch (kind.id) {
-    case 'aspect':
-      return (
-        <span className="flex size-[64px] items-center justify-center">
-          <span className="block max-h-full w-full border border-ink-soft bg-hover" style={{ aspectRatio: value }} />
-        </span>
-      )
-    default:
-      return <span className={`${BOX} border border-ink-soft bg-hover`} style={{ borderRadius: value }} />
-  }
+/** 네모 칸 하나에 값이 적용된 모습. 네모 칸으로 보여 주는 종류는 비율뿐이다. */
+function TileSample({ value }: { value: string }) {
+  return (
+    <span className="flex size-[64px] items-center justify-center">
+      <span className="block max-h-full w-full border-edge border-ink-soft bg-hover" style={{ aspectRatio: value }} />
+    </span>
+  )
 }
 
 function TileGrid({ kind, items, selected, onSelect, onRename, onMove }: ListProps) {
@@ -475,10 +492,10 @@ function TileGrid({ kind, items, selected, onSelect, onRename, onMove }: ListPro
             onClick={(e) => !reorder.justDragged() && onSelect(t.name, isAdditive(e))}
             onDoubleClick={() => onRename(t.name)}
             {...reorder.grab(t.name)}
-            className={`relative flex flex-col items-center rounded-lg border border-hairline bg-canvas p-card select-none ${reorder.moving(t.name) ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
+            className={`relative flex flex-col items-center rounded-float border-edge border-hairline bg-canvas p-card select-none ${reorder.moving(t.name) ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
           >
             {reorder.line(t.name)}
-            <TileSample kind={kind} value={t.value} />
+            <TileSample value={t.value} />
             <span data-name className="mt-sample block max-w-full text-center type-body break-words text-ink-soft">{short}</span>
             <span className="block max-w-full text-center type-code break-all text-ink-faint">{t.value}</span>
             {isSelected && selected.length === 1 && <SelectionLabel name={short} value={t.value} />}
@@ -505,7 +522,7 @@ function RowList({
   // 값이 없으면 빈 상자를 남기지 않는다. 추가는 묶음 제목 줄의 버튼으로 한다.
   if (items.length === 0) return null
   return (
-    <div className="space-y-rows rounded-lg border border-hairline bg-canvas p-menu">
+    <div className="space-y-rows rounded-float border-edge border-hairline bg-canvas p-menu">
       {items.map((t) => {
         const short = shortName(kind, t.name)
         const isSelected = selected.includes(t.name)
@@ -515,8 +532,8 @@ function RowList({
         // 글자 크기는 묶인 줄 높이, 글자 사이와 함께 적는다(23px / 32px / -0.01em).
         // 글꼴 종류는 대체 글꼴을 뺀 글꼴 이름만 적는다.
         const shown = stacked ? shownFont(t.value) : [t.value, line, track].filter(Boolean).join(' / ')
-        // 토대의 간격과 크기는 이름이 곧 길이라(8과 8px) 길이만 적는다. 둘 다 적으면 같은 숫자가 겹친다. 예전 이름의 간격(spacing-2)은 이름도 적는다.
-        const bare = (kind.id === 'space' || kind.id === 'length') && `${short}px` === t.value.trim()
+        // 토대의 간격과 크기, 모서리, 테두리는 이름이 곧 길이라(8과 8px) 길이만 적는다. 둘 다 적으면 같은 숫자가 겹친다. 예전 이름의 간격(spacing-2)은 이름도 적는다.
+        const bare = (kind.id === 'space' || kind.id === 'length' || kind.id === 'corner' || kind.id === 'thickness') && `${short}px` === t.value.trim()
         return (
           <button
             key={t.name}
@@ -527,7 +544,7 @@ function RowList({
             onClick={(e) => !reorder.justDragged() && onSelect(t.name, isAdditive(e))}
             onDoubleClick={() => onRename(t.name)}
             {...reorder.grab(t.name)}
-            className={`group relative w-full rounded-md px-board-row-x py-board-row-y text-left select-none ${stacked ? 'block' : 'flex items-center gap-columns'} ${reorder.moving(t.name) ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
+            className={`group relative w-full rounded-row px-board-row-x py-board-row-y text-left select-none ${stacked ? 'block' : 'flex items-center gap-columns'} ${reorder.moving(t.name) ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
           >
             {reorder.line(t.name)}
             {stacked ? (
@@ -565,7 +582,7 @@ function RowList({
 function MovingDot({ style }: { style: CSSProperties }) {
   return (
     <span
-      className="block size-[12px] rounded-full bg-ink transition-transform group-hover:translate-x-48"
+      className="block size-[12px] rounded-pill bg-ink transition-transform group-hover:translate-x-[192px]"
       style={style}
     />
   )
@@ -611,18 +628,22 @@ function RowSample({ kind, value, line, track }: { kind: Kind; value: string; li
             <span className="absolute inset-x-0 top-[3px] h-px bg-guide" />
             <span className="absolute top-0 left-0 h-full w-px bg-guide" />
             <span className="absolute top-0 right-0 h-full w-px bg-guide" />
-            <span data-measure-tag className="absolute bottom-full left-1/2 mb-[4px] -translate-x-1/2 rounded-xs bg-guide px-[4px] type-caption-strong whitespace-nowrap text-on-selection tabular-nums">
+            <span data-measure-tag className="absolute bottom-full left-1/2 mb-[4px] -translate-x-1/2 rounded-tag bg-guide px-[4px] type-caption-strong whitespace-nowrap text-on-selection tabular-nums">
               {parseFloat(value)}
             </span>
           </span>
         </span>
       )
-    case 'border':
-      return <span className="block w-full max-w-[240px] bg-ink" style={{ height: value }} />
+    case 'corner':
+      // 모서리는 그 둥글기의 모서리 하나로 보여 준다. 48px 상자의 왼쪽 위 모서리다. 9999px처럼 상자보다 큰 값은 사분원이 된다(끝이 완전히 둥근 것).
+      return <span data-corner className="block size-[48px] border-t-edge border-l-edge border-ink-soft bg-hover" style={{ borderTopLeftRadius: value }} />
+    case 'thickness':
+      // 테두리는 그 굵기의 선 하나로 보여 준다.
+      return <span data-thickness className="block w-full max-w-[240px] bg-ink" style={{ height: value }} />
     case 'breakpoint':
     case 'container':
       // 실제 폭은 화면에 다 담기지 않으므로 8분의 1로 줄여 서로 비교할 수 있게 한다.
-      return <span className="block h-[12px] max-w-full rounded-xs bg-ink" style={{ width: `calc(${value} / 8)` }} />
+      return <span className="block h-[12px] max-w-full rounded-tag bg-ink" style={{ width: `calc(${value} / 8)` }} />
     case 'z':
       return null
     case 'duration':
@@ -630,6 +651,6 @@ function RowSample({ kind, value, line, track }: { kind: Kind; value: string; li
     case 'ease':
       return <MovingDot style={{ transitionDuration: '800ms', transitionTimingFunction: value }} />
     default:
-      return <span className="block h-[12px] max-w-full rounded-xs bg-ink" style={{ width: value }} />
+      return <span className="block h-[12px] max-w-full rounded-tag bg-ink" style={{ width: value }} />
   }
 }

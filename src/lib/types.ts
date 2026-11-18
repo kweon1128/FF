@@ -241,22 +241,22 @@ export function nextType(tokens: Token[]): Token | null {
 
 /**
  * 의미 글꼴의 묶음. 의미 색을 역할(글자, 바탕…)로 묶듯, 의미 글꼴은 그 글자가 화면에서 맡는 일로 묶는다.
- * 묶음은 판의 차례를 정하고(제목부터 숫자·코드까지), 줄마다 그리는 예시의 장면을 정한다(제목은 본문이 따르는 제목으로, 조작은 버튼과 이름표로).
+ * 묶음은 판의 차례를 정하고(제목부터 숫자·코드까지), 줄마다 그리는 예시의 장면을 정한다(제목은 본문이 따르는 제목으로, 컨트롤은 버튼과 이름표로).
  * hint는 그 묶음에 드는 것들. 묶음을 고르는 칸에 함께 적는다.
  */
 export type TypeUse = 'heading' | 'body' | 'support' | 'control' | 'data'
 
 export const TYPE_USES: { id: TypeUse; label: string; hint: string }[] = [
-  { id: 'heading', label: '제목', hint: '화면, 구역, 카드의 제목' },
+  { id: 'heading', label: '제목', hint: '화면, 구역, 카드 제목' },
   { id: 'body', label: '본문', hint: '본문, 강조, 인용' },
   { id: 'support', label: '보조', hint: '설명, 분류 표시' },
-  { id: 'control', label: '조작', hint: '버튼, 이름표, 메뉴, 탭' },
-  { id: 'data', label: '숫자·코드', hint: '금액, 통계, 고정폭 글자' },
+  { id: 'control', label: '컨트롤', hint: '버튼, 이름표, 메뉴, 탭' },
+  { id: 'data', label: '숫자·코드', hint: '금액, 통계, 고정폭' },
 ]
 
 const useLabel = (use: TypeUse) => TYPE_USES.find((u) => u.id === use)!.label
 
-/** 묶음을 적지 않은 의미 글꼴은 이름에서 짐작한다. title-lg는 제목, button은 조작처럼. 어디에도 들지 않으면 본문이다. */
+/** 묶음을 적지 않은 의미 글꼴은 이름에서 짐작한다. title-lg는 제목, button은 컨트롤처럼. 어디에도 들지 않으면 본문이다. */
 export function guessTypeUse(short: string): TypeUse {
   const parts = short.split('-')
   const has = (...words: string[]) => parts.some((p) => words.includes(p))
@@ -269,7 +269,7 @@ export function guessTypeUse(short: string): TypeUse {
 
 /**
  * 예시의 모양. 판의 줄마다 그 조합을 어떤 자리에 놓아 보여 줄지다.
- * 묶음 하나에도 쓰임이 여럿이라(조작 묶음에 버튼, 메뉴, 뱃지가 함께 있다) 묶음으로 장면을 정하면 메뉴 글자가 버튼으로 그려진다. 그래서 줄마다 따로 정한다.
+ * 묶음 하나에도 쓰임이 여럿이라(컨트롤 묶음에 버튼, 메뉴, 뱃지가 함께 있다) 묶음으로 장면을 정하면 메뉴 글자가 버튼으로 그려진다. 그래서 줄마다 따로 정한다.
  * 적어 두지 않은 조합은 이름에서 짐작하고(menu는 메뉴, button은 버튼), 짐작할 수 없으면 묶음의 첫 모양을 쓴다.
  */
 export type TypeShape = 'title' | 'paragraph' | 'caption' | 'button' | 'field' | 'menu' | 'menu-on' | 'tab' | 'badge' | 'number' | 'code'
@@ -326,8 +326,8 @@ export function guessTypeShape(short: string, use: TypeUse): TypeShape {
 }
 
 // 묶음 이름 뒤에 반드시 쌍점이 온다. "본문"처럼 묶음 이름과 같은 설명을 묶음으로 잘못 읽어 설명을 잃지 않게 하려는 것이다.
-// 묶음 뒤의 괄호는 예시의 모양이다. "조작(메뉴): 왼쪽 메뉴의 항목". 모양을 직접 고른 조합에만 적힌다.
-// 설명 뒤에 " | "로 이어 적은 것은 예시 문구다. "조작(메뉴): 왼쪽 메뉴의 항목 | 색상, 의미 색, 글꼴". 예시에 그 시스템이 실제로 쓰는 말을 넣으려는 것이다.
+// 묶음 뒤의 괄호는 예시의 모양이다. "컨트롤(메뉴): 왼쪽 메뉴의 항목". 모양을 직접 고른 조합에만 적힌다.
+// 설명 뒤에 " | "로 이어 적은 것은 예시 문구다. "컨트롤(메뉴): 왼쪽 메뉴의 항목 | 색상, 의미 색, 글꼴". 예시에 그 시스템이 실제로 쓰는 말을 넣으려는 것이다.
 const WORDS_MARK = ' | '
 // 읽을 때는 세로줄 앞뒤의 빈칸 수를 따지지 않는다. 손으로 적은 주석은 빈칸이 하나 빠지거나 더 들어가기 쉽고, 문구가 빈 예시는 세로줄 둘이 붙어 적힌다.
 const MARK = /\s*\|\s*/
@@ -348,7 +348,7 @@ const SHAPE_HEAD = new RegExp(`^(${TYPE_SHAPES.map((u) => u.label).join('|')})\\
  */
 export function readTypeNote(note: string | undefined, short: string): { use: TypeUse; shape: TypeShape; picked?: TypeShape; text: string; words: string; more: TypeExample[] } {
   const all = (note ?? '').trim()
-  const m = NOTE.exec(all)
+  const m = NOTE.exec(all.replace(/^조작(?=\s*[(:])/, '컨트롤'))
   const found = m && TYPE_USES.find((u) => u.label === m[1])
   const use = found ? found.id : guessTypeUse(short)
   const picked = found && m![2] ? TYPE_SHAPES.find((u) => u.label === m![2])?.id : undefined
@@ -445,7 +445,7 @@ export function shiftTypes(tokens: Token[], names: string[], dir: 1 | -1): Token
 
 /**
  * 판 안의 순서를 기본으로 돌려놓는다.
- * 묶음은 제목, 본문, 보조, 조작, 숫자·코드 순서. 묶음 안에서는 큰 글자부터, 같은 크기면 굵은 것부터 놓는다.
+ * 묶음은 제목, 본문, 보조, 컨트롤, 숫자·코드 순서. 묶음 안에서는 큰 글자부터, 같은 크기면 굵은 것부터 놓는다.
  * 크기나 굵기를 숫자로 읽을 수 없는 것(가리키는 값이 없어졌거나 clamp()로 적은 크기)은 맨 뒤에 둔다. 조건이 같으면 지금 순서 그대로다.
  */
 export function defaultTypeOrder(tokens: Token[]): Token[] {

@@ -2,6 +2,7 @@
 // 버튼·글자·테두리·옅은 배경을 카드 하나에 놓는다. 바탕은 밝은 것이 기본이고, 카드 오른쪽 위의 버튼으로 어두운 바탕으로 바꿔 본다.
 // 이 안은 사용자의 색을 보여 주는 미리보기 틀이라, FF 도구의 흑백 규칙을 따르지 않는다.
 
+import { ICON_STROKE } from './lib/icons'
 import { createContext, useContext, useState, type CSSProperties, type ReactNode } from 'react'
 import { Moon, Sun } from 'lucide-react'
 import { contrast } from './lib/color'
@@ -60,8 +61,8 @@ export function inkOn(hex: string) {
  * 줄 상자에서 그 여백을 잘라 내고(대문자 높이에서 기준선까지만 남김) 글자 자체를 가운데에 놓는다.
  */
 export const TRIM = 'block [text-box:trim-both_cap_alphabetic]'
-const BUTTON = 'flex h-control shrink-0 items-center rounded-md px-button-x text-sm font-[550] whitespace-nowrap select-none'
-const BOX = 'flex h-control min-w-0 items-center justify-center rounded-md px-input-x text-sm whitespace-nowrap'
+const BUTTON = 'flex h-control shrink-0 items-center rounded-control px-button-x text-sm font-[550] whitespace-nowrap select-none'
+const BOX = 'flex h-control min-w-0 items-center justify-center rounded-control px-input-x text-sm whitespace-nowrap'
 
 /**
  * 실제로 반응하는 버튼. 마우스를 올리면 한 단계 짙은 색, 누르면 두 단계 짙은 색이 된다.
@@ -118,13 +119,13 @@ export function ColorUses({ color, step, compact = false }: { color: string; ste
       // 기억하지 못해도 바꿔 보는 데는 문제가 없다.
     }
   }
-  const s = dark ? { ...DARK, mix: 24, edge: '' } : { ...LIGHT, mix: 12, edge: 'shadow-[inset_0_0_0_1px_rgb(0_0_0/0.1)]' }
+  const s = dark ? { ...DARK, mix: 24, edge: '' } : { ...LIGHT, mix: 12, edge: 'shadow-[inset_0_0_0_var(--border-width-edge)_rgb(0_0_0/0.1)]' }
   const Icon = dark ? Sun : Moon
 
   return (
     <div style={{ ...space, fontFamily: font }}>
       {[s].map((s) => (
-        <div key={s.surface} data-uses={dark ? 'dark' : 'light'} className={`${gap} ${pad} rounded-md ${s.edge}`} style={{ background: s.surface }}>
+        <div key={s.surface} data-uses={dark ? 'dark' : 'light'} className={`${gap} ${pad} rounded-card ${s.edge}`} style={{ background: s.surface }}>
           <div className="flex flex-wrap items-center gap-actions">
             <LiveButton color={color} hover={hover} pressed={pressed} />
             {/* 비활성: 같은 색을 흐리게. 쓸 수 없는 상태에서도 색이 남는지, 너무 사라지는지 본다. */}
@@ -138,10 +139,10 @@ export function ColorUses({ color, step, compact = false }: { color: string; ste
               aria-label={dark ? '밝은 바탕으로 보기' : '어두운 바탕으로 보기'}
               title={dark ? '밝은 바탕으로 보기' : '어두운 바탕으로 보기'}
               onClick={toggleDark}
-              className="ml-auto flex size-[28px] shrink-0 items-center justify-center rounded-md opacity-60 outline-selection hover:opacity-100 focus-visible:outline-2"
+              className="ml-auto flex size-[28px] shrink-0 items-center justify-center rounded-control opacity-60 outline-selection hover:opacity-100 focus-visible:outline-focus"
               style={{ color: s.ink }}
             >
-              <Icon size={16} strokeWidth={1.5} />
+              <Icon size={16} strokeWidth={ICON_STROKE} />
             </button>
           </div>
           {/* 같은 색이어도 글자가 작아지면 덜 읽힌다. 큰 글자와 작은 글자를 함께 본다. */}

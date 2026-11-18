@@ -1,3 +1,4 @@
+import { ICON_STROKE } from './lib/icons'
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Check as CheckIcon, Minus, Plus, RotateCcw } from 'lucide-react'
 import { PreviewFontContext, PreviewSpaceContext } from './ColorUses'
@@ -22,7 +23,7 @@ const shiftOf = (gap: { top: number; bottom: number }) => (gap.bottom - gap.top)
 
 const LABEL = 'mb-label type-label text-ink-faint'
 const STEP_BUTTON =
-  'flex size-icon-button shrink-0 items-center justify-center rounded-md text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2 disabled:opacity-disabled disabled:hover:bg-transparent'
+  'flex size-icon-button shrink-0 items-center justify-center rounded-control text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-focus disabled:opacity-disabled disabled:hover:bg-transparent'
 
 /** 예시 상자에 쓰는 세 크기. 작은 것부터. 상자에 들어가는 글자는 본문 크기 이하다. */
 const EXAMPLE_SIZES = ['xs', 'sm', 'base'] as const
@@ -43,9 +44,9 @@ const EXAMPLE_ROWS: { id: string; /** 좌우 여백이 상자 높이의 몇 배�
     weight: 600,
     text: '저장하기',
     cells: {
-      xs: { pad: 4, box: 'rounded-md bg-ink text-white' },
-      sm: { pad: 8, box: 'rounded-md bg-ink text-white' },
-      base: { pad: 8, box: 'rounded-md bg-ink text-white' },
+      xs: { pad: 4, box: 'rounded-control bg-ink text-white' },
+      sm: { pad: 8, box: 'rounded-control bg-ink text-white' },
+      base: { pad: 8, box: 'rounded-control bg-ink text-white' },
     },
   },
   {
@@ -56,9 +57,9 @@ const EXAMPLE_ROWS: { id: string; /** 좌우 여백이 상자 높이의 몇 배�
     text: '완료',
     icon: true,
     cells: {
-      xs: { pad: 4, box: 'rounded-md border border-hairline' },
-      sm: { pad: 8, box: 'rounded-md border border-hairline' },
-      base: { pad: 8, box: 'rounded-md border border-hairline' },
+      xs: { pad: 4, box: 'rounded-control border-edge border-hairline' },
+      sm: { pad: 8, box: 'rounded-control border-edge border-hairline' },
+      base: { pad: 8, box: 'rounded-control border-edge border-hairline' },
     },
   },
   {
@@ -68,8 +69,8 @@ const EXAMPLE_ROWS: { id: string; /** 좌우 여백이 상자 높이의 몇 배�
     weight: 400,
     text: '이메일 주소',
     cells: {
-      sm: { pad: 8, box: 'min-w-[112px] rounded-md border border-hairline whitespace-nowrap text-ink-faint' },
-      base: { pad: 8, box: 'min-w-[112px] rounded-md border border-hairline whitespace-nowrap text-ink-faint' },
+      sm: { pad: 8, box: 'min-w-[112px] rounded-control border-edge border-hairline whitespace-nowrap text-ink-faint' },
+      base: { pad: 8, box: 'min-w-[112px] rounded-control border-edge border-hairline whitespace-nowrap text-ink-faint' },
     },
   },
   {
@@ -79,8 +80,8 @@ const EXAMPLE_ROWS: { id: string; /** 좌우 여백이 상자 높이의 몇 배�
     weight: 500,
     text: '디자인',
     cells: {
-      xs: { pad: 4, box: 'rounded-full bg-hover' },
-      sm: { pad: 4, box: 'rounded-full bg-hover' },
+      xs: { pad: 4, box: 'rounded-pill bg-hover' },
+      sm: { pad: 4, box: 'rounded-pill bg-hover' },
     },
   },
   {
@@ -89,7 +90,7 @@ const EXAMPLE_ROWS: { id: string; /** 좌우 여백이 상자 높이의 몇 배�
     label: '뱃지',
     weight: 700,
     text: '필수',
-    cells: { xs: { pad: 0, box: 'rounded-sm bg-selection text-white' } },
+    cells: { xs: { pad: 0, box: 'rounded-small bg-selection text-white' } },
   },
 ]
 
@@ -232,7 +233,7 @@ function StepSize({ name, rule, custom, onChange }: { name: string; rule: number
   return (
     <UnitInput
       small
-      width="w-[56px]"
+      width="w-cell-short"
       strong={custom !== null}
       label={`${name} 크기`}
       unit="px"
@@ -262,7 +263,7 @@ function BaseSize({ base, onChange }: { base: number; onChange: (px: number) => 
   return (
     <UnitInput
       small
-      width="w-[56px]"
+      width="w-cell-short"
       label="base 크기"
       unit="px"
       placeholder={String(base)}
@@ -547,13 +548,13 @@ export function NewSizesForm({
           <p className={LABEL}>본문 크기</p>
           <span className="flex h-control items-center gap-actions-tight">
             <button type="button" aria-label="본문 작게" disabled={base <= BASE_MIN} onClick={() => changeBase(base - 1)} className={STEP_BUTTON}>
-              <Minus size={16} strokeWidth={1.5} />
+              <Minus size={16} strokeWidth={ICON_STROKE} />
             </button>
             <span data-base className="w-stepper-value text-center type-body tabular-nums!">
               {base}px
             </span>
             <button type="button" aria-label="본문 크게" disabled={base >= BASE_MAX} onClick={() => changeBase(base + 1)} className={STEP_BUTTON}>
-              <Plus size={16} strokeWidth={1.5} />
+              <Plus size={16} strokeWidth={ICON_STROKE} />
             </button>
           </span>
         </div>
@@ -562,13 +563,13 @@ export function NewSizesForm({
           <p className={LABEL}>본문 줄 높이</p>
           <span className="flex h-control items-center gap-actions-tight">
             <button type="button" aria-label="줄 높이 좁게" disabled={baseLine <= lineRange.min} onClick={() => stepLine(-1)} className={STEP_BUTTON}>
-              <Minus size={16} strokeWidth={1.5} />
+              <Minus size={16} strokeWidth={ICON_STROKE} />
             </button>
             <span data-leading title="본문 크기의 줄 높이. 다른 단계는 같은 비율로 따라가요" className="w-stepper-value text-center type-body tabular-nums!">
               {baseLine}px
             </span>
             <button type="button" aria-label="줄 높이 넓게" disabled={baseLine >= lineRange.max} onClick={() => stepLine(1)} className={STEP_BUTTON}>
-              <Plus size={16} strokeWidth={1.5} />
+              <Plus size={16} strokeWidth={ICON_STROKE} />
             </button>
           </span>
         </div>
@@ -579,7 +580,7 @@ export function NewSizesForm({
           <p className={LABEL}>단계 수</p>
           <span className="flex h-control items-center gap-actions-tight">
             <button type="button" aria-label="단계 줄이기" disabled={upCount <= UPS_MIN} onClick={() => changeUps(upCount - 1)} className={STEP_BUTTON}>
-              <Minus size={16} strokeWidth={1.5} />
+              <Minus size={16} strokeWidth={ICON_STROKE} />
             </button>
             <span data-count title={`가장 큰 단계는 ${nameOf(ruled[ruled.length - 1].name)} ${ruled[ruled.length - 1].size}`} className="w-stepper-value text-center type-body tabular-nums!">
               {ruled.length}단계
@@ -591,7 +592,7 @@ export function NewSizesForm({
               onClick={() => changeUps(upCount + 1)}
               className={STEP_BUTTON}
             >
-              <Plus size={16} strokeWidth={1.5} />
+              <Plus size={16} strokeWidth={ICON_STROKE} />
             </button>
           </span>
         </div>
@@ -600,21 +601,21 @@ export function NewSizesForm({
           <p className={LABEL}>단계 사이</p>
           <span className="flex h-control items-center gap-actions-tight">
             <button type="button" aria-label="단계 사이 좁게" disabled={spreadAt <= 0} onClick={() => stepSpread(-1)} className={STEP_BUTTON}>
-              <Minus size={16} strokeWidth={1.5} />
+              <Minus size={16} strokeWidth={ICON_STROKE} />
             </button>
             {/* 배수의 숫자 대신 이름을 보여 준다. 숫자는 마우스를 올리면 나온다. */}
             <span data-spread title={`한 단계마다 ${spread}배씩 커져요`} className="w-stepper-value text-center type-body">
               {SPREAD_STEPS[spreadAt]?.label}
             </span>
             <button type="button" aria-label="단계 사이 넓게" disabled={spreadAt >= SPREAD_STEPS.length - 1} onClick={() => stepSpread(1)} className={STEP_BUTTON}>
-              <Plus size={16} strokeWidth={1.5} />
+              <Plus size={16} strokeWidth={ICON_STROKE} />
             </button>
           </span>
         </div>
         {/* 글자 사이를 글자 크기에 묶을지. 큰 글자일수록 좁힌다. 16px 이하의 글자는 어느 쪽을 골라도 글꼴이 정한 그대로다. */}
         <div className="pt-blocks">
           <p className={LABEL}>글자 사이</p>
-          <div role="radiogroup" aria-label="글자 사이" className="grid grid-cols-2 gap-actions-tight rounded-md bg-hover p-menu">
+          <div role="radiogroup" aria-label="글자 사이" className="grid grid-cols-2 gap-actions-tight rounded-control bg-hover p-menu">
             {[
               { on: false, label: '그대로' },
               { on: true, label: '큰 글자 좁게' },
@@ -628,8 +629,8 @@ export function NewSizesForm({
                   setTighten(o.on)
                   setTracks({})
                 }}
-                className={`h-compact rounded-sm outline-selection focus-visible:outline-2 ${
-                  o.on === tighten ? 'bg-canvas type-label text-ink shadow-[0_0_0_1px_var(--color-hairline)]' : 'type-body text-ink-soft hover:text-ink'
+                className={`h-compact rounded-small outline-selection focus-visible:outline-focus ${
+                  o.on === tighten ? 'bg-canvas type-label text-ink shadow-[0_0_0_var(--border-width-edge)_var(--color-hairline)]' : 'type-body text-ink-soft hover:text-ink'
                 }`}
               >
                 {o.label}
@@ -640,7 +641,7 @@ export function NewSizesForm({
         {/* 위의 것들은 만들어지는 값을 정하고, 이것은 보기만 바꾼다. 그래서 구분선 아래 맨 끝에 둔다.
             견본을 그리는 글꼴. 글꼴 종류가 둘 이상이면 고를 수 있다. 글꼴마다 글자가 줄 안에 앉는 자리가 달라서, 글꼴을 바꾸면 오른쪽의 위아래 여백 숫자가 달라진다. */}
         {fonts.length > 0 && (
-          <div className="border-t border-hairline pt-settings">
+          <div className="border-t-divider border-hairline pt-settings">
             <p className={LABEL}>견본의 글꼴</p>
             {fonts.length === 1 ? (
               <p className="type-body">
@@ -655,7 +656,7 @@ export function NewSizesForm({
                     role="radio"
                     aria-checked={f.name === fontName}
                     onClick={() => setFontName(f.name)}
-                    className={`flex h-row w-full items-center gap-row-inner rounded-md px-row-x text-left type-body outline-selection focus-visible:outline-2 ${
+                    className={`flex h-row w-full items-center gap-row-inner rounded-row px-row-x text-left type-body outline-selection focus-visible:outline-focus ${
                       f.name === fontName ? 'bg-selection-soft' : 'hover:bg-hover'
                     }`}
                   >
@@ -673,7 +674,7 @@ export function NewSizesForm({
       <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-blocks overflow-y-auto min-[1700px]:flex-row min-[1700px]:gap-groups min-[1700px]:overflow-visible">
       <div className="min-w-0 flex-1 min-[1700px]:flex min-[1700px]:min-h-0 min-[1700px]:flex-col">
         {/* 큰 것부터 작은 것 순서로, 한 줄에 한 단계. 높이는 가장 크게 골랐을 때에 맞춰 고정해서 고르는 동안 창이 늘었다 줄었다 하지 않는다. */}
-        <div ref={scale} data-scale className="min-h-[360px] space-y-rows rounded-md border border-hairline px-section-x py-section-y min-[1700px]:min-h-0 min-[1700px]:flex-1 min-[1700px]:overflow-y-auto">
+        <div ref={scale} data-scale className="min-h-[360px] space-y-rows rounded-card border-edge border-hairline px-section-x py-section-y min-[1700px]:min-h-0 min-[1700px]:flex-1 min-[1700px]:overflow-y-auto">
           {[...steps].reverse().map((s) => (
             <div
               key={s.name}
@@ -685,7 +686,7 @@ export function NewSizesForm({
               {/* 마우스를 올렸을 때의 회색 바탕은 이름, 값, 쓰이는 곳까지만 덮는다(높이 32px). 줄 전체를 덮으면 견본 문장의 크기에 따라 줄마다 높이가 달라진다.
                   견본 문장은 바탕 밖에 두고, 화면 예시의 글자처럼 1px 선을 둘러 표시한다.
                   바탕의 좌우 여백은 그 끝에 놓인 것의 위아래 여백과 같게 한다. 왼쪽 끝은 이름 칸(24px, 위아래 4px)이라 4px, 오른쪽 끝은 쓰이는 곳의 글자(줄 높이 16px, 위아래 8px)라 8px. */}
-              <span data-hot={hot === s.name || undefined} className={`-ml-chip-x flex h-row shrink-0 items-center gap-cells rounded-md pr-row-x pl-chip-x ${hot === s.name ? 'bg-hover' : ''}`}>
+              <span data-hot={hot === s.name || undefined} className={`-ml-chip-x flex h-row shrink-0 items-center gap-cells rounded-row pr-row-x pl-chip-x ${hot === s.name ? 'bg-hover' : ''}`}>
               {/* 이름은 미리 채워져 있고, 다른 이름을 쓰고 싶을 때만 고친다. */}
               <StepName label={`${s.name} 이름`} value={nameOf(s.name)} onChange={(name) => setNames({ ...names, [s.name]: name })} />
               {/* 크기, 줄 높이, 글자 사이는 단계마다 직접 고칠 수 있다(본문 줄의 크기 칸은 왼쪽의 본문 크기와 같은 값이다). 줄 높이와 글자 사이는 고친 크기에 맞춰 따라오고, 직접 고친 것은 따라가지 않는다. */}
@@ -708,7 +709,7 @@ export function NewSizesForm({
                   key={`line:${base}:${spread}:${leading}`}
                   label={`${s.name} 줄 높이`}
                   unit="px"
-                  width="w-[56px]"
+                  width="w-cell-short"
                   rule={String(lineFor(parseFloat(s.size), leading))}
                   custom={lines[s.name] ?? null}
                   valid={validLine}
@@ -739,7 +740,7 @@ export function NewSizesForm({
               <span className="min-w-0 flex-1">
                 <span
                   data-line={s.name}
-                  className={`block w-fit max-w-full truncate bg-selection/35 outline-offset-2 outline-selection ${hot === s.name ? 'outline-1' : ''}`}
+                  className={`block w-fit max-w-full truncate bg-selection/35 outline-offset-2 outline-selection ${hot === s.name ? 'outline-mark' : ''}`}
                   style={{ fontFamily: font, fontSize: s.size, lineHeight: s.line, letterSpacing: s.track ?? undefined, fontWeight: weightOf(s.name) }}
                 >
                   {SAMPLES[s.name].text}
@@ -751,7 +752,7 @@ export function NewSizesForm({
         </div>
         {/* 이 크기들이 실제로 들어가는 것들. 높이가 정해진 상자 안에 글이 놓이는 버튼, 칩, 뱃지, 입력칸은 위아래 가운데가 조금만 어긋나도 눈에 띈다.
             상자의 높이는 그 크기의 줄 높이에 위아래 여백을 더한 것이라, 줄 높이를 바꾸면 함께 바뀐다. */}
-        <div data-examples className="mt-blocks grid shrink-0 grid-cols-[84px_repeat(5,minmax(0,1fr))] items-start gap-x-columns gap-y-cells rounded-md border border-hairline px-section-x py-section-y">
+        <div data-examples className="mt-blocks grid shrink-0 grid-cols-[84px_repeat(5,minmax(0,1fr))] items-start gap-x-columns gap-y-cells rounded-card border-edge border-hairline px-section-x py-section-y">
           {/* 머리 줄: 열마다의 종류. */}
           <span />
           {EXAMPLE_ROWS.map((kind) => (
@@ -784,7 +785,7 @@ export function NewSizesForm({
                         title={nameOf(size)}
                         onMouseEnter={() => setHot(size)}
                         onMouseLeave={() => setHot(null)}
-                        className={`inline-flex items-center outline-offset-2 outline-selection ${hot === size ? 'outline-1' : ''} ${cell.box}`}
+                        className={`inline-flex items-center outline-offset-2 outline-selection ${hot === size ? 'outline-mark' : ''} ${cell.box}`}
                         style={{ fontFamily: font, fontSize: step.size, lineHeight: step.line, letterSpacing: step.track ?? undefined, fontWeight: kind.weight, height: parseFloat(step.line) + cell.pad * 2, paddingInline: Math.round(((parseFloat(step.line) + cell.pad * 2) * kind.side) / 2) * 2 }}
                       >
                         {kind.icon && <CheckIcon size={size === 'xs' ? 14 : 16} strokeWidth={2} className="mr-button-inner shrink-0" />}
@@ -811,7 +812,7 @@ export function NewSizesForm({
           여기서 볼 것은 글자 크기뿐이라 글 한 편만 위계대로 놓는다. 그 크기가 들어가는 상자들(버튼, 입력칸, 칩, 뱃지)은 표 아래에 따로 있다.
           창이 넓으면(1700px 이상) 표의 오른쪽에, 좁으면 표의 아래에 놓인다.
           이 안은 사용자의 글꼴을 보여 주는 미리보기라, FF 도구의 글자 규칙을 따르지 않는다. */}
-      <div data-screen className="w-full shrink-0 rounded-md border border-hairline bg-canvas text-ink min-[1700px]:min-h-0 min-[1700px]:w-[560px] min-[1700px]:overflow-y-auto">
+      <div data-screen className="w-full shrink-0 rounded-card border-edge border-hairline bg-canvas text-ink min-[1700px]:min-h-0 min-[1700px]:w-[560px] min-[1700px]:overflow-y-auto">
         <div className="p-board" style={previewSpace}>
           {pageRows(upCount).map((row, i) => {
             const stepName = row.step
@@ -824,7 +825,7 @@ export function NewSizesForm({
                   title={nameOf(stepName)}
                   onMouseEnter={() => setHot(stepName)}
                   onMouseLeave={() => setHot(null)}
-                  className={`w-fit rounded-sm outline-offset-2 outline-selection ${hot === stepName ? 'outline-1' : ''} ${row.soft ? 'text-ink-soft' : ''}`}
+                  className={`w-fit rounded-small outline-offset-2 outline-selection ${hot === stepName ? 'outline-mark' : ''} ${row.soft ? 'text-ink-soft' : ''}`}
                   style={{ fontFamily: font, fontSize: s.size, lineHeight: s.line, letterSpacing: s.track ?? undefined, fontWeight: row.weight }}>
                   {row.text}
                 </p>
@@ -838,7 +839,7 @@ export function NewSizesForm({
         <div className="mt-dialog-actions flex shrink-0 items-center justify-end gap-actions">
           {/* 바꾼 것을 모두 처음으로 돌린다. 만들기와 취소처럼 창 전체에 대한 일이라 같은 줄에 두되, 실수로 누르지 않게 반대쪽 끝에 둔다. 바꾼 것이 없으면 꺼져 있다. */}
           <Button variant="ghost" className="mr-auto" disabled={!changed} title="설정과 직접 고친 값을 모두 처음으로 돌려요" onClick={reset}>
-            <RotateCcw size={16} strokeWidth={1.5} />
+            <RotateCcw size={16} strokeWidth={ICON_STROKE} />
             원래대로
           </Button>
           {/* 이미 있는 단계가 새 값으로 바뀌는 것은 되돌리기 전에 알아야 하는 일이라 알린다. */}

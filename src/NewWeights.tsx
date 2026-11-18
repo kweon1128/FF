@@ -1,3 +1,4 @@
+import { ICON_STROKE } from './lib/icons'
 import { useContext, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Minus, Plus, RotateCcw } from 'lucide-react'
 import { PreviewFontContext, PreviewSpace } from './ColorUses'
@@ -11,7 +12,7 @@ import { Button } from './ui'
 
 const LABEL = 'mb-label type-label text-ink-faint'
 const STEP_BUTTON =
-  'flex size-icon-button shrink-0 items-center justify-center rounded-md text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2 disabled:opacity-disabled disabled:hover:bg-transparent'
+  'flex size-icon-button shrink-0 items-center justify-center rounded-control text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-focus disabled:opacity-disabled disabled:hover:bg-transparent'
 /** 처음에 고르는 단계 수. 셋(본문, 중간, 굵게)이다. */
 const COUNT_START = 3
 
@@ -56,7 +57,7 @@ function StepWeight({ name, rule, custom, onChange }: { name: string; rule: numb
       aria-invalid={bad || undefined}
       inputMode="numeric"
       title={custom === null ? '숫자를 고치면 이 단계의 굵기를 직접 정해요' : `직접 정한 굵기예요. 비우면 정해 둔 값(${rule})으로 돌아가요`}
-      className={`h-compact w-[48px] shrink-0 rounded-sm border bg-canvas text-center ${bad ? 'border-danger' : 'border-hairline hover:border-ink-faint focus:border-selection'} type-code-sm outline-none placeholder:text-ink-faint/50 ${
+      className={`h-compact w-[48px] shrink-0 rounded-small border-edge bg-canvas text-center ${bad ? 'border-danger' : 'border-hairline hover:border-ink-faint focus:border-selection'} type-code-sm outline-none placeholder:text-ink-faint/50 ${
         custom !== null ? 'text-ink' : 'text-ink-soft'
       }`}
       value={draft ?? String(custom ?? rule)}
@@ -203,20 +204,20 @@ export function NewWeightsForm({
           {/* 글자 크기 한 벌 만들기의 단계 수와 같은 모양이다. -, +로 2단계에서 4단계까지 고른다. */}
           <span className="flex h-control items-center gap-actions-tight">
             <button type="button" aria-label="단계 줄이기" disabled={count <= Math.min(...counts)} onClick={() => changeCount(count - 1)} className={STEP_BUTTON}>
-              <Minus size={16} strokeWidth={1.5} />
+              <Minus size={16} strokeWidth={ICON_STROKE} />
             </button>
             <span data-count className="w-stepper-value text-center type-body tabular-nums!">
               {count}단계
             </span>
             <button type="button" aria-label="단계 늘리기" disabled={count >= Math.max(...counts)} onClick={() => changeCount(count + 1)} className={STEP_BUTTON}>
-              <Plus size={16} strokeWidth={1.5} />
+              <Plus size={16} strokeWidth={ICON_STROKE} />
             </button>
           </span>
         </div>
         {/* 위의 것은 만들어지는 값을 정하고, 이것은 보기만 바꾼다. 그래서 구분선 아래에 둔다.
             굵기는 글꼴마다 가진 것이 달라서, 글꼴을 바꾸면 "실제로 그려지는 굵기"가 달라진다. */}
         {fonts.length > 0 && (
-          <div className="border-t border-hairline pt-settings">
+          <div className="border-t-divider border-hairline pt-settings">
             <p className={LABEL}>견본의 글꼴</p>
             {fonts.length === 1 ? (
               <p className="type-body">
@@ -231,7 +232,7 @@ export function NewWeightsForm({
                     role="radio"
                     aria-checked={f.name === fontName}
                     onClick={() => setFontName(f.name)}
-                    className={`flex h-row w-full items-center gap-row-inner rounded-md px-row-x text-left type-body outline-selection focus-visible:outline-2 ${
+                    className={`flex h-row w-full items-center gap-row-inner rounded-row px-row-x text-left type-body outline-selection focus-visible:outline-focus ${
                       f.name === fontName ? 'bg-selection-soft' : 'hover:bg-hover'
                     }`}
                   >
@@ -248,14 +249,14 @@ export function NewWeightsForm({
       <div className="flex min-w-0 flex-1 flex-col">
         {/* 얇은 것부터 굵은 것 순서로, 한 줄에 한 단계. 같은 글을 위아래로 붙여 놓아 단계 사이의 차이를 바로 본다.
             높이는 네 단계일 때에 맞춰 고정해서 단계 수를 바꿔도 창이 늘었다 줄었다 하지 않는다. */}
-        <div data-weights className="h-[164px] space-y-rows rounded-md border border-hairline px-section-x py-section-y">
+        <div data-weights className="h-[164px] space-y-rows rounded-card border-edge border-hairline px-section-x py-section-y">
           {steps.map((s) => {
             const real = drawn[s.name]
             return (
               <div key={s.name} data-step={s.name} onMouseEnter={() => setHot(s.name)} onMouseLeave={() => setHot(null)} className="flex h-row items-center gap-cells">
                 {/* 마우스를 올렸을 때의 회색 바탕은 이름, 값, 쓰이는 곳까지만 덮는다. 견본 문장은 바탕 밖에 두고 화면 예시의 글자처럼 1px 선을 둘러 표시한다(글자 크기 한 벌 만들기와 같다).
                     바탕의 좌우 여백은 그 끝에 놓인 것의 위아래 여백과 같게 한다. 왼쪽 끝은 이름 칸(24px, 위아래 4px)이라 4px, 오른쪽 끝은 쓰이는 곳의 글자(줄 높이 16px, 위아래 8px)라 8px. */}
-                <span className={`-ml-chip-x flex h-row shrink-0 items-center gap-cells rounded-md pr-row-x pl-chip-x ${hot === s.name ? 'bg-hover' : ''}`}>
+                <span className={`-ml-chip-x flex h-row shrink-0 items-center gap-cells rounded-row pr-row-x pl-chip-x ${hot === s.name ? 'bg-hover' : ''}`}>
                   <StepName wide label={`${s.name} 이름`} value={nameOf(s.name)} onChange={(name) => setNames({ ...names, [s.name]: name })} />
                   <StepWeight
                     name={s.name}
@@ -274,7 +275,7 @@ export function NewWeightsForm({
                   </span>
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span data-line={s.name} className={`block w-fit max-w-full truncate rounded-sm outline-offset-2 outline-selection ${hot === s.name ? 'outline-1' : ''}`} style={{ ...type, fontWeight: s.weight }}>
+                  <span data-line={s.name} className={`block w-fit max-w-full truncate rounded-small outline-offset-2 outline-selection ${hot === s.name ? 'outline-mark' : ''}`} style={{ ...type, fontWeight: s.weight }}>
                     {LINE}
                   </span>
                 </span>
@@ -288,7 +289,7 @@ export function NewWeightsForm({
         </div>
         {/* 이 굵기들이 실제 화면에 놓인 모습. 쓰임마다 맡은 단계의 굵기로 그린다. 굵기는 혼자가 아니라 옆의 글과 함께 놓였을 때 판단할 수 있다.
             이 안은 사용자의 글꼴을 보여 주는 미리보기라, FF 도구의 글자 규칙을 따르지 않는다. */}
-        <div data-uses className="mt-blocks rounded-md border border-hairline bg-canvas p-board text-ink">
+        <div data-uses className="mt-blocks rounded-card border-edge border-hairline bg-canvas p-board text-ink">
           <PreviewSpace>
             <PlainScreen short looks={looks} groups={groups} hot={hot} onHot={setHot} />
           </PreviewSpace>
@@ -298,7 +299,7 @@ export function NewWeightsForm({
         <div className="mt-dialog-actions flex items-center justify-end gap-actions">
           {/* 바꾼 것을 모두 처음으로 돌린다. 글자 크기 한 벌 만들기와 같은 자리다. 바꾼 것이 없으면 꺼져 있다. */}
           <Button variant="ghost" className="mr-auto" disabled={!changed} title="단계 수와 직접 고친 값을 모두 처음으로 돌려요" onClick={reset}>
-            <RotateCcw size={16} strokeWidth={1.5} />
+            <RotateCcw size={16} strokeWidth={ICON_STROKE} />
             원래대로
           </Button>
           {/* 이미 있는 단계가 새 값으로 바뀌는 것은 되돌리기 전에 알아야 하는 일이라 알린다. */}

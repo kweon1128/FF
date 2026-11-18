@@ -73,7 +73,7 @@ export function Shortcuts({ onClose }: { onClose: () => void }) {
               {group.keys.map(([key, what]) => (
                 <div key={key} className="flex items-baseline justify-between gap-cells">
                   <dt className="text-ink-soft">{what}</dt>
-                  <dd className="shrink-0 rounded-sm bg-hover px-chip-x type-caption">{key}</dd>
+                  <dd className="shrink-0 rounded-small bg-hover px-chip-x type-caption">{key}</dd>
                 </div>
               ))}
             </dl>

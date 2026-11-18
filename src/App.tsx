@@ -1,3 +1,4 @@
+import { ICON_STROKE } from './lib/icons'
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Plus } from 'lucide-react'
 import {
@@ -25,6 +26,8 @@ import {
   markRoles,
   SPACE_REF,
   LENGTH_REF,
+  CORNER_REF,
+  THICKNESS_REF,
   lengthLabel,
   PLACEHOLDER_SCREENS,
   SLUG,
@@ -77,12 +80,16 @@ import { NewSizesForm } from './NewSizes'
 import { NewWeightsForm } from './NewWeights'
 import { NewTypeForm, TypeInspector } from './Types'
 import { EffectInspector } from './Effects'
+import { NewRadiusForm, RadiusInspector } from './Radius'
+import { readRadiusNote, type RadiusGroup } from './lib/radius'
+import { BorderInspector, NewBorderForm } from './Borders'
+import { isBorderKind } from './lib/borders'
 import { isEffectKind } from './lib/effects'
 import { NewSpaceUseForm, SpaceUseInspector, spaceVars } from './Spacing'
-import { LengthInspector, NewLengthForm, NewSizeForm, SizeInspector, sizeVars } from './Sizes'
+import { LengthInspector, NewLengthForm, NewSizeForm, SizeInspector, SizeThings, SizeViewSwitch, sizeVars, type SizeView } from './Sizes'
 import { isSizeKind, readSizeNote, type SizeGroup } from './lib/sizes'
 import type { SpaceUse } from './lib/spacing'
-import { autoOrder, defaultFreeOrder, defaultKindOrder, isAutoOrdered, isFreeKind, moveException, moveInKind, moveKind, moveSizeGroup, moveSpaceGroup, orderKinds, shiftSizes, shiftSpaceUses, sizeGroupOrder, spaceUseOrder, stepBefore } from './lib/order'
+import { autoOrder, moveRadiusGroup, radiusGroupOrder, shiftRadii, defaultFreeOrder, defaultKindOrder, isAutoOrdered, isFreeKind, moveException, moveInKind, moveKind, moveSizeGroup, moveSpaceGroup, orderKinds, shiftSizes, shiftSpaceUses, sizeGroupOrder, spaceUseOrder, stepBefore } from './lib/order'
 import { readSpaceNote } from './lib/spacing'
 import { NewTypesForm } from './NewTypes'
 import { defaultTypeOrder, followTypeRefs, moveType, moveTypeGroup, shiftTypes, syncTypes, typeGroups, typeUsers, withTypeTrack, type TypeUse } from './lib/types'
@@ -92,13 +99,13 @@ import { NewSystemForm } from './NewSystem'
 import { Palette, type PaletteItem } from './Palette'
 import { PasteDialog, type PasteJob } from './PasteDialog'
 import { Shortcuts } from './Shortcuts'
-import { AddColorButtons, FoldButton, KindSections, ResetButton } from './TokenScreen'
+import { AddColorButtons, DetailsFolded, FoldButton, KindSections, ResetButton } from './TokenScreen'
 import { TopBar, type SaveStatus } from './TopBar'
 import { Button, EmptyState, Field, Modal, inputClass } from './ui'
 
 const LAST_SYSTEM_KEY = 'ff.system'
 /** 줄마다 설명과 예시가 있어서 접을 수 있는 판(의미 색과 색상 판은 접기가 따로 있다). */
-const FOLDABLE: string[] = ['style', 'spaceuse', 'effect', 'sizeuse']
+const FOLDABLE: string[] = ['style', 'spaceuse', 'effect', 'sizeuse', 'radius', 'border']
 const SAVE_DELAY = 300
 const COLOR = KINDS.color
 const ROLE = KINDS.role
@@ -251,6 +258,22 @@ export function App() {
       setPlainBoards({})
     }
   }, [system])
+  // 의미 크기 판을 보는 방식(종류별, 요소별). 값이 아니라 보는 방식이라 파일이 아니라 브라우저에 기억한다. 처음은 종류별이다.
+  const [sizeView, setSizeView] = useState<SizeView>(() => {
+    try {
+      return localStorage.getItem('ff.sizeView') === 'thing' ? 'thing' : 'kind'
+    } catch {
+      return 'kind'
+    }
+  })
+  function changeSizeView(next: SizeView) {
+    setSizeView(next)
+    try {
+      localStorage.setItem('ff.sizeView', next)
+    } catch {
+      // 저장소를 못 쓰면 보는 방식을 기억하지 않는다.
+    }
+  }
   function togglePlain(id: string) {
     const next = { ...plainBoards, [id]: !plainBoards[id] }
     setPlainBoards(next)
@@ -308,10 +331,14 @@ export function App() {
   const [addingEffect, setAddingEffect] = useState<Kind | null>(null)
   // 의미 간격을 만드는 창이 떠 있는지.
   const [addingSpaceUse, setAddingSpaceUse] = useState(false)
-  // 의미 크기를 만드는 창이 떠 있는지. 종류(높이, 폭, 정사각)는 창에서 고른다.
+  // 의미 크기를 만드는 창이 떠 있는지. 종류(높이, 폭, 정사각형)는 창에서 고른다.
   const [addingSize, setAddingSize] = useState(false)
-  // 토대의 길이(크기, 간격)를 만드는 창이 어느 종류로 떠 있는지.
+  // 토대의 길이(크기, 간격, 모서리)를 만드는 창이 어느 종류로 떠 있는지.
   const [addingLength, setAddingLength] = useState<Kind | null>(null)
+  // 의미 모서리를 만드는 창이 떠 있는지.
+  const [addingRadius, setAddingRadius] = useState(false)
+  // 의미 테두리(테두리 선, 외곽선)를 만드는 창이 어느 종류로 떠 있는지.
+  const [addingBorder, setAddingBorder] = useState<Kind | null>(null)
   // 의미 글꼴을 만드는 창이 떠 있는지.
   const [addingType, setAddingType] = useState(false)
   const [addingRole, setAddingRole] = useState(false)
@@ -686,10 +713,14 @@ export function App() {
     if (isEffectKind(kind.id)) return setAddingEffect(kind)
     // 의미 간격은 이름과 가리키는 간격을 정해야 만들 수 있다.
     if (kind.id === 'spaceuse') return setAddingSpaceUse(true)
-    // 의미 크기(높이, 폭, 정사각)도 이름과 가리키는 크기를 정해야 만들 수 있다.
+    // 의미 크기(높이, 폭, 정사각형)도 이름과 가리키는 크기를 정해야 만들 수 있다.
     if (isSizeKind(kind)) return setAddingSize(true)
-    // 토대의 크기와 간격은 길이를 받아 그 숫자를 이름으로 만든다.
-    if (kind.id === 'length' || kind.id === 'space') return setAddingLength(kind)
+    // 토대의 크기와 간격, 모서리, 테두리는 길이를 받아 그 숫자를 이름으로 만든다.
+    if (kind.id === 'length' || kind.id === 'space' || kind.id === 'corner' || kind.id === 'thickness') return setAddingLength(kind)
+    // 의미 테두리(테두리 선, 외곽선)도 이름과 가리키는 테두리를 정해야 만들 수 있다.
+    if (isBorderKind(kind)) return setAddingBorder(kind)
+    // 의미 모서리도 이름과 가리키는 모서리를 정해야 만들 수 있다.
+    if (kind.id === 'radius') return setAddingRadius(true)
     // 의미 글꼴도 이름과 조합, 묶음을 묻는 창을 연다(다른 의미 판의 추가와 같다). 짝지을 재료(글꼴 종류, 글자 크기, 굵기)가 모자라면 그 창이 무엇을 먼저 만들지 알린다.
     if (kind.id === 'style') return setAddingType(true)
 
@@ -759,8 +790,8 @@ export function App() {
     return list.map((t) => {
       const ref = refOf(t.value)
       if (ref && renames[ref]) return { ...t, value: refTo(renames[ref]) }
-      // 의미 간격은 가리키는 간격의, 의미 크기는 가리키는 크기의 새 이름을 따라간다.
-      const space = (SPACE_REF.exec(t.value) ?? LENGTH_REF.exec(t.value))?.[1]
+      // 의미 간격은 가리키는 간격의, 의미 크기는 가리키는 크기의, 의미 모서리는 가리키는 모서리의 새 이름을 따라간다.
+      const space = (SPACE_REF.exec(t.value) ?? LENGTH_REF.exec(t.value) ?? CORNER_REF.exec(t.value) ?? THICKNESS_REF.exec(t.value))?.[1]
       return space && renames[space] ? { ...t, value: `var(${renames[space]})` } : t
     })
   }
@@ -850,7 +881,7 @@ export function App() {
     if (JSON.stringify(comps).includes(`"${from}"`)) commitComps(renameRef(comps, from, to))
   }
 
-  /** 크기(토대)의 길이를 바꾼다. 이름이 px 숫자 그대로라서 이름도 함께 바뀌고, 그것을 가리키던 의미 크기가 새 이름을 따라간다. */
+  /** 토대(크기, 간격, 모서리)의 길이를 바꾼다. 이름이 px 숫자 그대로라서 이름도 함께 바뀌고, 그것을 가리키던 의미 값이 새 이름을 따라간다. */
   function changeLength(from: string, to: string, value: string) {
     commit(followRefs(tokens.map((t) => (t.name === from ? { ...t, name: to, value } : t)), { [from]: to }))
     setSelected([to])
@@ -994,8 +1025,12 @@ export function App() {
         .map((u) => shortName(STYLE, u)),
       // 이 간격을 가리키는 의미 간격도 함께 센다.
       ...tokens.filter((t) => !names.includes(t.name) && KINDS.spaceUse.matches(t.name) && SPACE_REF.exec(t.value)?.[1] === n).map((t) => shortName(KINDS.spaceUse, t.name)),
-      // 이 크기를 가리키는 의미 크기(높이, 폭, 정사각)도 함께 센다.
+      // 이 크기를 가리키는 의미 크기(높이, 폭, 정사각형)도 함께 센다.
       ...tokens.filter((t) => !names.includes(t.name) && LENGTH_REF.exec(t.value)?.[1] === n).map((t) => shortName(kindOf(t.name) ?? KINDS.height, t.name)),
+      // 이 모서리를 가리키는 의미 모서리도 함께 센다.
+      ...tokens.filter((t) => !names.includes(t.name) && KINDS.radius.matches(t.name) && CORNER_REF.exec(t.value)?.[1] === n).map((t) => shortName(KINDS.radius, t.name)),
+      // 이 굵기를 가리키는 의미 테두리(테두리 선, 외곽선)도 함께 센다.
+      ...tokens.filter((t) => !names.includes(t.name) && THICKNESS_REF.exec(t.value)?.[1] === n).map((t) => shortName(kindOf(t.name) ?? KINDS.border, t.name)),
     ]
     const used = names.filter((n) => usesOf(comps, n).length > 0 || rolesOf(n).length > 0)
     if (used.length === 0) return removeTokens(names)
@@ -1473,7 +1508,7 @@ export function App() {
       // 종류가 여럿인 판에서 한 종류의 값을 통째로 골랐으면 그 종류를 옮긴다.
       const board = TOKEN_SCREEN_IDS.map((id) => TOKEN_SCREENS[id].kinds).find((kinds) => kinds.length > 1 && kinds.some((k) => whole(tokens.filter((t) => k.matches(t.name)))))
       const wholeKind = board?.find((k) => whole(tokens.filter((t) => k.matches(t.name))))
-      // 의미 크기의 묶음(조작, 틀, 견본)을 통째로 골랐으면 그 종류 안에서 묶음을 옮긴다. 묶음이 하나뿐인 종류는 옮길 곳이 없으므로 종류를 옮기는 쪽으로 넘긴다.
+      // 의미 크기의 묶음(컨트롤, 영역)을 통째로 골랐으면 그 종류 안에서 묶음을 옮긴다. 묶음이 하나뿐인 종류는 옮길 곳이 없으므로 종류를 옮기는 쪽으로 넘긴다.
       const sizeGroup = [KINDS.height, KINDS.width, KINDS.square]
         .map((kind) => {
           const order = sizeGroupOrder(tokens, kind)
@@ -1482,6 +1517,9 @@ export function App() {
           return group && order.length > 1 ? { kind, group, order } : null
         })
         .find((hit) => hit !== null)
+      // 의미 모서리의 묶음(컨트롤, 컨테이너, 표시)을 통째로 골랐으면 그 묶음을 옮긴다.
+      const radii = tokens.filter((t) => KINDS.radius.matches(t.name))
+      const radiusGroup = radiusGroupOrder(tokens).find((g) => whole(radii.filter((t) => readRadiusNote(t.note, shortName(KINDS.radius, t.name)).group === g)))
       if (movableGroup !== null) moveGroup(movableGroup, dir)
       else if (roleGroup) {
         const before = stepBefore(roleGroups(tokens).map((g) => g.use), roleGroup.use, dir)
@@ -1495,6 +1533,9 @@ export function App() {
       } else if (sizeGroup) {
         const before = stepBefore(sizeGroup.order, sizeGroup.group, dir)
         if (before !== undefined) commitIfMoved(moveSizeGroup(tokens, sizeGroup.kind, sizeGroup.group, before))
+      } else if (radiusGroup) {
+        const before = stepBefore(radiusGroupOrder(tokens), radiusGroup, dir)
+        if (before !== undefined) commitIfMoved(moveRadiusGroup(tokens, radiusGroup, before))
       } else if (board && wholeKind) {
         const filled = orderKinds(tokens, board).filter((k) => tokens.some((t) => k.matches(t.name)))
         const before = stepBefore(filled, wholeKind, dir)
@@ -1506,8 +1547,10 @@ export function App() {
       else if (selected.every((n) => STYLE.matches(n))) commitIfMoved(shiftTypes(tokens, selected, dir))
       // 의미 간격도 같은 묶음 안에서만 옮긴다.
       else if (selected.every((n) => KINDS.spaceUse.matches(n))) commitIfMoved(shiftSpaceUses(tokens, selected, dir))
-      // 의미 크기(높이, 폭, 정사각)도 같은 묶음 안에서만 옮긴다.
+      // 의미 크기(높이, 폭, 정사각형)도 같은 묶음 안에서만 옮긴다.
       else if (commonKind && isSizeKind(commonKind)) commitIfMoved(shiftSizes(tokens, commonKind, selected, dir))
+      // 의미 모서리도 같은 묶음 안에서만 옮긴다.
+      else if (selected.every((n) => KINDS.radius.matches(n))) commitIfMoved(shiftRadii(tokens, selected, dir))
       // 차례가 값의 크기로 정해지는 값(글자 크기, 간격, 색 목록 안의 단계…)은 옮기지 않는다.
       else if (selectedTokens.some(isAutoOrdered)) return
       else commit(shiftTokens(tokens, selected, dir))
@@ -1581,12 +1624,13 @@ export function App() {
     onMoveKind: (kinds: Kind[], kind: Kind, before: Kind | null) => commitIfMoved(moveKind(tokens, kinds, kind, before)),
     onMoveSpaceGroup: (use: SpaceUse, before: SpaceUse | null) => commitIfMoved(moveSpaceGroup(tokens, use, before)),
     onMoveSizeGroup: (kind: Kind, group: SizeGroup, before: SizeGroup | null) => commitIfMoved(moveSizeGroup(tokens, kind, group, before)),
+    onMoveRadiusGroup: (group: RadiusGroup, before: RadiusGroup | null) => commitIfMoved(moveRadiusGroup(tokens, group, before)),
     resetOf: (kind: Kind) => {
       const next = defaultFreeOrder(tokens, kind)
       return next === tokens ? undefined : () => commit(next)
     },
     onMoveTypeGroup: (use: TypeUse, before: TypeUse | null) => commitIfMoved(moveTypeGroup(tokens, use, before)),
-    // 의미 글꼴 판은 묶음을 제목, 본문, 보조, 조작, 숫자·코드 순서로, 묶음 안은 큰 글자부터(같은 크기면 굵은 것부터) 놓는다. 이미 그 순서면 버튼이 꺼진다.
+    // 의미 글꼴 판은 묶음을 제목, 본문, 보조, 컨트롤, 숫자·코드 순서로, 묶음 안은 큰 글자부터(같은 크기면 굵은 것부터) 놓는다. 이미 그 순서면 버튼이 꺼진다.
     onResetTypes: (() => {
       const next = defaultTypeOrder(tokens)
       return next.every((t, i) => t === tokens[i]) ? undefined : () => commit(next)
@@ -1696,6 +1740,10 @@ export function App() {
         { id: 'a:space', group: '명령', label: '간격 추가', run: () => setAddingLength(KINDS.space) },
         { id: 'a:length', group: '명령', label: '크기 추가', run: () => setAddingLength(KINDS.length) },
         { id: 'a:sizeuse', group: '명령', label: '의미 크기 추가', run: () => setAddingSize(true) },
+        { id: 'a:corner', group: '명령', label: '모서리 추가', run: () => setAddingLength(KINDS.corner) },
+        { id: 'a:radius', group: '명령', label: '의미 모서리 추가', run: () => setAddingRadius(true) },
+        { id: 'a:thickness', group: '명령', label: '테두리 추가', run: () => setAddingLength(KINDS.thickness) },
+        { id: 'a:border', group: '명령', label: '의미 테두리 추가', run: () => setAddingBorder(KINDS.border) },
         { id: 'a:shadow', group: '명령', label: '그림자 추가', run: () => setAddingEffect(KINDS.shadow) },
         { id: 'a:opacity', group: '명령', label: '투명도 추가', run: () => setAddingEffect(KINDS.opacity) },
         { id: 'a:blur', group: '명령', label: '흐림 추가', run: () => setAddingEffect(KINDS.blur) },
@@ -1831,7 +1879,7 @@ export function App() {
                         <FoldButton folded={rolesFolded} title="설명과 예시를 모두 숨기거나 보여요" onToggle={toggleRolesFold} />
                         {/* 의미 색을 추가한다. 목록 끝의 점선 상자 대신, 색상 판의 "목록 추가"처럼 판 위에 둔다. */}
                         <Button variant="ghost" aria-label="의미 색 추가" onClick={() => setAddingRole(true)}>
-                          <Plus size={16} strokeWidth={1.5} />
+                          <Plus size={16} strokeWidth={ICON_STROKE} />
                           추가
                         </Button>
                       </div>
@@ -1844,19 +1892,35 @@ export function App() {
                         const next = kinds.filter(isFreeKind).reduce((list, kind) => defaultFreeOrder(list, kind), defaultKindOrder(tokens, kinds))
                         return (
                           <div className="mb-header flex justify-end gap-actions-tight">
+                            {/* 의미 크기 판은 보는 방식이 둘이다(종류별, 요소별). "원래대로"는 어느 보기에서나 종류별 보기의 차례(파일의 차례)를 돌려놓는다. */}
+                            {id === 'sizeuse' && <SizeViewSwitch value={sizeView} onChange={changeSizeView} />}
                             <ResetButton title="종류와 그 안의 차례를 기본 순서로 돌려놓아요" onReset={next === tokens ? undefined : () => commit(next)} />
                             {FOLDABLE.includes(id) && <FoldButton folded={!!plainBoards[id]} title="설명과 예시를 모두 숨기거나 보여요" onToggle={() => togglePlain(id)} />}
                             {/* 의미 크기는 종류가 셋이지만 추가는 판에 하나다. 종류는 창에서 고른다(다른 의미 판처럼 판마다 추가가 하나). */}
                             {id === 'sizeuse' && (
                               <Button variant="ghost" aria-label="의미 크기 추가" onClick={() => setAddingSize(true)}>
-                                <Plus size={16} strokeWidth={1.5} />
+                                <Plus size={16} strokeWidth={ICON_STROKE} />
+                                추가
+                              </Button>
+                            )}
+                            {/* 의미 테두리도 종류가 둘이지만 묻는 것이 같아서 추가는 판에 하나다. 의미 테두리 하나를 골라 둔 채 누르면 그 종류로 열린다. */}
+                            {id === 'border' && (
+                              <Button variant="ghost" aria-label="의미 테두리 추가" onClick={() => setAddingBorder(commonKind && isBorderKind(commonKind) ? commonKind : KINDS.border)}>
+                                <Plus size={16} strokeWidth={ICON_STROKE} />
                                 추가
                               </Button>
                             )}
                           </div>
                         )
                       })()}
-                    <KindSections kinds={TOKEN_SCREENS[id].kinds} {...sectionProps} {...(FOLDABLE.includes(id) ? { detailsFolded: !!plainBoards[id], onToggleDetails: () => togglePlain(id) } : {})} />
+                    {id === 'sizeuse' && sizeView === 'thing' ? (
+                      // 의미 크기 판의 요소별 보기. 종류의 제목 없이 묶음 안에서 요소마다 그 높이와 폭을 함께 보여 준다. 접기는 종류별 보기와 같은 것을 읽는다.
+                      <DetailsFolded.Provider value={!!plainBoards[id]}>
+                        <SizeThings tokens={tokens} selected={selected} onSelect={sectionProps.onSelect} onSelectGroup={sectionProps.onSelectGroup} onRename={sectionProps.onRename} />
+                      </DetailsFolded.Provider>
+                    ) : (
+                      <KindSections kinds={TOKEN_SCREENS[id].kinds} {...sectionProps} {...(FOLDABLE.includes(id) ? { detailsFolded: !!plainBoards[id], onToggleDetails: () => togglePlain(id) } : {})} />
+                    )}
                   </>
                 ),
               }))}
@@ -1875,7 +1939,7 @@ export function App() {
             {loadError ? (
               <EmptyState title="불러오지 못했어요" body={loadError} />
             ) : systems === null ? null : !system ? (
-              <div className="mx-auto mt-groups w-dialog rounded-lg border border-hairline bg-canvas p-dialog">
+              <div className="mx-auto mt-groups w-dialog rounded-float border-edge border-hairline bg-canvas p-dialog">
                 <p className="mb-header type-title">첫 디자인 시스템을 만들어 보세요</p>
                 <NewSystemForm
                   onCreated={(name) => {
@@ -1899,10 +1963,10 @@ export function App() {
               ) : (
                 <div className="mx-auto max-w-(--width-page)">
                   <h1 className="mb-header flex h-control items-center type-title">컴포넌트</h1>
-                  <div className="rounded-lg border border-hairline bg-canvas">
+                  <div className="rounded-float border-edge border-hairline bg-canvas">
                     <EmptyState title="첫 컴포넌트를 만들어 보세요">
                       <Button onClick={() => setAddingComp(true)}>
-                        <Plus size={16} strokeWidth={1.5} />
+                        <Plus size={16} strokeWidth={ICON_STROKE} />
                         컴포넌트 추가
                       </Button>
                     </EmptyState>
@@ -1912,7 +1976,7 @@ export function App() {
             ) : screen !== 'canvas' ? (
               <div className="mx-auto max-w-(--width-page)">
                 <h1 className="mb-header flex h-control items-center type-title">{PLACEHOLDER_SCREENS[screen].title}</h1>
-                <div className="rounded-lg border border-hairline bg-canvas">
+                <div className="rounded-float border-edge border-hairline bg-canvas">
                   <EmptyState title="다음 단계에서 만들 화면이에요" />
                 </div>
               </div>
@@ -1922,7 +1986,7 @@ export function App() {
 
         {/* 보여 줄 것이 없으면(아무것도 선택하지 않았으면) 패널 자체를 없애 가운데를 넓게 쓴다. */}
         <aside
-          className="w-panel shrink-0 overflow-y-auto border-l border-hairline empty:hidden"
+          className="w-panel shrink-0 overflow-y-auto border-l-divider border-hairline empty:hidden"
           // 입력칸을 눌러 들어가면 적혀 있던 글자를 모두 선택해서 바로 고쳐 쓸 수 있게 한다. 이미 들어가 있는 칸을 다시 누르면 평소처럼 커서가 놓인다.
           onMouseDownCapture={(e) => {
             const input = e.target
@@ -2012,15 +2076,15 @@ export function App() {
               onChange={(patch) => commit(tokens.map((t) => (t.name === selectedTokens[0].name ? { ...t, ...patch } : t)))}
               onCopy={(text) => copyText(text, '코드를 복사했어요.')}
             />
-          ) : // 토대의 길이(크기, 간격)는 같은 패널을 쓴다. 예전 파일의 간격 가운데 px이 아닌 값(0.5rem)은 숫자 칸으로 고칠 수 없어서 일반 패널로 넘긴다.
-          selectedTokens.length === 1 && commonKind && (commonKind.id === 'length' || (commonKind.id === 'space' && /^\d+px$/.test(selectedTokens[0].value.trim()))) ? (
+          ) : // 토대의 길이(크기, 간격, 모서리)는 같은 패널을 쓴다. 모서리도 px이 아닌 값은 일반 패널로 넘긴다. 예전 파일의 간격 가운데 px이 아닌 값(0.5rem)은 숫자 칸으로 고칠 수 없어서 일반 패널로 넘긴다.
+          selectedTokens.length === 1 && commonKind && (commonKind.id === 'length' || ((commonKind.id === 'space' || commonKind.id === 'corner' || commonKind.id === 'thickness') && /^\d+px$/.test(selectedTokens[0].value.trim()))) ? (
             <LengthInspector
               key={selectionId}
               kind={commonKind}
               token={selectedTokens[0]}
               tokens={tokens}
               file={file}
-              users={tokens.filter((t) => (LENGTH_REF.exec(t.value) ?? SPACE_REF.exec(t.value))?.[1] === selectedTokens[0].name).map((t) => t.name)}
+              users={tokens.filter((t) => (LENGTH_REF.exec(t.value) ?? SPACE_REF.exec(t.value) ?? CORNER_REF.exec(t.value) ?? THICKNESS_REF.exec(t.value))?.[1] === selectedTokens[0].name).map((t) => t.name)}
               uses={usesOf(comps, selectedTokens[0].name)}
               onOpenComponent={openComp}
               onOpenToken={goToken}
@@ -2050,6 +2114,34 @@ export function App() {
               file={file}
               uses={usesOf(comps, selectedTokens[0].name)}
               onOpenComponent={openComp}
+              onRename={(to) => renameToken(selectedTokens[0].name, to)}
+              onChange={(patch) => commit(tokens.map((t) => (t.name === selectedTokens[0].name ? { ...t, ...patch } : t)))}
+              onCopy={(text) => copyText(text, '코드를 복사했어요.')}
+            />
+          ) : selectedTokens.length === 1 && commonKind && isBorderKind(commonKind) ? (
+            <BorderInspector
+              key={selectionId}
+              token={selectedTokens[0]}
+              kind={commonKind}
+              tokens={tokens}
+              file={file}
+              uses={usesOf(comps, selectedTokens[0].name)}
+              onOpenComponent={openComp}
+              onOpenToken={goToken}
+              onRename={(to) => renameToken(selectedTokens[0].name, to)}
+              onChange={(patch) => commit(tokens.map((t) => (t.name === selectedTokens[0].name ? { ...t, ...patch } : t)))}
+              onCopy={(text) => copyText(text, '코드를 복사했어요.')}
+            />
+          ) : selectedTokens.length === 1 && commonKind?.id === 'radius' ? (
+            <RadiusInspector
+              key={selectionId}
+              token={selectedTokens[0]}
+              kind={commonKind}
+              tokens={tokens}
+              file={file}
+              uses={usesOf(comps, selectedTokens[0].name)}
+              onOpenComponent={openComp}
+              onOpenToken={goToken}
               onRename={(to) => renameToken(selectedTokens[0].name, to)}
               onChange={(patch) => commit(tokens.map((t) => (t.name === selectedTokens[0].name ? { ...t, ...patch } : t)))}
               onCopy={(text) => copyText(text, '코드를 복사했어요.')}
@@ -2177,6 +2269,20 @@ export function App() {
               if (tokens.some((t) => kind.matches(t.name))) return insert({ name, value }, (t) => kind.matches(t.name))
               // 첫 크기면 간격들(토대와 의미)의 뒤에 놓는다.
               if (kind.id === 'length') return insert({ name, value }, (t) => KINDS.space.matches(t.name) || KINDS.spaceUse.matches(t.name))
+              // 첫 테두리면 의미 테두리들의 앞에 놓는다(토대가 의미보다 먼저 적혀 있게). 의미 테두리도 없으면 모서리들(토대와 의미)의 뒤에 놓는다.
+              if (kind.id === 'thickness') {
+                const firstUse = tokens.findIndex((t) => KINDS.border.matches(t.name) || KINDS.outline.matches(t.name))
+                if (firstUse === -1) return insert({ name, value }, (t) => KINDS.corner.matches(t.name) || KINDS.radius.matches(t.name))
+                commit([...tokens.slice(0, firstUse), { name, value }, ...tokens.slice(firstUse)])
+                return select([name])
+              }
+              // 첫 모서리면 의미 모서리들의 앞에 놓는다(토대가 의미보다 먼저 적혀 있게). 의미 모서리도 없으면 크기들(토대와 의미)의 뒤에 놓는다.
+              if (kind.id === 'corner') {
+                const firstUse = tokens.findIndex((t) => KINDS.radius.matches(t.name))
+                if (firstUse === -1) return insert({ name, value }, (t) => [KINDS.length, KINDS.height, KINDS.width, KINDS.square].some((k) => k.matches(t.name)))
+                commit([...tokens.slice(0, firstUse), { name, value }, ...tokens.slice(firstUse)])
+                return select([name])
+              }
               // 첫 간격이면 의미 간격들의 앞에 놓는다(토대가 의미보다 먼저 적혀 있게).
               const first = tokens.findIndex((t) => KINDS.spaceUse.matches(t.name))
               const at = first === -1 ? tokens.length : first
@@ -2200,6 +2306,40 @@ export function App() {
               const group = readSizeNote(note, shortName(kind, name)).group
               const inGroup = (t: Token) => kind.matches(t.name) && readSizeNote(t.note, shortName(kind, t.name)).group === group
               const after = tokens.some(inGroup) ? inGroup : tokens.some((t) => kind.matches(t.name)) ? (t: Token) => kind.matches(t.name) : (t: Token) => [KINDS.length, KINDS.height, KINDS.width, KINDS.square].some((k) => k.matches(t.name))
+              insert({ name, value, note }, after)
+            }}
+          />
+        </Modal>
+      )}
+
+      {addingBorder && (
+        <Modal title="의미 테두리 추가" onClose={() => setAddingBorder(null)}>
+          <NewBorderForm
+            start={addingBorder}
+            tokens={tokens}
+            onCancel={() => setAddingBorder(null)}
+            onCreate={(kind, name, value, note) => {
+              setAddingBorder(null)
+              // 같은 종류의 뒤에 놓는다. 그 종류의 첫 값이면 테두리(토대)와 다른 의미 테두리의 뒤에 놓는다.
+              const after = tokens.some((t) => kind.matches(t.name)) ? (t: Token) => kind.matches(t.name) : (t: Token) => [KINDS.thickness, KINDS.border, KINDS.outline].some((k) => k.matches(t.name))
+              insert({ name, value, note }, after)
+            }}
+          />
+        </Modal>
+      )}
+
+      {addingRadius && (
+        <Modal title="의미 모서리 추가" onClose={() => setAddingRadius(false)}>
+          <NewRadiusForm
+            tokens={tokens}
+            onCancel={() => setAddingRadius(false)}
+            onCreate={(name, value, note) => {
+              setAddingRadius(false)
+              // 같은 묶음 뒤에 놓는다(묶음의 값들이 파일에서 한데 모여 있게). 그 묶음의 첫 값이면 의미 모서리의 맨 뒤, 첫 의미 모서리면 모서리(토대)의 뒤에 놓는다.
+              const kind = KINDS.radius
+              const group = readRadiusNote(note, shortName(kind, name)).group
+              const inGroup = (t: Token) => kind.matches(t.name) && readRadiusNote(t.note, shortName(kind, t.name)).group === group
+              const after = tokens.some(inGroup) ? inGroup : tokens.some((t) => kind.matches(t.name)) ? (t: Token) => kind.matches(t.name) : (t: Token) => KINDS.corner.matches(t.name)
               insert({ name, value, note }, after)
             }}
           />
@@ -2308,7 +2448,7 @@ export function App() {
       {notice && (
         <div
           role="status"
-          className="pointer-events-none fixed bottom-6 left-1/2 z-50 flex h-control -translate-x-1/2 items-center rounded-md bg-ink px-bar-x type-body whitespace-nowrap text-on-primary shadow-float"
+          className="pointer-events-none fixed bottom-[24px] left-1/2 z-50 flex h-control -translate-x-1/2 items-center rounded-control bg-ink px-bar-x type-body whitespace-nowrap text-on-primary shadow-float"
         >
           {notice}
         </div>

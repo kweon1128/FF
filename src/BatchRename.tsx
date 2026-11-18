@@ -93,7 +93,7 @@ export function BatchRename({
           </Field>
         </div>
 
-        <ul className="mt-fields max-h-[280px] space-y-rows overflow-y-auto rounded-md border border-hairline p-box">
+        <ul className="mt-fields max-h-[280px] space-y-rows overflow-y-auto rounded-card border-edge border-hairline p-box">
           {rows.map((r) => {
             const problem = problemOf(r)
             return (

@@ -1,3 +1,4 @@
+import { ICON_STROKE } from './lib/icons'
 import {
   CaseSensitive,
   Component,
@@ -16,7 +17,9 @@ import {
   Scaling,
   Sparkles,
   Square,
+  SquareDashed,
   SquareRoundCorner,
+  Squircle,
   Type,
   Zap,
 } from 'lucide-react'
@@ -38,8 +41,10 @@ const SECTIONS: { title?: string; items: Item[] }[] = [
       { id: 'spaceuse', label: '의미 간격', icon: RulerDimensionLine },
       { id: 'length', label: '크기', icon: Scaling },
       { id: 'sizeuse', label: '의미 크기', icon: Proportions },
-      { id: 'radius', label: '모서리', icon: SquareRoundCorner },
-      { id: 'border', label: '테두리', icon: Square },
+      { id: 'corner', label: '모서리', icon: SquareRoundCorner },
+      { id: 'radius', label: '의미 모서리', icon: Squircle },
+      { id: 'thickness', label: '테두리', icon: Square },
+      { id: 'border', label: '의미 테두리', icon: SquareDashed },
       { id: 'effect', label: '효과', icon: Sparkles },
       { id: 'layout', label: '화면 크기', icon: Monitor },
       { id: 'motion', label: '움직임', icon: Zap },
@@ -55,7 +60,7 @@ const SECTIONS: { title?: string; items: Item[] }[] = [
   },
 ]
 
-const ROW = 'flex h-row w-full items-center gap-row-inner rounded-md px-row-x text-left'
+const ROW = 'flex h-row w-full items-center gap-row-inner rounded-row px-row-x text-left'
 const IDLE = 'type-menu text-ink-soft hover:bg-hover hover:text-ink'
 
 export function Nav({
@@ -82,10 +87,11 @@ export function Nav({
   onShow: (id: string) => void
   onUnlock: (id: string) => void
 }) {
+  // 줄의 오른쪽 끝에 놓이는 작은 버튼. 줄의 한가운데 높이에 오도록 위와 오른쪽을 (줄 높이 - 버튼 크기)의 절반만큼 띄운다.
   const MARK =
-    'absolute top-1 right-1 flex size-icon-button-corner items-center justify-center rounded-sm text-ink-faint outline-selection hover:bg-canvas hover:text-ink focus-visible:outline-2'
+    'absolute [--edge:calc((var(--height-row)-var(--size-icon-button-corner))/2)] top-(--edge) right-(--edge) flex size-icon-button-corner items-center justify-center rounded-small text-ink-faint outline-selection hover:bg-canvas hover:text-ink focus-visible:outline-focus'
   return (
-    <nav className="w-nav shrink-0 overflow-y-auto border-r border-hairline p-nav">
+    <nav className="w-nav shrink-0 overflow-y-auto border-r-divider border-hairline p-nav">
       {SECTIONS.map((section, i) => (
         <div key={i}>
           {section.title && <p className="px-row-x pt-section-y pb-label type-label text-ink-faint">{section.title}</p>}
@@ -100,7 +106,7 @@ export function Nav({
                     onClick={() => onSelect(id)}
                     className={`${ROW} ${selected ? 'bg-hover type-menu-strong text-ink' : IDLE}`}
                   >
-                    <Icon size={16} strokeWidth={1.5} />
+                    <Icon size={16} strokeWidth={ICON_STROKE} />
                     <span className={hidden.includes(id) ? 'text-ink-faint' : ''}>{label}</span>
                   </button>
                   {hidden.includes(id) ? (
@@ -111,7 +117,7 @@ export function Nav({
                       onClick={() => onShow(id)}
                       className={MARK}
                     >
-                      <EyeOff size={16} strokeWidth={1.5} />
+                      <EyeOff size={16} strokeWidth={ICON_STROKE} />
                     </button>
                   ) : locked.includes(id) ? (
                     <button
@@ -121,7 +127,7 @@ export function Nav({
                       onClick={() => onUnlock(id)}
                       className={MARK}
                     >
-                      <Lock size={16} strokeWidth={1.5} />
+                      <Lock size={16} strokeWidth={ICON_STROKE} />
                     </button>
                   ) : null}
 
@@ -143,7 +149,7 @@ export function Nav({
                       ))}
                       <button type="button" onClick={onAddComponent} className={`${ROW} ${IDLE}`}>
                         <span className="size-icon shrink-0" />
-                        <Plus size={16} strokeWidth={1.5} />
+                        <Plus size={16} strokeWidth={ICON_STROKE} />
                         컴포넌트 추가
                       </button>
                     </>

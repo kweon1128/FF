@@ -1,3 +1,4 @@
+import { ICON_STROKE } from './lib/icons'
 import { createContext, useContext, useEffect, useRef, useState, type FormEvent } from 'react'
 import { SLUG } from './lib/catalog'
 import { Check, Minus, Plus, RotateCcw, X } from 'lucide-react'
@@ -36,7 +37,7 @@ const BOXED = ['배송 준비', '바꾸기', '더 보기', '결제 완료', '출
 /** 설정의 이름표. 값 위에 둔다. 한 벌 만들기 창들의 왼쪽 열과 같다. */
 const LABEL = 'mb-label type-label text-ink-faint'
 const SCALE_BUTTON =
-  'flex size-icon-button shrink-0 items-center justify-center rounded-md text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2 disabled:opacity-disabled disabled:hover:bg-transparent'
+  'flex size-icon-button shrink-0 items-center justify-center rounded-control text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-focus disabled:opacity-disabled disabled:hover:bg-transparent'
 /**
  * 버튼과 입력칸 안의 글자에 준다. 글꼴마다 글자 위아래에 잡아 둔 여백이 달라서, 그대로 가운데에 놓으면 글꼴에 따라
  * 위나 아래로 1~2px 치우친다. 줄 상자에서 그 여백을 잘라 내고(대문자 높이에서 기준선까지만 남김) 글자 자체를 가운데에 놓는다.
@@ -181,7 +182,7 @@ export function FontSample({
         <p className={LINE} style={{ ...sub, fontWeight: W_HEADING }}>
           38,000원 · 2상자
         </p>
-        <span data-controls className="inline-flex shrink-0 items-center rounded-md" style={{ ...box(picked.small, 4), fontWeight: W_CONTROL, background: `color-mix(in srgb, ${text} 10%, transparent)` }}>
+        <span data-controls className="inline-flex shrink-0 items-center rounded-control" style={{ ...box(picked.small, 4), fontWeight: W_CONTROL, background: `color-mix(in srgb, ${text} 10%, transparent)` }}>
           <span className={TRIM} style={centered('결제 완료', W_CONTROL)}>
             결제 완료
           </span>
@@ -207,12 +208,12 @@ export function FontSample({
         받는 분
       </p>
       <div data-input className="mt-label flex gap-field-row">
-        <span className="flex min-w-0 flex-1 items-center rounded-md" style={{ ...box(picked.body, 8, 0.34), ...read, border: `1px solid color-mix(in srgb, ${text} 20%, transparent)` }}>
+        <span className="flex min-w-0 flex-1 items-center rounded-control" style={{ ...box(picked.body, 8, 0.34), ...read, border: `1px solid color-mix(in srgb, ${text} 20%, transparent)` }}>
           <span className={TRIM} style={centered('김하늘', weight)}>
             김하늘
           </span>
         </span>
-        <span className="inline-flex shrink-0 items-center rounded-md" style={{ ...box(picked.body, 8), fontWeight: W_CONTROL, border: `1px solid color-mix(in srgb, ${text} 25%, transparent)` }}>
+        <span className="inline-flex shrink-0 items-center rounded-control" style={{ ...box(picked.body, 8), fontWeight: W_CONTROL, border: `1px solid color-mix(in srgb, ${text} 25%, transparent)` }}>
           <span className={TRIM} style={centered('바꾸기', W_CONTROL)}>
             바꾸기
           </span>
@@ -224,12 +225,12 @@ export function FontSample({
       </p>
       {/* 화면의 맨 아래: 주요 버튼(글자색을 바탕으로, 바탕색을 글자로 뒤집음)이 남는 폭을 차지하고, 그 옆에 비활성 버튼(주요 버튼을 흐리게)이 있다. */}
       <div data-controls className="mt-settings flex gap-actions">
-        <span className="inline-flex min-w-0 flex-1 items-center justify-center rounded-md" style={{ ...box(picked.sm, 8), fontWeight: W_CONTROL, background: text, color: back }}>
+        <span className="inline-flex min-w-0 flex-1 items-center justify-center rounded-control" style={{ ...box(picked.sm, 8), fontWeight: W_CONTROL, background: text, color: back }}>
           <span className={TRIM} style={centered('배송 준비', W_CONTROL)}>
             배송 준비
           </span>
         </span>
-        <span className="inline-flex shrink-0 items-center rounded-md opacity-40" style={{ ...box(picked.sm, 8), fontWeight: W_CONTROL, background: text, color: back }}>
+        <span className="inline-flex shrink-0 items-center rounded-control opacity-40" style={{ ...box(picked.sm, 8), fontWeight: W_CONTROL, background: text, color: back }}>
           <span className={TRIM} style={centered('출고 완료', W_CONTROL)}>
             출고 완료
           </span>
@@ -247,7 +248,7 @@ export function FontSample({
                 {has ? '가' : '\u00a0'}
               </span>
               <span
-                className={`mx-auto block w-fit border-b type-code-sm ${has ? 'opacity-60' : 'opacity-20'}`}
+                className={`mx-auto block w-fit border-b-divider type-code-sm ${has ? 'opacity-60' : 'opacity-20'}`}
                 style={{ borderColor: w === drawn ? 'currentColor' : 'transparent' }}
               >
                 {w}
@@ -423,7 +424,7 @@ export function NewFontForm({
         aria-selected={on}
         aria-disabled={full}
         onClick={() => toggle(family)}
-        className={`flex h-row w-full items-center gap-row-inner overflow-hidden rounded-md px-row-x text-left type-body outline-selection focus-visible:outline-2 ${
+        className={`flex h-row w-full items-center gap-row-inner overflow-hidden rounded-row px-row-x text-left type-body outline-selection focus-visible:outline-focus ${
           on ? 'bg-selection-soft' : full ? 'cursor-default opacity-40' : 'hover:bg-hover'
         }`}
       >
@@ -431,7 +432,7 @@ export function NewFontForm({
         <span className={`min-w-0 flex-1 whitespace-nowrap ${TRIM}`} style={{ fontFamily: `"${family}", system-ui, sans-serif` }}>
           {family}
         </span>
-        {on && <Check size={16} strokeWidth={1.5} className="shrink-0 text-ink-soft" />}
+        {on && <Check size={16} strokeWidth={ICON_STROKE} className="shrink-0 text-ink-soft" />}
       </button>
     )
   }
@@ -445,7 +446,7 @@ export function NewFontForm({
         {/* 이 창의 주된 일은 글꼴을 고르는 것이라 찾기와 목록이 맨 위에 온다. */}
         <div className="flex min-h-0 flex-1 flex-col">
         <input autoFocus data-native-undo aria-label="글꼴 찾기" className={inputClass} value={query} placeholder="찾기" onChange={(e) => setQuery(e.target.value)} />
-        <div role="listbox" aria-label="글꼴 목록" aria-multiselectable className="mt-blocks min-h-[320px] flex-1 basis-0 overflow-y-auto rounded-md border border-hairline p-menu">
+        <div role="listbox" aria-label="글꼴 목록" aria-multiselectable className="mt-blocks min-h-[320px] flex-1 basis-0 overflow-y-auto rounded-card border-edge border-hairline p-menu">
           {/* 목록에 없는 글꼴은 이름만 적어 넣지 못한다. 불러올 곳을 모르는 글꼴은 견본이 다른 글꼴로 그려져 견주는 뜻이 없기 때문이다. 그런 글꼴은 AI가 찾아서 넣는다. */}
           {groups.size === 0 && (
             <p className="px-row-x py-board type-body text-ink-faint">
@@ -465,7 +466,7 @@ export function NewFontForm({
         </div>
         {/* 구분선 아래는 곁들이는 설정이다. 이름표는 값 위에 있고, 설정 사이는 16px이다.
             이름은 만들어지는 값이고, 크기와 굵기는 견본을 보는 방식이다(저장되지 않는다). */}
-        <div className="mt-settings shrink-0 space-y-settings border-t border-hairline pt-settings">
+        <div className="mt-settings shrink-0 space-y-settings border-t-divider border-hairline pt-settings">
           {/* 이름. 미리 채워져 있어서 그대로 두어도 되고, 바꾸고 싶을 때만 고친다. 바꾸는 창에서는 이름을 묻지 않는다. */}
           {!edit && (
             <div>
@@ -490,13 +491,13 @@ export function NewFontForm({
             <p className={LABEL}>견본 크기</p>
             <span className="flex h-control items-center gap-actions-tight">
               <button type="button" aria-label="견본 글자 작게" disabled={size <= SIZE_MIN} onClick={() => stepSize(-1)} className={SCALE_BUTTON}>
-                <Minus size={16} strokeWidth={1.5} />
+                <Minus size={16} strokeWidth={ICON_STROKE} />
               </button>
               <span data-size className="w-stepper-value text-center type-body tabular-nums!">
                 {size}px
               </span>
               <button type="button" aria-label="견본 글자 크게" disabled={size >= SIZE_MAX} onClick={() => stepSize(1)} className={SCALE_BUTTON}>
-                <Plus size={16} strokeWidth={1.5} />
+                <Plus size={16} strokeWidth={ICON_STROKE} />
               </button>
             </span>
           </div>
@@ -505,13 +506,13 @@ export function NewFontForm({
             <p className={LABEL}>견본 굵기</p>
             <span className="flex h-control items-center gap-actions-tight">
               <button type="button" aria-label="견본 글자 얇게" disabled={weight <= 100} onClick={() => stepWeight(-1)} className={SCALE_BUTTON}>
-                <Minus size={16} strokeWidth={1.5} />
+                <Minus size={16} strokeWidth={ICON_STROKE} />
               </button>
               <span data-weight-now className="w-stepper-value text-center type-body tabular-nums!">
                 {weight}
               </span>
               <button type="button" aria-label="견본 글자 굵게" disabled={weight >= 900} onClick={() => stepWeight(1)} className={SCALE_BUTTON}>
-                <Plus size={16} strokeWidth={1.5} />
+                <Plus size={16} strokeWidth={ICON_STROKE} />
               </button>
             </span>
           </div>
@@ -528,12 +529,12 @@ export function NewFontForm({
           {Array.from({ length: SLOTS }, (_, i) => {
             // 후보를 고르기 전에는 세 자리 모두 비어 있다.
             const family = places[i]
-            if (!family) return <div key={i} className="rounded-md border border-dashed border-hairline" style={CARD_ROWS} />
+            if (!family) return <div key={i} className="rounded-card border-edge border-dashed border-hairline" style={CARD_ROWS} />
             const on = family === marked
             return (
               // 카드는 자리를 옮기지 않는다. 후보가 셋뿐이라 어느 자리에 있든 한눈에 견줄 수 있고, 카드의 순서는 만들어지는 값에 들어가지 않는다.
               // 끌어 옮기기를 두면 카드를 눌러 정하는 것과 조작이 겹친다.
-              <div key={family} data-card={i} className={`relative rounded-md border bg-canvas ${SUBGRID} ${on ? 'border-selection' : 'border-hairline'}`} style={CARD_ROWS}>
+              <div key={family} data-card={i} className={`relative rounded-card border-edge bg-canvas ${SUBGRID} ${on ? 'border-selection' : 'border-hairline'}`} style={CARD_ROWS}>
                 {/* 줄을 함께 쓰려면 격자여야 해서 button 대신 div로 만들고, 키보드로도 누를 수 있게 한다. */}
                 <div
                   role="button"
@@ -550,7 +551,7 @@ export function NewFontForm({
                     e.preventDefault()
                     setChosen(on ? null : family)
                   }}
-                  className={`cursor-pointer overflow-hidden rounded-md text-left outline-selection focus-visible:outline-2 ${SUBGRID}`}
+                  className={`cursor-pointer overflow-hidden rounded-card text-left outline-selection focus-visible:outline-focus ${SUBGRID}`}
                   style={CARD_ROWS}
                 >
                   {/* 높이를 정해 둔다. 글자를 줄이는 처리(truncate) 때문에 이 줄은 "줄어들어도 되는 줄"로 취급되어, 견본이 카드 영역보다 길어지면 높이가 0에 가깝게 눌린다. */}
@@ -559,14 +560,14 @@ export function NewFontForm({
                   <FontSample family={valueOf(family)} weights={weightsOf(family)} scale={scale} weight={weight} className="px-section-x pt-blocks pb-section-y" />
                 </div>
                 {/* 선택 선의 두 번째 1px. 견본의 바탕색이 카드를 가장자리까지 채우므로, 그 위에 덧그려야 가려지지 않는다. 카드 안쪽에 그어서 스크롤 영역의 가장자리에서도 잘리지 않는다. */}
-                {on && <span className="pointer-events-none absolute inset-0 rounded-[5px] shadow-[inset_0_0_0_1px_var(--color-selection)]" />}
+                {on && <span className="pointer-events-none absolute inset-0 rounded-[calc(var(--radius-card)-1px)] shadow-[inset_0_0_0_var(--border-width-edge)_var(--color-selection)]" />}
                 <button
                   type="button"
                   aria-label={`${family} 빼기`}
                   onClick={() => toggle(family)}
-                  className="absolute top-2 right-2 flex size-icon-button-corner items-center justify-center rounded-sm text-ink-faint outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2"
+                  className="absolute top-[8px] right-[8px] flex size-icon-button-corner items-center justify-center rounded-small text-ink-faint outline-selection hover:bg-hover hover:text-ink focus-visible:outline-focus"
                 >
-                  <X size={16} strokeWidth={1.5} />
+                  <X size={16} strokeWidth={ICON_STROKE} />
                 </button>
               </div>
             )
@@ -577,7 +578,7 @@ export function NewFontForm({
         <div className="mt-dialog-actions flex shrink-0 items-center justify-end gap-actions">
           {/* 바꾼 것을 모두 처음으로 돌린다. 한 벌 만들기 창들과 같은 자리다. 바꾼 것이 없으면 꺼져 있다. */}
           <Button variant="ghost" className="mr-auto" disabled={!changed} title="후보와 이름, 견본을 보는 방식을 모두 처음으로 돌려요" onClick={reset}>
-            <RotateCcw size={16} strokeWidth={1.5} />
+            <RotateCcw size={16} strokeWidth={ICON_STROKE} />
             원래대로
           </Button>
           {/* 알림은 누르려던 버튼 바로 왼쪽에 둔다. 눈이 가 있는 자리라 놓치지 않는다. */}

@@ -55,7 +55,7 @@ export type RoleShape = 'text' | 'surface' | 'row' | 'border' | 'divider' | 'but
 
 export const ROLE_SHAPES: { id: RoleShape; label: string; hint: string }[] = [
   { id: 'text', label: '글자', hint: '이 색으로 적은 글자' },
-  { id: 'surface', label: '면', hint: '글이 놓이는 바탕' },
+  { id: 'surface', label: '바탕', hint: '글이 놓이는 바탕' },
   { id: 'row', label: '줄', hint: '목록에서 올리거나 고른 줄' },
   { id: 'border', label: '테두리', hint: '입력칸의 테두리' },
   { id: 'divider', label: '구분선', hint: '면을 나누는 선' },

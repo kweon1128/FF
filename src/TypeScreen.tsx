@@ -72,7 +72,7 @@ export function TypeScreen({ T, has = () => true }: { T: ComponentType<SlotProps
               오늘 들어온 주문과 배송 상태를 한눈에 봅니다.
             </T>
           </div>
-          <T use="button-lg" className="inline-flex shrink-0 rounded-md bg-ink px-button-x py-fields whitespace-nowrap text-white">
+          <T use="button-lg" className="inline-flex shrink-0 rounded-control bg-ink px-button-x py-fields whitespace-nowrap text-white">
             새 주문 등록
           </T>
         </div>
@@ -100,19 +100,19 @@ export function TypeScreen({ T, has = () => true }: { T: ComponentType<SlotProps
         {/* 고른 항목은 굵기로도 구분한다. 항목마다 바탕이 생길 수 있으므로 4px 띄운다. */}
         {has('tab') && (
           <div className="mt-settings flex gap-actions-tight">
-            <T use="tab-on" className="inline-flex rounded-md bg-hover px-row-x py-menu">
+            <T use="tab-on" className="inline-flex rounded-row bg-hover px-row-x py-menu">
               전체
             </T>
-            <T use="tab" className="inline-flex rounded-md px-row-x py-menu text-ink-soft">
+            <T use="tab" className="inline-flex rounded-row px-row-x py-menu text-ink-soft">
               배송 준비
             </T>
-            <T use="tab" className="inline-flex rounded-md px-row-x py-menu text-ink-soft">
+            <T use="tab" className="inline-flex rounded-row px-row-x py-menu text-ink-soft">
               완료
             </T>
           </div>
         )}
         <div className="mt-settings grid grid-cols-2 gap-columns">
-          <div className="flex flex-col rounded-lg border border-hairline p-board">
+          <div className="flex flex-col rounded-float border-edge border-hairline p-board">
             <div className="flex items-baseline justify-between gap-cells">
               <T use="title-sm" as="h3">
                 한라봉 선물세트
@@ -128,10 +128,10 @@ export function TypeScreen({ T, has = () => true }: { T: ComponentType<SlotProps
             </T>
             {/* 주문 번호 줄은 읽는 글이 아니라 다른 덩어리(번호와 그것을 복사하는 버튼)라 16px 띄운다. */}
             <div className="mt-settings flex items-center gap-actions">
-              <T use="code" className="rounded-sm bg-hover px-chip-x">
+              <T use="code" className="rounded-small bg-hover px-chip-x">
                 ORD-0412-0087
               </T>
-              <T use="button-sm" className="inline-flex rounded-sm border border-hairline px-row-x py-menu">
+              <T use="button-sm" className="inline-flex rounded-small border-edge border-hairline px-row-x py-menu">
                 복사
               </T>
               <T use="caption" className="text-ink-faint">
@@ -139,16 +139,16 @@ export function TypeScreen({ T, has = () => true }: { T: ComponentType<SlotProps
               </T>
             </div>
             <div className="mt-auto flex gap-actions pt-settings">
-              <T use="button" className="inline-flex rounded-md border border-ink bg-ink px-button-x py-box text-white">
+              <T use="button" className="inline-flex rounded-control border-edge border-ink bg-ink px-button-x py-box text-white">
                 배송 준비
               </T>
-              <T use="button" className="inline-flex rounded-md border border-hairline px-button-x py-box">
+              <T use="button" className="inline-flex rounded-control border-edge border-hairline px-button-x py-box">
                 주문 보기
               </T>
             </div>
           </div>
 
-          <div className="flex flex-col rounded-lg border border-hairline p-board">
+          <div className="flex flex-col rounded-float border-edge border-hairline p-board">
             <T use="title-sm" as="h3">
               배송지
             </T>
@@ -156,7 +156,7 @@ export function TypeScreen({ T, has = () => true }: { T: ComponentType<SlotProps
               <T use="label" as="p" className="mb-label text-ink-soft">
                 받는 분
               </T>
-              <T use="body" as="p" className="rounded-md border border-hairline px-input-x py-box">
+              <T use="body" as="p" className="rounded-control border-edge border-hairline px-input-x py-box">
                 김하늘
               </T>
               <T use="caption" as="p" className="mt-blocks text-ink-faint">
@@ -165,7 +165,7 @@ export function TypeScreen({ T, has = () => true }: { T: ComponentType<SlotProps
             </div>
             <div className="mt-auto pt-settings">
               {/* 옆 카드의 버튼과 같은 크기다. 나란한 카드의 버튼은 크기가 같아야 아랫선과 높이가 함께 맞는다. */}
-              <T use="button" className="inline-flex rounded-md border border-ink bg-ink px-button-x py-box text-white">
+              <T use="button" className="inline-flex rounded-control border-edge border-ink bg-ink px-button-x py-box text-white">
                 배송지 저장
               </T>
             </div>
@@ -175,7 +175,7 @@ export function TypeScreen({ T, has = () => true }: { T: ComponentType<SlotProps
 
       {/* 받은 분이 남긴 말. 카드 안에 두면 카드 제목과 크기가 맞먹어 위계가 흐려지므로 화면의 한 묶음으로 따로 둔다.
           혼자 떠 있지 않게, 누가 무엇을 두고 한 말인지를 바로 아래에 붙인다(8px). 왼쪽 선이 둘을 한 덩어리로 묶는다. */}
-      <div className="mt-groups space-y-blocks border-l-2 border-hairline pl-sample">
+      <div className="mt-groups space-y-blocks border-l-[2px] border-hairline pl-sample">
         <T use="quote" as="p">
           상자를 열자마자 향이 달랐어요.
           <br />
@@ -216,20 +216,20 @@ export function ShortScreen({ T, has = () => true }: { T: ComponentType<SlotProp
           <T use="body-strong">당일에 출고</T>
           <T use="body">됩니다. 수도권은 내일, 그 밖의 지역은 모레 도착합니다.</T>
         </p>
-        <T use="code" as="p" className="mt-settings w-fit rounded-sm bg-hover px-chip-x">
+        <T use="code" as="p" className="mt-settings w-fit rounded-small bg-hover px-chip-x">
           ORD-0412-0087
         </T>
       </div>
       <div>
         {has('tab') && (
           <div className="flex gap-actions-tight">
-            <T use="tab-on" className="inline-flex rounded-md bg-hover px-row-x py-menu">
+            <T use="tab-on" className="inline-flex rounded-row bg-hover px-row-x py-menu">
               전체
             </T>
-            <T use="tab" className="inline-flex rounded-md px-row-x py-menu text-ink-soft">
+            <T use="tab" className="inline-flex rounded-row px-row-x py-menu text-ink-soft">
               배송 준비
             </T>
-            <T use="tab" className="inline-flex rounded-md px-row-x py-menu text-ink-soft">
+            <T use="tab" className="inline-flex rounded-row px-row-x py-menu text-ink-soft">
               완료
             </T>
           </div>
@@ -237,14 +237,14 @@ export function ShortScreen({ T, has = () => true }: { T: ComponentType<SlotProp
         <T use="label" as="p" className="mt-settings mb-label text-ink-soft">
           받는 분
         </T>
-        <T use="body" as="p" className="rounded-md border border-hairline px-input-x py-box">
+        <T use="body" as="p" className="rounded-control border-edge border-hairline px-input-x py-box">
           김하늘
         </T>
         <div className="mt-settings flex gap-actions">
-          <T use="button" className="inline-flex rounded-md border border-ink bg-ink px-button-x py-box text-white">
+          <T use="button" className="inline-flex rounded-control border-edge border-ink bg-ink px-button-x py-box text-white">
             배송 준비
           </T>
-          <T use="button" className="inline-flex rounded-md border border-hairline px-button-x py-box">
+          <T use="button" className="inline-flex rounded-control border-edge border-hairline px-button-x py-box">
             주문 보기
           </T>
         </div>
@@ -269,7 +269,7 @@ function PlainT({ use, as: Tag = 'span', className = '', children }: SlotProps) 
       onMouseLeave={onHot && group ? () => onHot(null) : undefined}
       // 제목처럼 한 줄을 다 차지하는 글자는 폭을 글자에 맞춘다. 그래야 마우스를 올렸을 때의 선이 빈 줄 끝까지 가지 않고 글자만 두른다.
       // 버튼이나 입력칸처럼 상자를 가진 자리는 상자까지가 한 덩어리라 선도 상자를 두른다.
-      className={`outline-offset-2 outline-selection ${className.includes('rounded') ? '' : 'rounded-sm'} ${Tag !== 'span' && !className.includes('border') ? 'w-fit' : ''} ${group && hot === group ? 'outline-1' : ''} ${className}`}
+      className={`outline-offset-2 outline-selection ${className.includes('rounded') ? '' : 'rounded-small'} ${Tag !== 'span' && !className.includes('border') ? 'w-fit' : ''} ${group && hot === group ? 'outline-mark' : ''} ${className}`}
       style={look}
     >
       {children}

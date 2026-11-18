@@ -8,11 +8,7 @@ import { useRef, useState, type PointerEvent } from 'react'
 const LINE = 'pointer-events-none absolute z-10 bg-selection'
 
 // 선은 이웃한 둘 사이의 한가운데에 긋는다. 그래서 둘 사이의 틈(px)의 절반만큼 바깥으로 내민다.
-// Tailwind가 클래스를 찾을 수 있게 글자 그대로 적어 둔다.
-const BEFORE_Y = { 4: '-top-0.5', 12: '-top-1.5', 16: '-top-2', 24: '-top-3' }
-const AFTER_Y = { 4: '-bottom-0.5', 12: '-bottom-1.5', 16: '-bottom-2', 24: '-bottom-3' }
-const BEFORE_X = { 4: '-left-0.5', 12: '-left-1.5', 16: '-left-2', 24: '-left-3' }
-const AFTER_X = { 4: '-right-0.5', 12: '-right-1.5', 16: '-right-2', 24: '-right-3' }
+// 내미는 거리는 따로 적어 두지 않고 틈에서 계산한다. 틈이 바뀌어도 선은 한가운데에 놓인다.
 
 type Options = {
   /** 여러 칸으로 놓인 목록. 읽는 순서(왼쪽에서 오른쪽, 위에서 아래)로 자리를 찾고, 선을 칸의 왼쪽·오른쪽에 세로로 긋는다. */
@@ -97,12 +93,13 @@ export function useReorder(names: string[], onMove: ((name: string, before: stri
     const space = gap ?? (grid ? 12 : 4)
     const place = grid
       ? before
-        ? `inset-y-0 ${BEFORE_X[space]} w-[calc(var(--line)*2)] -translate-x-1/2`
-        : `inset-y-0 ${AFTER_X[space]} w-[calc(var(--line)*2)] translate-x-1/2`
+        ? 'inset-y-0 w-[calc(var(--line)*2)] -translate-x-1/2'
+        : 'inset-y-0 w-[calc(var(--line)*2)] translate-x-1/2'
       : before
-        ? `inset-x-0 ${BEFORE_Y[space]} h-[calc(var(--line)*2)] -translate-y-1/2`
-        : `inset-x-0 ${AFTER_Y[space]} h-[calc(var(--line)*2)] translate-y-1/2`
-    return <span className={`${LINE} ${place}`} />
+        ? 'inset-x-0 h-[calc(var(--line)*2)] -translate-y-1/2'
+        : 'inset-x-0 h-[calc(var(--line)*2)] translate-y-1/2'
+    const side = grid ? (before ? 'left' : 'right') : before ? 'top' : 'bottom'
+    return <span className={`${LINE} ${place}`} style={{ [side]: -space / 2 }} />
   }
 
   return {

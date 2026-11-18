@@ -1,5 +1,6 @@
 // FF 도구의 공통 부품. 모양의 기준은 DESIGN.md의 components 항목.
 
+import { CHECK_STROKE, ICON_STROKE } from './lib/icons'
 import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from 'react'
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -10,7 +11,7 @@ type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
 
 const BUTTON_STYLES: Record<ButtonVariant, string> = {
   primary: 'bg-primary text-on-primary px-button-x hover:bg-primary/85',
-  secondary: 'bg-canvas text-ink px-button-x border border-hairline hover:bg-hover',
+  secondary: 'bg-canvas text-ink px-button-x border-edge border-hairline hover:bg-hover',
   ghost: 'text-ink-soft px-button-ghost-x hover:bg-hover hover:text-ink',
   danger: 'text-danger px-button-ghost-x hover:bg-hover',
 }
@@ -24,7 +25,7 @@ export function Button({
   return (
     <button
       type="button"
-      className={`inline-flex h-control shrink-0 items-center gap-button-inner rounded-md type-label whitespace-nowrap outline-selection focus-visible:outline-2 focus-visible:outline-offset-1 disabled:opacity-disabled ${BUTTON_STYLES[variant]} ${className}`}
+      className={`inline-flex h-control shrink-0 items-center gap-button-inner rounded-control type-label whitespace-nowrap outline-selection focus-visible:outline-focus focus-visible:outline-offset-1 disabled:opacity-disabled ${BUTTON_STYLES[variant]} ${className}`}
       {...rest}
     >
       {children}
@@ -60,13 +61,13 @@ export function Check({
     <label className={`flex items-start gap-row-inner ${disabled ? 'text-ink-faint' : ''}`}>
       <input type="checkbox" className="peer sr-only" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
       {/* 글자 한 줄의 높이(20px)만큼의 자리 안에서 상자를 가운데에 둔다. 위아래로 2px씩 남아 정확히 가운데다. */}
-      <span className="flex h-[20px] shrink-0 items-center outline-selection peer-focus-visible:[&>span]:outline-2">
+      <span className="flex h-[20px] shrink-0 items-center outline-selection peer-focus-visible:[&>span]:outline-focus">
         <span
-          className={`flex size-checkbox items-center justify-center rounded-sm border outline-offset-1 outline-selection ${
+          className={`flex size-checkbox items-center justify-center rounded-small border-edge outline-offset-1 outline-selection ${
             checked ? 'border-ink bg-ink text-on-primary' : 'border-ink-faint bg-canvas'
           } ${disabled ? 'opacity-disabled' : ''}`}
         >
-          {checked && <CheckIcon size={12} strokeWidth={3} />}
+          {checked && <CheckIcon size={12} strokeWidth={CHECK_STROKE} />}
         </span>
       </span>
       <span className="min-w-0">{children}</span>
@@ -75,7 +76,7 @@ export function Check({
 }
 
 export const inputClass =
-  'h-control w-full rounded-md border border-hairline bg-canvas px-input-x type-body text-ink outline-none placeholder:text-ink-faint focus:border-selection'
+  'h-control w-full rounded-control border-edge border-hairline bg-canvas px-input-x type-body text-ink outline-none placeholder:text-ink-faint focus:border-selection'
 
 /** 변수 이름이나 값처럼 코드 글꼴로 적는 칸. 의미 글꼴 클래스는 한 요소에 하나만 붙이므로, inputClass에 글꼴 클래스를 덧붙이지 않고 이것을 쓴다. */
 export const monoInputClass = inputClass.replace('type-body', 'type-code')
@@ -110,7 +111,7 @@ export function UnitInput({
   /** 음수도 받을지(글자 사이 간격). */
   negative?: boolean
   /**
-   * 견본의 줄 안에 놓는 작은 칸. 고칠 수 있는 자리라는 것이 보이도록 테두리와 흰 바탕을 늘 둔다.
+   * 견본의 줄 안에 놓는 작은 입력칸. 고칠 수 있는 자리라는 것이 보이도록 테두리와 흰 바탕을 늘 둔다.
    * 누르면 숫자가 모두 선택되어 바로 새 값을 적을 수 있고, 숫자를 지우는 동안에도 칸의 폭이 줄지 않는다(적어도 두 글자, placeholder의 길이).
    */
   small?: boolean
@@ -138,17 +139,17 @@ export function UnitInput({
   onBlur?: () => void
 }) {
   const box = small
-    ? `h-compact rounded-sm bg-canvas px-chip-x type-code-sm hover:border-ink-faint ${invalid ? 'border-danger' : 'border-hairline'}`
-    : `h-control w-full rounded-md bg-canvas px-input-x type-body ${invalid ? 'border-danger focus-within:border-danger' : 'border-hairline'}`
+    ? `h-compact rounded-small bg-canvas px-chip-x type-code-sm hover:border-ink-faint ${invalid ? 'border-danger' : 'border-hairline'}`
+    : `h-control w-full rounded-control bg-canvas px-input-x type-body ${invalid ? 'border-danger focus-within:border-danger' : 'border-hairline'}`
   // 마우스로 눌러서 고치기 시작했는지. 누른 손을 뗄 때 브라우저가 방금 한 전체 선택을 풀어 버리지 않게 막는 데 쓴다.
   const picking = useRef(false)
   // 숫자 칸의 폭은 적힌 글자가 실제로 차지하는 폭이다. 그래야 단위가 숫자 바로 뒤에 온다.
   // 글자 수(ch)로 재면 안 된다. 1ch는 숫자 0의 폭인데 소수점과 빼기표는 그보다 좁아서, "-0.01" 같은 값에서 숫자와 단위 사이가 벌어진다.
-  // 그래서 같은 글자를 보이지 않게 한 번 더 그려 그 폭을 칸의 폭으로 쓴다. 작은 칸은 지우는 동안 줄어들지 않게 placeholder의 폭도 함께 잰다.
+  // 그래서 같은 글자를 보이지 않게 한 번 더 그려 그 폭을 칸의 폭으로 쓴다. 작은 입력칸은 지우는 동안 줄어들지 않게 placeholder의 폭도 함께 잰다.
   const ghosts = small ? [digits, placeholder ?? ''] : [digits || placeholder || '']
   const font = 'tabular-nums'
   return (
-    <label title={title} className={`flex cursor-text items-center gap-input-inner border focus-within:border-selection ${width ? `${width} shrink-0 justify-between` : ''} ${box}`}>
+    <label title={title} className={`flex cursor-text items-center gap-input-inner border-edge focus-within:border-selection ${width ? `${width} shrink-0 justify-between` : ''} ${box}`}>
       <span className={`inline-grid ${small ? 'min-w-[2ch]' : 'min-w-[1ch]'} ${font}`}>
         {ghosts.map((text, i) => (
           <span key={i} aria-hidden className="invisible col-start-1 row-start-1 h-0 overflow-hidden pr-px whitespace-pre">
@@ -160,7 +161,7 @@ export function UnitInput({
         autoFocus={autoFocus}
         inputMode="decimal"
         placeholder={placeholder}
-        // 작은 칸은 적힌 값이 회색(ink-soft)이라, 비었을 때 보이는 값(placeholder)을 같은 계열의 회색으로 두면 적힌 값과 구분되지 않는다. 절반으로 더 옅게 한다.
+        // 작은 입력칸은 적힌 값이 회색(ink-soft)이라, 비었을 때 보이는 값(placeholder)을 같은 계열의 회색으로 두면 적힌 값과 구분되지 않는다. 절반으로 더 옅게 한다.
         className={`col-start-1 row-start-1 w-0 min-w-full bg-transparent outline-none ${small ? 'placeholder:text-ink-faint/50' : 'placeholder:text-ink-faint'} ${font} ${small && !strong ? 'text-ink-soft' : 'text-ink'}`}
         onFocus={(e) => {
           // 칸을 누르면 숫자가 모두 선택된다. 숫자 칸은 값을 통째로 바꿔 적는 일이 대부분이라, 누른 뒤 바로 새 값을 적을 수 있어야 한다.
@@ -235,7 +236,7 @@ export function Field({
 
 export function Chip({ children }: { children: ReactNode }) {
   return (
-    <span className="inline-block max-w-full rounded-sm bg-hover px-chip-x type-code break-all text-ink">
+    <span className="inline-block max-w-full rounded-small bg-hover px-chip-x type-code break-all text-ink">
       {children}
     </span>
   )
@@ -294,7 +295,7 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={`${wide === '2xl' ? 'w-dialog-2xl' : wide === 'xl' ? 'w-dialog-xl' : wide === 'lg' ? 'w-dialog-lg' : wide ? 'w-dialog-wide' : 'w-dialog'} ${tall ? 'flex h-[calc(100vh-48px)] flex-col' : 'max-h-[calc(100vh-48px)] overflow-y-auto'} max-w-[calc(100vw-48px)] rounded-lg border border-hairline bg-canvas p-dialog shadow-dialog`}
+        className={`${wide === '2xl' ? 'w-dialog-2xl' : wide === 'xl' ? 'w-dialog-xl' : wide === 'lg' ? 'w-dialog-lg' : wide ? 'w-dialog-wide' : 'w-dialog'} ${tall ? 'flex h-[calc(100vh-48px)] flex-col' : 'max-h-[calc(100vh-48px)] overflow-y-auto'} max-w-[calc(100vw-48px)] rounded-float border-edge border-hairline bg-canvas p-dialog shadow-dialog`}
       >
         <h2 className="mb-header shrink-0 type-title">{title}</h2>
         {tall ? <div className="min-h-0 flex-1">{children}</div> : children}
@@ -397,7 +398,7 @@ export function UsePicker<T extends string>({
         className={`${inputClass} flex items-center gap-row-inner text-left`}
       >
         {now ? line(now) : <span className="min-w-0 flex-1 truncate text-ink-faint">고르기</span>}
-        <ChevronDown size={16} strokeWidth={1.5} className="shrink-0 text-ink-faint" />
+        <ChevronDown size={16} strokeWidth={ICON_STROKE} className="shrink-0 text-ink-faint" />
       </button>
       {open &&
         createPortal(
@@ -405,7 +406,7 @@ export function UsePicker<T extends string>({
           {/* 목록 바깥을 누르면 닫는다. 창(z-50)과 색 선택 창(z-60)보다 위에 뜬다. */}
           <div className="fixed inset-0 z-[70]" onClick={() => setOpen(false)} />
           {/* 줄의 바탕(올렸을 때, 고른 것)이 서로 닿지 않게 줄 사이를 4px 띄운다. */}
-          <div ref={list} role="listbox" aria-label={label} style={place} className="fixed z-[71] space-y-rows overflow-y-auto rounded-lg border border-hairline bg-canvas p-menu shadow-float">
+          <div ref={list} role="listbox" aria-label={label} style={place} className="fixed z-[71] space-y-rows overflow-y-auto rounded-float border-edge border-hairline bg-canvas p-menu shadow-float">
             {options.map((u) => (
               <button
                 key={u.id}
@@ -414,10 +415,10 @@ export function UsePicker<T extends string>({
                 aria-selected={u.id === value}
                 data-use-option={u.id}
                 onClick={() => pick(u.id)}
-                className={`flex h-row w-full items-center gap-row-inner rounded-md px-row-x text-left type-body outline-selection focus-visible:outline-2 ${u.id === value ? 'bg-hover' : 'hover:bg-hover'}`}
+                className={`flex h-row w-full items-center gap-row-inner rounded-row px-row-x text-left type-body outline-selection focus-visible:outline-focus ${u.id === value ? 'bg-hover' : 'hover:bg-hover'}`}
               >
                 {line(u)}
-                {u.id === value && <CheckIcon size={16} strokeWidth={1.5} className="shrink-0" />}
+                {u.id === value && <CheckIcon size={16} strokeWidth={ICON_STROKE} className="shrink-0" />}
               </button>
             ))}
           </div>

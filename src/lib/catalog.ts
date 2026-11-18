@@ -16,8 +16,11 @@ export type PreviewType =
   | 'height'
   | 'width'
   | 'square'
+  | 'corner'
   | 'radius'
+  | 'thickness'
   | 'border'
+  | 'outline'
   | 'shadow'
   | 'opacity'
   | 'blur'
@@ -70,8 +73,12 @@ const roleNames = new Set<string>()
  * 예전 파일은 var(--spacing-2)처럼 예전 이름의 간격을 가리킨다. 그것도 읽는다.
  */
 export const SPACE_REF = /^var\(\s*(--(?:gutter|spacing)-[a-z0-9-]+)\s*\)$/
-/** 크기 판의 값을 가리키는 값. var(--length-32)처럼 크기 변수 하나를 그대로 가리킨다. 의미 크기(높이, 폭, 정사각)의 값이 이 꼴이다. */
+/** 크기 판의 값을 가리키는 값. var(--length-32)처럼 크기 변수 하나를 그대로 가리킨다. 의미 크기(높이, 폭, 정사각형)의 값이 이 꼴이다. */
 export const LENGTH_REF = /^var\(\s*(--length-[a-z0-9-]+)\s*\)$/
+/** 모서리 판의 값을 가리키는 값. var(--corner-6)처럼 모서리 변수 하나를 그대로 가리킨다. 의미 모서리의 값이 이 꼴이다. */
+export const CORNER_REF = /^var\(\s*(--corner-[a-z0-9-]+)\s*\)$/
+/** 테두리 판의 값을 가리키는 값. var(--thickness-1)처럼 굵기 변수 하나를 그대로 가리킨다. 의미 테두리(테두리 선, 외곽선)의 값이 이 꼴이다. */
+export const THICKNESS_REF = /^var\(\s*(--thickness-[a-z0-9-]+)\s*\)$/
 /**
  * 예전 방식의 토대 간격의 이름들(--spacing-2: 8px). 지금은 토대가 --gutter-8, 의미가 --spacing-이름이라 앞머리로 가려지지만,
  * 예전 파일에는 --spacing-으로 시작하면서 길이를 직접 적은 값이 남아 있을 수 있다. 그런 값은 의미 간격이 아니라 간격 판(토대)에 보여 준다.
@@ -246,36 +253,85 @@ const width: Kind = {
   valueLabel: '가리키는 크기',
 }
 
-/** 정사각. 의미 크기의 한 종류로, 가로와 세로가 같은 크기다(아이콘 버튼, 아이콘, 색 견본. --size-icon: var(--length-16)). Tailwind는 size-이름 클래스를 만든다. */
+/** 정사각형. 의미 크기의 한 종류로, 가로와 세로가 같은 크기다(아이콘 버튼, 아이콘, 색 견본. --size-icon: var(--length-16)). Tailwind는 size-이름 클래스를 만든다. */
 const square: Kind = {
   id: 'square',
-  title: '정사각',
+  title: '정사각형',
   prefix: '--size-',
   matches: starts('--size-'),
   defaultValue: '',
-  addLabel: '정사각 추가',
+  addLabel: '정사각형 추가',
   valueLabel: '가리키는 크기',
 }
 
-const radius: Kind = {
-  id: 'radius',
+/**
+ * 모서리(토대). 둥글기 그 자체다. 이름은 px 숫자 그대로이고(--corner-6: 6px), 의미 모서리가 이것을 가리킨다. 간격(--gutter-8), 크기(--length-32)와 같은 짜임이다.
+ * 앞머리는 Tailwind가 모르는 --corner-다. Tailwind가 아는 --radius-면 rounded-6 같은 클래스가 그 값을 읽어 가서, 쓰임의 이름을 거치지 않고 화면에 바로 쓰이게 된다.
+ * 끝이 완전히 둥근 것은 --corner-9999다.
+ */
+const corner: Kind = {
+  id: 'corner',
   title: '모서리',
-  prefix: '--radius-',
-  matches: starts('--radius-'),
+  prefix: '--corner-',
+  matches: starts('--corner-'),
   defaultValue: '8px',
   addLabel: '모서리 추가',
-  valueLabel: '둥글기',
-  tiles: true,
+  valueLabel: '길이',
 }
 
+/**
+ * 의미 모서리. 쓰임의 이름을 붙인 둥글기로, 모서리 판의 값 하나를 가리킨다(--radius-control: var(--corner-6)).
+ * Tailwind는 --radius-이름에서 rounded-이름 클래스를 만든다(rounded-control, rounded-t-control).
+ * 다른 도구로 만든 파일의 --radius-md: 6px처럼 길이를 직접 적은 값도 이 종류로 보여 준다. 패널에서 모서리 판의 값을 고르면 가리키는 값이 된다.
+ */
+const radius: Kind = {
+  id: 'radius',
+  title: '의미 모서리',
+  prefix: '--radius-',
+  matches: starts('--radius-'),
+  defaultValue: '',
+  addLabel: '의미 모서리 추가',
+  valueLabel: '가리키는 모서리',
+}
+
+/**
+ * 테두리(토대). 선의 굵기 그 자체다. 이름은 px 숫자 그대로이고(--thickness-1: 1px), 의미 테두리가 이것을 가리킨다. 간격, 크기, 모서리의 토대와 같은 짜임이다.
+ * 앞머리는 Tailwind가 모르는 --thickness-다. Tailwind가 아는 --border-width-면 border-1 같은 클래스가 그 값을 읽어 가서, 쓰임의 이름을 거치지 않고 화면에 바로 쓰이게 된다.
+ */
+const thickness: Kind = {
+  id: 'thickness',
+  title: '테두리',
+  prefix: '--thickness-',
+  matches: starts('--thickness-'),
+  defaultValue: '1px',
+  addLabel: '테두리 추가',
+  valueLabel: '길이',
+}
+
+/**
+ * 테두리 선. 의미 테두리의 한 종류로, 상자의 자리를 차지하는 선이다(입력칸의 테두리, 구역 사이의 구분선). 테두리 판의 값 하나를 가리킨다(--border-width-edge: var(--thickness-1)).
+ * Tailwind는 --border-width-이름에서 border-이름, border-t-이름, divide-y-이름 클래스를 만든다. 같은 이름의 색(--color-이름)이 있으면 border-이름은 색으로 읽히므로 이름이 겹치면 안 된다.
+ * 다른 도구로 만든 파일의 --border-width-thin: 1px처럼 길이를 직접 적은 값도 이 종류로 보여 준다.
+ */
 const border: Kind = {
   id: 'border',
-  title: '테두리 굵기',
+  title: '테두리 선',
   prefix: '--border-width-',
   matches: starts('--border-width-'),
-  defaultValue: '1px',
-  addLabel: '테두리 굵기 추가',
-  valueLabel: '굵기',
+  defaultValue: '',
+  addLabel: '테두리 선 추가',
+  valueLabel: '가리키는 테두리',
+}
+
+/** 외곽선. 의미 테두리의 한 종류로, 자리를 차지하지 않고 상자 밖에 두르는 선이다(초점 표시. --outline-width-focus: var(--thickness-2)). Tailwind는 outline-이름 클래스를 만든다. */
+const outline: Kind = {
+  id: 'outline',
+  title: '외곽선',
+  prefix: '--outline-width-',
+  matches: starts('--outline-width-'),
+  defaultValue: '',
+  addLabel: '외곽선 추가',
+  valueLabel: '가리키는 테두리',
 }
 
 const shadow: Kind = {
@@ -384,8 +440,11 @@ export const KINDS = {
   height,
   width,
   square,
+  corner,
   radius,
+  thickness,
   border,
+  outline,
   shadow,
   opacity,
   blur,
@@ -399,7 +458,7 @@ export const KINDS = {
 
 export const ALL_KINDS: Kind[] = Object.values(KINDS)
 
-export type TokenScreenId = 'color' | 'role' | 'style' | 'spaceuse' | 'length' | 'sizeuse' | 'type' | 'spacing' | 'radius' | 'border' | 'effect' | 'layout' | 'motion'
+export type TokenScreenId = 'color' | 'role' | 'style' | 'spaceuse' | 'length' | 'sizeuse' | 'type' | 'spacing' | 'radius' | 'corner' | 'border' | 'thickness' | 'effect' | 'layout' | 'motion'
 export type PlaceholderScreenId = 'layouts' | 'assets'
 export type ScreenId = 'canvas' | 'components' | TokenScreenId | PlaceholderScreenId
 
@@ -422,8 +481,8 @@ export const TOKEN_SCREENS: Record<TokenScreenId, { title: string; kinds: Kind[]
   color: { title: '색상', kinds: [color] },
   type: { title: '글꼴', kinds: [font, size, weight, leading, tracking] },
   spacing: { title: '간격', kinds: [space] },
-  radius: { title: '모서리', kinds: [radius] },
-  border: { title: '테두리', kinds: [border] },
+  radius: { title: '의미 모서리', kinds: [radius] },
+  border: { title: '의미 테두리', kinds: [border, outline] },
   effect: { title: '효과', kinds: [shadow, opacity, blur] },
   layout: { title: '화면 크기', kinds: [breakpoint, container, aspect, z] },
   motion: { title: '움직임', kinds: [duration, ease] },
@@ -433,6 +492,8 @@ export const TOKEN_SCREENS: Record<TokenScreenId, { title: string; kinds: Kind[]
   spaceuse: { title: '의미 간격', kinds: [spaceUse] },
   length: { title: '크기', kinds: [length] },
   sizeuse: { title: '의미 크기', kinds: [height, width, square] },
+  corner: { title: '모서리', kinds: [corner] },
+  thickness: { title: '테두리', kinds: [thickness] },
 }
 
 export const PLACEHOLDER_SCREENS: Record<PlaceholderScreenId, { title: string }> = {
@@ -448,12 +509,12 @@ export function isTokenScreen(id: ScreenId): id is TokenScreenId {
 
 /** 변수 이름에서 종류 앞부분을 뗀 짧은 이름. 예: --color-primary-500 → primary-500 */
 /**
- * 토대의 길이(간격 --gutter-8, 크기 --length-32)를 화면에 적는 글자. 이름이 곧 길이라서 8px처럼 길이 한 번만 적는다(8 · 8px처럼 겹쳐 적지 않는다).
+ * 토대의 길이(간격 --gutter-8, 크기 --length-32, 모서리 --corner-6, 테두리 --thickness-1)를 화면에 적는 글자. 이름이 곧 길이라서 8px처럼 길이 한 번만 적는다(8 · 8px처럼 겹쳐 적지 않는다).
  * 줄, 고른 줄의 이름표, 패널의 제목, 고르는 칸, 삭제 경고, 빠른 실행이 모두 이 표기를 쓴다. 숫자 이름이 아닌 값(예전 이름의 간격)은 짧은 이름 그대로다.
  */
 export function lengthLabel(kind: Kind, name: string) {
   const short = shortName(kind, name)
-  return (kind.id === 'space' || kind.id === 'length') && /^\d+$/.test(short) ? `${short}px` : short
+  return (kind.id === 'space' || kind.id === 'length' || kind.id === 'corner' || kind.id === 'thickness') && /^\d+$/.test(short) ? `${short}px` : short
 }
 
 export function shortName(kind: Kind, name: string) {

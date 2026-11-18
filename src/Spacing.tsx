@@ -1,5 +1,6 @@
 // 의미 간격 판의 내용. 쓰임마다 이름과 가리키는 간격, 설명, 예시를 보여 준다.
 
+import { ICON_STROKE } from './lib/icons'
 import { useContext, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import { ArrowUpRight } from 'lucide-react'
 import type { Token } from './lib/api'
@@ -13,7 +14,7 @@ import { Button, Field, Phrases, UsePicker, inputClass } from './ui'
 import { useReorder } from './useReorder'
 
 // 예시의 바탕이 판의 바탕과 같은 색이어도 가장자리가 보이게 하는 옅은 선.
-const EDGE = 'shadow-[inset_0_0_0_1px_rgb(0_0_0/0.1)]'
+const EDGE = 'shadow-[inset_0_0_0_var(--border-width-edge)_rgb(0_0_0/0.1)]'
 // 간격이 차지하는 자리를 칠하는 색. FF가 간격을 표시할 때 쓰는 안내 색을 옅게 쓴다(사용자의 색이 아니라 FF의 표시다).
 const MARK = 'color-mix(in oklab, var(--color-guide) 30%, transparent)'
 // 짙은 바탕(채운 버튼) 위에서는 같은 농도로 칠하면 묻혀서, 그 안쪽에만 덧칠한다.
@@ -41,9 +42,9 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
   // 버튼, 입력칸, 면의 테두리. 칠한 자리 위에서도 보이게 예시의 다른 옅은 선보다 진하게 긋는다.
   const line = `color-mix(in oklab, ${around.ink} 32%, ${around.surface})`
   // 칠하는 자리는 어느 모양에서나 같은 규칙이다: 간격의 방향으로는 값만큼, 그 가로지르는 방향으로는 예시 상자의 끝에서 끝까지 길게 긋는다.
-  // 가로 간격(사이, 좌우 여백)은 위에서 아래까지 세로 띠, 세로 간격(쌓임, 위아래 여백)은 왼쪽에서 오른쪽까지 가로 띠다.
+  // 가로 간격(사이, 좌우 여백)은 위에서 아래까지 세로 띠, 세로 간격(글줄 사이, 위아래 여백)은 왼쪽에서 오른쪽까지 가로 띠다.
   // 어떤 것은 길게 어떤 것은 딱 맞게 그으면 같은 판 안에서 표시가 두 가지 말이 되어 어색하다. (띠는 내용이 가운데에 놓여도 상자의 끝에 닿게 아주 길게 긋고, 넘치는 것은 상자가 자른다.)
-  // inner는 띠가 지나는 물건 안쪽에만 덧칠하는 색이다. 짙은 바탕 위에서도 여백 자리가 보이게 한다(물건 밖의 띠는 다른 예시와 같은 농도로 둔다).
+  // inner는 띠가 지나는 요소 안쪽에만 덧칠하는 색이다. 짙은 바탕 위에서도 여백 자리가 보이게 한다(요소 밖의 띠는 다른 예시와 같은 농도로 둔다).
   const tallOn = (inner?: string) => (
     <span data-sample className="relative block shrink-0 self-stretch" style={{ width: value }}>
       <span className="pointer-events-none absolute inset-x-0 -inset-y-[2000px]" style={{ background: MARK }} />
@@ -58,18 +59,18 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
       <span className="pointer-events-none absolute inset-y-0 -inset-x-[2000px]" style={{ background: MARK }} />
     </span>
   )
-  const outline = (round: string) => <span className={`pointer-events-none absolute inset-0 border ${round}`} style={{ borderColor: line }} />
-  const bar = (width: string) => <span className={`mt-blocks block h-[8px] rounded-sm ${width}`} style={{ background: faint }} />
+  const outline = (round: string) => <span className={`pointer-events-none absolute inset-0 border-edge ${round}`} style={{ borderColor: line }} />
+  const bar = (width: string) => <span className={`mt-blocks block h-[8px] rounded-small ${width}`} style={{ background: faint }} />
   // 내용은 상자의 가운데에 놓는다(효과 판의 예시와 같다).
   const frame = (body: ReactNode) => (
-    <span className={`flex w-full items-center justify-center overflow-hidden rounded-md p-sample ${EDGE}`} style={{ ...space, background: around.surface, color: around.ink, fontFamily: font }}>
+    <span className={`flex w-full items-center justify-center overflow-hidden rounded-card p-sample ${EDGE}`} style={{ ...space, background: around.surface, color: around.ink, fontFamily: font }}>
       {body}
     </span>
   )
   // 버튼 하나. 나란히 놓인 버튼의 마지막은 채운 버튼이다(취소, 추가처럼 끝의 것이 주된 동작이다).
   const chip = (text: string, filled = false) => (
     <span
-      className={`flex h-control items-center rounded-md px-button-x font-[550] whitespace-nowrap ${TEXT}`}
+      className={`flex h-control items-center rounded-control px-button-x font-[550] whitespace-nowrap ${TEXT}`}
       style={filled ? { background: around.ink, color: around.surface } : { boxShadow: `inset 0 0 0 1px ${line}` }}
     >
       {text}
@@ -79,7 +80,7 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
   // 이름표(입력칸 위의 작은 글자)와 입력칸. 입력칸의 값이 없으면 빈 칸이다.
   const tag = (text: string) => <span className={`block font-[550] ${TEXT}`} style={{ color: soft }}>{text}</span>
   const box = (text = '') => (
-    <span className={`flex h-control w-[160px] max-w-full items-center rounded-md px-input-x whitespace-nowrap ${TEXT}`} style={{ boxShadow: `inset 0 0 0 1px ${line}` }}>
+    <span className={`flex h-control w-[160px] max-w-full items-center rounded-control px-input-x whitespace-nowrap ${TEXT}`} style={{ boxShadow: `inset 0 0 0 1px ${line}` }}>
       {text}
     </span>
   )
@@ -91,7 +92,7 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
       <span className="pointer-events-none absolute -inset-x-[2000px] top-0" style={{ height: value, background: MARK }} />
       <span className="pointer-events-none absolute -inset-x-[2000px] bottom-0" style={{ height: value, background: MARK }} />
       <span className="relative block">{content}</span>
-      {outline('rounded-lg')}
+      {outline('rounded-float')}
     </span>
   )
   switch (shape) {
@@ -122,7 +123,7 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
           {list.map((text, i) => (
             <span key={i} className="block">
               {i > 0 && wide}
-              <span className={`flex h-row items-center rounded-md px-row-x whitespace-nowrap ${TEXT}`} style={i === 0 ? { background: `color-mix(in oklab, ${around.ink} 6%, ${around.surface})` } : undefined}>
+              <span className={`flex h-row items-center rounded-row px-row-x whitespace-nowrap ${TEXT}`} style={i === 0 ? { background: `color-mix(in oklab, ${around.ink} 6%, ${around.surface})` } : undefined}>
                 {text}
               </span>
             </span>
@@ -150,8 +151,8 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
             <span key={i} className="block">
               {i > 0 && wide}
               <span className={`block font-[550] ${TEXT}`}>{text}</span>
-              <span className="mt-heading block rounded-md px-box py-box" style={{ boxShadow: `inset 0 0 0 1px ${faint}` }}>
-                <span className="block h-[8px] w-[96px] rounded-sm" style={{ background: faint }} />
+              <span className="mt-heading block rounded-card px-box py-box" style={{ boxShadow: `inset 0 0 0 1px ${faint}` }}>
+                <span className="block h-[8px] w-[96px] rounded-small" style={{ background: faint }} />
               </span>
             </span>
           ))}
@@ -161,9 +162,9 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
       // 바탕 없는 버튼 안의 아이콘(네모로 자리만 그린다)과 글자 사이. 아이콘이 붙는 버튼은 대부분 바탕 없는 버튼이라 그 모습(마우스를 올린 바탕)으로 그린다.
       return frame(
         <span className={`relative inline-flex h-control items-stretch px-button-ghost-x font-[550] whitespace-nowrap ${TEXT}`} style={{ color: soft }}>
-          <span className="absolute inset-0 rounded-md" style={{ background: hover }} />
+          <span className="absolute inset-0 rounded-control" style={{ background: hover }} />
           <span className="relative flex items-center">
-            <span className="block size-icon rounded-sm" style={{ background: soft }} />
+            <span className="block size-icon rounded-small" style={{ background: soft }} />
           </span>
           {tall}
           <span className="relative flex items-center">{all}</span>
@@ -176,7 +177,7 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
           {list.map((text, i) => (
             <span key={i} className="flex items-stretch">
               {i > 0 && tall}
-              <span className={`flex h-control items-center rounded-md px-button-ghost-x font-[550] whitespace-nowrap ${TEXT}`} style={{ background: hover, color: soft }}>
+              <span className={`flex h-control items-center rounded-control px-button-ghost-x font-[550] whitespace-nowrap ${TEXT}`} style={{ background: hover, color: soft }}>
                 {text}
               </span>
             </span>
@@ -192,14 +193,14 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
           <span className="flex items-center" style={{ color: soft }}>
             {list.slice(1).join(', ')}
           </span>
-          {outline('rounded-md')}
+          {outline('rounded-control')}
         </span>,
       )
     case 'chip':
       // 칩(옅은 바탕 위의 짧은 글자)의 왼쪽과 오른쪽.
       return frame(
         <span className={`relative inline-flex h-[20px] items-stretch whitespace-nowrap ${TEXT}`}>
-          <span className="absolute inset-0 rounded-sm" style={{ background: hover }} />
+          <span className="absolute inset-0 rounded-small" style={{ background: hover }} />
           {tall}
           <span className="relative flex items-center">{all}</span>
           {tall}
@@ -212,7 +213,7 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
           {list.map((text, i) => (
             <span key={i} className="flex items-stretch">
               {i > 0 && tall}
-              <span className={`flex h-control w-[80px] items-center rounded-md px-input-x whitespace-nowrap ${TEXT}`} style={{ boxShadow: `inset 0 0 0 1px ${line}` }}>
+              <span className={`flex h-control w-[80px] items-center rounded-control px-input-x whitespace-nowrap ${TEXT}`} style={{ boxShadow: `inset 0 0 0 1px ${line}` }}>
                 {text}
               </span>
             </span>
@@ -223,7 +224,7 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
       // 메뉴 줄의 왼쪽과 오른쪽. 줄은 마우스를 올린 모습으로 그린다.
       return frame(
         <span className={`relative flex h-control w-[160px] max-w-full items-stretch whitespace-nowrap ${TEXT}`}>
-          <span className="absolute inset-0 rounded-md" style={{ background: hover }} />
+          <span className="absolute inset-0 rounded-row" style={{ background: hover }} />
           {tall}
           <span className="relative flex min-w-0 flex-1 items-center">{all}</span>
           {tall}
@@ -233,7 +234,7 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
       // 줄의 위와 아래.
       return frame(
         <span className={`relative flex w-[160px] max-w-full flex-col ${TEXT}`}>
-          <span className="absolute inset-0 rounded-md" style={{ background: hover }} />
+          <span className="absolute inset-0 rounded-row" style={{ background: hover }} />
           {wide}
           <span className="relative block px-row-x">{all}</span>
           {wide}
@@ -245,7 +246,7 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
         ring(
           <span className="block w-[128px] space-y-rows">
             {list.map((text, i) => (
-              <span key={i} className={`flex h-row items-center rounded-md px-row-x whitespace-nowrap ${TEXT}`} style={i === 0 ? { background: hover } : undefined}>
+              <span key={i} className={`flex h-row items-center rounded-row px-row-x whitespace-nowrap ${TEXT}`} style={i === 0 ? { background: hover } : undefined}>
                 {text}
               </span>
             ))}
@@ -258,7 +259,7 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
         ring(
           <span className="block w-[112px]">
             {written && <span className={`block break-words font-[550] ${TEXT}`}>{written}</span>}
-            <span className={`block h-[8px] w-[112px] rounded-sm ${written ? 'mt-blocks' : ''}`} style={{ background: faint }} />
+            <span className={`block h-[8px] w-[112px] rounded-small ${written ? 'mt-blocks' : ''}`} style={{ background: faint }} />
             {bar('w-[80px]')}
           </span>,
         ),
@@ -269,8 +270,8 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
         <span className="block w-[160px] max-w-full">
           <span className={`block font-[550] ${TEXT}`}>{all}</span>
           {wide}
-          <span className="block rounded-md px-box py-box" style={{ boxShadow: `inset 0 0 0 1px ${faint}` }}>
-            <span className="block h-[8px] w-[96px] rounded-sm" style={{ background: faint }} />
+          <span className="block rounded-card px-box py-box" style={{ boxShadow: `inset 0 0 0 1px ${faint}` }}>
+            <span className="block h-[8px] w-[96px] rounded-small" style={{ background: faint }} />
           </span>
         </span>,
       )
@@ -280,8 +281,8 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
         <span className="flex items-stretch">
           <span className={`flex items-center font-[550] ${TEXT}`}>{all}</span>
           {tall}
-          <span className="flex h-[40px] w-[96px] items-center rounded-md px-box" style={{ boxShadow: `inset 0 0 0 1px ${faint}` }}>
-            <span className="block h-[8px] w-[64px] rounded-sm" style={{ background: faint }} />
+          <span className="flex h-[40px] w-[96px] items-center rounded-card px-box" style={{ boxShadow: `inset 0 0 0 1px ${faint}` }}>
+            <span className="block h-[8px] w-[64px] rounded-small" style={{ background: faint }} />
           </span>
         </span>,
       )
@@ -292,7 +293,7 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
           {[0, 1, 2].map((i) => (
             <span key={i} className="flex items-stretch">
               {i > 0 && tall}
-              <span className="block size-[32px] rounded-md" style={{ background: faint }} />
+              <span className="block size-[32px] rounded-card" style={{ background: faint }} />
             </span>
           ))}
         </span>,
@@ -306,7 +307,7 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
               {r > 0 && wide}
               <span className="flex gap-cells">
                 {[0, 1, 2].map((i) => (
-                  <span key={i} className="block size-[32px] rounded-md" style={{ background: faint }} />
+                  <span key={i} className="block size-[32px] rounded-card" style={{ background: faint }} />
                 ))}
               </span>
             </span>
@@ -323,7 +324,7 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
             <span className="mt-heading block">{box()}</span>
           </span>
           {wide}
-          {outline('rounded-lg')}
+          {outline('rounded-float')}
         </span>,
       )
     case 'footer':
@@ -346,7 +347,7 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
           {tall}
           <span className="flex min-w-0 flex-1 items-center">{all}</span>
           {tall}
-          {outline('rounded-md')}
+          {outline('rounded-control')}
         </span>,
       )
     case 'stack':
@@ -367,14 +368,14 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
           {tall}
           <span className="flex items-center">{all}</span>
           {tall}
-          {outline('rounded-md')}
+          {outline('rounded-control')}
         </span>,
       )
     case 'filled':
       // 채운 버튼. 바탕이 글자 색이라 그 위의 띠는 더 진하게 칠해야 보인다.
       return frame(
         <span className={`relative inline-flex h-control items-stretch font-[550] whitespace-nowrap ${TEXT}`} style={{ color: around.surface }}>
-          <span className="absolute inset-0 rounded-md" style={{ background: around.ink }} />
+          <span className="absolute inset-0 rounded-control" style={{ background: around.ink }} />
           {tallOn(MARK_ON_DARK)}
           <span className="relative flex items-center">{all}</span>
           {tallOn(MARK_ON_DARK)}
@@ -384,7 +385,7 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
       // 바탕 없는 버튼. 평소에는 글자만 보이므로, 마우스를 올린 모습(옅은 바탕)으로 그려 상자가 어디까지인지 보여 준다.
       return frame(
         <span className={`relative inline-flex h-control items-stretch font-[550] whitespace-nowrap ${TEXT}`} style={{ color: soft }}>
-          <span className="absolute inset-0 rounded-md" style={{ background: hover }} />
+          <span className="absolute inset-0 rounded-control" style={{ background: hover }} />
           {tall}
           <span className="relative flex items-center">{all}</span>
           {tall}
@@ -394,9 +395,9 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
       // 메뉴 줄 안의 아이콘(네모로 자리만 그린다)과 글자 사이. 줄은 마우스를 올린 모습으로 그린다.
       return frame(
         <span className={`relative flex h-row w-[160px] max-w-full items-stretch px-row-x whitespace-nowrap ${TEXT}`}>
-          <span className="absolute inset-0 rounded-md" style={{ background: hover }} />
+          <span className="absolute inset-0 rounded-row" style={{ background: hover }} />
           <span className="relative flex items-center">
-            <span className="block size-icon rounded-sm" style={{ background: soft }} />
+            <span className="block size-icon rounded-small" style={{ background: soft }} />
           </span>
           {tall}
           <span className="relative flex items-center">{all}</span>
@@ -409,7 +410,7 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
           {tall}
           <span className="flex min-w-0 flex-1 items-center overflow-hidden">{all}</span>
           {tall}
-          {outline('rounded-md')}
+          {outline('rounded-control')}
         </span>,
       )
     default: {
@@ -430,7 +431,7 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
               <span className="mt-heading block">{box()}</span>
             </span>
             {tall}
-            {outline('rounded-lg')}
+            {outline('rounded-float')}
           </span>,
         )
       // 네 가장자리: 왼쪽·오른쪽의 세로 띠와 위·아래의 가로 띠가 예시 상자의 끝까지 뻗어 모서리에서 겹친다.
@@ -444,11 +445,11 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
           <span className="relative block">
             {content}
             <span className="mt-dialog-actions flex justify-end gap-actions">
-              <span className="block h-control w-[48px] rounded-md" style={{ boxShadow: `inset 0 0 0 1px ${line}` }} />
-              <span className="block h-control w-[48px] rounded-md" style={{ background: around.ink }} />
+              <span className="block h-control w-[48px] rounded-control" style={{ boxShadow: `inset 0 0 0 1px ${line}` }} />
+              <span className="block h-control w-[48px] rounded-control" style={{ background: around.ink }} />
             </span>
           </span>
-          {outline('rounded-lg')}
+          {outline('rounded-float')}
         </span>,
       )
     }
@@ -536,7 +537,7 @@ export function SpaceList({
               type="button"
               onClick={(e) => !groupDrag.justDragged() && onSelectGroup(list.map((r) => r.t.name), isAdditive(e), false)}
               {...groupDrag.grab(u.id)}
-              className="mb-heading -ml-chip-x cursor-grab active:cursor-grabbing rounded-sm px-chip-x type-heading outline-selection hover:bg-hover focus-visible:outline-2"
+              className="mb-heading -ml-chip-x cursor-grab active:cursor-grabbing rounded-small px-chip-x type-heading outline-selection hover:bg-hover focus-visible:outline-focus"
             >
               {u.label}
             </button>
@@ -573,7 +574,7 @@ function SpaceRows({
   const plain = useContext(DetailsFolded)
   const reorder = useReorder(list.map((r) => r.t.name), onMove)
   return (
-            <div className="space-y-rows rounded-lg border border-hairline bg-canvas p-menu">
+            <div className="space-y-rows rounded-float border-edge border-hairline bg-canvas p-menu">
               {list.map(({ t, short, text, examples }) => {
                 const isSelected = selected.includes(t.name)
                 const ref = spaceRefOf(t.value)
@@ -590,7 +591,7 @@ function SpaceRows({
                     onClick={(e) => !reorder.justDragged() && onSelect(t.name, isAdditive(e))}
                     onDoubleClick={() => onRename(t.name)}
                     {...reorder.grab(t.name)}
-                    className={`group relative flex w-full items-center gap-columns rounded-md px-board-row-x py-board-row-y text-left select-none ${reorder.moving(t.name) ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
+                    className={`group relative flex w-full items-center gap-columns rounded-row px-board-row-x py-board-row-y text-left select-none ${reorder.moving(t.name) ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
                   >
                     {reorder.line(t.name)}
                     <span className={examples.length ? 'w-row-name shrink-0' : 'min-w-0 flex-1'}>
@@ -707,7 +708,7 @@ export function SpaceUseInspector({
               <UsePicker label="가리키는 간격" options={options} value={ref} nameWidth="w-[48px]" onChange={(next) => onChange({ value: `var(${next})` })} />
             </div>
             <button type="button" aria-label="가리키는 간격 보러 가기" title={`간격 판에서 ${length ?? ''} 보기`} onClick={() => onOpenToken(ref)} className={ICON_BUTTON}>
-              <ArrowUpRight size={16} strokeWidth={1.5} />
+              <ArrowUpRight size={16} strokeWidth={ICON_STROKE} />
             </button>
           </div>
         ) : (
@@ -747,7 +748,7 @@ export function SpaceUseInspector({
               <button
                 type="button"
                 onClick={() => onOpenComponent(u.index)}
-                className="-ml-button-ghost-x flex h-control max-w-full items-center rounded-md px-button-ghost-x type-label outline-selection hover:bg-hover focus-visible:outline-2"
+                className="-ml-button-ghost-x flex h-control max-w-full items-center rounded-control px-button-ghost-x type-label outline-selection hover:bg-hover focus-visible:outline-focus"
               >
                 <span className="truncate">{u.name}</span>
                 <span className="ml-row-inner shrink-0 type-body text-ink-faint">{u.where.length}곳</span>

@@ -2,6 +2,7 @@
 // 왼쪽에는 후보 조합들이 있고, 오른쪽에는 그 조합들로 짠 화면 하나가 있다.
 // 일정한 견본 문장을 늘어놓는 대신 실제로 쓰이는 자리에 놓고 보여 줘서, 이 조합을 쓸지 말지를 화면을 보며 판단하게 한다.
 
+import { ICON_STROKE } from './lib/icons'
 import { createContext, useContext, useState, type FormEvent } from 'react'
 import { RotateCcw } from 'lucide-react'
 import type { Token } from './lib/api'
@@ -45,7 +46,7 @@ function grouped(rows: Row[]): [label: string, list: Row[]][] {
   return made.filter(([, list]) => list.length > 0)
 }
 
-const PICK = 'h-compact min-w-0 rounded-sm border border-hairline bg-canvas px-chip-x type-caption text-ink-soft outline-none focus:border-selection disabled:opacity-disabled'
+const PICK = 'h-compact min-w-0 rounded-small border-edge border-hairline bg-canvas px-chip-x type-caption text-ink-soft outline-none focus:border-selection disabled:opacity-disabled'
 
 const ScreenContext = createContext<{ rows: Row[]; tokens: Token[]; hot: string | null; setHot: (key: string | null) => void; toggle: (key: string) => void }>({
   rows: [],
@@ -74,7 +75,7 @@ function T({ use, as: Tag = 'span', className = '', children }: SlotProps) {
       onClick={() => toggle(use)}
       // 제목처럼 한 줄을 다 차지하는 글자는 폭을 글자에 맞춘다. 그래야 마우스를 올렸을 때의 선이 빈 줄 끝까지 가지 않고 글자만 두른다.
       // 버튼이나 입력칸처럼 상자를 가진 자리는 상자까지가 한 덩어리라, 선도 흐려지는 것도 상자째로 움직인다.
-      className={`cursor-pointer outline-offset-2 outline-selection ${className.includes('rounded') ? '' : 'rounded-sm'} ${Tag !== 'span' && !className.includes('border') ? 'w-fit' : ''} ${hot === use ? 'outline-1' : ''} ${row.on ? '' : 'opacity-25'} ${className}`}
+      className={`cursor-pointer outline-offset-2 outline-selection ${className.includes('rounded') ? '' : 'rounded-small'} ${Tag !== 'span' && !className.includes('border') ? 'w-fit' : ''} ${hot === use ? 'outline-mark' : ''} ${row.on ? '' : 'opacity-25'} ${className}`}
       style={look ? { ...styleOf(look), ...(row.track ? { letterSpacing: row.track } : {}) } : undefined}
     >
       {children}
@@ -186,12 +187,12 @@ export function NewTypesForm({
                 // 줄의 어디를 눌러도 쓸지 말지가 바뀐다. 이름 칸과 고르는 칸은 그 칸의 일을 한다.
                 // 바탕의 좌우 여백은 그 끝에 놓인 것의 위아래 여백과 같게 한다. 왼쪽 끝은 체크 상자(16px, 위아래 8px)라 8px, 오른쪽 끝은 고르는 칸(24px, 위아래 4px)이라 4px.
                 onClick={(e) => !(e.target as HTMLElement).closest('input, select, label') && patch(r.key, { on: !r.on })}
-                className={`flex h-row cursor-pointer items-center gap-row-inner rounded-md pr-menu pl-row-x ${hot === r.key ? 'bg-hover' : ''}`}
+                className={`flex h-row cursor-pointer items-center gap-row-inner rounded-row pr-menu pl-row-x ${hot === r.key ? 'bg-hover' : ''}`}
               >
                 <label className="flex shrink-0 items-center">
                   <input type="checkbox" aria-label={`${r.name} 쓰기`} className="peer sr-only" checked={r.on} onChange={(e) => patch(r.key, { on: e.target.checked })} />
                   <span
-                    className={`flex size-checkbox items-center justify-center rounded-sm border outline-offset-1 outline-selection peer-focus-visible:outline-2 ${r.on ? 'border-ink bg-ink text-on-primary' : 'border-ink-faint bg-canvas'}`}
+                    className={`flex size-checkbox items-center justify-center rounded-small border-edge outline-offset-1 outline-selection peer-focus-visible:outline-focus ${r.on ? 'border-ink bg-ink text-on-primary' : 'border-ink-faint bg-canvas'}`}
                   >
                     {r.on && (
                       <svg viewBox="0 0 12 12" className="size-[12px]" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -217,7 +218,7 @@ export function NewTypesForm({
           </div>
 
           {/* 그 조합들로 짠 화면 하나. 이 안은 사용자의 글꼴을 보여 주는 미리보기라, FF 도구의 글자 규칙을 따르지 않는다. */}
-          <div data-screen className="min-w-0 flex-1 overflow-y-auto rounded-lg border border-hairline bg-canvas p-board text-ink">
+          <div data-screen className="min-w-0 flex-1 overflow-y-auto rounded-float border-edge border-hairline bg-canvas p-board text-ink">
             <PreviewSpace>
               <TypeScreen T={T} has={has} />
             </PreviewSpace>
@@ -227,7 +228,7 @@ export function NewTypesForm({
         <div className="mt-dialog-actions flex shrink-0 items-center justify-end gap-actions">
           {/* 바꾼 것을 모두 처음으로 돌린다. 다른 한 벌 만들기 창들과 같은 자리다. 바꾼 것이 없으면 꺼져 있다. */}
           <Button variant="ghost" className="mr-auto" disabled={!changed} title="쓸지 말지와 고친 이름, 값을 모두 처음으로 돌려요" onClick={() => setRows(first)}>
-            <RotateCcw size={16} strokeWidth={1.5} />
+            <RotateCcw size={16} strokeWidth={ICON_STROKE} />
             원래대로
           </Button>
           {/* 이미 있는 조합이 새 값으로 바뀌는 것은 되돌리기 전에 알아야 하는 일이라 알린다. */}
