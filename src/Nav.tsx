@@ -9,9 +9,11 @@ import {
   Monitor,
   Palette,
   Plus,
+  Proportions,
   Tags,
   Ruler,
   RulerDimensionLine,
+  Scaling,
   Sparkles,
   Square,
   SquareRoundCorner,
@@ -34,6 +36,8 @@ const SECTIONS: { title?: string; items: Item[] }[] = [
       { id: 'style', label: '의미 글꼴', icon: CaseSensitive },
       { id: 'spacing', label: '간격', icon: Ruler },
       { id: 'spaceuse', label: '의미 간격', icon: RulerDimensionLine },
+      { id: 'length', label: '크기', icon: Scaling },
+      { id: 'sizeuse', label: '의미 크기', icon: Proportions },
       { id: 'radius', label: '모서리', icon: SquareRoundCorner },
       { id: 'border', label: '테두리', icon: Square },
       { id: 'effect', label: '효과', icon: Sparkles },
@@ -51,7 +55,7 @@ const SECTIONS: { title?: string; items: Item[] }[] = [
   },
 ]
 
-const ROW = 'flex h-8 w-full items-center gap-row-inner rounded-md px-row-x text-left'
+const ROW = 'flex h-row w-full items-center gap-row-inner rounded-md px-row-x text-left'
 const IDLE = 'type-menu text-ink-soft hover:bg-hover hover:text-ink'
 
 export function Nav({
@@ -79,9 +83,9 @@ export function Nav({
   onUnlock: (id: string) => void
 }) {
   const MARK =
-    'absolute top-1 right-1 flex size-6 items-center justify-center rounded-sm text-ink-faint outline-selection hover:bg-canvas hover:text-ink focus-visible:outline-2'
+    'absolute top-1 right-1 flex size-icon-button-corner items-center justify-center rounded-sm text-ink-faint outline-selection hover:bg-canvas hover:text-ink focus-visible:outline-2'
   return (
-    <nav className="w-[220px] shrink-0 overflow-y-auto border-r border-hairline p-nav">
+    <nav className="w-nav shrink-0 overflow-y-auto border-r border-hairline p-nav">
       {SECTIONS.map((section, i) => (
         <div key={i}>
           {section.title && <p className="px-row-x pt-section-y pb-label type-label text-ink-faint">{section.title}</p>}
@@ -133,12 +137,12 @@ export function Nav({
                           className={`${ROW} ${index === currentComponent ? 'bg-selection-soft type-menu-strong text-ink' : IDLE}`}
                         >
                           {/* 윗줄의 아이콘 자리(16px)를 비워 이름을 윗줄의 글자에 맞춘다. 들여쓰기를 여백 값으로 따로 두지 않는다. */}
-                          <span className="size-4 shrink-0" />
+                          <span className="size-icon shrink-0" />
                           <span className="truncate">{name}</span>
                         </button>
                       ))}
                       <button type="button" onClick={onAddComponent} className={`${ROW} ${IDLE}`}>
-                        <span className="size-4 shrink-0" />
+                        <span className="size-icon shrink-0" />
                         <Plus size={16} strokeWidth={1.5} />
                         컴포넌트 추가
                       </button>

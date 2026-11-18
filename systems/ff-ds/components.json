@@ -51,17 +51,17 @@
       "sizes": [
         {
           "name": "sm",
-          "padX": "--spacing-3",
-          "padY": "--spacing-2",
+          "padX": "--gutter-12",
+          "padY": "--gutter-8",
           "textSize": "--text-sm",
-          "gap": "--spacing-2"
+          "gap": "--gutter-8"
         },
         {
           "name": "md",
-          "padX": "--spacing-4",
-          "padY": "--spacing-3",
+          "padX": "--gutter-16",
+          "padY": "--gutter-12",
           "textSize": "--text-base",
-          "gap": "--spacing-2"
+          "gap": "--gutter-8"
         }
       ]
     }

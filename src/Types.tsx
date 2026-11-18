@@ -8,7 +8,7 @@ import type { Token } from './lib/api'
 import { KINDS, SLUG, lineName, shortName, trackName, type Kind } from './lib/catalog'
 import { shownFont } from './lib/fonts'
 import { surroundings, type Around } from './lib/roles'
-import { SHAPE_WORDS, TYPE_USES, guessTypeUse, isListShape, lookOf, nextType, readType, readTypeNote, trackOverride, typeGroups, writeType, writeTypeNote, type TypeLook, type TypeParts, type TypeShape, type TypeUse } from './lib/types'
+import { SHAPE_WORDS, TYPE_USES, guessTypeUse, isListShape, lookOf, missingForTypes, nextType, readType, readTypeNote, trackOverride, typeGroups, writeType, writeTypeNote, type TypeLook, type TypeParts, type TypeShape, type TypeUse } from './lib/types'
 import { CODE_OPEN, CodeRows, FoldSection, ICON_BUTTON, Section, WHERE_OPEN } from './Inspector'
 import { DetailsFolded, HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
 import { Button, Field, Phrases, UsePicker, inputClass } from './ui'
@@ -59,7 +59,7 @@ function Spec({ look, tokens }: { look: TypeLook; tokens: Token[] }) {
 function Follows({ label, bound, own, onClear }: { label: string; bound: string; own?: string; onClear: () => void }) {
   return (
     <Field label={label} plain>
-      <span className="flex h-8 items-center gap-actions-tight type-body">
+      <span className="flex h-control items-center gap-actions-tight type-body">
         <span data-follows={label} className={`min-w-0 flex-1 truncate ${own ? 'type-label text-ink' : 'text-ink-soft'}`}>
           {own ?? (bound || '정해지지 않음')}
         </span>
@@ -92,7 +92,7 @@ export function TypeSample({ shape, look, around, words: written = '' }: { shape
   const faint = `color-mix(in oklab, ${around.ink} 16%, ${around.surface})`
   const soft = `color-mix(in oklab, ${around.ink} 8%, ${around.surface})`
   /** 곁에 놓이는 글의 자리. 높이 8px의 막대이고 폭은 자리마다 다르다. */
-  const bar = (width: string, more = '') => <span className={`block h-2 rounded-sm ${width} ${more}`} style={{ background: faint }} />
+  const bar = (width: string, more = '') => <span className={`block h-[8px] rounded-sm ${width} ${more}`} style={{ background: faint }} />
   const words = (text: string, more = '', style?: CSSProperties) => (
     <span key={text} data-sample className={`block ${more}`} style={{ ...own, ...style }}>
       {text}
@@ -111,7 +111,7 @@ export function TypeSample({ shape, look, around, words: written = '' }: { shape
       case 'caption':
         return (
           <>
-            {bar('w-32')}
+            {bar('w-[128px]')}
             {words(all, 'mt-blocks break-words')}
           </>
         )
@@ -126,24 +126,24 @@ export function TypeSample({ shape, look, around, words: written = '' }: { shape
         return (
           <>
             {words(all, 'break-words')}
-            <span className="mt-label flex h-8 w-40 items-center rounded-md px-input-x" style={{ boxShadow: `inset 0 0 0 1px ${faint}` }}>
-              {bar('w-16')}
+            <span className="mt-label flex h-control w-[160px] items-center rounded-md px-input-x" style={{ boxShadow: `inset 0 0 0 1px ${faint}` }}>
+              {bar('w-[64px]')}
             </span>
           </>
         )
       case 'menu':
         return (
-          <span className="block w-40 space-y-rows">
+          <span className="block w-[160px] space-y-rows">
             {list.map((text) => words(text, 'rounded-md px-row-x py-menu whitespace-nowrap'))}
           </span>
         )
       case 'menu-on':
         // 고른 줄만 글자다. 고르지 않은 줄은 다른 조합(보통 굵기)으로 적히는 자리라 막대로 둔다.
         return (
-          <span className="block w-40 space-y-rows">
-            <span className="flex h-6 items-center px-row-x">{bar('w-12')}</span>
+          <span className="block w-[160px] space-y-rows">
+            <span className="flex h-row items-center px-row-x">{bar('w-[48px]')}</span>
             {words(all, 'rounded-md px-row-x py-menu whitespace-nowrap', { background: soft })}
-            <span className="flex h-6 items-center px-row-x">{bar('w-16')}</span>
+            <span className="flex h-row items-center px-row-x">{bar('w-[64px]')}</span>
           </span>
         )
       case 'tab':
@@ -164,7 +164,7 @@ export function TypeSample({ shape, look, around, words: written = '' }: { shape
           <span className="flex flex-wrap gap-x-groups gap-y-blocks">
             {list.map((value) => (
               <span key={value}>
-                {bar('w-12')}
+                {bar('w-[48px]')}
                 {words(value, 'mt-blocks break-words')}
               </span>
             ))}
@@ -173,7 +173,7 @@ export function TypeSample({ shape, look, around, words: written = '' }: { shape
       case 'code':
         return (
           <>
-            {bar('w-12')}
+            {bar('w-[48px]')}
             <span className="mt-blocks flex">{words(all, 'rounded-sm px-chip-x break-all', { background: soft })}</span>
           </>
         )
@@ -236,7 +236,7 @@ export function TypeList({
           data-broken={broken.length}
           title="누르면 첫 조합을 골라요. 오른쪽에서 없어진 값을 다시 골라 주세요"
           onClick={() => onSelect(broken[0].name, false)}
-          className={`mb-blocks flex h-8 items-center gap-row-inner rounded-md px-button-x type-body text-danger ${HOVER} ${OUTLINE}`}
+          className={`mb-blocks flex h-control items-center gap-row-inner rounded-md px-button-x type-body text-danger ${HOVER} ${OUTLINE}`}
         >
           <TriangleAlert size={16} strokeWidth={1.5} />
           가리키는 값이 없어진 조합 {broken.length}개
@@ -278,7 +278,7 @@ export function TypeList({
                       className={`group relative flex w-full items-center gap-columns rounded-md px-board-row-x py-board-row-y text-left select-none ${rows.moving(t.name) ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
                     >
                       {rows.line(t.name)}
-                      <span className="w-56 shrink-0">
+                      <span className="w-row-name shrink-0">
                         {/* 이름, 가리키는 값, 설명, 예시는 자르지 않는다(말줄임표를 쓰지 않는다). 칸보다 길면 줄을 바꿔 다 보여 준다. */}
                         <span data-name className="block type-label break-words">
                           {short}
@@ -461,7 +461,7 @@ export function TypeInspector({
 
       {/* 묶음은 판에서 이 조합이 놓이는 자리와 예시의 장면을 정한다. 의미 색 패널의 "역할"과 같은 자리다. */}
       <Section title="묶음">
-        <UsePicker label="묶음" options={TYPE_USES} value={use} nameWidth="w-16" onChange={(next) => saveNote({ use: next })} />
+        <UsePicker label="묶음" options={TYPE_USES} value={use} nameWidth="w-[64px]" onChange={(next) => saveNote({ use: next })} />
       </Section>
 
       <Section title="설명">
@@ -482,7 +482,7 @@ export function TypeInspector({
                 <button
                   type="button"
                   onClick={() => onOpenComponent(u.index)}
-                  className="-ml-button-ghost-x flex h-8 max-w-full items-center rounded-md px-button-ghost-x type-label outline-selection hover:bg-hover focus-visible:outline-2"
+                  className="-ml-button-ghost-x flex h-control max-w-full items-center rounded-md px-button-ghost-x type-label outline-selection hover:bg-hover focus-visible:outline-2"
                 >
                   <span className="truncate">{u.name}</span>
                   <span className="ml-row-inner shrink-0 type-body text-ink-faint">{u.where.length}곳</span>
@@ -502,7 +502,8 @@ export function TypeInspector({
 }
 
 /**
- * 의미 글꼴을 만드는 양식. 이름, 조합(글꼴 종류 · 글자 크기 · 굵기), 묶음을 정한다. 설명은 만든 뒤에 패널에서 적는다.
+ * 의미 글꼴을 만드는 양식. 이름, 조합(글꼴 종류 · 글자 크기 · 굵기), 묶음, 설명을 정한다. 설명은 비워 두어도 되고 만든 뒤에 패널에서도 고친다.
+ * 짝지을 재료가 모자라면 양식 대신 무엇부터 만들지 알린다(한 벌 만들기 창의 안내와 같은 글이다).
  * 처음에는 기본 한 벌 가운데 아직 없는 다음 것의 이름과 조합이 채워져 있어서, 그대로 "추가"를 누르면 전처럼 다음 조합이 생긴다.
  * 다른 의미 판(의미 색, 의미 간격)의 추가도 창에서 이름과 가리키는 값을 정한다.
  */
@@ -520,6 +521,7 @@ export function NewTypeForm({ tokens, onCreate, onCancel }: { tokens: Token[]; o
   const [weight, setWeight] = useState(pick(weights, start?.weight))
   // 묶음은 직접 고르기 전까지 이름에서 짐작한 것을 보여 준다.
   const [use, setUse] = useState<TypeUse | null>(null)
+  const [text, setText] = useState('')
   const [error, setError] = useState<string>()
   const shownUse = use ?? guessTypeUse(name.trim())
 
@@ -529,8 +531,22 @@ export function NewTypeForm({ tokens, onCreate, onCancel }: { tokens: Token[]; o
     const problem = !n ? '이름을 입력해 주세요.' : !SLUG.test(n) ? '영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.' : tokens.some((t) => t.name === STYLE.prefix + n) ? '같은 이름이 이미 있어요.' : undefined
     setError(problem)
     if (problem) return
-    onCreate(STYLE.prefix + n, writeType({ font, size, weight }, new Set(tokens.map((t) => t.name))), writeTypeNote(shownUse, ''))
+    onCreate(STYLE.prefix + n, writeType({ font, size, weight }, new Set(tokens.map((t) => t.name))), writeTypeNote(shownUse, text))
   }
+
+  // 짝지을 재료(글꼴 종류, 글자 크기, 굵기)가 모자라면 만들 수 없다. 막다른 곳이라 무엇을 먼저 할지 알려 준다.
+  const missing = missingForTypes(tokens)
+  if (missing.length > 0)
+    return (
+      <div>
+        <p className="type-body text-ink-soft">
+          의미 글꼴은 글꼴 판의 값을 짝지어 만들어요. 글꼴 판에서 <span className="type-label text-ink">{missing.join(', ')}</span>부터 만들어 주세요.
+        </p>
+        <div className="mt-dialog-actions flex justify-end">
+          <Button onClick={onCancel}>닫기</Button>
+        </div>
+      </div>
+    )
 
   return (
     <form onSubmit={submit} className="space-y-fields">
@@ -553,10 +569,13 @@ export function NewTypeForm({ tokens, onCreate, onCancel }: { tokens: Token[]; o
         <UsePicker label="글자 크기" options={sizes} value={size} onChange={setSize} />
       </Field>
       <Field label="굵기" plain>
-        <UsePicker label="굵기" options={weights} value={weight} nameWidth="w-20" onChange={setWeight} />
+        <UsePicker label="굵기" options={weights} value={weight} nameWidth="w-[80px]" onChange={setWeight} />
       </Field>
       <Field label="묶음" plain>
-        <UsePicker label="묶음" options={TYPE_USES} value={shownUse} nameWidth="w-16" onChange={setUse} />
+        <UsePicker label="묶음" options={TYPE_USES} value={shownUse} nameWidth="w-[64px]" onChange={setUse} />
+      </Field>
+      <Field label="설명">
+        <input className={inputClass} value={text} onChange={(e) => setText(e.target.value)} />
       </Field>
       <div className="mt-dialog-actions flex justify-end gap-actions">
         <Button variant="ghost" onClick={onCancel}>

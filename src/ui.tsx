@@ -1,7 +1,8 @@
 // FF 도구의 공통 부품. 모양의 기준은 DESIGN.md의 components 항목.
 
-import type { ButtonHTMLAttributes, ReactNode } from 'react'
+import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from 'react'
 import { Fragment, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Check as CheckIcon, ChevronDown } from 'lucide-react'
 import { stepValue } from './lib/tokens'
 
@@ -23,7 +24,7 @@ export function Button({
   return (
     <button
       type="button"
-      className={`inline-flex h-8 shrink-0 items-center gap-button-inner rounded-md type-label whitespace-nowrap outline-selection focus-visible:outline-2 focus-visible:outline-offset-1 disabled:opacity-disabled ${BUTTON_STYLES[variant]} ${className}`}
+      className={`inline-flex h-control shrink-0 items-center gap-button-inner rounded-md type-label whitespace-nowrap outline-selection focus-visible:outline-2 focus-visible:outline-offset-1 disabled:opacity-disabled ${BUTTON_STYLES[variant]} ${className}`}
       {...rest}
     >
       {children}
@@ -59,9 +60,9 @@ export function Check({
     <label className={`flex items-start gap-row-inner ${disabled ? 'text-ink-faint' : ''}`}>
       <input type="checkbox" className="peer sr-only" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
       {/* 글자 한 줄의 높이(20px)만큼의 자리 안에서 상자를 가운데에 둔다. 위아래로 2px씩 남아 정확히 가운데다. */}
-      <span className="flex h-5 shrink-0 items-center outline-selection peer-focus-visible:[&>span]:outline-2">
+      <span className="flex h-[20px] shrink-0 items-center outline-selection peer-focus-visible:[&>span]:outline-2">
         <span
-          className={`flex size-4 items-center justify-center rounded-sm border outline-offset-1 outline-selection ${
+          className={`flex size-checkbox items-center justify-center rounded-sm border outline-offset-1 outline-selection ${
             checked ? 'border-ink bg-ink text-on-primary' : 'border-ink-faint bg-canvas'
           } ${disabled ? 'opacity-disabled' : ''}`}
         >
@@ -74,7 +75,7 @@ export function Check({
 }
 
 export const inputClass =
-  'h-8 w-full rounded-md border border-hairline bg-canvas px-input-x type-body text-ink outline-none placeholder:text-ink-faint focus:border-selection'
+  'h-control w-full rounded-md border border-hairline bg-canvas px-input-x type-body text-ink outline-none placeholder:text-ink-faint focus:border-selection'
 
 /** 변수 이름이나 값처럼 코드 글꼴로 적는 칸. 의미 글꼴 클래스는 한 요소에 하나만 붙이므로, inputClass에 글꼴 클래스를 덧붙이지 않고 이것을 쓴다. */
 export const monoInputClass = inputClass.replace('type-body', 'type-code')
@@ -97,6 +98,7 @@ export function UnitInput({
   fillOnTab = false,
   width,
   title,
+  autoFocus = false,
   onDigits,
   onBlur,
 }: {
@@ -126,12 +128,18 @@ export function UnitInput({
    */
   width?: string
   title?: string
-  onDigits: (digits: string) => void
+  /** 창을 열자마자 이 칸에 커서를 둔다(칸이 이것 하나뿐인 창). 커서가 가면 눌렀을 때처럼 숫자가 모두 선택된다. */
+  autoFocus?: boolean
+  /**
+   * 숫자가 바뀔 때. typing은 자판으로 한 글자씩 적는 중인지다(↑↓로 올리고 내리거나 Tab으로 채운 것은 아니다).
+   * 적는 중인 값은 아직 다 적은 값이 아니다(28을 적으려면 2를 거친다). 값을 바로 저장하는 쪽은 typing일 때 저장을 미루고, 칸을 벗어날 때(onBlur. Enter도 칸을 벗어난다) 저장한다.
+   */
+  onDigits: (digits: string, typing?: boolean) => void
   onBlur?: () => void
 }) {
   const box = small
-    ? `h-6 rounded-sm bg-canvas px-chip-x type-code-sm hover:border-ink-faint ${invalid ? 'border-danger' : 'border-hairline'}`
-    : `h-8 w-full rounded-md bg-canvas px-input-x type-body ${invalid ? 'border-danger focus-within:border-danger' : 'border-hairline'}`
+    ? `h-compact rounded-sm bg-canvas px-chip-x type-code-sm hover:border-ink-faint ${invalid ? 'border-danger' : 'border-hairline'}`
+    : `h-control w-full rounded-md bg-canvas px-input-x type-body ${invalid ? 'border-danger focus-within:border-danger' : 'border-hairline'}`
   // 마우스로 눌러서 고치기 시작했는지. 누른 손을 뗄 때 브라우저가 방금 한 전체 선택을 풀어 버리지 않게 막는 데 쓴다.
   const picking = useRef(false)
   // 숫자 칸의 폭은 적힌 글자가 실제로 차지하는 폭이다. 그래야 단위가 숫자 바로 뒤에 온다.
@@ -149,6 +157,7 @@ export function UnitInput({
         ))}
       <input
         aria-label={label}
+        autoFocus={autoFocus}
         inputMode="decimal"
         placeholder={placeholder}
         // 작은 칸은 적힌 값이 회색(ink-soft)이라, 비었을 때 보이는 값(placeholder)을 같은 계열의 회색으로 두면 적힌 값과 구분되지 않는다. 절반으로 더 옅게 한다.
@@ -167,7 +176,7 @@ export function UnitInput({
         onChange={(e) => {
           const raw = e.target.value
           const sign = negative && raw.trim().startsWith('-') ? '-' : ''
-          onDigits(sign + raw.replace(/[^\d.]/g, ''))
+          onDigits(sign + raw.replace(/[^\d.]/g, ''), true)
         }}
         onBlur={() => {
           picking.current = false
@@ -285,7 +294,7 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={`${wide === '2xl' ? 'w-[1720px]' : wide === 'xl' ? 'w-[1440px]' : wide === 'lg' ? 'w-[1160px]' : wide ? 'w-[720px]' : 'w-[360px]'} ${tall ? 'flex h-[calc(100vh-48px)] flex-col' : 'max-h-[calc(100vh-48px)] overflow-y-auto'} max-w-[calc(100vw-48px)] rounded-lg border border-hairline bg-canvas p-dialog shadow-dialog`}
+        className={`${wide === '2xl' ? 'w-dialog-2xl' : wide === 'xl' ? 'w-dialog-xl' : wide === 'lg' ? 'w-dialog-lg' : wide ? 'w-dialog-wide' : 'w-dialog'} ${tall ? 'flex h-[calc(100vh-48px)] flex-col' : 'max-h-[calc(100vh-48px)] overflow-y-auto'} max-w-[calc(100vw-48px)] rounded-lg border border-hairline bg-canvas p-dialog shadow-dialog`}
       >
         <h2 className="mb-header shrink-0 type-title">{title}</h2>
         {tall ? <div className="min-h-0 flex-1">{children}</div> : children}
@@ -300,26 +309,66 @@ export function Modal({
  * 묶음의 이름(글자, 바탕…)과 그 묶음에 드는 것들(본문, 링크, 아이콘)이 한 줄에 같은 모양으로 이어져 무엇이 이름인지 헷갈린다.
  * 여기서는 이름을 진하게 정해진 폭에 적고, 드는 것들은 그 옆에 옅게 적는다. 이름들이 한 열로 줄을 서서 이름만 훑어 고를 수 있다.
  * nameWidth는 이름 칸의 폭이다. 가장 긴 이름이 들어가는 폭으로 정한다(두 글자 이름이면 w-12, "숫자·코드"가 있으면 w-16).
+ * value가 null이면 아직 고르지 않은 칸이다(추가 창의 가리키는 값). 칸에 옅게 "고르기"가 보이고 목록에는 고른 줄이 없다.
  */
 export function UsePicker<T extends string>({
   label,
   options,
   value,
   onChange,
-  nameWidth = 'w-12',
+  nameWidth = 'w-[48px]',
 }: {
   label: string
   options: { id: T; label: string; hint: string }[]
-  value: T
+  value: T | null
   onChange: (use: T) => void
   nameWidth?: string
 }) {
   const [open, setOpen] = useState(false)
-  const now = options.find((u) => u.id === value)!
+  const now = options.find((u) => u.id === value) ?? null
   const pick = (use: T) => {
     setOpen(false)
     if (use !== value) onChange(use)
   }
+  // 목록은 칸의 자리가 아니라 화면 위에 띄운다. 칸이 창이나 패널 안에 있으면, 그 안에 그린 목록은 창의 끝에서 잘리거나 창을 스크롤해야 보인다.
+  // 칸의 자리를 재서 그 바로 아래에 놓고, 아래가 모자라면 위에 놓는다. 그래도 길면 화면 안에서만 스크롤된다.
+  const anchor = useRef<HTMLButtonElement>(null)
+  const list = useRef<HTMLDivElement>(null)
+  const [place, setPlace] = useState<CSSProperties>({})
+  function toggle() {
+    if (open) return setOpen(false)
+    const r = anchor.current!.getBoundingClientRect()
+    // 칸과 목록 사이 4px, 화면 끝에서 8px. 줄 하나는 32px에 줄 사이 4px, 목록의 안쪽 여백과 테두리가 위아래 5px씩이다.
+    const below = window.innerHeight - r.bottom - 4 - 8
+    const above = r.top - 4 - 8
+    const need = options.length * 36 + 6
+    const up = below < need && above > below
+    setPlace({ left: r.left, width: r.width, maxHeight: up ? above : below, ...(up ? { bottom: window.innerHeight - r.top + 4 } : { top: r.bottom + 4 }) })
+    setOpen(true)
+  }
+  // 목록이 떠 있는 동안 화면이 움직이면(창을 스크롤하거나 크기를 바꾸면) 칸과 목록이 어긋나므로 닫는다. 목록 안을 스크롤하는 것은 그대로 둔다.
+  useEffect(() => {
+    if (!open) return
+    const close = (e: Event) => {
+      if (e.type === 'scroll' && list.current?.contains(e.target as Node)) return
+      setOpen(false)
+    }
+    // 목록이 떠 있을 때의 Esc는 목록만 닫는다. 창 안의 칸이면 창도 Esc를 듣고 있어서, 먼저 받아 거기까지 가지 않게 한다.
+    const esc = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      e.stopImmediatePropagation()
+      e.preventDefault()
+      setOpen(false)
+    }
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
+    window.addEventListener('keydown', esc, true)
+    return () => {
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('resize', close)
+      window.removeEventListener('keydown', esc, true)
+    }
+  }, [open])
   /** 한 줄의 내용. 이름은 진하게 정해진 폭에, 드는 것들은 옅게. 닫힌 칸과 목록의 줄이 같은 모양이다. */
   const line = (u: { label: string; hint: string }) => (
     <>
@@ -334,27 +383,29 @@ export function UsePicker<T extends string>({
         aria-label={label}
         aria-haspopup="listbox"
         aria-expanded={open}
-        data-use={value}
-        onClick={() => setOpen((v) => !v)}
+        data-use={value ?? ''}
+        ref={anchor}
+        onClick={toggle}
         onKeyDown={(e) => {
-          // ↑↓로 펼치지 않고도 묶음을 바꾼다. Esc는 목록을 닫는다.
+          // ↑↓로 펼치지 않고도 묶음을 바꾼다. 아직 고르지 않았으면 어느 쪽을 눌러도 첫 값부터 고른다. Esc는 목록을 닫는다.
           if (e.key === 'Escape') return setOpen(false)
           if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
           e.preventDefault()
-          const at = options.indexOf(now) + (e.key === 'ArrowDown' ? 1 : -1)
+          const at = now ? options.indexOf(now) + (e.key === 'ArrowDown' ? 1 : -1) : 0
           if (options[at]) onChange(options[at].id)
         }}
         className={`${inputClass} flex items-center gap-row-inner text-left`}
       >
-        {line(now)}
+        {now ? line(now) : <span className="min-w-0 flex-1 truncate text-ink-faint">고르기</span>}
         <ChevronDown size={16} strokeWidth={1.5} className="shrink-0 text-ink-faint" />
       </button>
-      {open && (
+      {open &&
+        createPortal(
         <>
-          {/* 목록 바깥을 누르면 닫는다. */}
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          {/* 목록 바깥을 누르면 닫는다. 창(z-50)과 색 선택 창(z-60)보다 위에 뜬다. */}
+          <div className="fixed inset-0 z-[70]" onClick={() => setOpen(false)} />
           {/* 줄의 바탕(올렸을 때, 고른 것)이 서로 닿지 않게 줄 사이를 4px 띄운다. */}
-          <div role="listbox" aria-label={label} className="absolute top-9 right-0 left-0 z-20 space-y-rows rounded-lg border border-hairline bg-canvas p-menu shadow-float">
+          <div ref={list} role="listbox" aria-label={label} style={place} className="fixed z-[71] space-y-rows overflow-y-auto rounded-lg border border-hairline bg-canvas p-menu shadow-float">
             {options.map((u) => (
               <button
                 key={u.id}
@@ -363,15 +414,16 @@ export function UsePicker<T extends string>({
                 aria-selected={u.id === value}
                 data-use-option={u.id}
                 onClick={() => pick(u.id)}
-                className={`flex h-8 w-full items-center gap-row-inner rounded-md px-row-x text-left type-body outline-selection focus-visible:outline-2 ${u.id === value ? 'bg-hover' : 'hover:bg-hover'}`}
+                className={`flex h-row w-full items-center gap-row-inner rounded-md px-row-x text-left type-body outline-selection focus-visible:outline-2 ${u.id === value ? 'bg-hover' : 'hover:bg-hover'}`}
               >
                 {line(u)}
                 {u.id === value && <CheckIcon size={16} strokeWidth={1.5} className="shrink-0" />}
               </button>
             ))}
           </div>
-        </>
-      )}
+        </>,
+          document.body,
+        )}
     </div>
   )
 }

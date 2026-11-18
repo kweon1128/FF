@@ -27,7 +27,7 @@ export function EffectSample({ shape, value, around, words: written = '' }: { sh
   const space = useContext(PreviewSpaceContext)
   const all = written || EFFECT_WORDS[shape]
   const faint = `color-mix(in oklab, ${around.ink} 16%, ${around.surface})`
-  const bar = (width: string, more = '') => <span className={`block h-2 rounded-sm ${width} ${more}`} style={{ background: faint }} />
+  const bar = (width: string, more = '') => <span className={`block h-[8px] rounded-sm ${width} ${more}`} style={{ background: faint }} />
   const STRONG = 'text-sm leading-5 font-[550]'
   // 그림자는 상자 밖으로 지므로, 잘리지 않게 상자 둘레에 24px을 비워 둔다.
   // 내용은 상자의 가운데에 놓는다. 예시는 읽는 글이 아니라 물건 하나를 보여 주는 것이라, 왼쪽에 붙이면 오른쪽만 비어 덜 만든 것처럼 보인다.
@@ -41,7 +41,7 @@ export function EffectSample({ shape, value, around, words: written = '' }: { sh
   switch (shape) {
     case 'menu':
       return frame(
-        <span className="block w-40 space-y-rows rounded-lg p-menu" style={lifted}>
+        <span className="block w-[160px] space-y-rows rounded-lg p-menu" style={lifted}>
           {all
             .split(', ')
             .map((w) => w.trim())
@@ -56,29 +56,29 @@ export function EffectSample({ shape, value, around, words: written = '' }: { sh
       )
     case 'dialog':
       return frame(
-        <span className="block w-full max-w-56 rounded-lg p-dialog" style={lifted}>
+        <span className="block w-full max-w-[224px] rounded-lg p-dialog" style={lifted}>
           <span data-sample className={`block break-words ${STRONG}`}>
             {all}
           </span>
           {bar('w-3/4', 'mt-fields')}
           {bar('w-1/2', 'mt-blocks')}
           <span className="mt-dialog-actions flex justify-end gap-actions">
-            <span className="block h-6 w-12 rounded-md" style={{ boxShadow: `inset 0 0 0 1px ${faint}` }} />
-            <span className="block h-6 w-12 rounded-md" style={{ background: around.ink }} />
+            <span className="block h-control w-[48px] rounded-md" style={{ boxShadow: `inset 0 0 0 1px ${faint}` }} />
+            <span className="block h-control w-[48px] rounded-md" style={{ background: around.ink }} />
           </span>
         </span>,
         true,
       )
     case 'toast':
       return frame(
-        <span data-sample className="inline-flex h-8 items-center rounded-md px-bar-x text-sm leading-5 whitespace-nowrap" style={{ background: around.ink, color: around.surface, boxShadow: value }}>
+        <span data-sample className="inline-flex h-control items-center rounded-md px-bar-x text-sm leading-5 whitespace-nowrap" style={{ background: around.ink, color: around.surface, boxShadow: value }}>
           {all}
         </span>,
         true,
       )
     case 'card':
       return frame(
-        <span className="block w-full max-w-56 rounded-lg p-card" style={lifted}>
+        <span className="block w-full max-w-[224px] rounded-lg p-card" style={lifted}>
           <span data-sample className={`block break-words ${STRONG}`}>
             {all}
           </span>
@@ -88,7 +88,7 @@ export function EffectSample({ shape, value, around, words: written = '' }: { sh
       )
     case 'disabled': {
       // 같은 버튼을 켜진 것과 꺼진 것으로 나란히 놓아, 얼마나 옅어지는지 견주어 본다.
-      const BUTTON = `flex h-7 items-center rounded-md px-button-x whitespace-nowrap ${STRONG}`
+      const BUTTON = `flex h-control items-center rounded-md px-button-x whitespace-nowrap ${STRONG}`
       return frame(
         // 채운 버튼 한 쌍과 테두리 버튼 한 쌍. 쌍끼리는 떨어지지 않게 묶어, 좁은 칸에서는 쌍 단위로 줄이 바뀐다.
         <span className="flex flex-wrap items-center gap-x-columns gap-y-blocks">
@@ -114,13 +114,13 @@ export function EffectSample({ shape, value, around, words: written = '' }: { sh
     case 'scrim':
       // 화면(막대들) 위를 이 시스템의 글자 색으로 덮고, 그 위에 창을 하나 띄운다.
       return frame(
-        <span className="relative block h-20 w-full">
+        <span className="relative block h-[80px] w-full">
           {bar('w-3/4')}
           {bar('w-1/2', 'mt-blocks')}
           {bar('w-2/3', 'mt-blocks')}
           {bar('w-1/3', 'mt-blocks')}
           <span data-sample className="absolute -inset-3" style={{ background: around.ink, opacity: value }} />
-          <span className="absolute top-1/2 left-1/2 block h-12 w-24 -translate-x-1/2 -translate-y-1/2 rounded-md p-box" style={{ background: around.surface }}>
+          <span className="absolute top-1/2 left-1/2 block h-[48px] w-[96px] -translate-x-1/2 -translate-y-1/2 rounded-md p-box" style={{ background: around.surface }}>
             {bar('w-3/4')}
             {bar('w-1/2', 'mt-blocks')}
           </span>
@@ -131,10 +131,10 @@ export function EffectSample({ shape, value, around, words: written = '' }: { sh
       return frame(
         <span className="flex items-center gap-columns">
           {[undefined, `blur(${value})`].map((filter, i) => (
-            <span key={i} {...(filter ? { 'data-sample': true } : {})} className="block w-24 space-y-blocks" style={{ filter }}>
-              <span className="block h-2 w-full rounded-sm" style={{ background: around.ink }} />
-              <span className="block h-2 w-2/3 rounded-sm" style={{ background: around.ink }} />
-              <span className="block h-2 w-3/4 rounded-sm" style={{ background: around.ink }} />
+            <span key={i} {...(filter ? { 'data-sample': true } : {})} className="block w-[96px] space-y-blocks" style={{ filter }}>
+              <span className="block h-[8px] w-full rounded-sm" style={{ background: around.ink }} />
+              <span className="block h-[8px] w-2/3 rounded-sm" style={{ background: around.ink }} />
+              <span className="block h-[8px] w-3/4 rounded-sm" style={{ background: around.ink }} />
             </span>
           ))}
         </span>,
@@ -142,11 +142,11 @@ export function EffectSample({ shape, value, around, words: written = '' }: { sh
     default:
       // 겹침: 막대들 위에 이 시스템의 글자 색 면을 이 투명도로 겹친다.
       return frame(
-        <span className="relative block h-12 w-full">
+        <span className="relative block h-[48px] w-full">
           {bar('w-3/4')}
           {bar('w-1/2', 'mt-blocks')}
           {bar('w-2/3', 'mt-blocks')}
-          <span data-sample className="absolute inset-y-0 left-4 w-24 rounded-md" style={{ background: around.ink, opacity: value }} />
+          <span data-sample className="absolute inset-y-0 left-4 w-[96px] rounded-md" style={{ background: around.ink, opacity: value }} />
         </span>,
       )
   }
@@ -207,7 +207,7 @@ export function EffectList({
             className={`group relative flex w-full items-center gap-columns rounded-md px-board-row-x py-board-row-y text-left select-none ${reorder.moving(t.name) ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
           >
             {reorder.line(t.name)}
-            <span className="w-56 shrink-0">
+            <span className="w-row-name shrink-0">
               <span data-name className="block type-label break-words">
                 {short}
               </span>
@@ -304,7 +304,7 @@ function ShadowFields({ value, onChange }: { value: string; onChange: (value: st
       {layers.map((l, i) => (
         <div key={i} data-layer={i}>
           {/* 겹이 하나뿐이면 지울 수 없다. 겹이 없는 그림자는 값이 아니다. */}
-          <div className="mb-label flex h-8 items-center justify-between">
+          <div className="mb-label flex h-control items-center justify-between">
             <p className="type-label">겹 {i + 1}</p>
             {layers.length > 1 && (
               <button
@@ -329,7 +329,7 @@ function ShadowFields({ value, onChange }: { value: string; onChange: (value: st
             {cell(i, 'spread', '퍼짐', 'px', true)}
             {l.alpha === null ? (
               <Field label="색">
-                <span className="flex h-8 items-center type-code break-all text-ink-soft">{l.color}</span>
+                <span className="flex h-control items-center type-code break-all text-ink-soft">{l.color}</span>
               </Field>
             ) : (
               cell(i, 'alpha', '진하기', '%')
@@ -484,7 +484,7 @@ export function EffectInspector({
               <button
                 type="button"
                 onClick={() => onOpenComponent(u.index)}
-                className="-ml-button-ghost-x flex h-8 max-w-full items-center rounded-md px-button-ghost-x type-label outline-selection hover:bg-hover focus-visible:outline-2"
+                className="-ml-button-ghost-x flex h-control max-w-full items-center rounded-md px-button-ghost-x type-label outline-selection hover:bg-hover focus-visible:outline-2"
               >
                 <span className="truncate">{u.name}</span>
                 <span className="ml-row-inner shrink-0 type-body text-ink-faint">{u.where.length}곳</span>

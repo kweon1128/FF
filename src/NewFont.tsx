@@ -36,7 +36,7 @@ const BOXED = ['배송 준비', '바꾸기', '더 보기', '결제 완료', '출
 /** 설정의 이름표. 값 위에 둔다. 한 벌 만들기 창들의 왼쪽 열과 같다. */
 const LABEL = 'mb-label type-label text-ink-faint'
 const SCALE_BUTTON =
-  'flex size-8 shrink-0 items-center justify-center rounded-md text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2 disabled:opacity-disabled disabled:hover:bg-transparent'
+  'flex size-icon-button shrink-0 items-center justify-center rounded-md text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2 disabled:opacity-disabled disabled:hover:bg-transparent'
 /**
  * 버튼과 입력칸 안의 글자에 준다. 글꼴마다 글자 위아래에 잡아 둔 여백이 달라서, 그대로 가운데에 놓으면 글꼴에 따라
  * 위나 아래로 1~2px 치우친다. 줄 상자에서 그 여백을 잘라 내고(대문자 높이에서 기준선까지만 남김) 글자 자체를 가운데에 놓는다.
@@ -423,7 +423,7 @@ export function NewFontForm({
         aria-selected={on}
         aria-disabled={full}
         onClick={() => toggle(family)}
-        className={`flex h-8 w-full items-center gap-row-inner overflow-hidden rounded-md px-row-x text-left type-body outline-selection focus-visible:outline-2 ${
+        className={`flex h-row w-full items-center gap-row-inner overflow-hidden rounded-md px-row-x text-left type-body outline-selection focus-visible:outline-2 ${
           on ? 'bg-selection-soft' : full ? 'cursor-default opacity-40' : 'hover:bg-hover'
         }`}
       >
@@ -441,11 +441,11 @@ export function NewFontForm({
     // 아래의 버튼 줄은 두 열 아래에 창의 폭을 다 써서 놓인다. 한 벌 만들기 창들처럼 "원래대로"가 창의 왼쪽 끝에 온다.
     <form ref={form} onSubmit={submit} className="flex h-full flex-col">
       <div className="flex min-h-0 flex-1 gap-groups">
-      <div className="flex min-h-0 w-56 shrink-0 flex-col">
+      <div className="flex min-h-0 w-dialog-side shrink-0 flex-col">
         {/* 이 창의 주된 일은 글꼴을 고르는 것이라 찾기와 목록이 맨 위에 온다. */}
         <div className="flex min-h-0 flex-1 flex-col">
         <input autoFocus data-native-undo aria-label="글꼴 찾기" className={inputClass} value={query} placeholder="찾기" onChange={(e) => setQuery(e.target.value)} />
-        <div role="listbox" aria-label="글꼴 목록" aria-multiselectable className="mt-blocks min-h-80 flex-1 basis-0 overflow-y-auto rounded-md border border-hairline p-menu">
+        <div role="listbox" aria-label="글꼴 목록" aria-multiselectable className="mt-blocks min-h-[320px] flex-1 basis-0 overflow-y-auto rounded-md border border-hairline p-menu">
           {/* 목록에 없는 글꼴은 이름만 적어 넣지 못한다. 불러올 곳을 모르는 글꼴은 견본이 다른 글꼴로 그려져 견주는 뜻이 없기 때문이다. 그런 글꼴은 AI가 찾아서 넣는다. */}
           {groups.size === 0 && (
             <p className="px-row-x py-board type-body text-ink-faint">
@@ -488,11 +488,11 @@ export function NewFontForm({
           )}
           <div>
             <p className={LABEL}>견본 크기</p>
-            <span className="flex h-8 items-center gap-actions-tight">
+            <span className="flex h-control items-center gap-actions-tight">
               <button type="button" aria-label="견본 글자 작게" disabled={size <= SIZE_MIN} onClick={() => stepSize(-1)} className={SCALE_BUTTON}>
                 <Minus size={16} strokeWidth={1.5} />
               </button>
-              <span data-size className="w-20 text-center type-body tabular-nums!">
+              <span data-size className="w-stepper-value text-center type-body tabular-nums!">
                 {size}px
               </span>
               <button type="button" aria-label="견본 글자 크게" disabled={size >= SIZE_MAX} onClick={() => stepSize(1)} className={SCALE_BUTTON}>
@@ -503,11 +503,11 @@ export function NewFontForm({
           {/* 읽는 글의 굵기. 100씩 바꾼다. 그 굵기가 없는 글꼴은 가장 가까운 굵기로 그려진다(브라우저가 그렇게 한다). */}
           <div>
             <p className={LABEL}>견본 굵기</p>
-            <span className="flex h-8 items-center gap-actions-tight">
+            <span className="flex h-control items-center gap-actions-tight">
               <button type="button" aria-label="견본 글자 얇게" disabled={weight <= 100} onClick={() => stepWeight(-1)} className={SCALE_BUTTON}>
                 <Minus size={16} strokeWidth={1.5} />
               </button>
-              <span data-weight-now className="w-20 text-center type-body tabular-nums!">
+              <span data-weight-now className="w-stepper-value text-center type-body tabular-nums!">
                 {weight}
               </span>
               <button type="button" aria-label="견본 글자 굵게" disabled={weight >= 900} onClick={() => stepWeight(1)} className={SCALE_BUTTON}>
@@ -554,7 +554,7 @@ export function NewFontForm({
                   style={CARD_ROWS}
                 >
                   {/* 높이를 정해 둔다. 글자를 줄이는 처리(truncate) 때문에 이 줄은 "줄어들어도 되는 줄"로 취급되어, 견본이 카드 영역보다 길어지면 높이가 0에 가깝게 눌린다. */}
-                  <span className="mr-6 block h-10 truncate pt-section-y pr-row-x pb-blocks pl-section-x type-label text-ink-faint">{family}</span>
+                  <span className="mr-(--size-icon-button-corner) block h-[40px] truncate pt-section-y pr-row-x pb-blocks pl-section-x type-label text-ink-faint">{family}</span>
                   {/* 견본은 카드의 아래쪽을 가장자리까지 채운다. 바탕색을 고르면 그 색이 카드에 깔린다. 안쪽 여백은 좌우 16px, 아래 12px로, 한 벌 만들기 창의 표 상자와 같다. */}
                   <FontSample family={valueOf(family)} weights={weightsOf(family)} scale={scale} weight={weight} className="px-section-x pt-blocks pb-section-y" />
                 </div>
@@ -564,7 +564,7 @@ export function NewFontForm({
                   type="button"
                   aria-label={`${family} 빼기`}
                   onClick={() => toggle(family)}
-                  className="absolute top-2 right-2 flex size-6 items-center justify-center rounded-sm text-ink-faint outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2"
+                  className="absolute top-2 right-2 flex size-icon-button-corner items-center justify-center rounded-sm text-ink-faint outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2"
                 >
                   <X size={16} strokeWidth={1.5} />
                 </button>

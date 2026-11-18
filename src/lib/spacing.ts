@@ -1,8 +1,8 @@
 // 의미 간격: 묶음과 설명과 예시를 주석에서 읽고 쓰는 것.
-// 간격에는 토대(숫자 이름의 값: --spacing-2: 8px)와 의미(쓰임 이름: --spacing-actions: var(--spacing-2))가 있다.
+// 간격에는 토대(길이 그 자체: --gutter-8: 8px)와 의미(쓰임 이름: --spacing-actions: var(--gutter-8))가 있다.
 // 한 값을 여러 쓰임이 나눠 쓰므로, 쓰임마다 이름을 두어야 쓰임 하나만 따로 바꿀 수 있다.
 // 의미 간격의 묶음과 설명, 예시는 값 뒤의 주석에 적는다(의미 색, 의미 글꼴과 같은 방식).
-//   --spacing-actions: var(--spacing-2); /* 버튼(사이): 나란한 버튼 사이 | 취소, 추가 */
+//   --spacing-actions: var(--gutter-8); /* 버튼(사이): 나란한 버튼 사이 | 취소, 추가 */
 
 /** 의미 간격의 묶음. 무엇에 딸린 간격인지다. 판은 이 차례로 묶어 보여 준다. */
 export type SpaceUse = 'button' | 'input' | 'list' | 'board' | 'panel' | 'dialog'

@@ -9,18 +9,18 @@ const LINE = 'pointer-events-none absolute z-10 bg-selection'
 
 // 선은 이웃한 둘 사이의 한가운데에 긋는다. 그래서 둘 사이의 틈(px)의 절반만큼 바깥으로 내민다.
 // Tailwind가 클래스를 찾을 수 있게 글자 그대로 적어 둔다.
-const BEFORE_Y = { 4: '-top-0.5', 12: '-top-1.5', 24: '-top-3' }
-const AFTER_Y = { 4: '-bottom-0.5', 12: '-bottom-1.5', 24: '-bottom-3' }
-const BEFORE_X = { 4: '-left-0.5', 12: '-left-1.5', 24: '-left-3' }
-const AFTER_X = { 4: '-right-0.5', 12: '-right-1.5', 24: '-right-3' }
+const BEFORE_Y = { 4: '-top-0.5', 12: '-top-1.5', 16: '-top-2', 24: '-top-3' }
+const AFTER_Y = { 4: '-bottom-0.5', 12: '-bottom-1.5', 16: '-bottom-2', 24: '-bottom-3' }
+const BEFORE_X = { 4: '-left-0.5', 12: '-left-1.5', 16: '-left-2', 24: '-left-3' }
+const AFTER_X = { 4: '-right-0.5', 12: '-right-1.5', 16: '-right-2', 24: '-right-3' }
 
 type Options = {
   /** 여러 칸으로 놓인 목록. 읽는 순서(왼쪽에서 오른쪽, 위에서 아래)로 자리를 찾고, 선을 칸의 왼쪽·오른쪽에 세로로 긋는다. */
   grid?: boolean
   /** 끄는 것을 화면에서 찾을 때 쓰는 속성의 이름. 값은 data-token, 묶음은 그 묶음에 붙인 속성(data-kind 등)이다. */
   attr?: string
-  /** 이웃한 둘 사이의 틈(px). 줄 사이는 4, 격자의 칸 사이는 12, 묶음 사이는 24. 주지 않으면 줄은 4, 격자는 12다. */
-  gap?: 4 | 12 | 24
+  /** 이웃한 둘 사이의 틈(px). 줄 사이는 4, 격자의 칸 사이는 12, 묶음 사이는 24(종류 안의 묶음 사이는 16). 주지 않으면 줄은 4, 격자는 12다. */
+  gap?: 4 | 12 | 16 | 24
   /** 그 이름이 속한 묶음. 주면 같은 묶음 안에서만 옮겨진다(다른 묶음의 자리는 놓을 곳으로 치지 않는다). */
   scopeOf?: (name: string) => string
 }

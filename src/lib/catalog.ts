@@ -12,6 +12,10 @@ export type PreviewType =
   | 'tracking'
   | 'space'
   | 'spaceuse'
+  | 'length'
+  | 'height'
+  | 'width'
+  | 'square'
   | 'radius'
   | 'border'
   | 'shadow'
@@ -61,15 +65,24 @@ export const COLOR_REF = /^var\(\s*(--color-[a-z0-9-]+)\s*\)$/
  */
 const roleNames = new Set<string>()
 
-/** 다른 간격을 가리키는 값. var(--spacing-3)처럼 간격 변수 하나를 그대로 가리킨다. */
-export const SPACE_REF = /^var\(\s*(--spacing-[a-z0-9-]+)\s*\)$/
-/** 의미 간격의 이름들. 의미 색처럼 이름만으로는 토대의 간격과 가릴 수 없어서, 값이 다른 간격을 가리키는지로 가린다. */
-const spaceUseNames = new Set<string>()
+/**
+ * 간격 판의 값을 가리키는 값. var(--gutter-8)처럼 간격 변수 하나를 그대로 가리킨다. 의미 간격의 값이 이 꼴이다.
+ * 예전 파일은 var(--spacing-2)처럼 예전 이름의 간격을 가리킨다. 그것도 읽는다.
+ */
+export const SPACE_REF = /^var\(\s*(--(?:gutter|spacing)-[a-z0-9-]+)\s*\)$/
+/** 크기 판의 값을 가리키는 값. var(--length-32)처럼 크기 변수 하나를 그대로 가리킨다. 의미 크기(높이, 폭, 정사각)의 값이 이 꼴이다. */
+export const LENGTH_REF = /^var\(\s*(--length-[a-z0-9-]+)\s*\)$/
+/**
+ * 예전 방식의 토대 간격의 이름들(--spacing-2: 8px). 지금은 토대가 --gutter-8, 의미가 --spacing-이름이라 앞머리로 가려지지만,
+ * 예전 파일에는 --spacing-으로 시작하면서 길이를 직접 적은 값이 남아 있을 수 있다. 그런 값은 의미 간격이 아니라 간격 판(토대)에 보여 준다.
+ * 이름만으로는 가릴 수 없어서 값이 다른 간격을 가리키는지로 가린다. 값 목록이 바뀔 때마다 App이 markRoles로 다시 알려 준다.
+ */
+const legacySpaceNames = new Set<string>()
 
 export function markRoles(tokens: { name: string; value: string }[]) {
   roleNames.clear()
-  spaceUseNames.clear()
-  for (const t of tokens) if (t.name.startsWith('--spacing-') && SPACE_REF.test(t.value)) spaceUseNames.add(t.name)
+  legacySpaceNames.clear()
+  for (const t of tokens) if (t.name.startsWith('--spacing-') && !SPACE_REF.test(t.value)) legacySpaceNames.add(t.name)
   for (const t of tokens) if (t.name.startsWith('--color-') && COLOR_REF.test(t.value)) roleNames.add(t.name)
 }
 
@@ -100,7 +113,7 @@ const font: Kind = {
   prefix: '--font-',
   matches: (n) => n.startsWith('--font-') && !n.startsWith('--font-weight-'),
   defaultValue: 'system-ui, sans-serif',
-  addLabel: '글꼴 추가',
+  addLabel: '글꼴 종류 추가',
   valueLabel: '글꼴 이름',
 }
 
@@ -110,7 +123,8 @@ const size: Kind = {
   prefix: '--text-',
   matches: (n) => n.startsWith('--text-') && !n.slice('--text-'.length).includes('--'),
   defaultValue: '16px',
-  addLabel: '크기 추가',
+  // 크기 판의 "크기 추가"와 겹치지 않게 종류의 이름을 그대로 붙인다.
+  addLabel: '글자 크기 추가',
   valueLabel: '크기',
 }
 
@@ -162,25 +176,85 @@ const tracking: Kind = {
   valueLabel: '글자 사이 간격',
 }
 
+/**
+ * 간격(토대). 길이 그 자체다. 이름은 px 숫자 그대로이고(--gutter-8: 8px), 의미 간격이 이것을 가리킨다. 크기(--length-32)와 같은 짜임이다.
+ * 앞머리는 Tailwind가 모르는 --gutter-다. 예전에는 --spacing-2: 8px처럼 "이름 × 4 = 값"으로 적었다. 그러면 4의 배수가 아닌 값(6px, 10px)은 이름을 지을 수 없고,
+ * Tailwind의 숫자 클래스(top-2, h-8)가 그 값을 따라가서 간격 하나를 고치면 숫자로 적어 둔 자리가 말없이 함께 바뀐다.
+ * 예전 파일에 남아 있는 --spacing-2: 8px 같은 값도 이 종류로 보여 준다(shortName이 spacing-2로 적는다). 그 값의 길이를 고치면 새 이름으로 옮겨진다.
+ */
 const space: Kind = {
   id: 'space',
   title: '간격',
-  prefix: '--spacing-',
-  matches: (n) => n.startsWith('--spacing-') && !spaceUseNames.has(n),
+  prefix: '--gutter-',
+  matches: (n) => n.startsWith('--gutter-') || legacySpaceNames.has(n),
   defaultValue: '16px',
   addLabel: '간격 추가',
   valueLabel: '길이',
 }
 
-/** 의미 간격. 실제로 쓰는 간격에 쓰임새의 이름을 붙인 것으로, 간격 판의 값 하나를 가리킨다(--spacing-actions: var(--spacing-2)). */
+/** 의미 간격. 실제로 쓰는 간격에 쓰임새의 이름을 붙인 것으로, 간격 판의 값 하나를 가리킨다(--spacing-actions: var(--gutter-8)). --spacing-으로 시작하는 값은 예전 방식의 토대 간격만 빼고 모두 의미 간격이다. */
 const spaceUse: Kind = {
   id: 'spaceuse',
   title: '의미 간격',
   prefix: '--spacing-',
-  matches: (n) => spaceUseNames.has(n),
+  matches: (n) => n.startsWith('--spacing-') && !legacySpaceNames.has(n),
   defaultValue: '',
   addLabel: '의미 간격 추가',
   valueLabel: '가리키는 간격',
+}
+
+/**
+ * 크기(토대). 길이 그 자체다. 이름은 px 숫자 그대로이고(--length-32: 32px), 의미 크기가 이것을 가리킨다.
+ * 앞머리는 Tailwind가 모르는 --length-다. Tailwind가 아는 이름(--spacing-8, --size-32)이면 숫자 클래스(h-8, size-32)가 그 값을 따라가서,
+ * 값을 바꿨을 때 숫자로 적어 둔 자리가 말없이 함께 바뀐다.
+ */
+const length: Kind = {
+  id: 'length',
+  title: '크기',
+  prefix: '--length-',
+  matches: starts('--length-'),
+  defaultValue: '16px',
+  addLabel: '크기 추가',
+  valueLabel: '길이',
+}
+
+/**
+ * 높이. 의미 크기의 한 종류로, 쓰임의 이름을 붙인 높이다. 크기 판의 값 하나를 가리킨다(--height-control: var(--length-32)).
+ * Tailwind는 --height-이름에서 h-이름, min-h-이름, max-h-이름 클래스를 만든다.
+ */
+const height: Kind = {
+  id: 'height',
+  title: '높이',
+  prefix: '--height-',
+  matches: starts('--height-'),
+  defaultValue: '',
+  addLabel: '높이 추가',
+  valueLabel: '가리키는 크기',
+}
+
+/**
+ * 폭. 의미 크기의 한 종류로, 쓰임의 이름을 붙인 폭이다(--width-panel: var(--length-280)). Tailwind는 w-이름 클래스를 만든다.
+ * 최소 폭과 최대 폭은 종류를 따로 두지 않고 같은 이름을 가리켜 쓴다(max-w-(--width-page)).
+ */
+const width: Kind = {
+  id: 'width',
+  title: '폭',
+  prefix: '--width-',
+  matches: starts('--width-'),
+  defaultValue: '',
+  addLabel: '폭 추가',
+  valueLabel: '가리키는 크기',
+}
+
+/** 정사각. 의미 크기의 한 종류로, 가로와 세로가 같은 크기다(아이콘 버튼, 아이콘, 색 견본. --size-icon: var(--length-16)). Tailwind는 size-이름 클래스를 만든다. */
+const square: Kind = {
+  id: 'square',
+  title: '정사각',
+  prefix: '--size-',
+  matches: starts('--size-'),
+  defaultValue: '',
+  addLabel: '정사각 추가',
+  valueLabel: '가리키는 크기',
 }
 
 const radius: Kind = {
@@ -306,6 +380,10 @@ export const KINDS = {
   tracking,
   space,
   spaceUse,
+  length,
+  height,
+  width,
+  square,
   radius,
   border,
   shadow,
@@ -321,7 +399,7 @@ export const KINDS = {
 
 export const ALL_KINDS: Kind[] = Object.values(KINDS)
 
-export type TokenScreenId = 'color' | 'role' | 'style' | 'spaceuse' | 'type' | 'spacing' | 'radius' | 'border' | 'effect' | 'layout' | 'motion'
+export type TokenScreenId = 'color' | 'role' | 'style' | 'spaceuse' | 'length' | 'sizeuse' | 'type' | 'spacing' | 'radius' | 'border' | 'effect' | 'layout' | 'motion'
 export type PlaceholderScreenId = 'layouts' | 'assets'
 export type ScreenId = 'canvas' | 'components' | TokenScreenId | PlaceholderScreenId
 
@@ -353,6 +431,8 @@ export const TOKEN_SCREENS: Record<TokenScreenId, { title: string; kinds: Kind[]
   role: { title: '의미 색', kinds: [role] },
   style: { title: '의미 글꼴', kinds: [style] },
   spaceuse: { title: '의미 간격', kinds: [spaceUse] },
+  length: { title: '크기', kinds: [length] },
+  sizeuse: { title: '의미 크기', kinds: [height, width, square] },
 }
 
 export const PLACEHOLDER_SCREENS: Record<PlaceholderScreenId, { title: string }> = {
@@ -367,8 +447,18 @@ export function isTokenScreen(id: ScreenId): id is TokenScreenId {
 }
 
 /** 변수 이름에서 종류 앞부분을 뗀 짧은 이름. 예: --color-primary-500 → primary-500 */
+/**
+ * 토대의 길이(간격 --gutter-8, 크기 --length-32)를 화면에 적는 글자. 이름이 곧 길이라서 8px처럼 길이 한 번만 적는다(8 · 8px처럼 겹쳐 적지 않는다).
+ * 줄, 고른 줄의 이름표, 패널의 제목, 고르는 칸, 삭제 경고, 빠른 실행이 모두 이 표기를 쓴다. 숫자 이름이 아닌 값(예전 이름의 간격)은 짧은 이름 그대로다.
+ */
+export function lengthLabel(kind: Kind, name: string) {
+  const short = shortName(kind, name)
+  return (kind.id === 'space' || kind.id === 'length') && /^\d+$/.test(short) ? `${short}px` : short
+}
+
 export function shortName(kind: Kind, name: string) {
-  return name.slice(kind.prefix.length)
+  // 예전 방식의 토대 간격(--spacing-2)은 앞머리가 지금의 것(--gutter-)과 달라서, 예전 이름인 것이 보이게 spacing-2로 적는다.
+  return name.startsWith(kind.prefix) ? name.slice(kind.prefix.length) : name.replace(/^--/, '')
 }
 
 /** 색 묶음 이름. 예: primary-500 → primary, white → '' */

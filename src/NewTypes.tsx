@@ -45,7 +45,7 @@ function grouped(rows: Row[]): [label: string, list: Row[]][] {
   return made.filter(([, list]) => list.length > 0)
 }
 
-const PICK = 'h-6 min-w-0 rounded-sm border border-hairline bg-canvas px-chip-x type-caption text-ink-soft outline-none focus:border-selection disabled:opacity-disabled'
+const PICK = 'h-compact min-w-0 rounded-sm border border-hairline bg-canvas px-chip-x type-caption text-ink-soft outline-none focus:border-selection disabled:opacity-disabled'
 
 const ScreenContext = createContext<{ rows: Row[]; tokens: Token[]; hot: string | null; setHot: (key: string | null) => void; toggle: (key: string) => void }>({
   rows: [],
@@ -186,15 +186,15 @@ export function NewTypesForm({
                 // 줄의 어디를 눌러도 쓸지 말지가 바뀐다. 이름 칸과 고르는 칸은 그 칸의 일을 한다.
                 // 바탕의 좌우 여백은 그 끝에 놓인 것의 위아래 여백과 같게 한다. 왼쪽 끝은 체크 상자(16px, 위아래 8px)라 8px, 오른쪽 끝은 고르는 칸(24px, 위아래 4px)이라 4px.
                 onClick={(e) => !(e.target as HTMLElement).closest('input, select, label') && patch(r.key, { on: !r.on })}
-                className={`flex h-8 cursor-pointer items-center gap-row-inner rounded-md pr-menu pl-row-x ${hot === r.key ? 'bg-hover' : ''}`}
+                className={`flex h-row cursor-pointer items-center gap-row-inner rounded-md pr-menu pl-row-x ${hot === r.key ? 'bg-hover' : ''}`}
               >
                 <label className="flex shrink-0 items-center">
                   <input type="checkbox" aria-label={`${r.name} 쓰기`} className="peer sr-only" checked={r.on} onChange={(e) => patch(r.key, { on: e.target.checked })} />
                   <span
-                    className={`flex size-4 items-center justify-center rounded-sm border outline-offset-1 outline-selection peer-focus-visible:outline-2 ${r.on ? 'border-ink bg-ink text-on-primary' : 'border-ink-faint bg-canvas'}`}
+                    className={`flex size-checkbox items-center justify-center rounded-sm border outline-offset-1 outline-selection peer-focus-visible:outline-2 ${r.on ? 'border-ink bg-ink text-on-primary' : 'border-ink-faint bg-canvas'}`}
                   >
                     {r.on && (
-                      <svg viewBox="0 0 12 12" className="size-3" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <svg viewBox="0 0 12 12" className="size-[12px]" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M2.5 6.5 5 9l4.5-5.5" />
                       </svg>
                     )}
@@ -206,9 +206,9 @@ export function NewTypesForm({
                 <span className={`min-w-0 flex-1 type-caption whitespace-nowrap text-ink-faint ${r.on ? '' : 'opacity-40'}`}>
                   {r.note}
                 </span>
-                {pick(r, FONT, 'font', '글꼴 종류', 'w-20', (t) => shortName(FONT, t.name))}
-                {pick(r, SIZE, 'size', '글자 크기', 'w-24', (t) => `${shortName(SIZE, t.name)} · ${t.value}`)}
-                {pick(r, WEIGHT, 'weight', '굵기', 'w-28', (t) => `${shortName(WEIGHT, t.name)} · ${t.value}`)}
+                {pick(r, FONT, 'font', '글꼴 종류', 'w-[80px]', (t) => shortName(FONT, t.name))}
+                {pick(r, SIZE, 'size', '글자 크기', 'w-[96px]', (t) => `${shortName(SIZE, t.name)} · ${t.value}`)}
+                {pick(r, WEIGHT, 'weight', '굵기', 'w-[112px]', (t) => `${shortName(WEIGHT, t.name)} · ${t.value}`)}
               </div>
             ))}
               </div>

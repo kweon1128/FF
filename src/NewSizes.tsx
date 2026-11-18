@@ -22,7 +22,7 @@ const shiftOf = (gap: { top: number; bottom: number }) => (gap.bottom - gap.top)
 
 const LABEL = 'mb-label type-label text-ink-faint'
 const STEP_BUTTON =
-  'flex size-8 shrink-0 items-center justify-center rounded-md text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2 disabled:opacity-disabled disabled:hover:bg-transparent'
+  'flex size-icon-button shrink-0 items-center justify-center rounded-md text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2 disabled:opacity-disabled disabled:hover:bg-transparent'
 
 /** 예시 상자에 쓰는 세 크기. 작은 것부터. 상자에 들어가는 글자는 본문 크기 이하다. */
 const EXAMPLE_SIZES = ['xs', 'sm', 'base'] as const
@@ -68,8 +68,8 @@ const EXAMPLE_ROWS: { id: string; /** 좌우 여백이 상자 높이의 몇 배�
     weight: 400,
     text: '이메일 주소',
     cells: {
-      sm: { pad: 8, box: 'min-w-28 rounded-md border border-hairline whitespace-nowrap text-ink-faint' },
-      base: { pad: 8, box: 'min-w-28 rounded-md border border-hairline whitespace-nowrap text-ink-faint' },
+      sm: { pad: 8, box: 'min-w-[112px] rounded-md border border-hairline whitespace-nowrap text-ink-faint' },
+      base: { pad: 8, box: 'min-w-[112px] rounded-md border border-hairline whitespace-nowrap text-ink-faint' },
     },
   },
   {
@@ -131,7 +131,7 @@ const SAMPLES: Record<string, { use: string; text: string }> = {
  *   9단계(5xl까지): 소개 페이지. 맨 위에 가장 크게 내세우는 문구가 있고 그 아래로 숫자와 설명이 이어진다.
  * 어느 화면이든 그 한 벌의 모든 단계가 한 번 이상 나온다. ups는 본문보다 큰 단계의 수(2~6)다.
  * 단계의 자리는 의미 글꼴 한 벌의 짝과 같다. 어느 줄이 어느 단계인지는 적어 두지 않고, 마우스를 올리면 표의 줄과 서로 표시된다.
- * top은 그 줄 위의 여백이다. 의미 글꼴 창의 화면 예시(TypeScreen)와 같은 규칙으로 넣는다: 이름표와 그것이 가리키는 글은 0, 제목이나 글과 바로 이어지는 글은 8px(mt-2), 같은 묶음 안의 덩어리 사이는 16px(mt-4), 묶음과 묶음 사이는 24px(mt-6).
+ * top은 그 줄 위의 여백이다. 의미 글꼴 창의 화면 예시(TypeScreen)와 같은 규칙으로 넣는다: 이름표와 그것이 가리키는 글은 0, 제목이나 글과 바로 이어지는 글은 8px(mt-blocks), 같은 묶음 안의 덩어리 사이는 16px(mt-settings), 묶음과 묶음 사이는 24px(mt-groups).
  */
 type PageRow = { step: string; weight: number; soft?: boolean; top?: string; text: string }
 function pageRows(ups: number): PageRow[] {
@@ -232,7 +232,7 @@ function StepSize({ name, rule, custom, onChange }: { name: string; rule: number
   return (
     <UnitInput
       small
-      width="w-14"
+      width="w-[56px]"
       strong={custom !== null}
       label={`${name} 크기`}
       unit="px"
@@ -262,7 +262,7 @@ function BaseSize({ base, onChange }: { base: number; onChange: (px: number) => 
   return (
     <UnitInput
       small
-      width="w-14"
+      width="w-[56px]"
       label="base 크기"
       unit="px"
       placeholder={String(base)}
@@ -542,14 +542,14 @@ export function NewSizesForm({
     // 고르는 값에 따라 달라지는 것은 표의 내용뿐이고, 표가 남는 높이를 넘으면 표 안에서만 스크롤된다.
     <form onSubmit={submit} className="flex h-full flex-col">
       <div className="flex min-h-0 flex-1 gap-groups">
-      <div className="min-h-0 w-56 shrink-0 space-y-settings overflow-y-auto">
+      <div className="min-h-0 w-dialog-side shrink-0 space-y-settings overflow-y-auto">
         <div>
           <p className={LABEL}>본문 크기</p>
-          <span className="flex h-8 items-center gap-actions-tight">
+          <span className="flex h-control items-center gap-actions-tight">
             <button type="button" aria-label="본문 작게" disabled={base <= BASE_MIN} onClick={() => changeBase(base - 1)} className={STEP_BUTTON}>
               <Minus size={16} strokeWidth={1.5} />
             </button>
-            <span data-base className="w-20 text-center type-body tabular-nums!">
+            <span data-base className="w-stepper-value text-center type-body tabular-nums!">
               {base}px
             </span>
             <button type="button" aria-label="본문 크게" disabled={base >= BASE_MAX} onClick={() => changeBase(base + 1)} className={STEP_BUTTON}>
@@ -560,11 +560,11 @@ export function NewSizesForm({
         {/* 줄 높이는 본문의 줄 높이(px)로 고른다. 언제나 짝수 px이라 2px씩 움직이고, 다른 단계는 같은 비율로 따라간다(글자가 클수록 덜 띄우는 것은 그대로다). */}
         <div>
           <p className={LABEL}>본문 줄 높이</p>
-          <span className="flex h-8 items-center gap-actions-tight">
+          <span className="flex h-control items-center gap-actions-tight">
             <button type="button" aria-label="줄 높이 좁게" disabled={baseLine <= lineRange.min} onClick={() => stepLine(-1)} className={STEP_BUTTON}>
               <Minus size={16} strokeWidth={1.5} />
             </button>
-            <span data-leading title="본문 크기의 줄 높이. 다른 단계는 같은 비율로 따라가요" className="w-20 text-center type-body tabular-nums!">
+            <span data-leading title="본문 크기의 줄 높이. 다른 단계는 같은 비율로 따라가요" className="w-stepper-value text-center type-body tabular-nums!">
               {baseLine}px
             </span>
             <button type="button" aria-label="줄 높이 넓게" disabled={baseLine >= lineRange.max} onClick={() => stepLine(1)} className={STEP_BUTTON}>
@@ -577,11 +577,11 @@ export function NewSizesForm({
         {/* 단계의 수. 본문 아래의 둘과 본문은 늘 있고, 본문보다 큰 단계를 둘에서 여섯까지 고른다. 전체로는 5단계에서 9단계다. */}
         <div className="pt-blocks">
           <p className={LABEL}>단계 수</p>
-          <span className="flex h-8 items-center gap-actions-tight">
+          <span className="flex h-control items-center gap-actions-tight">
             <button type="button" aria-label="단계 줄이기" disabled={upCount <= UPS_MIN} onClick={() => changeUps(upCount - 1)} className={STEP_BUTTON}>
               <Minus size={16} strokeWidth={1.5} />
             </button>
-            <span data-count title={`가장 큰 단계는 ${nameOf(ruled[ruled.length - 1].name)} ${ruled[ruled.length - 1].size}`} className="w-20 text-center type-body tabular-nums!">
+            <span data-count title={`가장 큰 단계는 ${nameOf(ruled[ruled.length - 1].name)} ${ruled[ruled.length - 1].size}`} className="w-stepper-value text-center type-body tabular-nums!">
               {ruled.length}단계
             </span>
             <button
@@ -598,12 +598,12 @@ export function NewSizesForm({
         {/* 본문 크기처럼 - +로 조절한다. 세 가지 가운데 고르게 하면 그 사이의 값이나 더 큰 대비를 원할 때 단계마다 손으로 고쳐야 한다. */}
         <div>
           <p className={LABEL}>단계 사이</p>
-          <span className="flex h-8 items-center gap-actions-tight">
+          <span className="flex h-control items-center gap-actions-tight">
             <button type="button" aria-label="단계 사이 좁게" disabled={spreadAt <= 0} onClick={() => stepSpread(-1)} className={STEP_BUTTON}>
               <Minus size={16} strokeWidth={1.5} />
             </button>
             {/* 배수의 숫자 대신 이름을 보여 준다. 숫자는 마우스를 올리면 나온다. */}
-            <span data-spread title={`한 단계마다 ${spread}배씩 커져요`} className="w-20 text-center type-body">
+            <span data-spread title={`한 단계마다 ${spread}배씩 커져요`} className="w-stepper-value text-center type-body">
               {SPREAD_STEPS[spreadAt]?.label}
             </span>
             <button type="button" aria-label="단계 사이 넓게" disabled={spreadAt >= SPREAD_STEPS.length - 1} onClick={() => stepSpread(1)} className={STEP_BUTTON}>
@@ -628,7 +628,7 @@ export function NewSizesForm({
                   setTighten(o.on)
                   setTracks({})
                 }}
-                className={`h-6 rounded-sm outline-selection focus-visible:outline-2 ${
+                className={`h-compact rounded-sm outline-selection focus-visible:outline-2 ${
                   o.on === tighten ? 'bg-canvas type-label text-ink shadow-[0_0_0_1px_var(--color-hairline)]' : 'type-body text-ink-soft hover:text-ink'
                 }`}
               >
@@ -655,7 +655,7 @@ export function NewSizesForm({
                     role="radio"
                     aria-checked={f.name === fontName}
                     onClick={() => setFontName(f.name)}
-                    className={`flex h-8 w-full items-center gap-row-inner rounded-md px-row-x text-left type-body outline-selection focus-visible:outline-2 ${
+                    className={`flex h-row w-full items-center gap-row-inner rounded-md px-row-x text-left type-body outline-selection focus-visible:outline-2 ${
                       f.name === fontName ? 'bg-selection-soft' : 'hover:bg-hover'
                     }`}
                   >
@@ -685,11 +685,11 @@ export function NewSizesForm({
               {/* 마우스를 올렸을 때의 회색 바탕은 이름, 값, 쓰이는 곳까지만 덮는다(높이 32px). 줄 전체를 덮으면 견본 문장의 크기에 따라 줄마다 높이가 달라진다.
                   견본 문장은 바탕 밖에 두고, 화면 예시의 글자처럼 1px 선을 둘러 표시한다.
                   바탕의 좌우 여백은 그 끝에 놓인 것의 위아래 여백과 같게 한다. 왼쪽 끝은 이름 칸(24px, 위아래 4px)이라 4px, 오른쪽 끝은 쓰이는 곳의 글자(줄 높이 16px, 위아래 8px)라 8px. */}
-              <span data-hot={hot === s.name || undefined} className={`-ml-chip-x flex h-8 shrink-0 items-center gap-cells rounded-md pr-row-x pl-chip-x ${hot === s.name ? 'bg-hover' : ''}`}>
+              <span data-hot={hot === s.name || undefined} className={`-ml-chip-x flex h-row shrink-0 items-center gap-cells rounded-md pr-row-x pl-chip-x ${hot === s.name ? 'bg-hover' : ''}`}>
               {/* 이름은 미리 채워져 있고, 다른 이름을 쓰고 싶을 때만 고친다. */}
               <StepName label={`${s.name} 이름`} value={nameOf(s.name)} onChange={(name) => setNames({ ...names, [s.name]: name })} />
               {/* 크기, 줄 높이, 글자 사이는 단계마다 직접 고칠 수 있다(본문 줄의 크기 칸은 왼쪽의 본문 크기와 같은 값이다). 줄 높이와 글자 사이는 고친 크기에 맞춰 따라오고, 직접 고친 것은 따라가지 않는다. */}
-              <span className="flex w-60 shrink-0 items-center type-code-sm whitespace-nowrap text-ink-faint">
+              <span className="flex w-[240px] shrink-0 items-center type-code-sm whitespace-nowrap text-ink-faint">
                 {s.name === 'base' ? (
                   // 본문 줄의 크기도 다른 줄처럼 칸이다. 여기서 고치는 것은 왼쪽의 "본문 크기"와 같은 값이다.
                   <BaseSize base={base} onChange={changeBase} />
@@ -708,7 +708,7 @@ export function NewSizesForm({
                   key={`line:${base}:${spread}:${leading}`}
                   label={`${s.name} 줄 높이`}
                   unit="px"
-                  width="w-14"
+                  width="w-[56px]"
                   rule={String(lineFor(parseFloat(s.size), leading))}
                   custom={lines[s.name] ?? null}
                   valid={validLine}
@@ -729,7 +729,7 @@ export function NewSizesForm({
                 />
               </span>
               {/* 이 크기가 흔히 쓰이는 곳. */}
-              <span data-use className="w-36 shrink-0 type-caption whitespace-nowrap text-ink-soft">
+              <span data-use className="w-[144px] shrink-0 type-caption whitespace-nowrap text-ink-soft">
                 {/* 5단계면 xl이 가장 큰 단계라 화면 제목까지 맡는다. */}
                 {s.name === 'xl' && upCount === 2 ? '화면 제목, 구역 제목' : SAMPLES[s.name].use}
               </span>

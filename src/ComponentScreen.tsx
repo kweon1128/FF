@@ -62,9 +62,9 @@ export function ComponentScreen({
   const shown = cells.at(-1) ?? { v: 0, s: 0, state: 'default' as StateId }
 
   return (
-    <div className="mx-auto max-w-[960px]">
+    <div className="mx-auto max-w-(--width-page)">
       {/* 이름 줄. 종류와 크기를 추가하는 버튼은 격자 끝의 점선 상자가 아니라 여기에 둔다. 크기는 모든 종류가 함께 쓰므로 종류마다 두지 않는다. */}
-      <div className="mb-header flex h-8 items-center justify-between">
+      <div className="mb-header flex h-control items-center justify-between">
         <h1 className="type-title">{comp.name}</h1>
         <span className="flex gap-actions-tight">
           <Button variant="ghost" onClick={onAddVariant}>
@@ -78,7 +78,7 @@ export function ComponentScreen({
         </span>
       </div>
 
-      <div className="flex min-h-40 items-center justify-center rounded-lg border border-hairline bg-canvas p-board">
+      <div className="flex min-h-[160px] items-center justify-center rounded-lg border border-hairline bg-canvas p-board">
         <LivePreview comp={comp} cell={shown} tokens={tokens} />
       </div>
       <p className="mt-label type-caption text-ink-faint">
@@ -96,7 +96,7 @@ export function ComponentScreen({
             <div className="space-y-cells">
               {comp.sizes.map((size, s) => (
                 <div key={s} className="flex items-start gap-cells">
-                  <span className="flex h-24 w-12 shrink-0 items-center type-caption text-ink-soft">
+                  <span className="flex h-[96px] w-[48px] shrink-0 items-center type-caption text-ink-soft">
                     <span className="truncate" onDoubleClick={() => onRenameSize(s)}>
                       {size.name}
                     </span>
@@ -117,7 +117,7 @@ export function ComponentScreen({
                           className="group min-w-0 text-left outline-none select-none"
                         >
                           <span
-                            className={`relative flex h-24 items-center justify-center rounded-lg border border-hairline bg-canvas p-card ${isSelected ? SELECTED : ''} group-hover:line-2 group-focus-visible:line-2 ${OUTLINE}`}
+                            className={`relative flex h-[96px] items-center justify-center rounded-lg border border-hairline bg-canvas p-card ${isSelected ? SELECTED : ''} group-hover:line-2 group-focus-visible:line-2 ${OUTLINE}`}
                           >
                             <span className="pointer-events-none flex max-w-full overflow-hidden">
                               <CompPreview comp={comp} cell={here} tokens={tokens} />

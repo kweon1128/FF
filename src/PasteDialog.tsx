@@ -16,7 +16,7 @@ export type PasteJob = {
   into: string | null
 }
 
-const OPTION = 'h-6 flex-1 rounded-sm type-label outline-selection focus-visible:outline-2'
+const OPTION = 'h-compact flex-1 rounded-sm type-label outline-selection focus-visible:outline-2'
 
 /**
  * 붙여넣기 창. 이름이 같은 값이 있거나 읽지 못한 값이 있을 때만 뜬다.
@@ -68,7 +68,7 @@ export function PasteDialog({
         {job.skipped.length > 0 && (
           <div>
             <p className="mb-label type-label text-ink-faint">읽지 못한 값 {job.skipped.length}개</p>
-            <ul className="max-h-36 space-y-rows overflow-y-auto rounded-md border border-hairline p-box">
+            <ul className="max-h-[144px] space-y-rows overflow-y-auto rounded-md border border-hairline p-box">
               {job.skipped.map((t) => (
                 <li key={t.name} className="flex items-baseline gap-row-inner type-code-sm">
                   <span className="min-w-0 flex-1 truncate">{t.name}</span>

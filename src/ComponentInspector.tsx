@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Copy, CopyPlus, Trash2 } from 'lucide-react'
 import { DynamicIcon, iconNames } from 'lucide-react/dynamic'
 import type { Token } from './lib/api'
-import { KINDS, SLUG, SPACE_REF, shortName, type Kind } from './lib/catalog'
+import { KINDS, SLUG, SPACE_REF, lengthLabel, shortName, type Kind } from './lib/catalog'
 import { showColor } from './lib/color'
 import { refOf, resolveColor } from './lib/roles'
 import { readType } from './lib/types'
@@ -84,13 +84,20 @@ function TokenField({
   // 색 칸에서는 의미 색도 고를 수 있다. 쓰임새에 이름을 붙여 둔 색이라 단계 색보다 먼저 보여 준다.
   // 간격 칸에서도 의미 간격을 먼저 보여 준다. 화면은 숫자 간격을 바로 쓰지 않고 쓰임의 이름을 쓴다.
   const roles = kind.id === 'color' ? tokens.filter((t) => KINDS.role.matches(t.name)) : kind.id === 'space' ? tokens.filter((t) => KINDS.spaceUse.matches(t.name)) : []
-  // 의미 값이 가리키는 값의 짧은 이름(색은 gray-900, 간격은 2).
-  const pointsAt = (t: Token) => (refOf(t.value) ?? SPACE_REF.exec(t.value)?.[1] ?? t.value).replace(kind.prefix, '')
+  // 의미 값의 종류. 의미 간격은 앞머리(--spacing-)가 토대(--gutter-)와 달라서 짧은 이름을 제 종류로 뗀다.
+  const roleKind = kind.id === 'space' ? KINDS.spaceUse : KINDS.role
+  // 의미 값이 가리키는 것(색은 gray-900, 간격은 그 길이 8px).
+  const pointsAt = (t: Token) => {
+    const space = SPACE_REF.exec(t.value)?.[1]
+    if (space) return tokens.find((x) => x.name === space)?.value ?? '없어짐'
+    return (refOf(t.value) ?? t.value).replace(kind.prefix, '')
+  }
   const current = [...roles, ...options].find((t) => t.name === value)
   const missing = value !== undefined && !current
   const plain = (t: Token) => (
     <option key={t.name} value={t.name}>
-      {shortName(kind, t.name)} · {kind.id === 'color' ? showColor(t.value) : kind.id === 'style' ? specOf(t.value) : t.value}
+      {/* 토대의 간격은 이름이 곧 길이라 길이만 적는다. */}
+      {kind.id === 'space' && `${shortName(kind, t.name)}px` === t.value ? t.value : `${shortName(kind, t.name)} · ${kind.id === 'color' ? showColor(t.value) : kind.id === 'style' ? specOf(t.value) : t.value}`}
     </option>
   )
 
@@ -103,7 +110,7 @@ function TokenField({
       <span className="flex items-center gap-field-row">
         {kind.id === 'color' && (
           <span
-            className="size-8 shrink-0 rounded-md border border-hairline"
+            className="size-swatch-button shrink-0 rounded-md border border-hairline"
             style={{ background: current ? swatchBackground(resolveColor(tokens, current.value) ?? 'transparent') : undefined }}
           />
         )}
@@ -114,12 +121,12 @@ function TokenField({
           onChange={(e) => onChange(e.target.value || undefined)}
         >
           <option value="">{empty}</option>
-          {missing && <option value={value}>{shortName(kind, value)} (없어짐)</option>}
+          {missing && <option value={value}>{kind.matches(value) ? lengthLabel(kind, value) : value.replace(/^--[a-z]+-/, '')} (없어짐)</option>}
           {roles.length > 0 && (
             <optgroup label={kind.id === 'space' ? '의미 간격' : '의미 색'}>
               {roles.map((t) => (
                 <option key={t.name} value={t.name}>
-                  {shortName(kind, t.name)} · {pointsAt(t)}
+                  {shortName(roleKind, t.name)} · {pointsAt(t)}
                 </option>
               ))}
             </optgroup>
@@ -169,7 +176,7 @@ function IconPicker({ value, onChange }: { value: string | undefined; onChange: 
               aria-label={name}
               aria-pressed={name === value}
               onClick={() => onChange(name)}
-              className={`flex size-8 items-center justify-center rounded-md outline-selection focus-visible:outline-2 ${
+              className={`flex size-icon-button items-center justify-center rounded-md outline-selection focus-visible:outline-2 ${
                 name === value ? 'bg-selection-soft text-ink' : 'text-ink-soft hover:bg-hover hover:text-ink'
               }`}
             >
@@ -371,7 +378,7 @@ export function ComponentInspector({
                 type="button"
                 aria-pressed={comp.iconPos === id}
                 onClick={() => common({ iconPos: id })}
-                className={`h-6 flex-1 rounded-sm type-label outline-selection focus-visible:outline-2 ${
+                className={`h-compact flex-1 rounded-sm type-label outline-selection focus-visible:outline-2 ${
                   comp.iconPos === id ? 'border border-hairline bg-canvas text-ink' : 'text-ink-soft hover:text-ink'
                 }`}
               >

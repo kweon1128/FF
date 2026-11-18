@@ -9,14 +9,15 @@
 // 색상 판은 둘이 섞여 있다. 색 목록(gray, red…)은 크기의 차례가 없어 바꿀 수 있고, 목록 안의 단계(50~950)는 숫자순으로 저절로 놓인다.
 
 import type { Token } from './api'
-import { KINDS, SPACE_REF, groupOf, shortName, type Kind } from './catalog'
+import { KINDS, LENGTH_REF, SPACE_REF, groupOf, shortName, type Kind } from './catalog'
 import { SPACE_USES, readSpaceNote, type SpaceUse } from './spacing'
+import { SIZE_GROUPS, readSizeNote, type SizeGroup } from './sizes'
 import { parseShadow } from './effects'
 
 /** 값의 크기순으로 저절로 놓이는 종류. */
-const SCALE_IDS = ['size', 'weight', 'leading', 'tracking', 'space', 'radius', 'border', 'breakpoint', 'container', 'z', 'duration']
+const SCALE_IDS = ['size', 'weight', 'leading', 'tracking', 'space', 'length', 'radius', 'border', 'breakpoint', 'container', 'z', 'duration']
 /** 손으로 차례를 바꿀 수 있는 종류 가운데, 묶음 없이 한 목록으로 놓이는 것(의미 색, 의미 글꼴, 색 목록은 저마다의 방식이 따로 있다). */
-const FREE_IDS = ['font', 'shadow', 'opacity', 'blur', 'aspect', 'ease', 'spaceuse']
+const FREE_IDS = ['font', 'shadow', 'opacity', 'blur', 'aspect', 'ease', 'spaceuse', 'height', 'width', 'square']
 
 export const isScaleKind = (kind: Kind) => SCALE_IDS.includes(kind.id)
 export const isFreeKind = (kind: Kind) => FREE_IDS.includes(kind.id)
@@ -214,6 +215,40 @@ export function shiftSpaceUses(tokens: Token[], names: string[], dir: 1 | -1): T
   return place(tokens, (t) => kind.matches(t.name), groups.flat())
 }
 
+/** 의미 크기의 한 종류(높이, 폭, 정사각) 안에서 묶음들이 판에 놓이는 차례. 파일에 처음 나오는 차례대로다. */
+export function sizeGroupOrder(tokens: Token[], kind: Kind): SizeGroup[] {
+  return [...new Set(tokens.filter((t) => kind.matches(t.name)).map((t) => readSizeNote(t.note, shortName(kind, t.name)).group))]
+}
+
+/** 의미 크기의 묶음 하나를 같은 종류 안에서 통째로 다른 묶음의 앞으로 옮긴다(before가 null이면 맨 뒤로). 같은 묶음의 값들은 파일에서도 한데 모인다. */
+export function moveSizeGroup(tokens: Token[], kind: Kind, group: SizeGroup, before: SizeGroup | null): Token[] {
+  const items = tokens.filter((t) => kind.matches(t.name))
+  const groupOfSize = (t: Token) => readSizeNote(t.note, shortName(kind, t.name)).group
+  const order = sizeGroupOrder(tokens, kind)
+  if (!order.includes(group) || group === before) return tokens
+  const next = order.filter((g) => g !== group)
+  const at = before === null ? next.length : next.indexOf(before)
+  next.splice(at === -1 ? next.length : at, 0, group)
+  return place(tokens, (t) => kind.matches(t.name), next.flatMap((g) => items.filter((t) => groupOfSize(t) === g)))
+}
+
+/** 고른 의미 크기(높이, 폭, 정사각)를 같은 묶음 안에서 한 칸 뒤(1)나 앞(-1)으로 옮긴다. 파일에서 이웃한 다른 묶음의 값과는 자리를 바꾸지 않는다. */
+export function shiftSizes(tokens: Token[], kind: Kind, names: string[], dir: 1 | -1): Token[] {
+  const items = tokens.filter((t) => kind.matches(t.name))
+  const groupOfSize = (t: Token) => readSizeNote(t.note, shortName(kind, t.name)).group
+  const groups = sizeGroupOrder(tokens, kind).map((g) => items.filter((t) => groupOfSize(t) === g))
+  for (const list of groups) {
+    const picked = list.map((_, i) => i).filter((i) => names.includes(list[i].name))
+    if (dir === 1) picked.reverse()
+    for (const i of picked) {
+      const j = i + dir
+      if (j < 0 || j >= list.length || names.includes(list[j].name)) continue
+      ;[list[i], list[j]] = [list[j], list[i]]
+    }
+  }
+  return place(tokens, (t) => kind.matches(t.name), groups.flat())
+}
+
 /** 예외 색(색 목록에 속하지 않은 색)인지. */
 const isException = (t: Token) => KINDS.color.matches(t.name) && groupOf(shortName(KINDS.color, t.name)) === ''
 
@@ -253,6 +288,15 @@ export function defaultFreeOrder(tokens: Token[], kind: Kind): Token[] {
         const ref = SPACE_REF.exec(t.value.trim())?.[1]
         const length = magnitude(tokens.find((x) => x.name === ref)?.value ?? '')
         return SPACE_USES.findIndex((u) => u.id === use) * 100000 + (Number.isNaN(length) ? 99999 : length)
+      }
+      case 'height':
+      case 'width':
+      case 'square': {
+        // 의미 크기: 묶음의 차례(조작, 틀, 견본, 그림)대로, 묶음 안에서는 가리키는 길이가 작은 것부터.
+        const group = readSizeNote(t.note, shortName(kind, t.name)).group
+        const ref = LENGTH_REF.exec(t.value.trim())?.[1]
+        const length = magnitude(tokens.find((x) => x.name === ref)?.value ?? '')
+        return SIZE_GROUPS.findIndex((g) => g.id === group) * 100000 + (Number.isNaN(length) ? 99999 : length)
       }
       case 'ease': {
         const short = shortName(kind, t.name)

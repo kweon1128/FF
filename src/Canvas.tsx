@@ -20,9 +20,13 @@ export const ROLE_BOARD_WIDTH = 960
 export const TYPE_BOARD_WIDTH = 960
 /** 의미 글꼴 판은 이름과 설명 옆에 가장 큰 제목의 견본 문장이 들어가야 해서 넓다. */
 export const STYLE_BOARD_WIDTH = 960
+/** 의미 크기 판은 이름과 설명 옆에 그 크기 그대로 그린 예시(메뉴, 패널, 창의 폭)가 들어가야 해서 넓다. */
+export const SIZE_BOARD_WIDTH = 960
+/** 크기 판은 가장 긴 길이(가장 넓은 창의 폭 1720px)의 치수선과 그 끝의 값 이름표가 줄이지 않고 그대로 들어가도록 넓다. */
+export const LENGTH_BOARD_WIDTH = 1960
 /** 판의 너비. 판마다 정해져 있다. */
 export const defaultWidth = (id: string) =>
-  id === 'color' ? COLOR_BOARD_WIDTH : id === 'role' ? ROLE_BOARD_WIDTH : id === 'type' ? TYPE_BOARD_WIDTH : id === 'style' ? STYLE_BOARD_WIDTH : BOARD_WIDTH
+  id === 'color' ? COLOR_BOARD_WIDTH : id === 'role' ? ROLE_BOARD_WIDTH : id === 'type' ? TYPE_BOARD_WIDTH : id === 'style' ? STYLE_BOARD_WIDTH : id === 'sizeuse' ? SIZE_BOARD_WIDTH : id === 'length' ? LENGTH_BOARD_WIDTH : BOARD_WIDTH
 const BOARD_GAP = 80
 const MIN_ZOOM = 0.1
 const MAX_ZOOM = 16
@@ -1086,7 +1090,7 @@ export function Canvas({
           type="button"
           aria-label="축소"
           onClick={() => zoomBy(1 / 1.25)}
-          className="flex size-8 items-center justify-center rounded-md text-ink-soft hover:bg-hover hover:text-ink"
+          className="flex size-icon-button items-center justify-center rounded-md text-ink-soft hover:bg-hover hover:text-ink"
         >
           <Minus size={16} strokeWidth={1.5} />
         </button>
@@ -1094,7 +1098,7 @@ export function Canvas({
           type="button"
           title="100%로 되돌리기"
           onClick={() => zoomBy(1 / view.z)}
-          className="h-8 w-14 rounded-md text-center type-caption tabular-nums! hover:bg-hover"
+          className="h-control w-[56px] rounded-md text-center type-caption tabular-nums! hover:bg-hover"
         >
           {Math.round(view.z * 100)}%
         </button>
@@ -1102,7 +1106,7 @@ export function Canvas({
           type="button"
           aria-label="확대"
           onClick={() => zoomBy(1.25)}
-          className="flex size-8 items-center justify-center rounded-md text-ink-soft hover:bg-hover hover:text-ink"
+          className="flex size-icon-button items-center justify-center rounded-md text-ink-soft hover:bg-hover hover:text-ink"
         >
           <Plus size={16} strokeWidth={1.5} />
         </button>

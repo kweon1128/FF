@@ -73,7 +73,7 @@ export function NumberField({
     // 이름표와 숫자를 한 칸 안에 나란히 둔다. 이름표가 길어도 숫자와 겹치지 않는다.
     <label
       title={label}
-      className={`flex h-8 min-w-0 items-center gap-row-inner rounded-md border border-hairline px-input-x focus-within:border-selection ${
+      className={`flex h-control min-w-0 items-center gap-row-inner rounded-md border border-hairline px-input-x focus-within:border-selection ${
         readOnly ? 'bg-hover' : 'bg-canvas'
       }`}
     >
@@ -216,7 +216,7 @@ export function BoardInspector({
   const locked = picked.every((b) => styles[b.id]?.locked)
   const anyLocked = picked.some((b) => styles[b.id]?.locked)
   const TOOL =
-    'flex size-8 shrink-0 items-center justify-center rounded-md text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2'
+    'flex size-icon-button shrink-0 items-center justify-center rounded-md text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2'
 
   return (
     <div>
@@ -259,7 +259,7 @@ export function BoardInspector({
                 const moves = arrange(action, picked)
                 if (moves) onMove(moves)
               }}
-              className={`flex size-8 items-center justify-center rounded-md text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2 disabled:pointer-events-none disabled:opacity-disabled ${i === 3 ? 'ml-blocks' : ''}`}
+              className={`flex size-icon-button items-center justify-center rounded-md text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2 disabled:pointer-events-none disabled:opacity-disabled ${i === 3 ? 'ml-blocks' : ''}`}
             >
               <Icon size={16} strokeWidth={1.5} />
             </button>

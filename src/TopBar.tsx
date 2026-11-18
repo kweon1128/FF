@@ -26,7 +26,7 @@ export function TopBar({
   const [open, setOpen] = useState(false)
 
   return (
-    <header className="flex h-11 shrink-0 items-center justify-between border-b border-hairline px-bar-x">
+    <header className="flex h-bar shrink-0 items-center justify-between border-b border-hairline px-bar-x">
       <div className="flex items-center gap-actions-tight">
       <div className="relative">
         <button
@@ -34,7 +34,7 @@ export function TopBar({
           aria-haspopup="menu"
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
-          className="flex h-8 items-center gap-row-inner rounded-md px-button-ghost-x type-label hover:bg-hover"
+          className="flex h-control items-center gap-row-inner rounded-md px-button-ghost-x type-label hover:bg-hover"
         >
           <Folder size={16} strokeWidth={1.5} />
           {current ?? '디자인 시스템 없음'}
@@ -47,7 +47,7 @@ export function TopBar({
             <div
               role="menu"
               // 줄 사이를 띄워, 마우스를 올린 바탕이 옆 줄과 붙지 않게 한다.
-              className="absolute top-9 left-0 z-20 w-60 space-y-rows rounded-lg border border-hairline bg-canvas p-menu shadow-float"
+              className="absolute top-9 left-0 z-20 w-menu space-y-rows rounded-lg border border-hairline bg-canvas p-menu shadow-float"
             >
               {systems.map((name) => (
                 <button
@@ -58,7 +58,7 @@ export function TopBar({
                     setOpen(false)
                     onSelect(name)
                   }}
-                  className="flex h-8 w-full items-center justify-between rounded-md px-row-x text-left hover:bg-hover"
+                  className="flex h-row w-full items-center justify-between rounded-md px-row-x text-left hover:bg-hover"
                 >
                   <span className="truncate">{name}</span>
                   {name === current && <Check size={16} strokeWidth={1.5} />}
@@ -72,7 +72,7 @@ export function TopBar({
                   setOpen(false)
                   onNew()
                 }}
-                className="flex h-8 w-full items-center gap-row-inner rounded-md px-row-x text-left text-ink-soft hover:bg-hover hover:text-ink"
+                className="flex h-row w-full items-center gap-row-inner rounded-md px-row-x text-left text-ink-soft hover:bg-hover hover:text-ink"
               >
                 <Plus size={16} strokeWidth={1.5} />새 디자인 시스템
               </button>
@@ -92,7 +92,7 @@ export function TopBar({
             title={`${label} (${keys})`}
             disabled={!run}
             onClick={run}
-            className="flex size-8 items-center justify-center rounded-md text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2 disabled:pointer-events-none disabled:opacity-disabled"
+            className="flex size-icon-button items-center justify-center rounded-md text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2 disabled:pointer-events-none disabled:opacity-disabled"
           >
             <Icon size={16} strokeWidth={1.5} />
           </button>

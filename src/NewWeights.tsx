@@ -11,7 +11,7 @@ import { Button } from './ui'
 
 const LABEL = 'mb-label type-label text-ink-faint'
 const STEP_BUTTON =
-  'flex size-8 shrink-0 items-center justify-center rounded-md text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2 disabled:opacity-disabled disabled:hover:bg-transparent'
+  'flex size-icon-button shrink-0 items-center justify-center rounded-md text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2 disabled:opacity-disabled disabled:hover:bg-transparent'
 /** 처음에 고르는 단계 수. 셋(본문, 중간, 굵게)이다. */
 const COUNT_START = 3
 
@@ -56,7 +56,7 @@ function StepWeight({ name, rule, custom, onChange }: { name: string; rule: numb
       aria-invalid={bad || undefined}
       inputMode="numeric"
       title={custom === null ? '숫자를 고치면 이 단계의 굵기를 직접 정해요' : `직접 정한 굵기예요. 비우면 정해 둔 값(${rule})으로 돌아가요`}
-      className={`h-6 w-12 shrink-0 rounded-sm border bg-canvas text-center ${bad ? 'border-danger' : 'border-hairline hover:border-ink-faint focus:border-selection'} type-code-sm outline-none placeholder:text-ink-faint/50 ${
+      className={`h-compact w-[48px] shrink-0 rounded-sm border bg-canvas text-center ${bad ? 'border-danger' : 'border-hairline hover:border-ink-faint focus:border-selection'} type-code-sm outline-none placeholder:text-ink-faint/50 ${
         custom !== null ? 'text-ink' : 'text-ink-soft'
       }`}
       value={draft ?? String(custom ?? rule)}
@@ -197,15 +197,15 @@ export function NewWeightsForm({
     // 아래의 버튼 줄은 두 열 아래에 창의 폭을 다 써서 놓인다. 다른 창들처럼 "원래대로"가 창의 왼쪽 끝에 온다.
     <form onSubmit={submit}>
       <div className="flex gap-groups">
-      <div className="w-56 shrink-0 space-y-settings">
+      <div className="w-dialog-side shrink-0 space-y-settings">
         <div>
           <p className={LABEL}>단계 수</p>
           {/* 글자 크기 한 벌 만들기의 단계 수와 같은 모양이다. -, +로 2단계에서 4단계까지 고른다. */}
-          <span className="flex h-8 items-center gap-actions-tight">
+          <span className="flex h-control items-center gap-actions-tight">
             <button type="button" aria-label="단계 줄이기" disabled={count <= Math.min(...counts)} onClick={() => changeCount(count - 1)} className={STEP_BUTTON}>
               <Minus size={16} strokeWidth={1.5} />
             </button>
-            <span data-count className="w-20 text-center type-body tabular-nums!">
+            <span data-count className="w-stepper-value text-center type-body tabular-nums!">
               {count}단계
             </span>
             <button type="button" aria-label="단계 늘리기" disabled={count >= Math.max(...counts)} onClick={() => changeCount(count + 1)} className={STEP_BUTTON}>
@@ -231,7 +231,7 @@ export function NewWeightsForm({
                     role="radio"
                     aria-checked={f.name === fontName}
                     onClick={() => setFontName(f.name)}
-                    className={`flex h-8 w-full items-center gap-row-inner rounded-md px-row-x text-left type-body outline-selection focus-visible:outline-2 ${
+                    className={`flex h-row w-full items-center gap-row-inner rounded-md px-row-x text-left type-body outline-selection focus-visible:outline-2 ${
                       f.name === fontName ? 'bg-selection-soft' : 'hover:bg-hover'
                     }`}
                   >
@@ -252,10 +252,10 @@ export function NewWeightsForm({
           {steps.map((s) => {
             const real = drawn[s.name]
             return (
-              <div key={s.name} data-step={s.name} onMouseEnter={() => setHot(s.name)} onMouseLeave={() => setHot(null)} className="flex h-8 items-center gap-cells">
+              <div key={s.name} data-step={s.name} onMouseEnter={() => setHot(s.name)} onMouseLeave={() => setHot(null)} className="flex h-row items-center gap-cells">
                 {/* 마우스를 올렸을 때의 회색 바탕은 이름, 값, 쓰이는 곳까지만 덮는다. 견본 문장은 바탕 밖에 두고 화면 예시의 글자처럼 1px 선을 둘러 표시한다(글자 크기 한 벌 만들기와 같다).
                     바탕의 좌우 여백은 그 끝에 놓인 것의 위아래 여백과 같게 한다. 왼쪽 끝은 이름 칸(24px, 위아래 4px)이라 4px, 오른쪽 끝은 쓰이는 곳의 글자(줄 높이 16px, 위아래 8px)라 8px. */}
-                <span className={`-ml-chip-x flex h-8 shrink-0 items-center gap-cells rounded-md pr-row-x pl-chip-x ${hot === s.name ? 'bg-hover' : ''}`}>
+                <span className={`-ml-chip-x flex h-row shrink-0 items-center gap-cells rounded-md pr-row-x pl-chip-x ${hot === s.name ? 'bg-hover' : ''}`}>
                   <StepName wide label={`${s.name} 이름`} value={nameOf(s.name)} onChange={(name) => setNames({ ...names, [s.name]: name })} />
                   <StepWeight
                     name={s.name}
@@ -269,7 +269,7 @@ export function NewWeightsForm({
                     }
                   />
                   {/* 이 굵기가 흔히 쓰이는 곳. */}
-                  <span data-use className="w-36 shrink-0 type-caption whitespace-nowrap text-ink-soft">
+                  <span data-use className="w-[144px] shrink-0 type-caption whitespace-nowrap text-ink-soft">
                     {s.use}
                   </span>
                 </span>
@@ -279,7 +279,7 @@ export function NewWeightsForm({
                   </span>
                 </span>
                 {/* 이 글꼴에 그 굵기가 없으면 다른 굵기로 그려진다. 그러면 단계를 나눈 뜻이 없어지므로 알린다. */}
-                <span data-drawn={s.name} className={`w-44 shrink-0 text-right type-caption whitespace-nowrap ${real !== s.weight ? 'text-danger' : 'text-ink-faint'}`}>
+                <span data-drawn={s.name} className={`w-[176px] shrink-0 text-right type-caption whitespace-nowrap ${real !== s.weight ? 'text-danger' : 'text-ink-faint'}`}>
                   {real !== s.weight ? `이 글꼴에서는 ${real}으로 그려져요` : ''}
                 </span>
               </div>

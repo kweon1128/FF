@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { ChevronDown, ChevronRight, Copy, PencilLine, Pipette, Rows3, Type } from 'lucide-react'
 import type { Token } from './lib/api'
-import { COLOR_REF, SLUG, groupOf, shortName, type Kind } from './lib/catalog'
+import { ALL_KINDS, COLOR_REF, SLUG, groupOf, shortName, type Kind } from './lib/catalog'
 import { asHex, isApprox, showColor, toHex, toOklch } from './lib/color'
 import { stepValue, suggestLine, suggestTrack } from './lib/tokens'
 import { ColorSwatch } from './ColorPicker'
@@ -45,7 +45,7 @@ type Props = {
 }
 
 export const ICON_BUTTON =
-  'flex size-8 shrink-0 items-center justify-center rounded-md text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2'
+  'flex size-icon-button shrink-0 items-center justify-center rounded-md text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2'
 
 const HEX6 = /^#[0-9a-f]{6}$/i
 const PLAIN = /^[a-z0-9]+$/
@@ -108,7 +108,7 @@ export function FoldSection({
   if (empty)
     return (
       <section className="border-b border-hairline last:border-b-0">
-        <h3 className="flex h-11 items-center gap-button-inner px-section-x type-heading">
+        <h3 className="flex h-bar items-center gap-button-inner px-section-x type-heading">
           <span className="flex-1">{title}</span>
           {note && <span className="type-body text-ink-faint">{note}</span>}
         </h3>
@@ -121,7 +121,7 @@ export function FoldSection({
           type="button"
           aria-expanded={open}
           onClick={toggle}
-          className="flex h-11 w-full items-center gap-button-inner px-section-x type-heading outline-selection hover:bg-hover focus-visible:outline-2 focus-visible:-outline-offset-2"
+          className="flex h-bar w-full items-center gap-button-inner px-section-x type-heading outline-selection hover:bg-hover focus-visible:outline-2 focus-visible:-outline-offset-2"
         >
           <span className="flex-1 text-left">{title}</span>
           {note && <span className="type-body text-ink-faint">{note}</span>}
@@ -151,9 +151,18 @@ export function classesOf(kind: Kind, short: string): string[] {
       return [`leading-${short}`]
     case 'tracking':
       return [`tracking-${short}`]
-    case 'space':
     case 'spaceuse':
       return [`p-${short}`, `gap-${short}`]
+    case 'space':
+    case 'length':
+      // 토대(간격, 크기)는 클래스로 쓰지 않는다. 의미 간격과 의미 크기가 가리킬 뿐이다.
+      return []
+    case 'height':
+      return [`h-${short}`]
+    case 'width':
+      return [`w-${short}`]
+    case 'square':
+      return [`size-${short}`]
     case 'radius':
       return [`rounded-${short}`]
     case 'border':
@@ -203,6 +212,12 @@ export function CodeRows({ uses, value, file, onCopy, note, valueNote }: { uses:
       </div>
     </div>
   )
+}
+
+/** "쓰이는 곳"에 적는, 이 값을 가리키는 값의 짧은 이름과 그 종류의 이름(의미 색, 의미 글꼴, 의미 간격). */
+function userOf(name: string) {
+  const kind = ALL_KINDS.find((k) => k.matches(name))
+  return { short: kind ? shortName(kind, name) : name, title: kind?.title ?? '' }
 }
 
 /** 숫자 하나에 단위가 붙은 값. 단위는 고정해 두고 숫자만 고친다. */
@@ -286,34 +301,52 @@ export function Inspector({
   const trackHint = (suggestTrack(token.value) ?? '').replace(/em$/, '')
 
   /** 묶인 글자 사이는 em으로만 받는다(음수가 좁게). 비우면 묶인 글자 사이를 지운다. */
-  function changeTrack(next: string) {
+  function changeTrack(next: string, typing = false) {
     setTrackDraft(next)
     setTrackError(null)
+    if (next && !SIGNED.test(next)) return setTrackError('숫자를 입력해 주세요.')
+    // 적는 동안은 저장하지 않는다(값 칸과 같다). 칸을 벗어날 때 저장한다.
+    if (typing) return
     if (!next) return onTrack?.(null)
-    if (!SIGNED.test(next)) return setTrackError('숫자를 입력해 주세요.')
-    onTrack?.(`${next}em`)
+    if (`${next}em` !== (track ?? '')) onTrack?.(`${next}em`)
   }
 
   // 값 칸을 비우면 지금 저장되어 있는 값이 옅게 보인다. 줄 높이나 글자 사이와 달리 값 자체는 다른 데서 계산해 낼 규칙이 없어서, 추천값 대신 마지막으로 저장된 값을 보여 준다.
   // 비운 채로 칸을 떠나면 그 값으로 돌아간다. 빈 칸으로 남겨 두지 않는다.
   const savedDigits = UNIT.exec(token.value)?.[1] ?? ''
 
-  function changeDigits(next: string) {
+  /**
+   * 숫자 칸의 값을 바꾼다. 자판으로 적는 동안(typing)은 칸의 글자와 오류 표시만 바꾸고 저장하지 않는다. 칸을 벗어나거나 Enter를 누를 때 저장한다.
+   * 28을 적으려면 2를 거치는데, 그 2가 바로 저장되면 줄이 값의 차례대로 맨 위로 튀어 올라가고 그 값을 쓰는 화면이 그사이에 바뀐다.
+   * FF 자신의 디자인 시스템(ff-ds)을 고칠 때는 FF의 화면이 그 값으로 그려지므로 화면 전체가 흐트러진다. ↑↓로 올리고 내리는 것은 바로 저장한다.
+   */
+  function changeDigits(next: string, typing = false) {
     setDigits(next)
     // 비운 것은 틀린 값이 아니라 고치는 중이다. 알리지 않고, 저장된 값은 그대로 둔다.
     if (!next) return setValueError(null)
     if (!(negative ? SIGNED : NUMBER).test(next) || (positive && Number(next) <= 0)) return setValueError('숫자를 입력해 주세요.')
     setValueError(null)
-    onValue(`${next}${unit}`)
+    if (!typing && `${next}${unit}` !== token.value) onValue(`${next}${unit}`)
+  }
+
+  /** 칸을 벗어날 때. 비어 있거나 받을 수 없는 값이면 저장된 값으로 되돌리고, 아니면 적어 둔 값을 저장한다. */
+  function commitDigits() {
+    if (!digits || valueError) {
+      setValueError(null)
+      return savedDigits ? changeDigits(savedDigits) : undefined
+    }
+    changeDigits(digits)
   }
 
   /** 줄 높이는 px로만 받는다. 비우면 묶인 줄 높이를 지운다. */
-  function changeLine(digits: string) {
+  function changeLine(digits: string, typing = false) {
     setLineDraft(digits)
     setLineError(null)
+    if (digits && (!NUMBER.test(digits) || Number(digits) <= 0)) return setLineError('숫자를 입력해 주세요.')
+    // 적는 동안은 저장하지 않는다(값 칸과 같다). 칸을 벗어날 때 저장한다.
+    if (typing) return
     if (!digits) return onLine?.(null)
-    if (!NUMBER.test(digits) || Number(digits) <= 0) return setLineError('숫자를 입력해 주세요.')
-    onLine?.(`${digits}px`)
+    if (`${digits}px` !== (line ?? '')) onLine?.(`${digits}px`)
   }
 
   function commitName() {
@@ -424,7 +457,7 @@ export function Inspector({
       <Section title={kind.valueLabel}>
         {/* 글꼴 종류는 값을 직접 적지 않는다. 정한 글꼴의 이름만 보여 주고, 바꾸는 것은 아래의 "글꼴 고르기"로 한다. 대체 글꼴까지 든 전체 값은 코드 구역에 있다. */}
         {isFont && (
-          <p data-font-name className="flex h-8 items-center type-body">
+          <p data-font-name className="flex h-control items-center type-body">
             <span className="truncate">{shownFont(valueDraft)}</span>
           </p>
         )}
@@ -438,7 +471,7 @@ export function Inspector({
             invalid={!!valueError}
             negative={negative}
             onDigits={changeDigits}
-            onBlur={() => !digits && savedDigits && changeDigits(savedDigits)}
+            onBlur={commitDigits}
           />
         )}
         <span className={isFont || unit ? 'hidden' : 'flex items-center gap-field-row'}>
@@ -486,7 +519,7 @@ export function Inspector({
                 fillOnTab={!!lineHint}
                 invalid={!!lineError}
                 onDigits={changeLine}
-                onBlur={() => !lineDraft && lineHint && changeLine(lineHint)}
+                onBlur={() => changeLine(!lineDraft && lineHint ? lineHint : lineDraft)}
               />
             </Field>
           </div>
@@ -504,7 +537,7 @@ export function Inspector({
                 invalid={!!trackError}
                 negative
                 onDigits={changeTrack}
-                onBlur={() => !trackDraft && trackHint && changeTrack(trackHint)}
+                onBlur={() => changeTrack(!trackDraft && trackHint ? trackHint : trackDraft)}
               />
             </Field>
           </div>
@@ -558,10 +591,10 @@ export function Inspector({
                 key={name}
                 type="button"
                 onClick={() => onOpenToken(name)}
-                className="-ml-button-ghost-x flex h-8 max-w-full items-center rounded-md px-button-ghost-x type-label outline-selection hover:bg-hover focus-visible:outline-2"
+                className="-ml-button-ghost-x flex h-control max-w-full items-center rounded-md px-button-ghost-x type-label outline-selection hover:bg-hover focus-visible:outline-2"
               >
-                <span className="truncate">{name.startsWith('--type-') ? name.slice('--type-'.length) : name.slice(kind.prefix.length)}</span>
-                <span className="ml-row-inner shrink-0 type-body text-ink-faint">{name.startsWith('--type-') ? '의미 글꼴' : name.startsWith('--spacing-') ? '의미 간격' : '의미 색'}</span>
+                <span className="truncate">{userOf(name).short}</span>
+                <span className="ml-row-inner shrink-0 type-body text-ink-faint">{userOf(name).title}</span>
               </button>
             ))}
             {uses.map((u) => (
@@ -569,7 +602,7 @@ export function Inspector({
                 <button
                   type="button"
                   onClick={() => onOpenComponent(u.index)}
-                  className="-ml-button-ghost-x flex h-8 max-w-full items-center rounded-md px-button-ghost-x type-label outline-selection hover:bg-hover focus-visible:outline-2"
+                  className="-ml-button-ghost-x flex h-control max-w-full items-center rounded-md px-button-ghost-x type-label outline-selection hover:bg-hover focus-visible:outline-2"
                 >
                   <span className="truncate">{u.name}</span>
                   <span className="ml-row-inner shrink-0 type-body text-ink-faint">{u.where.length}곳</span>

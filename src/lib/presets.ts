@@ -56,8 +56,6 @@ const LADDERS: Partial<Record<Kind['id'], Ladder>> = {
     ],
     start: 2,
   },
-  // 간격은 이름이 숫자이고 값은 그 4배(px)다. 1은 4px, 4는 16px.
-  space: { steps: [1, 2, 3, 4, 5, 6, 8, 10, 12, 16, 20, 24, 32].map((n) => [String(n), `${n * 4}px`]) },
   radius: {
     steps: px([
       ['xs', 2],
