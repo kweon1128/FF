@@ -20,7 +20,8 @@ import {
   type RadiusGroup,
   type RadiusShape,
 } from './lib/radius'
-import { resolveColor, surroundings, type Around } from './lib/roles'
+import { sampleColors, type SampleColors } from './lib/sample'
+import { NavRows } from './SampleParts'
 import { PreviewFontContext, PreviewSpaceContext } from './ColorUses'
 import { CODE_OPEN, CodeRows, FoldSection, ICON_BUTTON, Section, WHERE_OPEN } from './Inspector'
 import { DetailsFolded, HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
@@ -34,11 +35,12 @@ const EDGE = 'shadow-[inset_0_0_0_var(--border-width-edge)_rgb(0_0_0/0.1)]'
 
 /**
  * 둥글기가 실제로 쓰인 모습. 어떤 요소인지는 줄마다 정한 예시의 모양(shape)을 따르고, 그 안의 말은 줄마다 적은 문구(그 시스템이 실제로 쓰는 말)다.
- * 빈 상자가 아니라 그 둥글기를 쓰는 요소(이름표, 체크박스, 버튼, 입력칸, 줄, 메뉴, 창…)을 실제 크기로 그린다. 둥글기는 클래스가 아니라 값 그대로 넣는다.
- * 모서리가 보이도록 요소마다 바탕을 칠하거나 1px 선을 두른다. 바탕과 글자 색은 이 디자인 시스템의 것이고, tint는 고른 것을 칠하는 색, guide는 이름표의 색이다.
+ * 빈 상자가 아니라 그 둥글기를 쓰는 요소(이름표, 체크박스, 버튼, 입력칸, 줄, 메뉴, 창…)를 실제 크기와 실제 모습으로 그린다. 둥글기는 클래스가 아니라 값 그대로 넣는다.
+ * 버튼은 버튼으로, 입력칸은 입력칸으로 그린다. 옅은 막대는 곁에 놓이는 것의 자리만 알릴 때 쓰고, 보여 주려는 요소나 버튼을 막대와 빈 상자로 대신하지 않는다.
+ * 색은 이 디자인 시스템의 것이다(테두리, 마우스를 올린 바탕, 주요 버튼, 선택 색, 안내 색). shadow는 떠 있는 것에 드리울 그림자(그 시스템의 값. 없으면 드리우지 않는다)다.
  * 이 안은 사용자의 값을 보여 주는 미리보기라, FF 도구의 글자 규칙(type- 클래스)을 따르지 않는다. 글꼴 종류를 바깥에서 물려받아야 해서 크기와 굵기를 따로 적는다.
  */
-export function RadiusSample({ shape, value, around, tint, guide, words: written = '' }: { shape: RadiusShape; value: string; around: Around; tint: string; guide: string; words?: string }) {
+export function RadiusSample({ shape, value, colors: c, shadow, words: written = '' }: { shape: RadiusShape; value: string; colors: SampleColors; shadow?: string; words?: string }) {
   const font = useContext(PreviewFontContext)
   const space = useContext(PreviewSpaceContext)
   const all = written || RADIUS_WORDS[shape]
@@ -51,32 +53,60 @@ export function RadiusSample({ shape, value, around, tint, guide, words: written
   const TEXT = 'text-sm leading-5'
   const SMALL = 'text-xs leading-4'
   const STRONG = 'text-sm leading-5 font-[550]'
-  const line = `color-mix(in oklab, ${around.ink} 32%, ${around.surface})`
-  const faint = `color-mix(in oklab, ${around.ink} 16%, ${around.surface})`
-  const hover = `color-mix(in oklab, ${around.ink} 8%, ${around.surface})`
-  const soft = `color-mix(in oklab, ${around.ink} 56%, ${around.surface})`
-  const ring = { boxShadow: `inset 0 0 0 1px ${line}` }
+  const ring = { boxShadow: `inset 0 0 0 1px ${c.line}` }
   const round = { borderRadius: value }
-  const bar = (width: string, more = '') => <span className={`block h-[8px] rounded-small ${width} ${more}`} style={{ background: faint }} />
-  // 내용은 상자의 가운데에 놓는다(효과 판과 같다). 예시는 읽는 글이 아니라 요소 하나를 보여 주는 것이다.
-  const frame = (body: ReactNode) => (
-    <span className={`flex w-full items-center justify-center overflow-hidden rounded-card p-sample ${EDGE}`} style={{ ...space, background: around.surface, color: around.ink, fontFamily: font }}>
+  const bar = (width: string, more = '') => <span className={`block h-[8px] rounded-small ${width} ${more}`} style={{ background: c.filler }} />
+  // 떠 있는 것(메뉴, 창)의 가장자리: 테두리 1px과 그 시스템의 그림자.
+  const lifted = { background: c.surface, boxShadow: [`inset 0 0 0 1px ${c.line}`, shadow].filter(Boolean).join(', ') }
+  // 내용은 상자의 가운데에 놓는다(효과 판과 같다). 예시는 읽는 글이 아니라 요소 하나를 보여 주는 것이다. 그림자를 드리우는 것은 잘리지 않게 둘레를 넓게 비운다.
+  const frame = (body: ReactNode, roomy = false) => (
+    <span className={`flex w-full items-center justify-center overflow-hidden rounded-card ${roomy ? 'p-board' : 'p-sample'} ${EDGE}`} style={{ ...space, background: c.surface, color: c.ink, fontFamily: font }}>
       {body}
     </span>
   )
   switch (shape) {
-    case 'tag':
-      // 값을 적은 이름표(치수선의 숫자, 고른 값의 이름표). 색을 채운 작은 면이다.
+    case 'tag': {
+      // 치수선의 숫자 이름표. 안내 색의 선 위에 4px 띄워 놓인다(크기 판과 의미 크기 판의 치수선과 같다). 문구가 숫자면 선의 길이가 그 값이다.
+      const n = parseFloat(all)
+      const width = Number.isFinite(n) && n >= 8 && n <= 200 ? n : 48
       return frame(
-        <span data-sample className={`px-chip-x font-[550] whitespace-nowrap tabular-nums ${SMALL}`} style={{ ...round, background: guide, color: around.surface }}>
-          {all}
+        <span className="block pt-[20px]">
+          <span className="relative block h-[7px]" style={{ width }}>
+            <span className="absolute inset-x-0 top-[3px] h-px" style={{ background: c.guide }} />
+            <span className="absolute top-0 left-0 h-full w-px" style={{ background: c.guide }} />
+            <span className="absolute top-0 right-0 h-full w-px" style={{ background: c.guide }} />
+            <span data-sample className={`absolute bottom-full left-1/2 mb-[4px] -translate-x-1/2 px-[4px] font-[550] whitespace-nowrap tabular-nums ${SMALL}`} style={{ ...round, background: c.guide, color: c.onSelection }}>
+              {all}
+            </span>
+          </span>
         </span>,
       )
+    }
+    case 'seltag': {
+      // 고른 것 아래에 붙는 이름표. 선택 색이다. 고른 것에는 1px 선택 선과 네 꼭짓점의 사각형이 있고, 이름표는 그 아래 8px에 가운데로 놓인다. 문구는 "이름 · 값"이고 고른 줄에는 이름을 적는다.
+      const handle = 'absolute block size-[7px]'
+      const knob = { background: c.surface, boxShadow: `inset 0 0 0 1px ${c.selection}` }
+      return frame(
+        <span className="block pb-[24px]">
+          <span className={`relative flex h-row w-[112px] items-center px-board-row-x whitespace-nowrap ${STRONG}`} style={{ boxShadow: `inset 0 0 0 1px ${c.selection}` }}>
+            {all.split(' · ')[0]}
+            <span className={`${handle} -top-[3px] -left-[3px]`} style={knob} />
+            <span className={`${handle} -top-[3px] -right-[3px]`} style={knob} />
+            <span className={`${handle} -bottom-[3px] -left-[3px]`} style={knob} />
+            <span className={`${handle} -right-[3px] -bottom-[3px]`} style={knob} />
+            <span data-sample className={`absolute top-full left-1/2 mt-blocks -translate-x-1/2 px-chip-x font-[550] whitespace-nowrap ${SMALL}`} style={{ ...round, background: c.selection, color: c.onSelection }}>
+              {all}
+            </span>
+          </span>
+        </span>,
+      )
+    }
     case 'check':
+      // 켜진 체크 상자와 그 옆의 글자.
       return frame(
         <span className={`flex min-w-0 items-start gap-row-inner ${TEXT}`}>
           <span className="flex h-[20px] shrink-0 items-center">
-            <span data-sample className="flex size-checkbox items-center justify-center" style={{ ...round, background: around.ink, color: around.surface }}>
+            <span data-sample className="flex size-checkbox items-center justify-center" style={{ ...round, background: c.ink, color: c.onPrimary }}>
               <CheckIcon size={12} strokeWidth={CHECK_STROKE} />
             </span>
           </span>
@@ -86,25 +116,30 @@ export function RadiusSample({ shape, value, around, tint, guide, words: written
     case 'smallbutton':
       // 마우스를 올린 모습(옅은 바탕)으로 그려 버튼이 어디까지인지 보여 준다. 문구가 "닫기"면 X 버튼이고, 아니면 + 버튼이다.
       return frame(
-        <span data-sample className="flex size-icon-button-corner items-center justify-center" style={{ ...round, background: hover, color: soft }}>
+        <span data-sample className="flex size-icon-button-corner items-center justify-center" style={{ ...round, background: c.hover }}>
           {all === '닫기' ? <X size={16} strokeWidth={ICON_STROKE} /> : <Plus size={16} strokeWidth={ICON_STROKE} />}
         </span>,
       )
     case 'chip':
       return frame(
-        <span data-sample className={`max-w-full px-chip-x font-mono break-all ${TEXT}`} style={{ ...round, background: hover }}>
+        <span data-sample className={`max-w-full px-chip-x font-mono break-all ${TEXT}`} style={{ ...round, background: c.hover }}>
           {all}
         </span>,
       )
     case 'button':
-      // 나란한 버튼. 마지막은 채운 버튼이다(취소, 추가처럼 끝의 것이 주된 동작이다).
+      // 나란한 버튼. 마지막은 주요 버튼이고(취소, 추가처럼 끝의 것이 주된 동작이다), 그 앞의 것은 바탕 없는 버튼이다.
+      // 바탕 없는 버튼은 평소에는 글자만 보이므로, 마우스를 올린 모습(옅은 바탕)으로 그려 모서리가 보이게 한다. 버튼이 하나뿐이면 테두리 버튼이다.
       return frame(
         <span className="flex flex-wrap items-center justify-center gap-actions">
-          {list.map((text, i) => (
-            <span key={i} data-sample className={`flex h-control items-center px-button-x whitespace-nowrap ${STRONG}`} style={{ ...round, ...(list.length > 1 && i === list.length - 1 ? { background: around.ink, color: around.surface } : ring) }}>
-              {text}
-            </span>
-          ))}
+          {list.map((text, i) => {
+            const last = i === list.length - 1
+            const look = list.length === 1 ? ring : last ? { background: c.primary, color: c.onPrimary } : { background: c.hover }
+            return (
+              <span key={i} data-sample className={`flex h-control items-center whitespace-nowrap ${list.length > 1 && !last ? 'px-button-ghost-x' : 'px-button-x'} ${STRONG}`} style={{ ...round, ...look }}>
+                {text}
+              </span>
+            )
+          })}
         </span>,
       )
     case 'input':
@@ -114,40 +149,63 @@ export function RadiusSample({ shape, value, around, tint, guide, words: written
         </span>,
       )
     case 'row':
-      // 목록의 줄들. 첫 줄은 마우스를 올린 모습(옅은 바탕)이라 줄의 모서리가 보인다.
+      // 메뉴의 줄들. 첫 줄은 지금 열려 있는 화면이라 옅은 바탕이 깔려 있고, 그 바탕의 모서리가 이 둥글기다.
       return frame(
-        <span className="block w-[160px] space-y-rows">
-          {list.map((text, i) => (
-            <span key={i} data-sample className={`flex h-row items-center gap-row-inner px-row-x whitespace-nowrap ${TEXT}`} style={{ ...round, ...(i === 0 ? { background: hover } : { color: soft }) }}>
-              <span className="block size-icon shrink-0 rounded-small" style={{ background: i === 0 ? soft : faint }} />
-              {text}
-            </span>
-          ))}
+        <span className="block w-[160px]">
+          <NavRows labels={list} colors={c} radius={value} />
         </span>,
       )
     case 'menu':
-      // 떠 있는 목록. 둥글기는 목록 상자의 것이다(안의 줄이 아니다).
+      // 떠 있는 목록(디자인 시스템을 고르는 메뉴). 둥글기는 목록 상자의 것이다(안의 줄이 아니다). 첫 줄이 지금 고른 것이라 오른쪽에 체크가 있고, "새 …"로 시작하는 줄은 만드는 줄이라 앞에 +가 있다.
       return frame(
-        <span data-sample className="block w-[160px] space-y-rows p-menu" style={{ ...round, ...ring }}>
+        <span data-sample className="block w-menu max-w-full space-y-rows p-menu" style={{ ...round, ...lifted }}>
           {list.map((text, i) => (
-            <span key={i} className="block rounded-row px-row-x py-menu text-sm leading-5 whitespace-nowrap" style={i === 0 ? { background: hover } : undefined}>
-              {text}
+            <span key={i} className={`flex h-row items-center gap-row-inner rounded-row px-row-x whitespace-nowrap ${TEXT}`} style={text.startsWith('새 ') ? { color: c.soft } : undefined}>
+              {text.startsWith('새 ') && <Plus size={16} strokeWidth={ICON_STROKE} className="shrink-0" />}
+              <span className="min-w-0 flex-1">{text}</span>
+              {i === 0 && <CheckIcon size={16} strokeWidth={ICON_STROKE} className="shrink-0" />}
             </span>
           ))}
         </span>,
+        true,
       )
-    case 'dialog':
+    case 'dialog': {
+      // 창을 실제 모습대로 그린다. 문구는 차례대로 제목, 입력칸의 이름표, 아래 버튼들이다("의미 색 추가, 이름, 취소, 추가"). 의미 크기 판의 창 예시와 같은 규칙이다.
+      // 이름표가 없으면 내용을 막대로 대신 그린다(내용이 정해져 있지 않은 창). 버튼은 마지막이 주요 버튼이고 그 앞은 바탕 없는 버튼이다.
+      const [title, label, ...actions] = list
       return frame(
-        <span data-sample className="block w-full max-w-[224px] p-dialog" style={{ ...round, ...ring }}>
-          <span className={`block break-words ${STRONG}`}>{all}</span>
-          {bar('w-3/4', 'mt-fields')}
-          {bar('w-1/2', 'mt-blocks')}
-          <span className="mt-dialog-actions flex justify-end gap-actions">
-            <span className="block h-control w-[48px] rounded-control" style={{ boxShadow: `inset 0 0 0 1px ${faint}` }} />
-            <span className="block h-control w-[48px] rounded-control" style={{ background: around.ink }} />
-          </span>
+        <span data-sample className="block w-dialog max-w-full p-dialog" style={{ ...round, ...lifted }}>
+          <span className="mb-header block text-base leading-6 font-[650] break-words">{title}</span>
+          {label ? (
+            <span className="block">
+              <span className={`mb-label block ${STRONG}`} style={{ color: c.faint }}>
+                {label}
+              </span>
+              <span className="block h-control rounded-control" style={ring} />
+            </span>
+          ) : (
+            <>
+              {bar('w-3/4')}
+              {bar('w-1/2', 'mt-blocks')}
+            </>
+          )}
+          {actions.length > 0 && (
+            <span className="mt-dialog-actions flex justify-end gap-actions">
+              {actions.map((text, i) => (
+                <span
+                  key={i}
+                  className={`flex h-control items-center rounded-control whitespace-nowrap ${i === actions.length - 1 ? 'px-button-x' : 'px-button-ghost-x'} ${STRONG}`}
+                  style={i === actions.length - 1 ? { background: c.primary, color: c.onPrimary } : { color: c.soft }}
+                >
+                  {text}
+                </span>
+              ))}
+            </span>
+          )}
         </span>,
+        true,
       )
+    }
     case 'slider':
       // 색 선택 창의 슬라이더. 높이의 절반보다 큰 둥글기면 양 끝이 반원이 된다.
       return frame(<span data-sample className="block h-[12px] w-[160px]" style={{ ...round, background: 'linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)' }} />)
@@ -155,17 +213,17 @@ export function RadiusSample({ shape, value, around, tint, guide, words: written
       return frame(
         <span className="flex flex-wrap items-center justify-center gap-actions-tight">
           {list.map((text, i) => (
-            <span key={i} data-sample className={`flex h-compact items-center px-row-x font-[550] whitespace-nowrap ${SMALL}`} style={{ ...round, ...(i === 0 ? { background: hover } : { background: around.ink, color: around.surface }) }}>
+            <span key={i} data-sample className={`flex h-compact items-center px-row-x font-[550] whitespace-nowrap ${SMALL}`} style={{ ...round, ...(i === 0 ? { background: c.hover } : { background: c.ink, color: c.surface }) }}>
               {text}
             </span>
           ))}
         </span>,
       )
     case 'knob':
-      // 슬라이더와 색 면 위의 둥근 손잡이. 흰 테두리 안에 고른 색이 보인다.
-      return frame(<span data-sample className="block size-[16px] border-[4px] border-white shadow-[0_0_0_0.5px_rgb(0_0_0/0.25),0_1px_3px_rgb(0_0_0/0.35)]" style={{ ...round, background: tint }} />)
+      // 슬라이더와 색 고르는 판 위의 둥근 손잡이. 흰 테두리 안에 고른 색이 보인다.
+      return frame(<span data-sample className="block size-[16px] border-[4px] border-white shadow-[0_0_0_0.5px_rgb(0_0_0/0.25),0_1px_3px_rgb(0_0_0/0.35)]" style={{ ...round, background: c.selection }} />)
     default:
-      // 카드: 테두리가 있는 면에 제목과 내용.
+      // 카드: 테두리가 있는 면. 맨 위에 그 카드의 이름이 있고, 그 아래의 내용은 자리만 알린다.
       return frame(
         <span data-sample className="block w-full max-w-[224px] p-card" style={{ ...round, ...ring }}>
           <span className={`block break-words ${STRONG}`}>{all}</span>
@@ -220,19 +278,9 @@ export function RadiusList({
   const groupDrag = useReorder(groups, onMoveGroup && ((name, before) => onMoveGroup(name as RadiusGroup, before as RadiusGroup | null)), { attr: 'data-radius-group', gap: 24 })
   // 값이 없으면 빈 상자를 남기지 않는다. 추가는 판 위의 버튼으로 한다.
   if (items.length === 0) return null
-  const around = surroundings(all)
-  // 이 시스템의 의미 색 가운데 그 이름의 색. 없으면 다음 이름을 찾고, 다 없으면 글자 색이다.
-  const colorOf = (...names: string[]) => {
-    for (const n of names) {
-      const t = all.find((x) => x.name === `--color-${n}`)
-      const color = t && resolveColor(all, t.value)
-      if (color) return color
-    }
-    return around.ink
-  }
-  // 손잡이를 칠할 색(선택 색)과 이름표를 칠할 색(안내 색).
-  const tint = colorOf('selection', 'primary')
-  const guide = colorOf('guide', 'selection', 'primary')
+  const colors = sampleColors(all)
+  // 떠 있는 것(메뉴, 창)에 드리울 그림자. 이 시스템의 그림자 값이다(메뉴는 float, 창은 dialog. 없으면 드리우지 않는다).
+  const shadows = { menu: all.find((t) => t.name === '--shadow-float')?.value, dialog: all.find((t) => t.name === '--shadow-dialog')?.value }
   return (
     <div className="space-y-groups">
       {groups.map((id) => {
@@ -248,7 +296,7 @@ export function RadiusList({
             onMove(name, after?.name ?? null)
           })
         return (
-          <div key={g.id} data-radius-group={g.id} className={`relative ${groupDrag.moving(g.id) ? 'opacity-40' : ''}`}>
+          <div key={g.id} data-radius-group={g.id} className={`relative ${groupDrag.moving(g.id) ? 'opacity-dragging' : ''}`}>
             {groupDrag.line(g.id)}
             {/* 묶음의 제목. 누르면 그 묶음의 값이 모두 선택되고, 끌면 묶음의 차례가 바뀐다(다른 의미 판의 묶음 제목과 같다). */}
             <button
@@ -259,7 +307,7 @@ export function RadiusList({
             >
               {g.label}
             </button>
-            <RadiusRows list={list} all={all} around={around} tint={tint} guide={guide} selected={selected} onSelect={onSelect} onRename={onRename} onMove={moveRow} />
+            <RadiusRows list={list} all={all} colors={colors} shadows={shadows} selected={selected} onSelect={onSelect} onRename={onRename} onMove={moveRow} />
           </div>
         )
       })}
@@ -271,9 +319,8 @@ export function RadiusList({
 function RadiusRows({
   list,
   all,
-  around,
-  tint,
-  guide,
+  colors,
+  shadows,
   selected,
   onSelect,
   onRename,
@@ -281,9 +328,8 @@ function RadiusRows({
 }: {
   list: { t: Token; short: string; text: string; examples: RadiusExample[] }[]
   all: Token[]
-  around: Around
-  tint: string
-  guide: string
+  colors: SampleColors
+  shadows: { menu?: string; dialog?: string }
   selected: string[]
   onSelect: (name: string, additive: boolean) => void
   onRename: (name: string) => void
@@ -297,8 +343,8 @@ function RadiusRows({
       {list.map(({ t, short, text, examples }) => {
         const isSelected = selected.includes(t.name)
         const { length, shown } = shownOf(all, t.value)
-        // 예시는 둥글기를 알 때만 그린다(가리키는 값이 없어졌으면 그릴 수 없다). 없으면 왼쪽 칸이 줄 전체를 쓴다.
-        const drawn = !plain && length !== null
+        // 예시는 둥글기를 알고(가리키는 값이 없어졌으면 그릴 수 없다) 주석에 모양이 적혀 있을 때만 그린다. 없으면 왼쪽 칸이 줄 전체를 쓴다.
+        const drawn = !plain && length !== null && examples.length > 0
         return (
           <button
             key={t.name}
@@ -309,7 +355,7 @@ function RadiusRows({
             onClick={(e) => !reorder.justDragged() && onSelect(t.name, isAdditive(e))}
             onDoubleClick={() => onRename(t.name)}
             {...reorder.grab(t.name)}
-            className={`group relative flex w-full items-center gap-columns rounded-row px-board-row-x py-board-row-y text-left select-none ${reorder.moving(t.name) ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
+            className={`group relative flex w-full items-center gap-columns rounded-row px-board-row-x py-board-row-y text-left select-none ${reorder.moving(t.name) ? 'opacity-dragging' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
           >
             {reorder.line(t.name)}
             <span className={drawn ? 'w-row-name shrink-0' : 'min-w-0 flex-1'}>
@@ -329,7 +375,7 @@ function RadiusRows({
             {drawn && (
               <span className="block min-w-0 flex-1 space-y-blocks">
                 {examples.map((e, k) => (
-                  <RadiusSample key={k} shape={e.shape} value={length} around={around} tint={tint} guide={guide} words={e.words} />
+                  <RadiusSample key={k} shape={e.shape} value={length} colors={colors} shadow={e.shape === 'menu' ? shadows.menu : e.shape === 'dialog' ? shadows.dialog : undefined} words={e.words} />
                 ))}
               </span>
             )}

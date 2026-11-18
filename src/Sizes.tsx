@@ -13,6 +13,7 @@ import { CODE_OPEN, CodeRows, FoldSection, ICON_BUTTON, Section, WHERE_OPEN } fr
 import { DetailsFolded, HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
 import { Button, Field, Phrases, UnitInput, UsePicker, inputClass } from './ui'
 import { useReorder } from './useReorder'
+import { NavIcon, isNavLabel } from './SampleParts'
 import { orderKinds } from './lib/order'
 
 const LENGTH = KINDS.length
@@ -137,15 +138,15 @@ export function SizeSample({ kind, shape, value, pair, around, tint, words: writ
     case 'input':
       return frame(m(<span className={`${F} ${other('w-[160px]', 'h-control')} flex items-center overflow-hidden rounded-control px-input-x whitespace-nowrap ${TEXT}`} style={ring}>{all}</span>))
     case 'button':
-      // 나란한 버튼. 마지막은 채운 버튼이다(취소, 추가처럼 끝의 것이 주된 동작이다).
+      // 나란한 버튼. 마지막은 채운 버튼이다(취소, 추가처럼 끝의 것이 주된 동작이다). 그 앞의 것은 바탕 없는 버튼이라, 마우스를 올린 모습(옅은 바탕)으로 그려 버튼이 어디까지인지 보여 준다. 하나뿐이면 테두리 버튼이다.
       return frame(
         m(
           <span className={`${F} ${other('', 'h-control')} flex items-stretch gap-actions`}>
             {list.map((text, i) => (
               <span
                 key={i}
-                className={`flex flex-1 items-center justify-center rounded-control px-button-x font-[550] whitespace-nowrap ${TEXT}`}
-                style={list.length > 1 && i === list.length - 1 ? { background: around.ink, color: around.surface } : ring}
+                className={`flex flex-1 items-center justify-center rounded-control font-[550] whitespace-nowrap ${list.length > 1 && i < list.length - 1 ? 'px-button-ghost-x' : 'px-button-x'} ${TEXT}`}
+                style={list.length === 1 ? ring : i === list.length - 1 ? { background: around.ink, color: around.surface } : { background: hover }}
               >
                 {text}
               </span>
@@ -154,11 +155,11 @@ export function SizeSample({ kind, shape, value, pair, around, tint, words: writ
         ),
       )
     case 'row':
-      // 메뉴 줄. 마우스를 올린 모습(옅은 바탕)으로 그려 줄이 어디까지인지 보여 준다.
+      // 왼쪽 메뉴의 줄. 지금 열려 있는 화면의 줄이라 옅은 바탕이 깔려 있고 글자가 굵다(16px). 앞에 그 화면의 아이콘이 있다.
       return frame(
         m(
-          <span className={`${F} ${other('w-[160px]', 'h-row')} flex items-center gap-row-inner overflow-hidden rounded-row px-row-x whitespace-nowrap ${TEXT}`} style={{ background: hover }}>
-            <span className="block size-icon shrink-0 rounded-small" style={{ background: soft }} />
+          <span className={`${F} ${other('w-[160px]', 'h-row')} flex items-center gap-row-inner overflow-hidden rounded-row px-row-x text-base leading-6 font-[550] whitespace-nowrap`} style={{ background: hover }}>
+            <NavIcon label={all} />
             {all}
           </span>,
         ),
@@ -281,27 +282,39 @@ export function SizeSample({ kind, shape, value, pair, around, tint, words: writ
         ),
       )
     case 'menu':
+      // 메뉴를 실제 모습대로 그린다. 문구가 FF의 화면 이름이면 왼쪽 메뉴다(아이콘과 16px 글자. 첫 줄이 지금 열린 화면).
+      // 아니면 떠 있는 메뉴다(디자인 시스템을 고르는 메뉴). 첫 줄이 지금 고른 것이라 오른쪽에 체크가 있고, "새 …"로 시작하는 줄은 만드는 줄이라 앞에 +가 있고 옅다.
       return frame(
         m(
           <span className={`${F} block space-y-rows rounded-float p-menu`} style={ring}>
-            {list.map((text, i) => (
-              <span key={i} className={`flex h-row items-center overflow-hidden rounded-row px-row-x whitespace-nowrap ${TEXT}`} style={i === 0 ? { background: hover } : undefined}>
-                {text}
-              </span>
-            ))}
+            {list.map((text, i) =>
+              isNavLabel(list[0]) ? (
+                <span key={i} className={`flex h-row items-center gap-row-inner overflow-hidden rounded-row px-row-x text-base leading-6 whitespace-nowrap ${i === 0 ? 'font-[550]' : ''}`} style={i === 0 ? { background: hover } : { color: soft }}>
+                  <NavIcon label={text} />
+                  {text}
+                </span>
+              ) : (
+                <span key={i} className={`flex h-row items-center gap-row-inner overflow-hidden rounded-row px-row-x whitespace-nowrap ${TEXT}`} style={text.startsWith('새 ') ? { color: soft } : undefined}>
+                  {text.startsWith('새 ') && <Plus size={16} strokeWidth={ICON_STROKE} className="shrink-0" />}
+                  <span className="min-w-0 flex-1">{text}</span>
+                  {i === 0 && <CheckIcon size={16} strokeWidth={ICON_STROKE} className="shrink-0" />}
+                </span>
+              ),
+            )}
           </span>,
         ),
       )
     case 'frame': {
       // 면(패널, 창)을 실제 모습대로 그린다. 문구는 차례대로 제목, 입력칸의 이름표, 아래 버튼들이다("의미 색 추가, 이름, 취소, 추가").
       // 제목이 없는 면(창의 왼쪽 설정 칸)은 제목 자리에 "-"를 적는다. 이름표가 없으면 내용을 막대로 대신 그린다(내용이 정해져 있지 않은 화면).
+      // 입력칸은 패널과 기본 창에서는 면의 폭을 다 쓰고, 넓은 창(한 벌 만들기)에서는 왼쪽 설정 칸의 폭(224px)이다.
       const [title, label, ...actions] = list
       return frame(
         m(
           <span className={`${F} ${other('w-[160px]', '')} block overflow-hidden rounded-float px-section-x py-section-y`} style={ring}>
             {title && title !== '-' && <span className={`mb-heading block font-[650] whitespace-nowrap ${TEXT}`}>{title}</span>}
             {label ? (
-              <span className="block w-[224px] max-w-full">
+              <span className={`block max-w-full ${parseFloat(value) <= 400 ? 'w-full' : 'w-[224px]'}`}>
                 <span className={`mb-label block font-[550] whitespace-nowrap ${SMALL}`} style={{ color: soft }}>
                   {label}
                 </span>
@@ -458,7 +471,7 @@ export function SizeList({
             onMove(name, after?.name ?? null)
           })
         return (
-          <div key={g.id} data-size-group={key(g.id)} className={`relative ${groupDrag.moving(key(g.id)) ? 'opacity-40' : ''}`}>
+          <div key={g.id} data-size-group={key(g.id)} className={`relative ${groupDrag.moving(key(g.id)) ? 'opacity-dragging' : ''}`}>
             {groupDrag.line(key(g.id))}
             {/* 묶음의 제목. 누르면 그 묶음의 값이 모두 선택되고, 끌면 이 종류 안에서 묶음의 차례가 바뀐다(다른 의미 판의 묶음 제목과 같다). */}
             <button
@@ -520,7 +533,7 @@ function SizeRows({
             onClick={(e) => !reorder.justDragged() && onSelect(t.name, isAdditive(e))}
             onDoubleClick={() => onRename(t.name)}
             {...reorder.grab(t.name)}
-            className={`group relative flex w-full items-center gap-columns rounded-row px-board-row-x py-board-row-y text-left select-none ${reorder.moving(t.name) ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
+            className={`group relative flex w-full items-center gap-columns rounded-row px-board-row-x py-board-row-y text-left select-none ${reorder.moving(t.name) ? 'opacity-dragging' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
           >
             {reorder.line(t.name)}
             <span className={drawn ? 'w-row-name shrink-0' : 'min-w-0 flex-1'}>

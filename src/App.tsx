@@ -39,7 +39,6 @@ import {
   shortName,
   type Kind,
   type ScreenId,
-  type TokenScreenId,
 } from './lib/catalog'
 import {
   STATES,
@@ -62,7 +61,7 @@ import { adoptColors, defaultColorOrder, duplicateTokens, kindOf, followLine, fo
 import type { Placed } from './lib/arrange'
 import { BatchRename } from './BatchRename'
 import { BoardInspector, ImageInspector } from './BoardInspector'
-import { Canvas, defaultPos, defaultWidth } from './Canvas'
+import { Canvas, boardPositions, defaultWidth } from './Canvas'
 import { NewRoleForm, RoleInspector } from './Roles'
 import { defaultRoleOrder, moveRole, moveRoleGroup, roleGroups, shiftRoles, refOf, refTo, surroundings, type RoleUse } from './lib/roles'
 import { onFilesChanged } from './lib/watch'
@@ -1072,7 +1071,7 @@ export function App() {
         nextImages[id] = { ...image, x: patch.x ?? image.x, y: patch.y ?? image.y, w, h: Math.round((image.h * w) / image.w) }
         continue
       }
-      next[id] = { ...(boards[id] ?? defaultPos(TOKEN_SCREEN_IDS.indexOf(id as TokenScreenId))), ...patch }
+      next[id] = { ...(boards[id] ?? boardPositions(boards)[id]), ...patch }
     }
     saveBoards(next, nextImages)
     // 숨긴 판은 선택에서 뺀다.
@@ -1703,7 +1702,7 @@ export function App() {
       ? selectedBoards.map((id) => {
           const image = images[id]
           if (image) return { id, x: image.x, y: image.y, w: image.w, h: image.h }
-          const pos = boards[id] ?? defaultPos(TOKEN_SCREEN_IDS.indexOf(id as TokenScreenId))
+          const pos = boards[id] ?? boardPositions(boards)[id]
           const h = document.querySelector<HTMLElement>(`[data-board="${id}"]`)?.offsetHeight ?? 0
           return { id, x: pos.x, y: pos.y, w: defaultWidth(id), h }
         })
@@ -2368,7 +2367,7 @@ export function App() {
       )}
 
       {makingSizes && (
-        <Modal title="글자 크기 한 벌 만들기" wide="2xl" tall onClose={() => setMakingSizes(false)}>
+        <Modal title="글자 크기 한 벌 만들기" size="size-set" tall onClose={() => setMakingSizes(false)}>
           <NewSizesForm
             existing={new Set(tokens.filter((t) => SIZE.matches(t.name)).map((t) => shortName(SIZE, t.name)))}
             users={usersOfKind(SIZE)}
@@ -2380,13 +2379,13 @@ export function App() {
       )}
 
       {makingTypes && (
-        <Modal title="의미 글꼴 한 벌 만들기" wide="xl" tall onClose={() => setMakingTypes(false)}>
+        <Modal title="의미 글꼴 한 벌 만들기" size="font" tall onClose={() => setMakingTypes(false)}>
           <NewTypesForm tokens={tokens} users={usersOfKind(STYLE)} onCancel={() => setMakingTypes(false)} onCreate={makeTypes} />
         </Modal>
       )}
 
       {makingWeights && (
-        <Modal title="굵기 한 벌 만들기" wide="lg" onClose={() => setMakingWeights(false)}>
+        <Modal title="굵기 한 벌 만들기" size="weight-set" onClose={() => setMakingWeights(false)}>
           <NewWeightsForm
             existing={new Set(tokens.filter((t) => WEIGHT.matches(t.name)).map((t) => shortName(WEIGHT, t.name)))}
             users={usersOfKind(WEIGHT)}
@@ -2398,7 +2397,7 @@ export function App() {
       )}
 
       {addingFont && (
-        <Modal title="글꼴 종류 추가" wide="xl" tall onClose={() => setAddingFont(false)}>
+        <Modal title="글꼴 종류 추가" size="font" tall onClose={() => setAddingFont(false)}>
           <NewFontForm
             existing={new Set(tokens.filter((t) => FONT.matches(t.name)).map((t) => shortName(FONT, t.name)))}
             onCancel={() => setAddingFont(false)}

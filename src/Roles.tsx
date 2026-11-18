@@ -95,8 +95,8 @@ export function RoleSample({ shape, color, around, words: written = '' }: { shap
     case 'border':
       return frame(
         around.surface,
-        <span data-sample className={`flex h-control items-center rounded-control px-input-x ${STRONG}`} style={{ boxShadow: `inset 0 0 0 1px ${color}`, color: around.ink }}>
-          <span className="min-w-0 truncate">{all}</span>
+        <span data-sample className={`flex min-h-control items-center rounded-control px-input-x py-[6px] ${STRONG}`} style={{ boxShadow: `inset 0 0 0 1px ${color}`, color: around.ink }}>
+          <span className="min-w-0 break-words">{all}</span>
         </span>,
       )
     case 'divider':
@@ -247,7 +247,7 @@ export function RoleList({
     <div className="space-y-groups">
       {groups.map(({ use, items: list }) => {
         return (
-          <div key={use} data-role-group={use} className={`relative ${groupDrag.moving(use) ? 'opacity-40' : ''}`}>
+          <div key={use} data-role-group={use} className={`relative ${groupDrag.moving(use) ? 'opacity-dragging' : ''}`}>
             {groupDrag.line(use)}
             {/* 묶음 제목을 누르면 그 묶음의 색이 모두 선택되고, 잡고 위아래로 끌면 묶음이 통째로 옮겨진다. */}
             <div className="mb-heading -ml-chip-x flex">
@@ -280,7 +280,7 @@ export function RoleList({
                     {...rows.grab(t.name)}
                     className={`relative w-full items-center rounded-row px-board-row-x py-board-row-y text-left select-none ${
                       folded ? 'flex gap-sample' : 'grid grid-cols-[40px_176px_minmax(0,1fr)_280px] gap-columns'
-                    } ${rows.moving(t.name) ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
+                    } ${rows.moving(t.name) ? 'opacity-dragging' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
                   >
                     {/* 놓일 자리의 선. 펼친 판은 줄 위(맨 끝이면 마지막 줄 아래)에 가로로, 접은 판은 칸 왼쪽(맨 끝이면 마지막 칸 오른쪽)에 세로로 긋는다. */}
                     {rows.line(t.name)}

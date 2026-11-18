@@ -119,7 +119,7 @@ export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGr
         // 묶인 글자 사이도 함께 보여 준다.
         const trackOf = kind.id === 'size' ? (name: string) => tokens.find((t) => t.name === trackName(name))?.value : undefined
         return (
-          <section key={kind.id} data-kind={kind.id} className={`relative ${kindDrag.moving(kind.id) ? 'opacity-40' : ''}`}>
+          <section key={kind.id} data-kind={kind.id} className={`relative ${kindDrag.moving(kind.id) ? 'opacity-dragging' : ''}`}>
             {canMove && kindDrag.line(kind.id)}
             {(() => {
               // 묶음의 제목 줄. 왼쪽에 제목, 오른쪽에 버튼. 값을 추가하는 것은 목록 끝의 점선 상자가 아니라 여기의 "추가" 버튼이다.
@@ -369,7 +369,7 @@ function ColorGroups({
         </button>
       )}
       {[...groups].map(([group, list]) => (
-        <div key={group} data-color-group={group} className={`relative ${listDrag.moving(group) ? 'opacity-40' : ''}`}>
+        <div key={group} data-color-group={group} className={`relative ${listDrag.moving(group) ? 'opacity-dragging' : ''}`}>
           {/* 끄는 중에 놓일 자리를 알려 주는 선. 이 목록 앞에 놓이면 위에, 맨 끝에 놓이면 마지막 목록 아래에 긋는다. */}
           {listDrag.line(group)}
           {/* 영문 목록 이름은 소문자라 작아 보여서 16px, 한글인 '예외 색'은 다른 제목과 같은 14px. */}
@@ -428,7 +428,7 @@ function ColorGroups({
                   onDoubleClick={() => onRename(t.name)}
                   {...(group ? {} : reorder.grab(t.name))}
                   // 색은 한 줄에 11개까지. 12번째 칸은 추가 칸의 자리라서, 12번째 색부터는 다음 줄 맨 앞에서 시작한다.
-                  className={`group relative text-left outline-none select-none ${reorder.moving(t.name) ? 'opacity-40' : ''} ${i > 0 && i % 11 === 0 ? 'col-start-1' : ''}`}
+                  className={`group relative text-left outline-none select-none ${reorder.moving(t.name) ? 'opacity-dragging' : ''} ${i > 0 && i % 11 === 0 ? 'col-start-1' : ''}`}
                 >
                   {!group && reorder.line(t.name)}
                   <span className="relative block">
@@ -492,7 +492,7 @@ function TileGrid({ kind, items, selected, onSelect, onRename, onMove }: ListPro
             onClick={(e) => !reorder.justDragged() && onSelect(t.name, isAdditive(e))}
             onDoubleClick={() => onRename(t.name)}
             {...reorder.grab(t.name)}
-            className={`relative flex flex-col items-center rounded-float border-edge border-hairline bg-canvas p-card select-none ${reorder.moving(t.name) ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
+            className={`relative flex flex-col items-center rounded-float border-edge border-hairline bg-canvas p-card select-none ${reorder.moving(t.name) ? 'opacity-dragging' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
           >
             {reorder.line(t.name)}
             <TileSample value={t.value} />
@@ -544,7 +544,7 @@ function RowList({
             onClick={(e) => !reorder.justDragged() && onSelect(t.name, isAdditive(e))}
             onDoubleClick={() => onRename(t.name)}
             {...reorder.grab(t.name)}
-            className={`group relative w-full rounded-row px-board-row-x py-board-row-y text-left select-none ${stacked ? 'block' : 'flex items-center gap-columns'} ${reorder.moving(t.name) ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
+            className={`group relative w-full rounded-row px-board-row-x py-board-row-y text-left select-none ${stacked ? 'block' : 'flex items-center gap-columns'} ${reorder.moving(t.name) ? 'opacity-dragging' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
           >
             {reorder.line(t.name)}
             {stacked ? (

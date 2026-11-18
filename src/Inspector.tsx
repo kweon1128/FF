@@ -122,7 +122,7 @@ export function FoldSection({
           type="button"
           aria-expanded={open}
           onClick={toggle}
-          className="flex h-bar w-full items-center gap-button-inner px-section-x type-heading outline-selection hover:bg-hover focus-visible:outline-focus focus-visible:-outline-offset-2"
+          className="flex h-bar w-full items-center gap-button-inner px-section-x type-heading outline-selection hover:bg-hover focus-visible:outline-focus focus-visible:-outline-offset-[2px]"
         >
           <span className="flex-1 text-left">{title}</span>
           {note && <span className="type-body text-ink-faint">{note}</span>}
@@ -554,7 +554,7 @@ export function Inspector({
           </Button>
         )}
         {pickingFont && (
-          <Modal title={`${short}의 글꼴`} wide="xl" tall onClose={() => setPickingFont(false)}>
+          <Modal title={`${short}의 글꼴`} size="font" tall onClose={() => setPickingFont(false)}>
             <NewFontForm
               existing={new Set()}
               edit={{ name: short, value: valueDraft }}

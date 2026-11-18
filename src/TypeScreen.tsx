@@ -269,7 +269,7 @@ function PlainT({ use, as: Tag = 'span', className = '', children }: SlotProps) 
       onMouseLeave={onHot && group ? () => onHot(null) : undefined}
       // 제목처럼 한 줄을 다 차지하는 글자는 폭을 글자에 맞춘다. 그래야 마우스를 올렸을 때의 선이 빈 줄 끝까지 가지 않고 글자만 두른다.
       // 버튼이나 입력칸처럼 상자를 가진 자리는 상자까지가 한 덩어리라 선도 상자를 두른다.
-      className={`outline-offset-2 outline-selection ${className.includes('rounded') ? '' : 'rounded-small'} ${Tag !== 'span' && !className.includes('border') ? 'w-fit' : ''} ${group && hot === group ? 'outline-mark' : ''} ${className}`}
+      className={`outline-offset-[2px] outline-selection ${className.includes('rounded') ? '' : 'rounded-small'} ${Tag !== 'span' && !className.includes('border') ? 'w-fit' : ''} ${group && hot === group ? 'outline-mark' : ''} ${className}`}
       style={look}
     >
       {children}

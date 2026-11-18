@@ -740,7 +740,7 @@ export function NewSizesForm({
               <span className="min-w-0 flex-1">
                 <span
                   data-line={s.name}
-                  className={`block w-fit max-w-full truncate bg-selection/35 outline-offset-2 outline-selection ${hot === s.name ? 'outline-mark' : ''}`}
+                  className={`block w-fit max-w-full truncate bg-selection/35 outline-offset-[2px] outline-selection ${hot === s.name ? 'outline-mark' : ''}`}
                   style={{ fontFamily: font, fontSize: s.size, lineHeight: s.line, letterSpacing: s.track ?? undefined, fontWeight: weightOf(s.name) }}
                 >
                   {SAMPLES[s.name].text}
@@ -785,7 +785,7 @@ export function NewSizesForm({
                         title={nameOf(size)}
                         onMouseEnter={() => setHot(size)}
                         onMouseLeave={() => setHot(null)}
-                        className={`inline-flex items-center outline-offset-2 outline-selection ${hot === size ? 'outline-mark' : ''} ${cell.box}`}
+                        className={`inline-flex items-center outline-offset-[2px] outline-selection ${hot === size ? 'outline-mark' : ''} ${cell.box}`}
                         style={{ fontFamily: font, fontSize: step.size, lineHeight: step.line, letterSpacing: step.track ?? undefined, fontWeight: kind.weight, height: parseFloat(step.line) + cell.pad * 2, paddingInline: Math.round(((parseFloat(step.line) + cell.pad * 2) * kind.side) / 2) * 2 }}
                       >
                         {kind.icon && <CheckIcon size={size === 'xs' ? 14 : 16} strokeWidth={2} className="mr-button-inner shrink-0" />}
@@ -825,7 +825,7 @@ export function NewSizesForm({
                   title={nameOf(stepName)}
                   onMouseEnter={() => setHot(stepName)}
                   onMouseLeave={() => setHot(null)}
-                  className={`w-fit rounded-small outline-offset-2 outline-selection ${hot === stepName ? 'outline-mark' : ''} ${row.soft ? 'text-ink-soft' : ''}`}
+                  className={`w-fit rounded-small outline-offset-[2px] outline-selection ${hot === stepName ? 'outline-mark' : ''} ${row.soft ? 'text-ink-soft' : ''}`}
                   style={{ fontFamily: font, fontSize: s.size, lineHeight: s.line, letterSpacing: s.track ?? undefined, fontWeight: row.weight }}>
                   {row.text}
                 </p>

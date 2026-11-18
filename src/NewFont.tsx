@@ -171,7 +171,7 @@ export function FontSample({
     <div className={`${SUBGRID} ${className}`} style={{ ...space, gridRow: `span ${SAMPLE_ROWS}`, fontFamily: family, color: text, background: back, zoom: scale }}>
       {/* 한 줄짜리 글은 높이를 줄 높이 그대로 고정한다(1lh). 글꼴마다 글자가 차지하는 높이가 달라 줄 상자가 1~2px씩 커지는데, 그대로 두면 글꼴을 바꿀 때마다 아래 줄들이 밀린다. */}
       {/* 머리말. 제목 위의 작은 글자다. 이름표와 그것이 가리키는 글 사이라 띄우지 않는다. */}
-      <p className={`${LINE} opacity-70`} style={{ ...small, ...read }}>
+      <p className={`${LINE} opacity-[0.7]`} style={{ ...small, ...read }}>
         최근 주문 · 2분 전
       </p>
       <p className={LINE} style={{ ...title, fontWeight: W_HEADING }}>
@@ -204,7 +204,7 @@ export function FontSample({
       </div>
       {/* 받는 분: 이름표, 그리고 입력칸과 그 옆의 보조 버튼(테두리만). 입력칸이 줄을 혼자 다 차지하지 않고 버튼과 한 줄을 이룬다.
           입력칸 안의 글자는 본문 크기라, 옆의 버튼도 높이가 같도록 본문 크기의 버튼(큰 버튼)을 쓴다. */}
-      <p className={`mt-settings ${LINE} opacity-70`} style={{ ...sm, fontWeight: W_CONTROL }}>
+      <p className={`mt-settings ${LINE} opacity-[0.7]`} style={{ ...sm, fontWeight: W_CONTROL }}>
         받는 분
       </p>
       <div data-input className="mt-label flex gap-field-row">
@@ -220,7 +220,7 @@ export function FontSample({
         </span>
       </div>
       {/* 주문 번호와 날짜. 숫자와 기호가 섞인 줄이다. */}
-      <p className={`mt-settings ${LINE} opacity-70`} style={{ ...small, ...read }}>
+      <p className={`mt-settings ${LINE} opacity-[0.7]`} style={{ ...small, ...read }}>
         ORD-0412-0087 · 2026.04.12 09:41
       </p>
       {/* 화면의 맨 아래: 주요 버튼(글자색을 바탕으로, 바탕색을 글자로 뒤집음)이 남는 폭을 차지하고, 그 옆에 비활성 버튼(주요 버튼을 흐리게)이 있다. */}
@@ -230,7 +230,7 @@ export function FontSample({
             배송 준비
           </span>
         </span>
-        <span className="inline-flex shrink-0 items-center rounded-control opacity-40" style={{ ...box(picked.sm, 8), fontWeight: W_CONTROL, background: text, color: back }}>
+        <span className="inline-flex shrink-0 items-center rounded-control opacity-disabled" style={{ ...box(picked.sm, 8), fontWeight: W_CONTROL, background: text, color: back }}>
           <span className={TRIM} style={centered('출고 완료', W_CONTROL)}>
             출고 완료
           </span>
@@ -248,7 +248,7 @@ export function FontSample({
                 {has ? '가' : '\u00a0'}
               </span>
               <span
-                className={`mx-auto block w-fit border-b-divider type-code-sm ${has ? 'opacity-60' : 'opacity-20'}`}
+                className={`mx-auto block w-fit border-b-divider type-code-sm ${has ? 'opacity-[0.6]' : 'opacity-[0.2]'}`}
                 style={{ borderColor: w === drawn ? 'currentColor' : 'transparent' }}
               >
                 {w}
@@ -425,7 +425,7 @@ export function NewFontForm({
         aria-disabled={full}
         onClick={() => toggle(family)}
         className={`flex h-row w-full items-center gap-row-inner overflow-hidden rounded-row px-row-x text-left type-body outline-selection focus-visible:outline-focus ${
-          on ? 'bg-selection-soft' : full ? 'cursor-default opacity-40' : 'hover:bg-hover'
+          on ? 'bg-selection-soft' : full ? 'cursor-default opacity-disabled' : 'hover:bg-hover'
         }`}
       >
         {/* 줄마다 그 글꼴로 이름을 적어서 후보로 넣기 전에 모양을 본다. 글꼴마다 위아래 여백이 달라 이름이 줄 안에서 위나 아래로 치우치므로, 여백을 잘라 내고 가운데에 놓는다. */}

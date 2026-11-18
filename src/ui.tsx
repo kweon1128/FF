@@ -25,7 +25,7 @@ export function Button({
   return (
     <button
       type="button"
-      className={`inline-flex h-control shrink-0 items-center gap-button-inner rounded-control type-label whitespace-nowrap outline-selection focus-visible:outline-focus focus-visible:outline-offset-1 disabled:opacity-disabled ${BUTTON_STYLES[variant]} ${className}`}
+      className={`inline-flex h-control shrink-0 items-center gap-button-inner rounded-control type-label whitespace-nowrap outline-selection focus-visible:outline-focus focus-visible:outline-offset-[1px] disabled:opacity-disabled ${BUTTON_STYLES[variant]} ${className}`}
       {...rest}
     >
       {children}
@@ -63,7 +63,7 @@ export function Check({
       {/* 글자 한 줄의 높이(20px)만큼의 자리 안에서 상자를 가운데에 둔다. 위아래로 2px씩 남아 정확히 가운데다. */}
       <span className="flex h-[20px] shrink-0 items-center outline-selection peer-focus-visible:[&>span]:outline-focus">
         <span
-          className={`flex size-checkbox items-center justify-center rounded-small border-edge outline-offset-1 outline-selection ${
+          className={`flex size-checkbox items-center justify-center rounded-small border-edge outline-offset-[1px] outline-selection ${
             checked ? 'border-ink bg-ink text-on-primary' : 'border-ink-faint bg-canvas'
           } ${disabled ? 'opacity-disabled' : ''}`}
         >
@@ -261,16 +261,24 @@ export function EmptyState({
   )
 }
 
+/** 넓은 창의 폭. 단계(lg, xl)가 아니라 그 폭을 쓰는 창의 이름으로 짓는다(의미 크기 --width-dialog-이름). */
+const DIALOG_WIDTHS = {
+  shortcuts: 'w-dialog-shortcuts',
+  'weight-set': 'w-dialog-weight-set',
+  font: 'w-dialog-font',
+  'size-set': 'w-dialog-size-set',
+}
+
 export function Modal({
   title,
-  wide,
+  size,
   tall = false,
   onClose,
   children,
 }: {
   title: string
-  /** 내용이 많은 창(단축키 목록)은 넓게 연다. */
-  wide?: boolean | 'lg' | 'xl' | '2xl'
+  /** 기본 폭(360px)보다 넓은 창. 어느 창인지로 적는다: 단축키 목록, 굵기 한 벌 만들기, 글꼴을 고르는 창(의미 글꼴 한 벌 만들기와 글꼴 종류 추가), 글자 크기 한 벌 만들기. */
+  size?: keyof typeof DIALOG_WIDTHS
   /**
    * 창의 높이를 화면 높이에 맞춰 고정한다(화면 높이 - 48px). 안의 내용이 그 높이를 채운다.
    * 고르는 값에 따라 내용의 높이가 크게 달라지는 창에 쓴다. 높이가 고정이어야 고르는 동안 창과 아래 버튼이 움직이지 않는다.
@@ -295,7 +303,7 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={`${wide === '2xl' ? 'w-dialog-2xl' : wide === 'xl' ? 'w-dialog-xl' : wide === 'lg' ? 'w-dialog-lg' : wide ? 'w-dialog-wide' : 'w-dialog'} ${tall ? 'flex h-[calc(100vh-48px)] flex-col' : 'max-h-[calc(100vh-48px)] overflow-y-auto'} max-w-[calc(100vw-48px)] rounded-float border-edge border-hairline bg-canvas p-dialog shadow-dialog`}
+        className={`${size ? DIALOG_WIDTHS[size] : 'w-dialog'} ${tall ? 'flex h-[calc(100vh-48px)] flex-col' : 'max-h-[calc(100vh-48px)] overflow-y-auto'} max-w-[calc(100vw-48px)] rounded-float border-edge border-hairline bg-canvas p-dialog shadow-dialog`}
       >
         <h2 className="mb-header shrink-0 type-title">{title}</h2>
         {tall ? <div className="min-h-0 flex-1">{children}</div> : children}

@@ -75,7 +75,7 @@ function T({ use, as: Tag = 'span', className = '', children }: SlotProps) {
       onClick={() => toggle(use)}
       // 제목처럼 한 줄을 다 차지하는 글자는 폭을 글자에 맞춘다. 그래야 마우스를 올렸을 때의 선이 빈 줄 끝까지 가지 않고 글자만 두른다.
       // 버튼이나 입력칸처럼 상자를 가진 자리는 상자까지가 한 덩어리라, 선도 흐려지는 것도 상자째로 움직인다.
-      className={`cursor-pointer outline-offset-2 outline-selection ${className.includes('rounded') ? '' : 'rounded-small'} ${Tag !== 'span' && !className.includes('border') ? 'w-fit' : ''} ${hot === use ? 'outline-mark' : ''} ${row.on ? '' : 'opacity-25'} ${className}`}
+      className={`cursor-pointer outline-offset-[2px] outline-selection ${className.includes('rounded') ? '' : 'rounded-small'} ${Tag !== 'span' && !className.includes('border') ? 'w-fit' : ''} ${hot === use ? 'outline-mark' : ''} ${row.on ? '' : 'opacity-[0.25]'} ${className}`}
       style={look ? { ...styleOf(look), ...(row.track ? { letterSpacing: row.track } : {}) } : undefined}
     >
       {children}
@@ -192,7 +192,7 @@ export function NewTypesForm({
                 <label className="flex shrink-0 items-center">
                   <input type="checkbox" aria-label={`${r.name} 쓰기`} className="peer sr-only" checked={r.on} onChange={(e) => patch(r.key, { on: e.target.checked })} />
                   <span
-                    className={`flex size-checkbox items-center justify-center rounded-small border-edge outline-offset-1 outline-selection peer-focus-visible:outline-focus ${r.on ? 'border-ink bg-ink text-on-primary' : 'border-ink-faint bg-canvas'}`}
+                    className={`flex size-checkbox items-center justify-center rounded-small border-edge outline-offset-[1px] outline-selection peer-focus-visible:outline-focus ${r.on ? 'border-ink bg-ink text-on-primary' : 'border-ink-faint bg-canvas'}`}
                   >
                     {r.on && (
                       <svg viewBox="0 0 12 12" className="size-[12px]" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -201,10 +201,10 @@ export function NewTypesForm({
                     )}
                   </span>
                 </label>
-                <span className={r.on ? '' : 'opacity-40'}>
+                <span className={r.on ? '' : 'opacity-disabled'}>
                   <StepName label={`${r.key} 이름`} wide="xl" value={r.name} onChange={(name) => patch(r.key, { name })} />
                 </span>
-                <span className={`min-w-0 flex-1 type-caption whitespace-nowrap text-ink-faint ${r.on ? '' : 'opacity-40'}`}>
+                <span className={`min-w-0 flex-1 type-caption whitespace-nowrap text-ink-faint ${r.on ? '' : 'opacity-disabled'}`}>
                   {r.note}
                 </span>
                 {pick(r, FONT, 'font', '글꼴 종류', 'w-[80px]', (t) => shortName(FONT, t.name))}

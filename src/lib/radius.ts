@@ -44,13 +44,13 @@ export function guessRadiusGroup(short: string): RadiusGroup {
 
 /**
  * 예시의 모양. 그 둥글기를 어떤 요소의 모서리로 보여 줄지다. 빈 상자가 아니라 화면에 실제로 놓이는 것들이다.
- * 적어 두지 않은 값은 이름에서 짐작한다(control은 버튼, row는 줄, float는 메뉴, pill은 뱃지). 짐작할 수 없으면 카드로 그린다.
- * 의미 간격·의미 크기와 달리 모양을 적지 않은 값에도 예시를 그린다. 둥글기는 어느 요소에 넣어도 그 값을 보여 주기 때문이다(간격과 크기는 무엇의 것인지 모르면 그릴 수 없다).
+ * 모양을 적지 않은 값은 예시를 그리지 않는다(의미 간격, 의미 크기, 의미 테두리와 같은 규칙이다). 무엇의 모서리인지는 이름만으로 정할 수 없고, 짐작해 그리면 그 값이 실제로 쓰이지 않는 요소가 판에 그려진다.
  */
-export type RadiusShape = 'tag' | 'check' | 'smallbutton' | 'chip' | 'button' | 'input' | 'row' | 'card' | 'menu' | 'dialog' | 'slider' | 'badge' | 'knob'
+export type RadiusShape = 'tag' | 'seltag' | 'check' | 'smallbutton' | 'chip' | 'button' | 'input' | 'row' | 'card' | 'menu' | 'dialog' | 'slider' | 'badge' | 'knob'
 
 export const RADIUS_SHAPES: { id: RadiusShape; label: string; hint: string }[] = [
-  { id: 'tag', label: '이름표', hint: '값을 적은 작은 이름표' },
+  { id: 'tag', label: '이름표', hint: '치수선의 숫자 이름표' },
+  { id: 'seltag', label: '선택 이름표', hint: '고른 것 아래의 이름표' },
   { id: 'check', label: '체크박스', hint: '체크 상자' },
   { id: 'smallbutton', label: '작은 버튼', hint: '귀퉁이의 작은 아이콘 버튼' },
   { id: 'chip', label: '칩', hint: '코드나 키를 적은 칩' },
@@ -68,6 +68,7 @@ export const RADIUS_SHAPES: { id: RadiusShape; label: string; hint: string }[] =
 /** 모양마다의 기본 예시 문구. 글자가 없는 모양(작은 버튼, 슬라이더, 손잡이)은 비어 있다. 여럿을 늘어놓는 모양은 ", "로 나눠 적는다. */
 export const RADIUS_WORDS: Record<RadiusShape, string> = {
   tag: '24',
+  seltag: 'primary · blue',
   check: '기억하기',
   smallbutton: '',
   chip: 'primary',
@@ -76,31 +77,14 @@ export const RADIUS_WORDS: Record<RadiusShape, string> = {
   row: '홈, 주문, 설정',
   card: '카드 제목',
   menu: '이름 바꾸기, 복제, 삭제',
-  dialog: '삭제할까요?',
+  dialog: '삭제할까요?, , 취소, 삭제',
   slider: '',
   badge: '새 글, 완료',
   knob: '',
 }
 
 /** 문구를 ", "로 나눠 여럿을 늘어놓는 모양. */
-export const isRadiusListShape = (shape: RadiusShape) => ['button', 'row', 'menu', 'badge'].includes(shape)
-
-/** 모양을 적지 않은 값의 모양. */
-export function guessRadiusShape(short: string): RadiusShape {
-  const has = (...words: string[]) => short.split('-').some((p) => words.includes(p))
-  if (has('tag', 'label', 'xs')) return 'tag'
-  if (has('small', 'check', 'checkbox', 'sm')) return 'check'
-  if (has('chip', 'code', 'key')) return 'chip'
-  if (has('control', 'button', 'btn', 'md')) return 'button'
-  if (has('input', 'field')) return 'input'
-  if (has('row', 'item')) return 'row'
-  if (has('float', 'menu', 'popover', 'dropdown', 'lg')) return 'menu'
-  if (has('dialog', 'modal', 'sheet', 'window', 'xl')) return 'dialog'
-  if (has('pill', 'badge', 'full', 'round', 'circle')) return 'badge'
-  if (has('knob', 'dot', 'thumb')) return 'knob'
-  if (has('slider', 'track')) return 'slider'
-  return 'card'
-}
+export const isRadiusListShape = (shape: RadiusShape) => ['button', 'row', 'menu', 'dialog', 'badge'].includes(shape)
 
 /** 예시 하나. 어떤 요소로 그릴지(모양)와 그 안에 적을 말(문구. 비어 있으면 모양의 기본 문구). */
 export type RadiusExample = { shape: RadiusShape; words: string }
@@ -119,7 +103,7 @@ const own = (label: string) => RADIUS_SHAPES.find((s) => s.label === label)?.id
 /**
  * 주석에서 묶음과 설명과 예시들을 읽는다. "컨트롤(버튼): 버튼, 입력칸 | 취소, 추가 | 입력칸: 이름"처럼 묶음 이름으로 시작하지 않으면 주석 전체가 설명이다.
  * group은 묶음(적혀 있지 않으면 이름에서 짐작한 것). picked는 주석에 직접 적혀 있던 첫 예시의 모양이다.
- * examples는 판에 그릴 예시들이다. 모양을 적지 않은 값은 이름에서 짐작한 모양 하나로 그린다.
+ * examples는 판에 그릴 예시들이다. 모양을 적지 않은 값은 예시가 없다(의미 간격, 의미 크기와 같다).
  */
 export function readRadiusNote(
   note: string | undefined,
@@ -129,16 +113,16 @@ export function readRadiusNote(
   const m = new RegExp(`^(${GROUP_LABELS})(?:\\((${LABELS})\\))?\\s*:\\s*(.*)$`).exec(all.replace(/^조작(?=\s*[(:])/, '컨트롤'))
   const group = (m && RADIUS_GROUPS.find((g) => g.label === m[1])?.id) || guessRadiusGroup(short)
   const picked = m?.[2] ? own(m[2]) : undefined
-  const shape = picked ?? guessRadiusShape(short)
   const parts = m ? m[3].split(MARK).map((p) => p.trim()) : [all]
   const words = parts[1] ?? ''
   const head = new RegExp(`^(${LABELS})\\s*:\\s*(.*)$`)
-  const more = parts.slice(2).map((p): RadiusExample => {
+  const more = parts.slice(2).flatMap((p): RadiusExample[] => {
     const h = head.exec(p)
     const id = h && own(h[1])
-    return id ? { shape: id, words: h![2].trim() } : { shape, words: p }
+    return id ? [{ shape: id, words: h![2].trim() }] : picked ? [{ shape: picked, words: p }] : []
   })
-  return { group, text: parts[0], ...(picked ? { picked } : {}), words, more, examples: [{ shape, words }, ...more] }
+  const examples = picked ? [{ shape: picked, words }, ...more] : more
+  return { group, text: parts[0], ...(picked ? { picked } : {}), words, more, examples }
 }
 
 /** 주석에 적을 글자. 묶음은 언제나 적고, 첫 예시의 모양은 주석에 적혀 있던 것만 적는다. */

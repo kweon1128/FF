@@ -8,6 +8,7 @@ import type { Token } from './lib/api'
 import { SLUG, shortName, type Kind } from './lib/catalog'
 import { EFFECT_WORDS, nextLayer, parseShadow, splitLayers, readEffectNote, writeEffectNote, writeShadow, type EffectKind, type EffectShape, type ShadowLayer } from './lib/effects'
 import { surroundings, type Around } from './lib/roles'
+import { sampleColors } from './lib/sample'
 import { PreviewFontContext, PreviewSpaceContext } from './ColorUses'
 import { CODE_OPEN, CodeRows, FoldSection, ICON_BUTTON, Section, WHERE_OPEN } from './Inspector'
 import { DetailsFolded, HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
@@ -23,7 +24,7 @@ const EDGE = 'shadow-[inset_0_0_0_var(--border-width-edge)_rgb(0_0_0/0.1)]'
  * 곁에 놓이는 것은 옅은 막대로 그려 자리만 알려 준다. 바탕과 글자 색은 이 디자인 시스템의 것이다.
  * 이 안은 사용자의 값을 보여 주는 미리보기라, FF 도구의 글자 규칙(type- 클래스)을 따르지 않는다. 글꼴 종류를 바깥에서 물려받아야 해서 크기와 굵기를 따로 적는다.
  */
-export function EffectSample({ shape, value, around, words: written = '' }: { shape: EffectShape; value: string; around: Around; words?: string }) {
+export function EffectSample({ shape, value, around, accent, words: written = '' }: { shape: EffectShape; value: string; around: Around; /** 놓일 자리를 알리는 선의 색(이 시스템의 선택 색). */ accent?: string; words?: string }) {
   const font = useContext(PreviewFontContext)
   const space = useContext(PreviewSpaceContext)
   const all = written || EFFECT_WORDS[shape]
@@ -55,21 +56,38 @@ export function EffectSample({ shape, value, around, words: written = '' }: { sh
         </span>,
         true,
       )
-    case 'dialog':
+    case 'dialog': {
+      // 창을 실제 모습대로 그린다. 문구는 차례대로 제목, 입력칸의 이름표, 아래 버튼들이다("새 디자인 시스템, 이름, 취소, 만들기"). 의미 크기·의미 모서리 판의 창 예시와 같은 규칙이다.
+      // 입력칸이 없는 창(확인 창)은 이름표 자리에 "-"를 적는다. 내용을 회색 막대로 대신 그리지 않는다. 버튼은 마지막이 채운 버튼이고 그 앞은 바탕 없는 버튼이다.
+      const [title, label, ...actions] = all.split(', ').map((w) => w.trim())
       return frame(
-        <span className="block w-full max-w-[224px] rounded-float p-dialog" style={lifted}>
-          <span data-sample className={`block break-words ${STRONG}`}>
-            {all}
-          </span>
-          {bar('w-3/4', 'mt-fields')}
-          {bar('w-1/2', 'mt-blocks')}
-          <span className="mt-dialog-actions flex justify-end gap-actions">
-            <span className="block h-control w-[48px] rounded-control" style={{ boxShadow: `inset 0 0 0 1px ${faint}` }} />
-            <span className="block h-control w-[48px] rounded-control" style={{ background: around.ink }} />
-          </span>
+        <span data-sample className="block w-full max-w-[224px] rounded-float p-dialog" style={lifted}>
+          <span className="block text-base leading-6 font-[650] break-words">{title}</span>
+          {label && label !== '-' && (
+            <span className="mt-header block">
+              <span className={`mb-label block ${STRONG}`} style={{ color: `color-mix(in oklab, ${around.ink} 55%, ${around.surface})` }}>
+                {label}
+              </span>
+              <span className="block h-control rounded-control" style={{ boxShadow: `inset 0 0 0 1px ${faint}` }} />
+            </span>
+          )}
+          {actions.length > 0 && (
+            <span className="mt-dialog-actions flex justify-end gap-actions">
+              {actions.map((text, i) => (
+                <span
+                  key={i}
+                  className={`flex h-control items-center rounded-control whitespace-nowrap ${i === actions.length - 1 ? 'px-button-x' : 'px-button-ghost-x'} ${STRONG}`}
+                  style={i === actions.length - 1 ? { background: around.ink, color: around.surface } : undefined}
+                >
+                  {text}
+                </span>
+              ))}
+            </span>
+          )}
         </span>,
         true,
       )
+    }
     case 'toast':
       return frame(
         <span data-sample className="inline-flex h-control items-center rounded-control px-bar-x text-sm leading-5 whitespace-nowrap" style={{ background: around.ink, color: around.surface, boxShadow: value }}>
@@ -87,6 +105,23 @@ export function EffectSample({ shape, value, around, words: written = '' }: { sh
         </span>,
         true,
       )
+    case 'drag': {
+      // 끌어 옮기는 중인 줄. 목록 상자 안에서 끄는 줄만 옅어지고, 놓일 자리에 선택 색의 선이 그어진다(2px). 첫 문구가 끄는 줄이고, 선은 마지막 줄 아래에 있다.
+      const rows = all
+        .split(', ')
+        .map((w) => w.trim())
+        .filter(Boolean)
+      return frame(
+        <span className="block w-[160px] space-y-rows rounded-float p-menu" style={{ boxShadow: `inset 0 0 0 1px ${faint}` }}>
+          {rows.map((text, i) => (
+            <span key={i} {...(i === 0 ? { 'data-sample': true } : {})} className={`relative block rounded-row px-board-row-x py-board-row-y whitespace-nowrap ${STRONG}`} style={i === 0 ? { opacity: value } : undefined}>
+              {text}
+              {rows.length > 1 && i === rows.length - 1 && <span className="pointer-events-none absolute inset-x-0 -bottom-[3px] h-[2px]" style={{ background: accent ?? around.ink }} />}
+            </span>
+          ))}
+        </span>,
+      )
+    }
     case 'disabled': {
       // 같은 버튼을 켜진 것과 꺼진 것으로 나란히 놓아, 얼마나 옅어지는지 견주어 본다.
       const BUTTON = `flex h-control items-center rounded-control px-button-x whitespace-nowrap ${STRONG}`
@@ -189,6 +224,7 @@ export function EffectList({
   if (items.length === 0) return null
   const id = kind.id as EffectKind
   const around = surroundings(all)
+  const accent = sampleColors(all).selection
   return (
     <div className="space-y-rows rounded-float border-edge border-hairline bg-canvas p-menu">
       {items.map((t) => {
@@ -205,7 +241,7 @@ export function EffectList({
             onClick={(e) => !reorder.justDragged() && onSelect(t.name, isAdditive(e))}
             onDoubleClick={() => onRename(t.name)}
             {...reorder.grab(t.name)}
-            className={`group relative flex w-full items-center gap-columns rounded-row px-board-row-x py-board-row-y text-left select-none ${reorder.moving(t.name) ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
+            className={`group relative flex w-full items-center gap-columns rounded-row px-board-row-x py-board-row-y text-left select-none ${reorder.moving(t.name) ? 'opacity-dragging' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
           >
             {reorder.line(t.name)}
             <span className="w-row-name shrink-0">
@@ -232,7 +268,7 @@ export function EffectList({
             {/* 쓰임이 여럿인 값은 예시도 여럿이다. 위아래로 8px 띄워 쌓는다. */}
             <span className="block min-w-0 flex-1 space-y-blocks">
               {!plain && [{ shape, words }, ...more].map((e, k) => (
-                <EffectSample key={k} shape={e.shape} value={t.value} around={around} words={e.words} />
+                <EffectSample key={k} shape={e.shape} value={t.value} around={around} accent={accent} words={e.words} />
               ))}
             </span>
             {/* 그림자 값은 길어서 이름표에 적지 않는다. */}

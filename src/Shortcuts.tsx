@@ -64,7 +64,7 @@ const GROUPS: { title: string; keys: [string, string][] }[] = [
 
 export function Shortcuts({ onClose }: { onClose: () => void }) {
   return (
-    <Modal title="단축키" wide onClose={onClose}>
+    <Modal title="단축키" size="shortcuts" onClose={onClose}>
       <div className="grid max-h-[70vh] grid-cols-2 gap-groups overflow-y-auto">
         {GROUPS.map((group) => (
           <section key={group.title}>

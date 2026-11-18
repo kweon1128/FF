@@ -56,25 +56,14 @@ export const BORDER_WORDS: Record<BorderShape, string> = {
   input: '이름',
   button: '취소',
   box: '첫째, 둘째',
-  divider: '이름, 설명',
-  side: '메뉴, 내용',
+  divider: '이름=primary, 설명=주요 버튼',
+  side: '홈, 주문, 이름=primary',
   focus: '저장',
   mark: '제목',
 }
 
 /** 문구를 ", "로 나눠 여럿을 늘어놓는 모양. */
 export const isBorderListShape = (shape: BorderShape) => ['box', 'divider', 'side'].includes(shape)
-
-/** 모양을 적지 않은 값의 모양. */
-export function guessBorderShape(kind: BorderKind, short: string): BorderShape {
-  const has = (...words: string[]) => short.split('-').some((p) => words.includes(p))
-  if (kind === 'outline') return has('mark', 'hot', 'hover', 'select', 'selection') ? 'mark' : 'focus'
-  if (has('divider', 'separator', 'rule', 'hr')) return 'divider'
-  if (has('side', 'panel', 'nav')) return 'side'
-  if (has('button', 'btn')) return 'button'
-  if (has('box', 'card', 'list', 'dialog', 'frame')) return 'box'
-  return 'input'
-}
 
 /** 예시 하나. 어떤 요소로 그릴지(모양)와 그 안에 적을 말(문구. 비어 있으면 모양의 기본 문구). */
 export type BorderExample = { shape: BorderShape; words: string }
@@ -87,22 +76,23 @@ const labelsOf = (kind: BorderKind) => BORDER_SHAPES.filter((s) => s.kind === ki
 
 /**
  * 주석에서 설명과 예시들을 읽는다. "테두리(입력칸): 입력칸, 버튼의 테두리 | 이름 | 버튼: 취소"처럼 종류의 이름으로 시작하지 않으면 주석 전체가 설명이다.
- * shape는 첫 예시를 그릴 모양이고, picked는 주석에 직접 적혀 있던 모양이다(없으면 undefined. 그때 shape는 이름에서 짐작한 것이다).
+ * picked는 주석에 직접 적혀 있던 첫 예시의 모양이다. examples는 판에 그릴 예시들이다. 모양을 적지 않은 값은 예시가 없다(의미 간격, 의미 크기, 의미 모서리와 같은 규칙이다).
  */
-export function readBorderNote(kind: BorderKind, note: string | undefined, short: string): { text: string; shape: BorderShape; picked?: BorderShape; words: string; more: BorderExample[] } {
+export function readBorderNote(kind: BorderKind, note: string | undefined): { text: string; picked?: BorderShape; words: string; more: BorderExample[]; examples: BorderExample[] } {
   const all = (note ?? '').trim()
   const own = (label: string) => BORDER_SHAPES.find((s) => s.kind === kind && s.label === label)?.id
   const m = new RegExp(`^${BORDER_TITLES[kind]}(?:\\((${labelsOf(kind)})\\))?\\s*:\\s*(.*)$`).exec(all)
   const picked = m?.[1] ? own(m[1]) : undefined
-  const shape = picked ?? guessBorderShape(kind, short)
   const parts = m ? m[2].split(MARK).map((p) => p.trim()) : [all]
   const head = new RegExp(`^(${labelsOf(kind)})\\s*:\\s*(.*)$`)
-  const more = parts.slice(2).map((p): BorderExample => {
+  const words = parts[1] ?? ''
+  const more = parts.slice(2).flatMap((p): BorderExample[] => {
     const h = head.exec(p)
     const id = h && own(h[1])
-    return id ? { shape: id, words: h![2].trim() } : { shape, words: p }
+    return id ? [{ shape: id, words: h![2].trim() }] : picked ? [{ shape: picked, words: p }] : []
   })
-  return { text: parts[0], shape, ...(picked ? { picked } : {}), words: parts[1] ?? '', more }
+  const examples = picked ? [{ shape: picked, words }, ...more] : more
+  return { text: parts[0], ...(picked ? { picked } : {}), words, more, examples }
 }
 
 /** 주석에 적을 글자. 종류의 이름은 언제나 적고, 첫 예시의 모양은 직접 고른 것만 적는다. */

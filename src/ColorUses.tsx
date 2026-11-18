@@ -139,7 +139,7 @@ export function ColorUses({ color, step, compact = false }: { color: string; ste
               aria-label={dark ? '밝은 바탕으로 보기' : '어두운 바탕으로 보기'}
               title={dark ? '밝은 바탕으로 보기' : '어두운 바탕으로 보기'}
               onClick={toggleDark}
-              className="ml-auto flex size-[28px] shrink-0 items-center justify-center rounded-control opacity-60 outline-selection hover:opacity-100 focus-visible:outline-focus"
+              className="ml-auto flex size-[28px] shrink-0 items-center justify-center rounded-control opacity-[0.6] outline-selection hover:opacity-100 focus-visible:outline-focus"
               style={{ color: s.ink }}
             >
               <Icon size={16} strokeWidth={ICON_STROKE} />

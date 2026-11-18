@@ -169,7 +169,7 @@ const touches = (a: Box, b: Box) => a.left < b.right && a.right > b.left && a.to
 const holds = (outer: Box, inner: Box) =>
   inner.left >= outer.left && inner.right <= outer.right && inner.top >= outer.top && inner.bottom <= outer.bottom
 
-export function defaultPos(index: number): Pos {
+function defaultPos(index: number): Pos {
   // 의미 색 판은 색상 판 바로 왼쪽에 둔다. 나중에 생긴 판이라, 이미 놓여 있는 다른 판들의 자리를 밀지 않으려는 것이다.
   if (TOKEN_SCREEN_IDS[index] === 'role') return { x: -(ROLE_BOARD_WIDTH + BOARD_GAP), y: 0 }
   // 의미 글꼴 판도 나중에 생겼다. 같은 이유로 의미 색 판의 왼쪽에 둔다.
@@ -177,6 +177,29 @@ export function defaultPos(index: number): Pos {
   // 앞에 놓인 넓은 판(색상, 글꼴)의 너비만큼 그 뒤의 판들을 밀어 둔다.
   const wider = TOKEN_SCREEN_IDS.slice(0, index).reduce((sum, id) => sum + (id === 'role' ? 0 : defaultWidth(id) - BOARD_WIDTH), 0)
   return { x: index * (BOARD_WIDTH + BOARD_GAP) + wider, y: 0 }
+}
+
+/**
+ * 모든 판의 자리. 저장된 자리가 있으면 그 자리이고, 없는 판(새로 생긴 판, 한 번도 옮기지 않은 판)은 기본 자리다.
+ * 기본 자리는 판들이 모두 기본 자리에 있을 때만 서로 비켜 있다. 판을 끌어 옮긴 뒤에는 다른 판의 기본 자리에 누가 놓여 있을 수 있어서, 나중에 생긴 판이 그 위에 겹쳐 나타난다.
+ * 그래서 기본 자리의 가로 범위가 이미 놓인 판의 가로 범위와 겹치면(판 사이 간격까지 쳐서), 놓인 판들 가운데 맨 오른쪽 판의 옆에 놓는다.
+ * 판의 높이는 내용에 따라 달라져 여기서는 알 수 없으므로 세로는 따지지 않는다. 가로로 비켜 있으면 높이가 얼마든 겹치지 않는다.
+ */
+export function boardPositions(positions: Record<string, Pos>): Record<string, Pos> {
+  const out: Record<string, Pos> = {}
+  const taken = TOKEN_SCREEN_IDS.filter((id) => positions[id]).map((id) => ({ left: positions[id].x, right: positions[id].x + defaultWidth(id) }))
+  TOKEN_SCREEN_IDS.forEach((id, index) => {
+    if (positions[id]) {
+      out[id] = positions[id]
+      return
+    }
+    const width = defaultWidth(id)
+    let pos = defaultPos(index)
+    if (taken.some((b) => pos.x < b.right + BOARD_GAP && pos.x + width + BOARD_GAP > b.left)) pos = { x: Math.max(...taken.map((b) => b.right)) + BOARD_GAP, y: pos.y }
+    taken.push({ left: pos.x, right: pos.x + width })
+    out[id] = pos
+  })
+  return out
 }
 
 function loadView(key: string): View {
@@ -320,9 +343,11 @@ export function Canvas({
   }, [])
 
   const pictureOf = (id: string) => images.find((p) => p.id === id)
+  // 저장된 자리가 없는 판은 이미 놓인 판과 겹치지 않는 자리에 놓는다.
+  const placed = boardPositions(positions)
   const posOf = (id: string, index: number): Pos => {
     const picture = pictureOf(id)
-    return { ...(picture ? { x: picture.x, y: picture.y } : (positions[id] ?? defaultPos(index))), ...live?.[id] }
+    return { ...(picture ? { x: picture.x, y: picture.y } : (positions[id] ?? placed[id] ?? defaultPos(index))), ...live?.[id] }
   }
   // 판의 너비는 판마다 정해져 있고 바꿀 수 없다(예전에 바꿔 저장해 둔 너비도 쓰지 않는다). 사진만 너비가 바뀐다.
   const widthOf = (id: string) => live?.[id]?.w ?? pictureOf(id)?.w ?? defaultWidth(id)

@@ -531,7 +531,7 @@ export function SpaceList({
             onMove(name, after?.name ?? null)
           })
         return (
-          <div key={u.id} data-space-group={u.id} className={`relative ${groupDrag.moving(u.id) ? 'opacity-40' : ''}`}>
+          <div key={u.id} data-space-group={u.id} className={`relative ${groupDrag.moving(u.id) ? 'opacity-dragging' : ''}`}>
             {groupDrag.line(u.id)}
             <button
               type="button"
@@ -591,7 +591,7 @@ function SpaceRows({
                     onClick={(e) => !reorder.justDragged() && onSelect(t.name, isAdditive(e))}
                     onDoubleClick={() => onRename(t.name)}
                     {...reorder.grab(t.name)}
-                    className={`group relative flex w-full items-center gap-columns rounded-row px-board-row-x py-board-row-y text-left select-none ${reorder.moving(t.name) ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
+                    className={`group relative flex w-full items-center gap-columns rounded-row px-board-row-x py-board-row-y text-left select-none ${reorder.moving(t.name) ? 'opacity-dragging' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
                   >
                     {reorder.line(t.name)}
                     <span className={examples.length ? 'w-row-name shrink-0' : 'min-w-0 flex-1'}>

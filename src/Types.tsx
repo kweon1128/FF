@@ -246,7 +246,7 @@ export function TypeList({
       <div className="space-y-groups">
         {groups.map(({ use, items: list }) => {
           return (
-            <div key={use} data-type-group={use} className={`relative ${groupDrag.moving(use) ? 'opacity-40' : ''}`}>
+            <div key={use} data-type-group={use} className={`relative ${groupDrag.moving(use) ? 'opacity-dragging' : ''}`}>
               {groupDrag.line(use)}
               {/* 묶음 제목을 누르면 그 묶음의 조합이 모두 선택되고, 잡고 위아래로 끌면 묶음이 통째로 옮겨진다. */}
               <div className="mb-heading -ml-chip-x flex">
@@ -276,7 +276,7 @@ export function TypeList({
                       onClick={(e) => !rows.justDragged() && onSelect(t.name, isAdditive(e))}
                       onDoubleClick={() => onRename(t.name)}
                       {...rows.grab(t.name)}
-                      className={`group relative flex w-full items-center gap-columns rounded-row px-board-row-x py-board-row-y text-left select-none ${rows.moving(t.name) ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
+                      className={`group relative flex w-full items-center gap-columns rounded-row px-board-row-x py-board-row-y text-left select-none ${rows.moving(t.name) ? 'opacity-dragging' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
                     >
                       {rows.line(t.name)}
                       <span className="w-row-name shrink-0">

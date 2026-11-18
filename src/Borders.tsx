@@ -8,7 +8,8 @@ import { ArrowUpRight } from 'lucide-react'
 import type { Token } from './lib/api'
 import { KINDS, SLUG, lengthLabel, shortName, type Kind } from './lib/catalog'
 import { BORDER_WORDS, isBorderListShape, readBorderNote, resolveThickness, thicknessRefOf, writeBorderNote, type BorderKind, type BorderShape } from './lib/borders'
-import { resolveColor, surroundings, type Around } from './lib/roles'
+import { sampleColors, type SampleColors } from './lib/sample'
+import { NavRows, PanelSection } from './SampleParts'
 import { PreviewFontContext, PreviewSpaceContext } from './ColorUses'
 import { CODE_OPEN, CodeRows, FoldSection, ICON_BUTTON, Section, WHERE_OPEN } from './Inspector'
 import { DetailsFolded, HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
@@ -22,11 +23,12 @@ const EDGE = 'shadow-[inset_0_0_0_var(--border-width-edge)_rgb(0_0_0/0.1)]'
 
 /**
  * 선이 실제로 그어진 모습. 어떤 요소의 어느 자리인지는 줄마다 정한 예시의 모양(shape)을 따르고, 그 안의 말은 줄마다 적은 문구(그 시스템이 실제로 쓰는 말)다.
- * 테두리 선은 입력칸·버튼·상자의 테두리나 구역 사이의 구분선으로, 외곽선은 초점이 간 버튼이나 가리키는 글자에 두른 선으로 그린다. 굵기는 클래스가 아니라 값 그대로 넣는다.
- * 선의 색은 이 시스템의 글자 색을 바탕에 섞은 것이고(테두리 선), 외곽선은 tint(선택 색)다. 바탕과 글자 색도 이 디자인 시스템의 것이다.
+ * 테두리 선은 입력칸·버튼·상자의 테두리나 구역 사이의 구분선으로, 외곽선은 초점이 간 버튼이나 가리키는 것에 두른 선으로 그린다. 굵기는 클래스가 아니라 값 그대로 넣는다.
+ * 요소는 실제 모습으로 그린다. 구분선은 그 선이 나누는 패널의 구역(제목과 입력칸)과 함께, 세로 구분선은 왼쪽 메뉴의 줄과 그 옆의 패널 구역과 함께 그린다. 막대로 대신하지 않는다.
+ * 색은 이 디자인 시스템의 것이다(테두리, 마우스를 올린 바탕, 주요 버튼, 선택 색).
  * 이 안은 사용자의 값을 보여 주는 미리보기라, FF 도구의 글자 규칙(type- 클래스)을 따르지 않는다. 글꼴 종류를 바깥에서 물려받아야 해서 크기와 굵기를 따로 적는다.
  */
-export function BorderSample({ shape, value, around, tint, words: written = '' }: { shape: BorderShape; value: string; around: Around; tint: string; words?: string }) {
+export function BorderSample({ shape, value, colors: c, words: written = '' }: { shape: BorderShape; value: string; colors: SampleColors; words?: string }) {
   const font = useContext(PreviewFontContext)
   const space = useContext(PreviewSpaceContext)
   const all = written || BORDER_WORDS[shape]
@@ -38,85 +40,78 @@ export function BorderSample({ shape, value, around, tint, words: written = '' }
     : [all]
   const TEXT = 'text-sm leading-5'
   const STRONG = 'text-sm leading-5 font-[550]'
-  const line = `color-mix(in oklab, ${around.ink} 32%, ${around.surface})`
-  const faint = `color-mix(in oklab, ${around.ink} 16%, ${around.surface})`
-  const hover = `color-mix(in oklab, ${around.ink} 8%, ${around.surface})`
-  const soft = `color-mix(in oklab, ${around.ink} 56%, ${around.surface})`
-  const edge = `${value} solid ${line}`
-  const bar = (width: string, more = '') => <span className={`block h-[8px] rounded-small ${width} ${more}`} style={{ background: faint }} />
+  const edge = `${value} solid ${c.line}`
   // 내용은 상자의 가운데에 놓는다(효과 판과 같다). 예시는 읽는 글이 아니라 요소 하나를 보여 주는 것이다.
   const frame = (body: ReactNode) => (
-    <span className={`flex w-full items-center justify-center overflow-hidden rounded-card p-sample ${EDGE}`} style={{ ...space, background: around.surface, color: around.ink, fontFamily: font }}>
+    <span className={`flex w-full items-center justify-center overflow-hidden rounded-card p-sample ${EDGE}`} style={{ ...space, background: c.surface, color: c.ink, fontFamily: font }}>
       {body}
     </span>
   )
   switch (shape) {
     case 'button':
+      // 테두리 버튼(닫기, 가져오기).
       return frame(
-        <span data-sample className={`flex h-control items-center rounded-control px-button-x whitespace-nowrap ${STRONG}`} style={{ border: edge }}>
+        <span data-sample className={`flex h-control items-center rounded-control px-button-x whitespace-nowrap ${STRONG}`} style={{ border: edge, background: c.surface }}>
           {all}
         </span>,
       )
     case 'box':
-      // 목록 상자. 선은 상자의 테두리다.
+      // 판 안의 목록 상자. 선은 상자의 테두리이고, 안에는 값의 줄들이 있다(줄에는 값의 이름).
       return frame(
         <span data-sample className="block w-[160px] space-y-rows rounded-float p-menu" style={{ border: edge }}>
           {list.map((text, i) => (
-            <span key={i} className={`block rounded-row px-row-x py-menu whitespace-nowrap ${TEXT}`} style={i === 0 ? { background: hover } : undefined}>
+            <span key={i} className={`block rounded-row px-board-row-x py-board-row-y whitespace-nowrap ${STRONG}`}>
               {text}
             </span>
           ))}
         </span>,
       )
     case 'divider':
-      // 위아래로 쌓인 구역(패널의 구역). 구역 사이에만 선이 있다.
+      // 위아래로 쌓인 패널의 구역들. 구역마다 제목과 입력칸이 있고("제목=값"), 구역 사이에만 선이 있다. 선은 패널의 왼쪽 끝에서 오른쪽 끝까지 간다.
       return frame(
-        <span className="block w-[160px]">
-          {list.map((text, i) => (
-            <span key={i} {...(i > 0 ? { 'data-sample': true } : {})} className="block py-section-y" style={i > 0 ? { borderTop: edge } : undefined}>
-              <span className={`block ${STRONG}`}>{text}</span>
-              {bar('w-3/4', 'mt-blocks')}
+        <span className="block w-panel max-w-full">
+          {list.map((item, i) => (
+            <span key={i} {...(i > 0 ? { 'data-sample': true } : {})} className="block" style={i > 0 ? { borderTop: edge } : undefined}>
+              <PanelSection item={item} colors={c} />
             </span>
           ))}
         </span>,
       )
-    case 'side':
-      // 좌우로 놓인 면(왼쪽 메뉴와 가운데). 첫 문구가 왼쪽 면의 줄, 나머지는 오른쪽 면의 제목이다.
+    case 'side': {
+      // 좌우로 놓인 영역 사이의 선. 왼쪽 메뉴의 줄들과, 그 옆 패널의 첫 구역이다. 문구에서 "제목=값"으로 적은 것이 패널의 구역이고 나머지는 메뉴의 줄이다.
+      const rows = list.filter((w) => !w.includes('='))
+      const sections = list.filter((w) => w.includes('='))
       return frame(
-        <span className="flex w-full max-w-[224px] items-stretch">
-          <span data-sample className="block w-[96px] shrink-0 py-box pr-box" style={{ borderRight: edge }}>
-            <span className={`block rounded-row px-row-x py-menu whitespace-nowrap ${TEXT}`} style={{ background: hover }}>
-              {list[0]}
-            </span>
-            {bar('w-2/3', 'mt-fields ml-row-x')}
+        <span className="flex w-full max-w-[320px] items-stretch">
+          <span data-sample className="block w-[128px] shrink-0 p-nav" style={{ borderRight: edge }}>
+            <NavRows labels={rows} colors={c} />
           </span>
-          <span className="block min-w-0 flex-1 py-box pl-box">
-            <span className={`block break-words ${STRONG}`} style={{ color: soft }}>
-              {list.slice(1).join(', ')}
-            </span>
-            {bar('w-full', 'mt-blocks')}
-            {bar('w-2/3', 'mt-blocks')}
+          <span className="block min-w-0 flex-1">
+            {sections.map((item, i) => (
+              <PanelSection key={i} item={item} colors={c} />
+            ))}
           </span>
         </span>,
       )
+    }
     case 'focus':
-      // 자판으로 옮겨 간 버튼. 버튼 밖으로 1px 띄워 선택 색의 선을 두른다(FF의 버튼과 같다).
+      // 자판으로 옮겨 간 주요 버튼. 버튼 밖으로 1px 띄워 선택 색의 선을 두른다(FF의 버튼과 같다).
       return frame(
-        <span data-sample className={`flex h-control items-center rounded-control px-button-x whitespace-nowrap ${STRONG}`} style={{ background: around.ink, color: around.surface, outline: `${value} solid ${tint}`, outlineOffset: 1 }}>
+        <span data-sample className={`flex h-control items-center rounded-control px-button-x whitespace-nowrap ${STRONG}`} style={{ background: c.primary, color: c.onPrimary, outline: `${value} solid ${c.selection}`, outlineOffset: 1 }}>
           {all}
         </span>,
       )
     case 'mark':
-      // 가리키는 글자에 두르는 선. 글자에서 2px 띄운다.
+      // 가리키는 것에 두르는 선. 한 벌 만들기 창에서 표의 줄에 마우스를 올리면 예시 화면의 그 버튼에 2px 띄워 두른다.
       return frame(
-        <span data-sample className={`rounded-small whitespace-nowrap ${STRONG}`} style={{ outline: `${value} solid ${tint}`, outlineOffset: 2 }}>
+        <span data-sample className={`flex h-control items-center rounded-control px-button-x whitespace-nowrap ${STRONG}`} style={{ background: c.ink, color: c.surface, outline: `${value} solid ${c.selection}`, outlineOffset: 2 }}>
           {all}
         </span>,
       )
     default:
       // 입력칸
       return frame(
-        <span data-sample className={`flex h-control w-[160px] items-center rounded-control px-input-x whitespace-nowrap ${TEXT}`} style={{ border: edge }}>
+        <span data-sample className={`flex h-control w-[160px] items-center rounded-control px-input-x whitespace-nowrap ${TEXT}`} style={{ border: edge, background: c.surface }}>
           {all}
         </span>,
       )
@@ -162,19 +157,16 @@ export function BorderList({
   // 값이 없으면 빈 상자를 남기지 않는다. 추가는 묶음 제목 줄의 버튼으로 한다.
   if (items.length === 0) return null
   const id = kind.id as BorderKind
-  const around = surroundings(all)
-  // 외곽선을 칠할 색. 이 시스템의 선택 색(없으면 주요 색, 그것도 없으면 글자 색)이다.
-  const tinted = all.find((t) => t.name === '--color-selection') ?? all.find((t) => t.name === '--color-primary')
-  const tint = (tinted && resolveColor(all, tinted.value)) || around.ink
+  const colors = sampleColors(all)
   return (
     <div className="space-y-rows rounded-float border-edge border-hairline bg-canvas p-menu">
       {items.map((t) => {
         const short = shortName(kind, t.name)
-        const { text, shape, words, more } = readBorderNote(id, t.note, short)
+        const { text, examples } = readBorderNote(id, t.note)
         const isSelected = selected.includes(t.name)
         const { length, shown } = shownOf(all, t.value)
-        // 예시는 굵기를 알 때만 그린다(가리키는 값이 없어졌으면 그릴 수 없다). 없으면 왼쪽 칸이 줄 전체를 쓴다.
-        const drawn = !plain && length !== null
+        // 예시는 굵기를 알고(가리키는 값이 없어졌으면 그릴 수 없다) 주석에 모양이 적혀 있을 때만 그린다. 없으면 왼쪽 칸이 줄 전체를 쓴다.
+        const drawn = !plain && length !== null && examples.length > 0
         return (
           <button
             key={t.name}
@@ -185,7 +177,7 @@ export function BorderList({
             onClick={(e) => !reorder.justDragged() && onSelect(t.name, isAdditive(e))}
             onDoubleClick={() => onRename(t.name)}
             {...reorder.grab(t.name)}
-            className={`group relative flex w-full items-center gap-columns rounded-row px-board-row-x py-board-row-y text-left select-none ${reorder.moving(t.name) ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
+            className={`group relative flex w-full items-center gap-columns rounded-row px-board-row-x py-board-row-y text-left select-none ${reorder.moving(t.name) ? 'opacity-dragging' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
           >
             {reorder.line(t.name)}
             <span className={drawn ? 'w-row-name shrink-0' : 'min-w-0 flex-1'}>
@@ -204,8 +196,8 @@ export function BorderList({
             {/* 쓰임이 여럿인 값은 예시도 여럿이다. 위아래로 8px 띄워 쌓는다. */}
             {drawn && (
               <span className="block min-w-0 flex-1 space-y-blocks">
-                {[{ shape, words }, ...more].map((e, k) => (
-                  <BorderSample key={k} shape={e.shape} value={length} around={around} tint={tint} words={e.words} />
+                {examples.map((e, k) => (
+                  <BorderSample key={k} shape={e.shape} value={length} colors={colors} words={e.words} />
                 ))}
               </span>
             )}
@@ -270,7 +262,7 @@ export function BorderInspector({
 }) {
   const id = kind.id as BorderKind
   const short = shortName(kind, token.name)
-  const { text, picked, words, more } = readBorderNote(id, token.note, short)
+  const { text, picked, words, more } = readBorderNote(id, token.note)
   const [nameDraft, setNameDraft] = useState(short)
   const [nameError, setNameError] = useState<string | null>(null)
   const [textDraft, setTextDraft] = useState(text)

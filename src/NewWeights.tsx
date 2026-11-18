@@ -275,7 +275,7 @@ export function NewWeightsForm({
                   </span>
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span data-line={s.name} className={`block w-fit max-w-full truncate rounded-small outline-offset-2 outline-selection ${hot === s.name ? 'outline-mark' : ''}`} style={{ ...type, fontWeight: s.weight }}>
+                  <span data-line={s.name} className={`block w-fit max-w-full truncate rounded-small outline-offset-[2px] outline-selection ${hot === s.name ? 'outline-mark' : ''}`} style={{ ...type, fontWeight: s.weight }}>
                     {LINE}
                   </span>
                 </span>
