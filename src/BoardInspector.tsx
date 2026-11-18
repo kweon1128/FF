@@ -73,7 +73,7 @@ export function NumberField({
     // 이름표와 숫자를 한 칸 안에 나란히 둔다. 이름표가 길어도 숫자와 겹치지 않는다.
     <label
       title={label}
-      className={`flex h-8 min-w-0 items-center gap-row-gap rounded-md border border-hairline px-input-x focus-within:border-selection ${
+      className={`flex h-8 min-w-0 items-center gap-row-inner rounded-md border border-hairline px-input-x focus-within:border-selection ${
         readOnly ? 'bg-hover' : 'bg-canvas'
       }`}
     >

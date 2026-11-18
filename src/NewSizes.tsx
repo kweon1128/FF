@@ -655,7 +655,7 @@ export function NewSizesForm({
                     role="radio"
                     aria-checked={f.name === fontName}
                     onClick={() => setFontName(f.name)}
-                    className={`flex h-8 w-full items-center gap-row-gap rounded-md px-row-x text-left type-body outline-selection focus-visible:outline-2 ${
+                    className={`flex h-8 w-full items-center gap-row-inner rounded-md px-row-x text-left type-body outline-selection focus-visible:outline-2 ${
                       f.name === fontName ? 'bg-selection-soft' : 'hover:bg-hover'
                     }`}
                   >
@@ -680,12 +680,12 @@ export function NewSizesForm({
               data-step={s.name}
               onMouseEnter={() => setHot(s.name)}
               onMouseLeave={() => setHot(null)}
-              className="flex items-center gap-grid"
+              className="flex items-center gap-cells"
             >
               {/* 마우스를 올렸을 때의 회색 바탕은 이름, 값, 쓰이는 곳까지만 덮는다(높이 32px). 줄 전체를 덮으면 견본 문장의 크기에 따라 줄마다 높이가 달라진다.
                   견본 문장은 바탕 밖에 두고, 화면 예시의 글자처럼 1px 선을 둘러 표시한다.
                   바탕의 좌우 여백은 그 끝에 놓인 것의 위아래 여백과 같게 한다. 왼쪽 끝은 이름 칸(24px, 위아래 4px)이라 4px, 오른쪽 끝은 쓰이는 곳의 글자(줄 높이 16px, 위아래 8px)라 8px. */}
-              <span data-hot={hot === s.name || undefined} className={`-ml-chip-x flex h-8 shrink-0 items-center gap-grid rounded-md pr-row-x pl-chip-x ${hot === s.name ? 'bg-hover' : ''}`}>
+              <span data-hot={hot === s.name || undefined} className={`-ml-chip-x flex h-8 shrink-0 items-center gap-cells rounded-md pr-row-x pl-chip-x ${hot === s.name ? 'bg-hover' : ''}`}>
               {/* 이름은 미리 채워져 있고, 다른 이름을 쓰고 싶을 때만 고친다. */}
               <StepName label={`${s.name} 이름`} value={nameOf(s.name)} onChange={(name) => setNames({ ...names, [s.name]: name })} />
               {/* 크기, 줄 높이, 글자 사이는 단계마다 직접 고칠 수 있다(본문 줄의 크기 칸은 왼쪽의 본문 크기와 같은 값이다). 줄 높이와 글자 사이는 고친 크기에 맞춰 따라오고, 직접 고친 것은 따라가지 않는다. */}
@@ -751,7 +751,7 @@ export function NewSizesForm({
         </div>
         {/* 이 크기들이 실제로 들어가는 것들. 높이가 정해진 상자 안에 글이 놓이는 버튼, 칩, 뱃지, 입력칸은 위아래 가운데가 조금만 어긋나도 눈에 띈다.
             상자의 높이는 그 크기의 줄 높이에 위아래 여백을 더한 것이라, 줄 높이를 바꾸면 함께 바뀐다. */}
-        <div data-examples className="mt-blocks grid shrink-0 grid-cols-[84px_repeat(5,minmax(0,1fr))] items-start gap-x-columns gap-y-grid rounded-md border border-hairline px-section-x py-section-y">
+        <div data-examples className="mt-blocks grid shrink-0 grid-cols-[84px_repeat(5,minmax(0,1fr))] items-start gap-x-columns gap-y-cells rounded-md border border-hairline px-section-x py-section-y">
           {/* 머리 줄: 열마다의 종류. */}
           <span />
           {EXAMPLE_ROWS.map((kind) => (
@@ -787,7 +787,7 @@ export function NewSizesForm({
                         className={`inline-flex items-center outline-offset-2 outline-selection ${hot === size ? 'outline-1' : ''} ${cell.box}`}
                         style={{ fontFamily: font, fontSize: step.size, lineHeight: step.line, letterSpacing: step.track ?? undefined, fontWeight: kind.weight, height: parseFloat(step.line) + cell.pad * 2, paddingInline: Math.round(((parseFloat(step.line) + cell.pad * 2) * kind.side) / 2) * 2 }}
                       >
-                        {kind.icon && <CheckIcon size={size === 'xs' ? 14 : 16} strokeWidth={2} className="mr-button-icon shrink-0" />}
+                        {kind.icon && <CheckIcon size={size === 'xs' ? 14 : 16} strokeWidth={2} className="mr-button-inner shrink-0" />}
                         {/* 글자의 자리는 손대지 않는다. 컴포넌트로 내보낼 때와 같이 줄 상자를 상자 가운데에 놓을 뿐이라, 아래에 적는 숫자가 실제 결과물의 것이다. */}
                         <span data-ex={`${kind.id}:${size}`}>{kind.text}</span>
                       </span>

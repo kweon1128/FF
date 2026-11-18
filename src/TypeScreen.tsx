@@ -113,7 +113,7 @@ export function TypeScreen({ T, has = () => true }: { T: ComponentType<SlotProps
         )}
         <div className="mt-settings grid grid-cols-2 gap-columns">
           <div className="flex flex-col rounded-lg border border-hairline p-board">
-            <div className="flex items-baseline justify-between gap-grid">
+            <div className="flex items-baseline justify-between gap-cells">
               <T use="title-sm" as="h3">
                 한라봉 선물세트
               </T>
@@ -139,10 +139,10 @@ export function TypeScreen({ T, has = () => true }: { T: ComponentType<SlotProps
               </T>
             </div>
             <div className="mt-auto flex gap-actions pt-settings">
-              <T use="button" className="inline-flex rounded-md border border-ink bg-ink px-button-x py-blocks text-white">
+              <T use="button" className="inline-flex rounded-md border border-ink bg-ink px-button-x py-box text-white">
                 배송 준비
               </T>
-              <T use="button" className="inline-flex rounded-md border border-hairline px-button-x py-blocks">
+              <T use="button" className="inline-flex rounded-md border border-hairline px-button-x py-box">
                 주문 보기
               </T>
             </div>
@@ -156,7 +156,7 @@ export function TypeScreen({ T, has = () => true }: { T: ComponentType<SlotProps
               <T use="label" as="p" className="mb-label text-ink-soft">
                 받는 분
               </T>
-              <T use="body" as="p" className="rounded-md border border-hairline px-input-x py-blocks">
+              <T use="body" as="p" className="rounded-md border border-hairline px-input-x py-box">
                 김하늘
               </T>
               <T use="caption" as="p" className="mt-blocks text-ink-faint">
@@ -165,7 +165,7 @@ export function TypeScreen({ T, has = () => true }: { T: ComponentType<SlotProps
             </div>
             <div className="mt-auto pt-settings">
               {/* 옆 카드의 버튼과 같은 크기다. 나란한 카드의 버튼은 크기가 같아야 아랫선과 높이가 함께 맞는다. */}
-              <T use="button" className="inline-flex rounded-md border border-ink bg-ink px-button-x py-blocks text-white">
+              <T use="button" className="inline-flex rounded-md border border-ink bg-ink px-button-x py-box text-white">
                 배송지 저장
               </T>
             </div>
@@ -175,7 +175,7 @@ export function TypeScreen({ T, has = () => true }: { T: ComponentType<SlotProps
 
       {/* 받은 분이 남긴 말. 카드 안에 두면 카드 제목과 크기가 맞먹어 위계가 흐려지므로 화면의 한 묶음으로 따로 둔다.
           혼자 떠 있지 않게, 누가 무엇을 두고 한 말인지를 바로 아래에 붙인다(8px). 왼쪽 선이 둘을 한 덩어리로 묶는다. */}
-      <div className="mt-groups space-y-blocks border-l-2 border-hairline pl-board-row">
+      <div className="mt-groups space-y-blocks border-l-2 border-hairline pl-sample">
         <T use="quote" as="p">
           상자를 열자마자 향이 달랐어요.
           <br />
@@ -237,14 +237,14 @@ export function ShortScreen({ T, has = () => true }: { T: ComponentType<SlotProp
         <T use="label" as="p" className="mt-settings mb-label text-ink-soft">
           받는 분
         </T>
-        <T use="body" as="p" className="rounded-md border border-hairline px-input-x py-blocks">
+        <T use="body" as="p" className="rounded-md border border-hairline px-input-x py-box">
           김하늘
         </T>
         <div className="mt-settings flex gap-actions">
-          <T use="button" className="inline-flex rounded-md border border-ink bg-ink px-button-x py-blocks text-white">
+          <T use="button" className="inline-flex rounded-md border border-ink bg-ink px-button-x py-box text-white">
             배송 준비
           </T>
-          <T use="button" className="inline-flex rounded-md border border-hairline px-button-x py-blocks">
+          <T use="button" className="inline-flex rounded-md border border-hairline px-button-x py-box">
             주문 보기
           </T>
         </div>

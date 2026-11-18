@@ -64,7 +64,7 @@ export function ComponentScreen({
   return (
     <div className="mx-auto max-w-[960px]">
       {/* 이름 줄. 종류와 크기를 추가하는 버튼은 격자 끝의 점선 상자가 아니라 여기에 둔다. 크기는 모든 종류가 함께 쓰므로 종류마다 두지 않는다. */}
-      <div className="mb-head flex h-8 items-center justify-between">
+      <div className="mb-header flex h-8 items-center justify-between">
         <h1 className="type-title">{comp.name}</h1>
         <span className="flex gap-actions-tight">
           <Button variant="ghost" onClick={onAddVariant}>
@@ -88,20 +88,20 @@ export function ComponentScreen({
       <div className="mt-groups space-y-groups">
         {comp.variants.map((variant, v) => (
           <section key={v}>
-            <h2 className="mb-title type-caption-strong text-ink-faint">
+            <h2 className="mb-heading type-caption-strong text-ink-faint">
               <span data-variant-name={v} onDoubleClick={() => onRenameVariant(v)}>
                 {variant.name}
               </span>
             </h2>
-            <div className="space-y-grid">
+            <div className="space-y-cells">
               {comp.sizes.map((size, s) => (
-                <div key={s} className="flex items-start gap-grid">
+                <div key={s} className="flex items-start gap-cells">
                   <span className="flex h-24 w-12 shrink-0 items-center type-caption text-ink-soft">
                     <span className="truncate" onDoubleClick={() => onRenameSize(s)}>
                       {size.name}
                     </span>
                   </span>
-                  <div className="grid min-w-0 flex-1 grid-cols-4 gap-grid">
+                  <div className="grid min-w-0 flex-1 grid-cols-4 gap-cells">
                     {STATES.map(({ id, label }) => {
                       const here = { v, s, state: id }
                       const isSelected = cells.some((c) => c.v === v && c.s === s && c.state === id)

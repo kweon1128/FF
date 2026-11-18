@@ -51,7 +51,7 @@ const SECTIONS: { title?: string; items: Item[] }[] = [
   },
 ]
 
-const ROW = 'flex h-8 w-full items-center gap-row-gap rounded-md px-row-x text-left'
+const ROW = 'flex h-8 w-full items-center gap-row-inner rounded-md px-row-x text-left'
 const IDLE = 'type-menu text-ink-soft hover:bg-hover hover:text-ink'
 
 export function Nav({
@@ -107,7 +107,7 @@ export function Nav({
                       onClick={() => onShow(id)}
                       className={MARK}
                     >
-                      <EyeOff size={14} strokeWidth={1.5} />
+                      <EyeOff size={16} strokeWidth={1.5} />
                     </button>
                   ) : locked.includes(id) ? (
                     <button
@@ -117,7 +117,7 @@ export function Nav({
                       onClick={() => onUnlock(id)}
                       className={MARK}
                     >
-                      <Lock size={14} strokeWidth={1.5} />
+                      <Lock size={16} strokeWidth={1.5} />
                     </button>
                   ) : null}
 

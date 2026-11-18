@@ -337,7 +337,7 @@ const NOTE = new RegExp(`^(${TYPE_USES.map((u) => u.label).join('|')})(?:\\((${T
 /** 예시 하나. 어떤 자리에 놓을지(모양)와 그 안에 적을 말(문구. 비어 있으면 모양의 기본 문구). */
 export type TypeExample = { shape: TypeShape; words: string }
 
-const SHAPE_HEAD = new RegExp(`^(${TYPE_SHAPES.map((u) => u.label).join('|')})\s*:\s*(.*)$`)
+const SHAPE_HEAD = new RegExp(`^(${TYPE_SHAPES.map((u) => u.label).join('|')})\\s*:\\s*(.*)$`)
 
 /**
  * 주석에서 묶음, 예시의 모양, 설명을 읽는다. "제목: 화면의 제목"처럼 묶음으로 시작하지 않으면 주석 전체가 설명이고 묶음은 이름에서 짐작한다.

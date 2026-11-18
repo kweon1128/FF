@@ -23,6 +23,7 @@ import {
   lineName,
   trackName,
   markRoles,
+  SPACE_REF,
   PLACEHOLDER_SCREENS,
   SLUG,
   TOKEN_SCREENS,
@@ -58,7 +59,7 @@ import { BatchRename } from './BatchRename'
 import { BoardInspector, ImageInspector } from './BoardInspector'
 import { Canvas, defaultPos, defaultWidth } from './Canvas'
 import { NewRoleForm, RoleInspector } from './Roles'
-import { defaultRoleOrder, moveRole, moveRoleGroup, shiftRoles, refOf, refTo, surroundings, type RoleUse } from './lib/roles'
+import { defaultRoleOrder, moveRole, moveRoleGroup, roleGroups, shiftRoles, refOf, refTo, surroundings, type RoleUse } from './lib/roles'
 import { onFilesChanged } from './lib/watch'
 import { SwatchContext } from './ColorPicker'
 import { PreviewFontContext, PreviewSpaceContext } from './ColorUses'
@@ -72,13 +73,15 @@ import { NewEffectForm } from './NewEffect'
 import { NewFontForm, SampleContext } from './NewFont'
 import { NewSizesForm } from './NewSizes'
 import { NewWeightsForm } from './NewWeights'
-import { TypeInspector } from './Types'
+import { NewTypeForm, TypeInspector } from './Types'
 import { EffectInspector } from './Effects'
 import { isEffectKind } from './lib/effects'
 import { NewSpaceUseForm, SpaceUseInspector, spaceVars } from './Spacing'
-import { autoOrder, defaultFreeOrder, isAutoOrdered, moveException, moveInKind } from './lib/order'
+import type { SpaceUse } from './lib/spacing'
+import { autoOrder, defaultFreeOrder, defaultKindOrder, isAutoOrdered, isFreeKind, moveException, moveInKind, moveKind, moveSpaceGroup, orderKinds, shiftSpaceUses, spaceUseOrder, stepBefore } from './lib/order'
+import { readSpaceNote } from './lib/spacing'
 import { NewTypesForm } from './NewTypes'
-import { defaultTypeOrder, followTypeRefs, moveType, moveTypeGroup, nextType, shiftTypes, syncTypes, typeUsers, withTypeTrack, type TypeUse } from './lib/types'
+import { defaultTypeOrder, followTypeRefs, moveType, moveTypeGroup, nextType, shiftTypes, syncTypes, typeGroups, typeUsers, withTypeTrack, type TypeUse } from './lib/types'
 import { nextPreset, nextSize, nextSizeName, nextVariantName, stepUp, type SizeStep } from './lib/presets'
 import { loadFont, loadSystemFonts, parseFontValue } from './lib/fonts'
 import { NewSystemForm } from './NewSystem'
@@ -90,6 +93,8 @@ import { TopBar, type SaveStatus } from './TopBar'
 import { Button, EmptyState, Field, Modal, inputClass } from './ui'
 
 const LAST_SYSTEM_KEY = 'ff.system'
+/** 줄마다 설명과 예시가 있어서 접을 수 있는 판(의미 색과 색상 판은 접기가 따로 있다). */
+const FOLDABLE: string[] = ['style', 'spaceuse', 'effect']
 const SAVE_DELAY = 300
 const COLOR = KINDS.color
 const ROLE = KINDS.role
@@ -233,6 +238,25 @@ export function App() {
     }
   }, [system])
 
+  // 의미 글꼴, 의미 간격, 효과 판을 접었는지(판의 이름 → 접음). 접으면 설명과 예시를 숨기고 이름과 값만 보여 준다. 판마다 따로 기억한다.
+  const [plainBoards, setPlainBoards] = useState<Record<string, boolean>>({})
+  useEffect(() => {
+    try {
+      setPlainBoards(JSON.parse(localStorage.getItem(`ff.plainBoards.${system}`) ?? '{}'))
+    } catch {
+      setPlainBoards({})
+    }
+  }, [system])
+  function togglePlain(id: string) {
+    const next = { ...plainBoards, [id]: !plainBoards[id] }
+    setPlainBoards(next)
+    try {
+      localStorage.setItem(`ff.plainBoards.${system}`, JSON.stringify(next))
+    } catch {
+      // 저장소를 못 쓰면 접은 상태를 기억하지 않는다.
+    }
+  }
+
   function toggleRolesFold() {
     setRolesFolded(!rolesFolded)
     try {
@@ -280,6 +304,8 @@ export function App() {
   const [addingEffect, setAddingEffect] = useState<Kind | null>(null)
   // 의미 간격을 만드는 창이 떠 있는지.
   const [addingSpaceUse, setAddingSpaceUse] = useState(false)
+  // 의미 글꼴을 만드는 창이 떠 있는지.
+  const [addingType, setAddingType] = useState(false)
   const [addingRole, setAddingRole] = useState(false)
   const [addingFont, setAddingFont] = useState(false)
   const [makingSizes, setMakingSizes] = useState(false)
@@ -654,9 +680,9 @@ export function App() {
     if (kind.id === 'spaceuse') return setAddingSpaceUse(true)
     // 의미 글꼴은 기본 한 벌 가운데 아직 없는 것이 차례로 생긴다. 짝지을 재료(글꼴 종류, 글자 크기, 굵기)가 모자라면 무엇을 먼저 만들지 알리는 창을 연다.
     if (kind.id === 'style') {
-      const made = nextType(tokens)
-      if (!made) return setMakingTypes(true)
-      return insert(made, (t) => t.name.startsWith(STYLE.prefix))
+      // 짝지을 재료가 모자라면 한 벌 만들기 창이 무엇을 먼저 만들지 알린다. 재료가 있으면 이름과 조합, 묶음을 묻는 창을 연다(다른 의미 판의 추가와 같다).
+      if (!nextType(tokens)) return setMakingTypes(true)
+      return setAddingType(true)
     }
 
     if (kind.id === 'color' && group) {
@@ -720,11 +746,14 @@ export function App() {
     select(made.map((t) => t.name))
   }
 
-  /** 이름이 바뀐 색을 가리키던 의미 색이 새 이름을 따라가게 한다. */
+  /** 이름이 바뀐 색을 가리키던 의미 색, 이름이 바뀐 간격을 가리키던 의미 간격이 새 이름을 따라가게 한다. */
   function followRefs(list: Token[], renames: Record<string, string>) {
     return list.map((t) => {
       const ref = refOf(t.value)
-      return ref && renames[ref] ? { ...t, value: refTo(renames[ref]) } : t
+      if (ref && renames[ref]) return { ...t, value: refTo(renames[ref]) }
+      // 의미 간격도 가리키는 간격의 새 이름을 따라간다.
+      const space = SPACE_REF.exec(t.value)?.[1]
+      return space && renames[space] ? { ...t, value: `var(${renames[space]})` } : t
     })
   }
 
@@ -885,8 +914,6 @@ export function App() {
    * 색들을 목록별로 모아 순서를 바꾼 뒤, 원래 색이 있던 자리들에 차례로 다시 채운다.
    */
   function moveGroup(group: string, dir: 1 | -1) {
-    // 예외 색 목록은 항상 맨 아래에 있고, 다른 목록의 순서를 셀 때도 끼지 않는다.
-    if (!group) return
     const order = groupOrder()
     const i = order.indexOf(group)
     const j = i + dir
@@ -907,15 +934,15 @@ export function App() {
 
   /** 지금 색 목록들의 순서. 파일에 색이 적힌 순서다. */
   function groupOrder() {
-    return [...new Set(tokens.filter((t) => COLOR.matches(t.name)).map((t) => groupOf(shortName(COLOR, t.name))))].filter(Boolean)
+    // 예외 색 목록('')도 색이 있으면 다른 목록과 같이 차례에 낀다.
+    return [...new Set(tokens.filter((t) => COLOR.matches(t.name)).map((t) => groupOf(shortName(COLOR, t.name))))]
   }
 
   /** 색 목록의 순서를 바꾼다. 색들을 목록별로 모아 새 순서로 늘어놓고, 원래 색이 있던 자리들에 차례로 다시 채운다. */
   function setGroupOrder(order: string[]) {
     if (order.join('\n') === groupOrder().join('\n')) return
     const colors = tokens.filter((t) => COLOR.matches(t.name))
-    // 예외 색은 파일에서도 맨 뒤에 둔다.
-    const sorted = [...order, ''].flatMap((g) => colors.filter((t) => groupOf(shortName(COLOR, t.name)) === g))
+    const sorted = order.flatMap((g) => colors.filter((t) => groupOf(shortName(COLOR, t.name)) === g))
     let k = 0
     commit(tokens.map((t) => (COLOR.matches(t.name) ? sorted[k++] : t)))
   }
@@ -950,6 +977,8 @@ export function App() {
       ...typeUsers(tokens, n)
         .filter((u) => !names.includes(u))
         .map((u) => shortName(STYLE, u)),
+      // 이 간격을 가리키는 의미 간격도 함께 센다.
+      ...tokens.filter((t) => !names.includes(t.name) && SPACE_REF.exec(t.value)?.[1] === n).map((t) => shortName(KINDS.spaceUse, t.name)),
     ]
     const used = names.filter((n) => usesOf(comps, n).length > 0 || rolesOf(n).length > 0)
     if (used.length === 0) return removeTokens(names)
@@ -1122,7 +1151,7 @@ export function App() {
         .filter((t) => COLOR.matches(t.name) && t.name.startsWith(head) && groupOf(shortName(COLOR, t.name)) === from)
         .map((t) => [t.name, `${COLOR.prefix}${to}-${t.name.slice(head.length)}`]),
     )
-    if (Object.values(moved).some((name) => tokens.some((t) => t.name === name))) return '같은 이름의 색이 이미 있어요.'
+    if (Object.values(moved).some((name) => tokens.some((t) => t.name === name))) return '같은 이름이 이미 있어요.'
     renameMany(moved)
     return null
   }
@@ -1224,13 +1253,14 @@ export function App() {
     if (isTyping(e.target) || document.querySelector('[role="dialog"]') || !system) return
     if (screen !== 'canvas' && !isTokenScreen(screen)) return
     if (e.type === 'copy') {
-      const picked = tokens.filter((t) => selected.includes(t.name))
+      // 값에 딸린 것(글자 크기의 줄 높이와 글자 사이처럼 이름이 "값의 이름--…"인 것)도 함께 담는다. 복제(Ctrl+D)와 같다.
+      const picked = tokens.filter((t) => selected.includes(t.name) || selected.some((n) => t.name.startsWith(n + '--')))
       // 화면의 글자를 긁어서 복사하는 중이면 그대로 둔다.
       if (picked.length === 0 || window.getSelection()?.toString()) return
       lastCopied.current = toCss(picked)
       e.clipboardData?.setData('text/plain', lastCopied.current)
       e.preventDefault()
-      return notify(`값 ${picked.length}개를 복사했어요.`)
+      return notify(`값 ${picked.filter((t) => selected.includes(t.name)).length}개를 복사했어요.`)
     }
     // 사진을 붙이면 캔버스에 놓는다.
     const picture = [...(e.clipboardData?.files ?? [])].find((f) => f.type.startsWith('image/'))
@@ -1415,12 +1445,38 @@ export function App() {
       if (screen === 'components' || selected.length === 0) return
       e.preventDefault()
       const dir = e.code === 'BracketRight' ? 1 : -1
-      // 한 색 목록을 통째로 골랐으면 목록을 위아래로 옮기고, 아니면 고른 값을 묶음 안에서 옮긴다.
+      // 끌어서 옮길 수 있는 것은 단축키로도 옮긴다. 묶음을 통째로(그리고 그것만) 골랐으면 그 묶음을, 아니면 고른 값을 묶음 안에서 옮긴다.
+      // 묶음의 제목을 누르면 그 묶음이 통째로 골라지므로, 제목을 누르고 단축키를 누르면 묶음이 옮겨진다.
+      const picked = new Set(selected)
+      const whole = (items: Token[]) => items.length > 0 && items.length === picked.size && items.every((t) => picked.has(t.name))
+      const roleGroup = roleGroups(tokens).find((g) => whole(g.items))
+      const typeGroup = typeGroups(tokens).find((g) => whole(g.items))
+      const spaceUses = tokens.filter((t) => KINDS.spaceUse.matches(t.name))
+      const spaceGroup = spaceUseOrder(tokens).find((u) => whole(spaceUses.filter((t) => readSpaceNote(t.note, shortName(KINDS.spaceUse, t.name)).use === u)))
+      // 종류가 여럿인 판에서 한 종류의 값을 통째로 골랐으면 그 종류를 옮긴다.
+      const board = TOKEN_SCREEN_IDS.map((id) => TOKEN_SCREENS[id].kinds).find((kinds) => kinds.length > 1 && kinds.some((k) => whole(tokens.filter((t) => k.matches(t.name)))))
+      const wholeKind = board?.find((k) => whole(tokens.filter((t) => k.matches(t.name))))
       if (movableGroup !== null) moveGroup(movableGroup, dir)
+      else if (roleGroup) {
+        const before = stepBefore(roleGroups(tokens).map((g) => g.use), roleGroup.use, dir)
+        if (before !== undefined) commitIfMoved(moveRoleGroup(tokens, roleGroup.use, before))
+      } else if (typeGroup) {
+        const before = stepBefore(typeGroups(tokens).map((g) => g.use), typeGroup.use, dir)
+        if (before !== undefined) commitIfMoved(moveTypeGroup(tokens, typeGroup.use, before))
+      } else if (spaceGroup) {
+        const before = stepBefore(spaceUseOrder(tokens), spaceGroup, dir)
+        if (before !== undefined) commitIfMoved(moveSpaceGroup(tokens, spaceGroup, before))
+      } else if (board && wholeKind) {
+        const filled = orderKinds(tokens, board).filter((k) => tokens.some((t) => k.matches(t.name)))
+        const before = stepBefore(filled, wholeKind, dir)
+        if (before !== undefined) commitIfMoved(moveKind(tokens, board, wholeKind, before))
+      }
       // 의미 색은 같은 역할 묶음 안에서만 옮긴다(파일에서 이웃한 다른 묶음의 색과 자리를 바꾸지 않는다).
       else if (selected.every((n) => ROLE.matches(n))) commitIfMoved(shiftRoles(tokens, selected, dir))
       // 의미 글꼴도 같은 묶음 안에서만 옮긴다.
       else if (selected.every((n) => STYLE.matches(n))) commitIfMoved(shiftTypes(tokens, selected, dir))
+      // 의미 간격도 같은 묶음 안에서만 옮긴다.
+      else if (selected.every((n) => KINDS.spaceUse.matches(n))) commitIfMoved(shiftSpaceUses(tokens, selected, dir))
       // 차례가 값의 크기로 정해지는 값(글자 크기, 간격, 색 목록 안의 단계…)은 옮기지 않는다.
       else if (selectedTokens.some(isAutoOrdered)) return
       else commit(shiftTokens(tokens, selected, dir))
@@ -1491,6 +1547,8 @@ export function App() {
     // 색상 판에서 끌어 옮기는 낱개 색은 예외 색뿐이다(목록 안의 단계는 숫자순으로 저절로 놓인다).
     onMoveInKind: (kind: Kind, name: string, before: string | null) =>
       commitIfMoved(kind.id === 'color' ? moveException(tokens, name, before) : moveInKind(tokens, kind, name, before)),
+    onMoveKind: (kinds: Kind[], kind: Kind, before: Kind | null) => commitIfMoved(moveKind(tokens, kinds, kind, before)),
+    onMoveSpaceGroup: (use: SpaceUse, before: SpaceUse | null) => commitIfMoved(moveSpaceGroup(tokens, use, before)),
     resetOf: (kind: Kind) => {
       const next = defaultFreeOrder(tokens, kind)
       return next === tokens ? undefined : () => commit(next)
@@ -1588,7 +1646,12 @@ export function App() {
         { id: 'a:bare', group: '명령', label: bare ? '메뉴와 패널 보이기' : '메뉴와 패널 숨기기', hint: 'Ctrl+\\', run: toggleBare },
         { id: 'a:group', group: '명령', label: '색 목록 추가', run: () => setAddingGroup(true) },
         { id: 'a:role', group: '명령', label: '의미 색 추가', run: () => setAddingRole(true) },
+        { id: 'a:solo', group: '명령', label: '예외 색 추가', run: () => setAddingSolo(true) },
         { id: 'a:font', group: '명령', label: '글꼴 종류 추가', run: () => setAddingFont(true) },
+        { id: 'a:spaceuse', group: '명령', label: '의미 간격 추가', run: () => setAddingSpaceUse(true) },
+        { id: 'a:shadow', group: '명령', label: '그림자 추가', run: () => setAddingEffect(KINDS.shadow) },
+        { id: 'a:opacity', group: '명령', label: '투명도 추가', run: () => setAddingEffect(KINDS.opacity) },
+        { id: 'a:blur', group: '명령', label: '흐림 추가', run: () => setAddingEffect(KINDS.blur) },
         { id: 'a:sizes', group: '명령', label: '글자 크기 한 벌 만들기', run: () => setMakingSizes(true) },
         { id: 'a:weights', group: '명령', label: '굵기 한 벌 만들기', run: () => setMakingWeights(true) },
         { id: 'a:types', group: '명령', label: '의미 글꼴 한 벌 만들기', run: () => setMakingTypes(true) },
@@ -1702,7 +1765,7 @@ export function App() {
                 content: (
                   <>
                     {id === 'color' && (
-                      <div className="mb-head flex justify-end">
+                      <div className="mb-header flex justify-end">
                         <AddColorButtons
                           onAddGroup={sectionProps.onAddGroup}
                           folded={folded}
@@ -1712,20 +1775,33 @@ export function App() {
                       </div>
                     )}
                     {id === 'role' && (
-                      <div className="mb-head flex justify-end gap-actions">
+                      <div className="mb-header flex justify-end gap-actions-tight">
                         <ResetButton
                           title="묶음과 그 안의 색을 기본 순서로 돌려놓아요"
                           onReset={rolesSorted ? () => commit(rolesSorted) : undefined}
                         />
                         <FoldButton folded={rolesFolded} title="설명과 예시를 모두 숨기거나 보여요" onToggle={toggleRolesFold} />
                         {/* 의미 색을 추가한다. 목록 끝의 점선 상자 대신, 색상 판의 "목록 추가"처럼 판 위에 둔다. */}
-                        <Button aria-label="의미 색 추가" onClick={() => setAddingRole(true)}>
+                        <Button variant="ghost" aria-label="의미 색 추가" onClick={() => setAddingRole(true)}>
                           <Plus size={16} strokeWidth={1.5} />
                           추가
                         </Button>
                       </div>
                     )}
-                    <KindSections kinds={TOKEN_SCREENS[id].kinds} {...sectionProps} />
+                    {/* 종류가 여럿인 판(글꼴, 효과, 화면 크기, 움직임)은 종류의 차례를 끌어서 바꿀 수 있다. 헝클어졌을 때 돌아갈 "원래대로"를 판 위에 하나 둔다. */}
+                    {TOKEN_SCREENS[id].kinds.length > 1 &&
+                      (() => {
+                        // "원래대로"는 판마다 하나다. 종류의 차례와, 손으로 바꿀 수 있는 종류 안의 값의 차례를 한 번에 돌려놓는다.
+                        const kinds = TOKEN_SCREENS[id].kinds
+                        const next = kinds.filter(isFreeKind).reduce((list, kind) => defaultFreeOrder(list, kind), defaultKindOrder(tokens, kinds))
+                        return (
+                          <div className="mb-header flex justify-end gap-actions-tight">
+                            <ResetButton title="종류와 그 안의 차례를 기본 순서로 돌려놓아요" onReset={next === tokens ? undefined : () => commit(next)} />
+                            {FOLDABLE.includes(id) && <FoldButton folded={!!plainBoards[id]} title="설명과 예시를 모두 숨기거나 보여요" onToggle={() => togglePlain(id)} />}
+                          </div>
+                        )
+                      })()}
+                    <KindSections kinds={TOKEN_SCREENS[id].kinds} {...sectionProps} {...(FOLDABLE.includes(id) ? { detailsFolded: !!plainBoards[id], onToggleDetails: () => togglePlain(id) } : {})} />
                   </>
                 ),
               }))}
@@ -1745,7 +1821,7 @@ export function App() {
               <EmptyState title="불러오지 못했어요" body={loadError} />
             ) : systems === null ? null : !system ? (
               <div className="mx-auto mt-groups w-[360px] rounded-lg border border-hairline bg-canvas p-dialog">
-                <p className="mb-head type-title">첫 디자인 시스템을 만들어 보세요</p>
+                <p className="mb-header type-title">첫 디자인 시스템을 만들어 보세요</p>
                 <NewSystemForm
                   onCreated={(name) => {
                     setSystems((list) => [...(list ?? []), name].sort())
@@ -1767,7 +1843,7 @@ export function App() {
                 />
               ) : (
                 <div className="mx-auto max-w-[960px]">
-                  <h1 className="mb-head flex h-8 items-center type-title">컴포넌트</h1>
+                  <h1 className="mb-header flex h-8 items-center type-title">컴포넌트</h1>
                   <div className="rounded-lg border border-hairline bg-canvas">
                     <EmptyState title="첫 컴포넌트를 만들어 보세요">
                       <Button onClick={() => setAddingComp(true)}>
@@ -1780,7 +1856,7 @@ export function App() {
               )
             ) : screen !== 'canvas' ? (
               <div className="mx-auto max-w-[960px]">
-                <h1 className="mb-head flex h-8 items-center type-title">{PLACEHOLDER_SCREENS[screen].title}</h1>
+                <h1 className="mb-header flex h-8 items-center type-title">{PLACEHOLDER_SCREENS[screen].title}</h1>
                 <div className="rounded-lg border border-hairline bg-canvas">
                   <EmptyState title="다음 단계에서 만들 화면이에요" />
                 </div>
@@ -1916,7 +1992,11 @@ export function App() {
               }}
               uses={usesOf(comps, selectedTokens[0].name)}
               onOpenComponent={openComp}
-              roles={[...tokens.filter((t) => refOf(t.value) === selectedTokens[0].name).map((t) => t.name), ...typeUsers(tokens, selectedTokens[0].name)]}
+              roles={[
+                ...tokens.filter((t) => refOf(t.value) === selectedTokens[0].name).map((t) => t.name),
+                ...typeUsers(tokens, selectedTokens[0].name),
+                ...tokens.filter((t) => SPACE_REF.exec(t.value)?.[1] === selectedTokens[0].name).map((t) => t.name),
+              ]}
               onOpenToken={goToken}
               onCopy={(text) => copyText(text, '코드를 복사했어요.')}
               onPickColor={pickColor}
@@ -1968,6 +2048,19 @@ export function App() {
             why={takenWhy}
             onCancel={() => setAddingSolo(false)}
             onCreate={addSolo}
+          />
+        </Modal>
+      )}
+
+      {addingType && (
+        <Modal title="의미 글꼴 추가" onClose={() => setAddingType(false)}>
+          <NewTypeForm
+            tokens={tokens}
+            onCancel={() => setAddingType(false)}
+            onCreate={(name, value, note) => {
+              setAddingType(false)
+              insert({ name, value, note }, (t) => t.name.startsWith(STYLE.prefix))
+            }}
           />
         </Modal>
       )}
@@ -2087,7 +2180,7 @@ export function App() {
       {notice && (
         <div
           role="status"
-          className="pointer-events-none fixed bottom-6 left-1/2 z-50 flex h-8 -translate-x-1/2 items-center rounded-md bg-ink px-bar-x type-body whitespace-nowrap text-white shadow-float"
+          className="pointer-events-none fixed bottom-6 left-1/2 z-50 flex h-8 -translate-x-1/2 items-center rounded-md bg-ink px-bar-x type-body whitespace-nowrap text-on-primary shadow-float"
         >
           {notice}
         </div>

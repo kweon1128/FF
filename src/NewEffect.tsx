@@ -33,7 +33,7 @@ export function NewEffectForm({
   function submit(e: FormEvent) {
     e.preventDefault()
     const n = name.trim()
-    const problem = !n ? '이름을 입력해 주세요.' : !SLUG.test(n) ? '영문 소문자, 숫자, 하이픈만 쓸 수 있어요.' : existing.has(n) ? '같은 이름이 이미 있어요.' : undefined
+    const problem = !n ? '이름을 입력해 주세요.' : !SLUG.test(n) ? '영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.' : existing.has(n) ? '같은 이름이 이미 있어요.' : undefined
     setError(problem)
     if (problem) return
     const preset = EFFECT_PRESETS[shape]
@@ -42,7 +42,7 @@ export function NewEffectForm({
 
   return (
     <form onSubmit={submit} className="space-y-fields">
-      <Field label="쓰임">
+      <Field label="쓰임" plain>
         <UsePicker
           label="쓰임"
           options={shapes}

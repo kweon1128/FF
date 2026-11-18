@@ -2,15 +2,15 @@
 // 의미 색·의미 글꼴 판과 같은 짜임이다. 한 줄에 값 하나, 왼쪽에 이름·값·설명, 오른쪽에 그 값이 쓰인 모습.
 
 import { useContext, useState, type ReactNode } from 'react'
-import { Copy, Plus, X } from 'lucide-react'
+import { Plus, X } from 'lucide-react'
 import type { Token } from './lib/api'
 import { SLUG, shortName, type Kind } from './lib/catalog'
 import { EFFECT_WORDS, nextLayer, parseShadow, splitLayers, readEffectNote, writeEffectNote, writeShadow, type EffectKind, type EffectShape, type ShadowLayer } from './lib/effects'
 import { surroundings, type Around } from './lib/roles'
 import { PreviewFontContext, PreviewSpaceContext } from './ColorUses'
-import { CODE_OPEN, FoldSection, ICON_BUTTON, Section, WHERE_OPEN } from './Inspector'
-import { HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
-import { Button, Chip, Field, Phrases, UnitInput, inputClass } from './ui'
+import { CODE_OPEN, CodeRows, FoldSection, ICON_BUTTON, Section, WHERE_OPEN } from './Inspector'
+import { DetailsFolded, HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
+import { Button, Field, Phrases, UnitInput, inputClass } from './ui'
 import { useReorder } from './useReorder'
 
 // 예시의 바탕이 판의 바탕과 같은 색이어도 가장자리가 보이게 하는 옅은 선.
@@ -32,7 +32,7 @@ export function EffectSample({ shape, value, around, words: written = '' }: { sh
   // 그림자는 상자 밖으로 지므로, 잘리지 않게 상자 둘레에 24px을 비워 둔다.
   // 내용은 상자의 가운데에 놓는다. 예시는 읽는 글이 아니라 물건 하나를 보여 주는 것이라, 왼쪽에 붙이면 오른쪽만 비어 덜 만든 것처럼 보인다.
   const frame = (body: ReactNode, roomy = false) => (
-    <span className={`flex w-full items-center justify-center overflow-hidden rounded-md ${roomy ? 'p-board' : 'px-board-row py-board-row'} ${EDGE}`} style={{ ...space, background: around.surface, color: around.ink, fontFamily: font }}>
+    <span className={`flex w-full items-center justify-center overflow-hidden rounded-md ${roomy ? 'p-board' : 'p-sample'} ${EDGE}`} style={{ ...space, background: around.surface, color: around.ink, fontFamily: font }}>
       {body}
     </span>
   )
@@ -120,7 +120,7 @@ export function EffectSample({ shape, value, around, words: written = '' }: { sh
           {bar('w-2/3', 'mt-blocks')}
           {bar('w-1/3', 'mt-blocks')}
           <span data-sample className="absolute -inset-3" style={{ background: around.ink, opacity: value }} />
-          <span className="absolute top-1/2 left-1/2 block h-12 w-24 -translate-x-1/2 -translate-y-1/2 rounded-md p-blocks" style={{ background: around.surface }}>
+          <span className="absolute top-1/2 left-1/2 block h-12 w-24 -translate-x-1/2 -translate-y-1/2 rounded-md p-box" style={{ background: around.surface }}>
             {bar('w-3/4')}
             {bar('w-1/2', 'mt-blocks')}
           </span>
@@ -181,6 +181,8 @@ export function EffectList({
   /** 끌어서 차례를 바꾼다. 효과는 쓰임으로 이름 붙인 값이라 차례를 사람이 정한다. */
   onMove?: (name: string, before: string | null) => void
 }) {
+  // 판을 접었으면 설명과 예시를 숨기고 이름과 값만 보여 준다.
+  const plain = useContext(DetailsFolded)
   const reorder = useReorder(items.map((t) => t.name), onMove)
   // 값이 없으면 빈 상자를 남기지 않는다. 추가는 묶음 제목 줄의 버튼으로 한다.
   if (items.length === 0) return null
@@ -202,7 +204,7 @@ export function EffectList({
             onClick={(e) => !reorder.justDragged() && onSelect(t.name, isAdditive(e))}
             onDoubleClick={() => onRename(t.name)}
             {...reorder.grab(t.name)}
-            className={`group relative flex w-full items-center gap-columns rounded-md px-board-row py-board-row-y text-left select-none ${reorder.moving(t.name) ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
+            className={`group relative flex w-full items-center gap-columns rounded-md px-board-row-x py-board-row-y text-left select-none ${reorder.moving(t.name) ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
           >
             {reorder.line(t.name, i)}
             <span className="w-56 shrink-0">
@@ -220,7 +222,7 @@ export function EffectList({
               ) : (
                 <span className="block type-code-sm break-words text-ink-faint">{shownValue(id, t.value)}</span>
               )}
-              {text && (
+              {!plain && text && (
                 <span className="mt-label block type-caption break-words text-ink-faint">
                   <Phrases text={text} />
                 </span>
@@ -228,7 +230,7 @@ export function EffectList({
             </span>
             {/* 쓰임이 여럿인 값은 예시도 여럿이다. 위아래로 8px 띄워 쌓는다. */}
             <span className="block min-w-0 flex-1 space-y-blocks">
-              {[{ shape, words }, ...more].map((e, k) => (
+              {!plain && [{ shape, words }, ...more].map((e, k) => (
                 <EffectSample key={k} shape={e.shape} value={t.value} around={around} words={e.words} />
               ))}
             </span>
@@ -418,7 +420,7 @@ export function EffectInspector({
     if (!next) return setNameError('이름을 입력해 주세요.')
     if (!SLUG.test(next)) return setNameError('영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.')
     if (next === short) return
-    if (allNames.includes(kind.prefix + next)) return setNameError('같은 이름의 값이 이미 있어요.')
+    if (allNames.includes(kind.prefix + next)) return setNameError('같은 이름이 이미 있어요.')
     onRename(kind.prefix + next)
   }
 
@@ -482,10 +484,10 @@ export function EffectInspector({
               <button
                 type="button"
                 onClick={() => onOpenComponent(u.index)}
-                className="-ml-button-quiet-x flex h-8 max-w-full items-center rounded-md px-button-quiet-x type-label outline-selection hover:bg-hover focus-visible:outline-2"
+                className="-ml-button-ghost-x flex h-8 max-w-full items-center rounded-md px-button-ghost-x type-label outline-selection hover:bg-hover focus-visible:outline-2"
               >
                 <span className="truncate">{u.name}</span>
-                <span className="ml-row-gap shrink-0 type-body text-ink-faint">{u.where.length}곳</span>
+                <span className="ml-row-inner shrink-0 type-body text-ink-faint">{u.where.length}곳</span>
               </button>
               <p className="type-body text-ink-faint">{u.where.join(', ')}</p>
             </div>
@@ -494,34 +496,7 @@ export function EffectInspector({
       </FoldSection>
 
       <FoldSection title="코드" storageKey={CODE_OPEN}>
-        <div className="space-y-blocks">
-          <div>
-            <p className="mb-label type-label text-ink-faint">쓰는 법</p>
-            <div className="space-y-rows">
-              {[
-                { shown: className, label: '클래스 복사' },
-                { shown: `var(${token.name})`, label: '변수 복사' },
-              ].map((row) => (
-                <span key={row.label} className="flex items-center gap-actions-tight">
-                  <span className="min-w-0 flex-1">
-                    <Chip>{row.shown}</Chip>
-                  </span>
-                  <button type="button" title={`${row.shown} 복사`} aria-label={row.label} onClick={() => onCopy(row.shown)} className={ICON_BUTTON}>
-                    <Copy size={16} strokeWidth={1.5} />
-                  </button>
-                </span>
-              ))}
-            </div>
-          </div>
-          <div>
-            <p className="mb-label type-label text-ink-faint">저장된 값</p>
-            <Chip>{token.value}</Chip>
-          </div>
-          <div>
-            <p className="mb-label type-label text-ink-faint">저장 위치</p>
-            <Chip>{file}</Chip>
-          </div>
-        </div>
+        <CodeRows uses={[className, `var(${token.name})`]} value={token.value} file={file} onCopy={onCopy} />
       </FoldSection>
     </div>
   )

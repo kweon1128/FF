@@ -93,11 +93,11 @@ export function BatchRename({
           </Field>
         </div>
 
-        <ul className="mt-fields max-h-[280px] space-y-rows overflow-y-auto rounded-md border border-hairline p-blocks">
+        <ul className="mt-fields max-h-[280px] space-y-rows overflow-y-auto rounded-md border border-hairline p-box">
           {rows.map((r) => {
             const problem = problemOf(r)
             return (
-              <li key={r.old} className="flex items-baseline gap-row-gap type-code">
+              <li key={r.old} className="flex items-baseline gap-row-inner type-code">
                 <span className="min-w-0 flex-1 truncate text-ink-faint">{r.short}</span>
                 <span className="shrink-0 text-ink-faint">→</span>
                 <span className={`min-w-0 flex-1 truncate ${problem ? 'text-danger' : r.full === r.old ? 'text-ink-faint' : 'text-ink'}`}>

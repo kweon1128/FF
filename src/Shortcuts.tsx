@@ -48,6 +48,7 @@ const GROUPS: { title: string; keys: [string, string][] }[] = [
       ['Ctrl+0', '100%'],
       ["Ctrl+'", '1px 격자 켜기 / 끄기 (800% 이상에서 보임)'],
       ['Ctrl+\\', '메뉴와 패널 숨기기'],
+      ['Alt+← / Alt+→', '지나온 자리로 뒤로 / 앞으로'],
       ['Ctrl+K', '빠른 실행'],
       ['Ctrl+Shift+/', '단축키 목록'],
     ],
@@ -67,10 +68,10 @@ export function Shortcuts({ onClose }: { onClose: () => void }) {
       <div className="grid max-h-[70vh] grid-cols-2 gap-groups overflow-y-auto">
         {GROUPS.map((group) => (
           <section key={group.title}>
-            <h3 className="mb-title type-caption-strong">{group.title}</h3>
+            <h3 className="mb-heading type-caption-strong">{group.title}</h3>
             <dl className="space-y-blocks">
               {group.keys.map(([key, what]) => (
-                <div key={key} className="flex items-baseline justify-between gap-grid">
+                <div key={key} className="flex items-baseline justify-between gap-cells">
                   <dt className="text-ink-soft">{what}</dt>
                   <dd className="shrink-0 rounded-sm bg-hover px-chip-x type-caption">{key}</dd>
                 </div>

@@ -941,7 +941,7 @@ export function Canvas({
             >
               <div
                 data-board-handle={board.id}
-                className={`mb-label inline-flex origin-bottom-left items-center gap-button-icon align-top [scale:var(--unzoom)] whitespace-nowrap ${
+                className={`mb-label inline-flex origin-bottom-left items-center gap-button-inner align-top [scale:var(--unzoom)] whitespace-nowrap ${
                   isSelected ? 'type-caption-strong text-selection' : 'type-caption text-ink-faint hover:text-ink'
                 }`}
               >
@@ -1038,7 +1038,7 @@ export function Canvas({
                 const { along, aside } = labelPlace(g)
                 return (
                   <span
-                    className="absolute -translate-x-1/2 -translate-y-1/2 [scale:var(--unzoom)] rounded-xs bg-guide px-chip-x type-caption-strong whitespace-nowrap text-white tabular-nums!"
+                    className="absolute -translate-x-1/2 -translate-y-1/2 [scale:var(--unzoom)] rounded-xs bg-guide px-chip-x type-caption-strong whitespace-nowrap text-on-selection tabular-nums!"
                     style={g.vertical ? { left: aside, top: along } : { left: along, top: aside }}
                   >
                     {g.label}
@@ -1079,14 +1079,14 @@ export function Canvas({
 
       <div
         data-canvas-tools
-        className="absolute right-4 bottom-4 z-30 flex items-center rounded-lg border border-hairline bg-canvas p-menu shadow-float"
+        className="absolute right-4 bottom-4 z-30 flex items-center gap-actions-tight rounded-lg border border-hairline bg-canvas p-menu shadow-float"
         onPointerDown={(e) => e.stopPropagation()}
       >
         <button
           type="button"
           aria-label="축소"
           onClick={() => zoomBy(1 / 1.25)}
-          className="flex size-7 items-center justify-center rounded-md text-ink-soft hover:bg-hover hover:text-ink"
+          className="flex size-8 items-center justify-center rounded-md text-ink-soft hover:bg-hover hover:text-ink"
         >
           <Minus size={16} strokeWidth={1.5} />
         </button>
@@ -1094,7 +1094,7 @@ export function Canvas({
           type="button"
           title="100%로 되돌리기"
           onClick={() => zoomBy(1 / view.z)}
-          className="h-7 w-14 rounded-md text-center type-caption tabular-nums! hover:bg-hover"
+          className="h-8 w-14 rounded-md text-center type-caption tabular-nums! hover:bg-hover"
         >
           {Math.round(view.z * 100)}%
         </button>
@@ -1102,7 +1102,7 @@ export function Canvas({
           type="button"
           aria-label="확대"
           onClick={() => zoomBy(1.25)}
-          className="flex size-7 items-center justify-center rounded-md text-ink-soft hover:bg-hover hover:text-ink"
+          className="flex size-8 items-center justify-center rounded-md text-ink-soft hover:bg-hover hover:text-ink"
         >
           <Plus size={16} strokeWidth={1.5} />
         </button>

@@ -10,8 +10,8 @@ type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
 const BUTTON_STYLES: Record<ButtonVariant, string> = {
   primary: 'bg-primary text-on-primary px-button-x hover:bg-primary/85',
   secondary: 'bg-canvas text-ink px-button-x border border-hairline hover:bg-hover',
-  ghost: 'text-ink-soft px-button-quiet-x hover:bg-hover hover:text-ink',
-  danger: 'text-danger px-button-quiet-x hover:bg-hover',
+  ghost: 'text-ink-soft px-button-ghost-x hover:bg-hover hover:text-ink',
+  danger: 'text-danger px-button-ghost-x hover:bg-hover',
 }
 
 export function Button({
@@ -23,7 +23,7 @@ export function Button({
   return (
     <button
       type="button"
-      className={`inline-flex h-8 shrink-0 items-center gap-button-icon rounded-md type-label whitespace-nowrap outline-selection focus-visible:outline-2 focus-visible:outline-offset-1 disabled:opacity-disabled ${BUTTON_STYLES[variant]} ${className}`}
+      className={`inline-flex h-8 shrink-0 items-center gap-button-inner rounded-md type-label whitespace-nowrap outline-selection focus-visible:outline-2 focus-visible:outline-offset-1 disabled:opacity-disabled ${BUTTON_STYLES[variant]} ${className}`}
       {...rest}
     >
       {children}
@@ -56,14 +56,14 @@ export function Check({
   children: ReactNode
 }) {
   return (
-    <label className={`flex items-start gap-row-gap ${disabled ? 'text-ink-faint' : ''}`}>
+    <label className={`flex items-start gap-row-inner ${disabled ? 'text-ink-faint' : ''}`}>
       <input type="checkbox" className="peer sr-only" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
       {/* 글자 한 줄의 높이(20px)만큼의 자리 안에서 상자를 가운데에 둔다. 위아래로 2px씩 남아 정확히 가운데다. */}
       <span className="flex h-5 shrink-0 items-center outline-selection peer-focus-visible:[&>span]:outline-2">
         <span
           className={`flex size-4 items-center justify-center rounded-sm border outline-offset-1 outline-selection ${
-            checked ? 'border-ink bg-ink text-white' : 'border-ink-faint bg-canvas'
-          } ${disabled ? 'opacity-40' : ''}`}
+            checked ? 'border-ink bg-ink text-on-primary' : 'border-ink-faint bg-canvas'
+          } ${disabled ? 'opacity-disabled' : ''}`}
         >
           {checked && <CheckIcon size={12} strokeWidth={3} />}
         </span>
@@ -154,7 +154,7 @@ export function UnitInput({
         // 작은 칸은 적힌 값이 회색(ink-soft)이라, 비었을 때 보이는 값(placeholder)을 같은 계열의 회색으로 두면 적힌 값과 구분되지 않는다. 절반으로 더 옅게 한다.
         className={`col-start-1 row-start-1 w-0 min-w-full bg-transparent outline-none ${small ? 'placeholder:text-ink-faint/50' : 'placeholder:text-ink-faint'} ${font} ${small && !strong ? 'text-ink-soft' : 'text-ink'}`}
         onFocus={(e) => {
-          if (!small) return
+          // 칸을 누르면 숫자가 모두 선택된다. 숫자 칸은 값을 통째로 바꿔 적는 일이 대부분이라, 누른 뒤 바로 새 값을 적을 수 있어야 한다.
           e.currentTarget.select()
           picking.current = true
         }}
@@ -200,15 +200,19 @@ export function Field({
   label,
   error,
   hint,
+  plain = false,
   children,
 }: {
   label: string
   error?: string | null
   hint?: string
+  /** 안에 버튼이 있는 칸. label로 감싸면 이름표의 글자나 빈 곳을 눌러도 첫 버튼이 눌리므로, 그냥 상자로 그린다. */
+  plain?: boolean
   children: ReactNode
 }) {
+  const Box = plain ? 'div' : 'label'
   return (
-    <label className="block">
+    <Box className="block">
       <span className="mb-label block type-label text-ink-faint">{label}</span>
       {children}
       {error ? (
@@ -216,7 +220,7 @@ export function Field({
       ) : hint ? (
         <span className="mt-label block type-body text-ink-faint">{hint}</span>
       ) : null}
-    </label>
+    </Box>
   )
 }
 
@@ -274,7 +278,7 @@ export function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-scrim/40"
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
@@ -283,7 +287,7 @@ export function Modal({
         aria-label={title}
         className={`${wide === '2xl' ? 'w-[1720px]' : wide === 'xl' ? 'w-[1440px]' : wide === 'lg' ? 'w-[1160px]' : wide ? 'w-[720px]' : 'w-[360px]'} ${tall ? 'flex h-[calc(100vh-48px)] flex-col' : 'max-h-[calc(100vh-48px)] overflow-y-auto'} max-w-[calc(100vw-48px)] rounded-lg border border-hairline bg-canvas p-dialog shadow-dialog`}
       >
-        <h2 className="mb-head shrink-0 type-title">{title}</h2>
+        <h2 className="mb-header shrink-0 type-title">{title}</h2>
         {tall ? <div className="min-h-0 flex-1">{children}</div> : children}
       </div>
     </div>
@@ -340,7 +344,7 @@ export function UsePicker<T extends string>({
           const at = options.indexOf(now) + (e.key === 'ArrowDown' ? 1 : -1)
           if (options[at]) onChange(options[at].id)
         }}
-        className={`${inputClass} flex items-center gap-row-gap text-left`}
+        className={`${inputClass} flex items-center gap-row-inner text-left`}
       >
         {line(now)}
         <ChevronDown size={16} strokeWidth={1.5} className="shrink-0 text-ink-faint" />
@@ -359,7 +363,7 @@ export function UsePicker<T extends string>({
                 aria-selected={u.id === value}
                 data-use-option={u.id}
                 onClick={() => pick(u.id)}
-                className={`flex h-8 w-full items-center gap-row-gap rounded-md px-row-x text-left type-body outline-selection focus-visible:outline-2 ${u.id === value ? 'bg-hover' : 'hover:bg-hover'}`}
+                className={`flex h-8 w-full items-center gap-row-inner rounded-md px-row-x text-left type-body outline-selection focus-visible:outline-2 ${u.id === value ? 'bg-hover' : 'hover:bg-hover'}`}
               >
                 {line(u)}
                 {u.id === value && <CheckIcon size={16} strokeWidth={1.5} className="shrink-0" />}

@@ -32,7 +32,6 @@ export type Kind = {
   defaultValue: string
   addLabel: string
   valueLabel: string
-  emptyTitle: string
   /** 줄 목록 대신 네모 칸 격자로 보여 준다. */
   tiles?: boolean
   /** 이제 쓰지 않는 종류. 파일에 그 값이 있을 때만 보여 주고, 새로 추가하지는 못한다. */
@@ -82,7 +81,6 @@ const color: Kind = {
   defaultValue: '#888888',
   addLabel: '색 추가',
   valueLabel: '색 값',
-  emptyTitle: '첫 색 목록을 만들어 보세요',
 }
 
 /** 의미 색. 실제로 쓰는 색에 쓰임새의 이름을 붙인 것으로, 색상 판의 색 하나를 가리킨다. */
@@ -94,7 +92,6 @@ const role: Kind = {
   defaultValue: '',
   addLabel: '의미 색 추가',
   valueLabel: '가리키는 색',
-  emptyTitle: '의미 색이 아직 없어요',
 }
 
 const font: Kind = {
@@ -105,7 +102,6 @@ const font: Kind = {
   defaultValue: 'system-ui, sans-serif',
   addLabel: '글꼴 추가',
   valueLabel: '글꼴 이름',
-  emptyTitle: '글꼴 종류가 아직 없어요',
 }
 
 const size: Kind = {
@@ -116,7 +112,6 @@ const size: Kind = {
   defaultValue: '16px',
   addLabel: '크기 추가',
   valueLabel: '크기',
-  emptyTitle: '글자 크기가 아직 없어요',
 }
 
 const weight: Kind = {
@@ -127,7 +122,6 @@ const weight: Kind = {
   defaultValue: '400',
   addLabel: '굵기 추가',
   valueLabel: '굵기',
-  emptyTitle: '굵기가 아직 없어요',
 }
 
 /**
@@ -142,7 +136,6 @@ const style: Kind = {
   defaultValue: '',
   addLabel: '의미 글꼴 추가',
   valueLabel: '조합',
-  emptyTitle: '의미 글꼴이 아직 없어요',
 }
 
 const leading: Kind = {
@@ -155,7 +148,6 @@ const leading: Kind = {
   defaultValue: '24px',
   addLabel: '줄 높이 추가',
   valueLabel: '줄 높이',
-  emptyTitle: '줄 높이가 아직 없어요',
 }
 
 const tracking: Kind = {
@@ -168,7 +160,6 @@ const tracking: Kind = {
   defaultValue: '0em',
   addLabel: '글자 사이 추가',
   valueLabel: '글자 사이 간격',
-  emptyTitle: '글자 사이 값이 아직 없어요',
 }
 
 const space: Kind = {
@@ -179,7 +170,6 @@ const space: Kind = {
   defaultValue: '16px',
   addLabel: '간격 추가',
   valueLabel: '길이',
-  emptyTitle: '첫 간격을 추가해 보세요',
 }
 
 /** 의미 간격. 실제로 쓰는 간격에 쓰임새의 이름을 붙인 것으로, 간격 판의 값 하나를 가리킨다(--spacing-actions: var(--spacing-2)). */
@@ -191,7 +181,6 @@ const spaceUse: Kind = {
   defaultValue: '',
   addLabel: '의미 간격 추가',
   valueLabel: '가리키는 간격',
-  emptyTitle: '의미 간격이 아직 없어요',
 }
 
 const radius: Kind = {
@@ -202,7 +191,6 @@ const radius: Kind = {
   defaultValue: '8px',
   addLabel: '모서리 추가',
   valueLabel: '둥글기',
-  emptyTitle: '첫 모서리 값을 추가해 보세요',
   tiles: true,
 }
 
@@ -214,7 +202,6 @@ const border: Kind = {
   defaultValue: '1px',
   addLabel: '테두리 굵기 추가',
   valueLabel: '굵기',
-  emptyTitle: '첫 테두리 굵기를 추가해 보세요',
 }
 
 const shadow: Kind = {
@@ -225,8 +212,6 @@ const shadow: Kind = {
   defaultValue: '0 2px 4px rgb(0 0 0 / 0.04), 0 8px 16px rgb(0 0 0 / 0.06)',
   addLabel: '그림자 추가',
   valueLabel: '그림자',
-  emptyTitle: '그림자가 아직 없어요',
-  tiles: true,
 }
 
 const opacity: Kind = {
@@ -237,8 +222,6 @@ const opacity: Kind = {
   defaultValue: '0.5',
   addLabel: '투명도 추가',
   valueLabel: '투명도 (0~1)',
-  emptyTitle: '투명도가 아직 없어요',
-  tiles: true,
 }
 
 const blur: Kind = {
@@ -249,8 +232,6 @@ const blur: Kind = {
   defaultValue: '8px',
   addLabel: '흐림 추가',
   valueLabel: '흐림 정도',
-  emptyTitle: '흐림 값이 아직 없어요',
-  tiles: true,
 }
 
 const breakpoint: Kind = {
@@ -261,7 +242,6 @@ const breakpoint: Kind = {
   defaultValue: '768px',
   addLabel: '화면 폭 기준 추가',
   valueLabel: '폭',
-  emptyTitle: '화면 폭 기준이 아직 없어요',
 }
 
 const container: Kind = {
@@ -272,7 +252,6 @@ const container: Kind = {
   defaultValue: '960px',
   addLabel: '최대 너비 추가',
   valueLabel: '너비',
-  emptyTitle: '최대 너비가 아직 없어요',
 }
 
 const aspect: Kind = {
@@ -283,7 +262,6 @@ const aspect: Kind = {
   defaultValue: '16 / 9',
   addLabel: '비율 추가',
   valueLabel: '가로 / 세로',
-  emptyTitle: '비율이 아직 없어요',
   tiles: true,
 }
 
@@ -295,7 +273,6 @@ const z: Kind = {
   defaultValue: '10',
   addLabel: '겹치는 순서 추가',
   valueLabel: '순서 (클수록 위)',
-  emptyTitle: '겹치는 순서가 아직 없어요',
 }
 
 const duration: Kind = {
@@ -306,7 +283,6 @@ const duration: Kind = {
   defaultValue: '200ms',
   addLabel: '움직임 시간 추가',
   valueLabel: '시간',
-  emptyTitle: '움직임 시간이 아직 없어요',
 }
 
 const ease: Kind = {
@@ -317,7 +293,6 @@ const ease: Kind = {
   defaultValue: 'cubic-bezier(0.16, 1, 0.3, 1)',
   addLabel: '움직임 흐름 추가',
   valueLabel: '속도 곡선',
-  emptyTitle: '움직임 흐름이 아직 없어요',
 }
 
 export const KINDS = {

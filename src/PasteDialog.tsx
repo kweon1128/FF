@@ -68,9 +68,9 @@ export function PasteDialog({
         {job.skipped.length > 0 && (
           <div>
             <p className="mb-label type-label text-ink-faint">읽지 못한 값 {job.skipped.length}개</p>
-            <ul className="max-h-36 space-y-rows overflow-y-auto rounded-md border border-hairline p-blocks">
+            <ul className="max-h-36 space-y-rows overflow-y-auto rounded-md border border-hairline p-box">
               {job.skipped.map((t) => (
-                <li key={t.name} className="flex items-baseline gap-row-gap type-code-sm">
+                <li key={t.name} className="flex items-baseline gap-row-inner type-code-sm">
                   <span className="min-w-0 flex-1 truncate">{t.name}</span>
                   <span className="max-w-[45%] shrink-0 truncate text-ink-faint">{t.value}</span>
                 </li>

@@ -186,12 +186,12 @@ export function NewTypesForm({
                 // 줄의 어디를 눌러도 쓸지 말지가 바뀐다. 이름 칸과 고르는 칸은 그 칸의 일을 한다.
                 // 바탕의 좌우 여백은 그 끝에 놓인 것의 위아래 여백과 같게 한다. 왼쪽 끝은 체크 상자(16px, 위아래 8px)라 8px, 오른쪽 끝은 고르는 칸(24px, 위아래 4px)이라 4px.
                 onClick={(e) => !(e.target as HTMLElement).closest('input, select, label') && patch(r.key, { on: !r.on })}
-                className={`flex h-8 cursor-pointer items-center gap-row-gap rounded-md pr-menu pl-row-x ${hot === r.key ? 'bg-hover' : ''}`}
+                className={`flex h-8 cursor-pointer items-center gap-row-inner rounded-md pr-menu pl-row-x ${hot === r.key ? 'bg-hover' : ''}`}
               >
                 <label className="flex shrink-0 items-center">
                   <input type="checkbox" aria-label={`${r.name} 쓰기`} className="peer sr-only" checked={r.on} onChange={(e) => patch(r.key, { on: e.target.checked })} />
                   <span
-                    className={`flex size-4 items-center justify-center rounded-sm border outline-offset-1 outline-selection peer-focus-visible:outline-2 ${r.on ? 'border-ink bg-ink text-white' : 'border-ink-faint bg-canvas'}`}
+                    className={`flex size-4 items-center justify-center rounded-sm border outline-offset-1 outline-selection peer-focus-visible:outline-2 ${r.on ? 'border-ink bg-ink text-on-primary' : 'border-ink-faint bg-canvas'}`}
                   >
                     {r.on && (
                       <svg viewBox="0 0 12 12" className="size-3" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

@@ -1,17 +1,17 @@
 // 의미 글꼴: 글꼴 판의 재료 가운데 실제로 쓰는 조합(글꼴 종류 · 글자 크기 · 굵기)에 쓰임새의 이름을 붙여 모아 둔 판과, 그것을 만들고 고치는 양식.
 // 한 줄에 조합 하나. 이름과 가리키는 값, 설명, 그 조합으로 적은 견본을 나란히 보여 준다.
 
-import { useContext, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
+import { useContext, useRef, useState, type CSSProperties, type FormEvent, type PointerEvent } from 'react'
 import { PreviewSpaceContext } from './ColorUses'
-import { ArrowUpRight, Copy, TriangleAlert, X } from 'lucide-react'
+import { ArrowUpRight, TriangleAlert, X } from 'lucide-react'
 import type { Token } from './lib/api'
 import { KINDS, SLUG, lineName, shortName, trackName, type Kind } from './lib/catalog'
 import { shownFont } from './lib/fonts'
 import { surroundings, type Around } from './lib/roles'
-import { SHAPE_WORDS, TYPE_USES, isListShape, lookOf, readTypeNote, trackOverride, typeGroups, writeType, writeTypeNote, type TypeLook, type TypeParts, type TypeShape, type TypeUse } from './lib/types'
-import { CODE_OPEN, FoldSection, ICON_BUTTON, Section, WHERE_OPEN } from './Inspector'
-import { HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
-import { Chip, Field, Phrases, UsePicker, inputClass } from './ui'
+import { SHAPE_WORDS, TYPE_USES, guessTypeUse, isListShape, lookOf, nextType, readType, readTypeNote, trackOverride, typeGroups, writeType, writeTypeNote, type TypeLook, type TypeParts, type TypeShape, type TypeUse } from './lib/types'
+import { CODE_OPEN, CodeRows, FoldSection, ICON_BUTTON, Section, WHERE_OPEN } from './Inspector'
+import { DetailsFolded, HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
+import { Button, Field, Phrases, UsePicker, inputClass } from './ui'
 
 const STYLE = KINDS.style
 const FONT = KINDS.font
@@ -45,6 +45,8 @@ function Spec({ look, tokens }: { look: TypeLook; tokens: Token[] }) {
   return (
     <>
       {part(FONT, look.parts.font)} · {part(SIZE, look.parts.size)} · {part(WEIGHT, look.parts.weight)}
+      {/* 가리키는 값이 하나라도 없어졌으면 뒤에 "없어짐"을 붙인다(의미 색, 의미 간격과 같다). */}
+      {[look.parts.font, look.parts.size, look.parts.weight].some((n) => !has(n)) && <span className="text-danger"> · 없어짐</span>}
     </>
   )
 }
@@ -55,7 +57,7 @@ function Spec({ look, tokens }: { look: TypeLook; tokens: Token[] }) {
  */
 function Follows({ label, bound, own, onClear }: { label: string; bound: string; own?: string; onClear: () => void }) {
   return (
-    <Field label={label}>
+    <Field label={label} plain>
       <span className="flex h-8 items-center gap-actions-tight type-body">
         <span data-follows={label} className={`min-w-0 flex-1 truncate ${own ? 'type-label text-ink' : 'text-ink-soft'}`}>
           {own ?? (bound || '정해지지 않음')}
@@ -116,7 +118,7 @@ export function TypeSample({ shape, look, around, words: written = '' }: { shape
         return (
           <span className="flex flex-wrap items-center gap-actions">
             {/* 첫 버튼은 채우고 나머지는 테두리만 둔다. */}
-            {list.map((text, i) => words(text, 'rounded-md px-button-x py-blocks whitespace-nowrap', i === 0 ? { background: around.ink, color: around.surface } : { boxShadow: `inset 0 0 0 1px ${faint}` }))}
+            {list.map((text, i) => words(text, 'rounded-md px-button-x py-box whitespace-nowrap', i === 0 ? { background: around.ink, color: around.surface } : { boxShadow: `inset 0 0 0 1px ${faint}` }))}
           </span>
         )
       case 'field':
@@ -146,7 +148,7 @@ export function TypeSample({ shape, look, around, words: written = '' }: { shape
       case 'tab':
         return (
           <span className="flex flex-wrap gap-columns" style={{ boxShadow: `inset 0 -1px 0 ${faint}` }}>
-            {list.map((text, i) => words(text, 'py-blocks whitespace-nowrap', i === 0 ? { boxShadow: `inset 0 -2px 0 ${around.ink}` } : undefined))}
+            {list.map((text, i) => words(text, 'py-box whitespace-nowrap', i === 0 ? { boxShadow: `inset 0 -2px 0 ${around.ink}` } : undefined))}
           </span>
         )
       case 'badge':
@@ -219,6 +221,8 @@ export function TypeList({
   onMove: (name: string, before: string | null) => void
   onMoveGroup: (use: TypeUse, before: TypeUse | null) => void
 }) {
+  // 판을 접었으면 설명과 예시를 숨기고 이름과 값만 보여 준다.
+  const plain = useContext(DetailsFolded)
   const drag = useRef<Drag | null>(null)
   // 끌기가 끝난 직후에 따라오는 클릭은 선택으로 치지 않는다.
   const dragged = useRef(false)
@@ -292,7 +296,7 @@ export function TypeList({
           data-broken={broken.length}
           title="누르면 첫 조합을 골라요. 오른쪽에서 없어진 값을 다시 골라 주세요"
           onClick={() => onSelect(broken[0].name, false)}
-          className={`mb-blocks flex h-8 items-center gap-row-gap rounded-md px-button-x type-body text-danger ${HOVER} ${OUTLINE}`}
+          className={`mb-blocks flex h-8 items-center gap-row-inner rounded-md px-button-x type-body text-danger ${HOVER} ${OUTLINE}`}
         >
           <TriangleAlert size={16} strokeWidth={1.5} />
           가리키는 값이 없어진 조합 {broken.length}개
@@ -309,13 +313,13 @@ export function TypeList({
                 <span className={`${DROP_LINE} inset-x-0 -bottom-3 h-[calc(var(--line)*2)] translate-y-1/2`} />
               )}
               {/* 묶음 제목을 누르면 그 묶음의 조합이 모두 선택되고, 잡고 위아래로 끌면 묶음이 통째로 옮겨진다. */}
-              <div className="mb-title -ml-chip-x flex">
+              <div className="mb-heading -ml-chip-x flex">
                 <button
                   type="button"
                   data-type-title={use}
                   onClick={(e) => !dragged.current && onSelectGroup(list.map((t) => t.name), isAdditive(e), false)}
                   {...grab('group', use, use)}
-                  className="rounded-sm px-chip-x type-heading outline-selection hover:bg-hover focus-visible:outline-2"
+                  className="cursor-grab active:cursor-grabbing rounded-sm px-chip-x type-heading outline-selection hover:bg-hover focus-visible:outline-2"
                 >
                   {TYPE_USES.find((u) => u.id === use)!.label}
                 </button>
@@ -340,7 +344,7 @@ export function TypeList({
                       onClick={(e) => !dragged.current && onSelect(t.name, isAdditive(e))}
                       onDoubleClick={() => onRename(t.name)}
                       {...grab('row', t.name, use)}
-                      className={`group relative flex w-full items-center gap-columns rounded-md px-board-row py-board-row-y text-left select-none ${moving ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
+                      className={`group relative flex w-full items-center gap-columns rounded-md px-board-row-x py-board-row-y text-left select-none ${moving ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
                     >
                       {lineBefore && <span className={`${DROP_LINE} inset-x-0 top-0 h-[calc(var(--line)*2)] -translate-y-1/2`} />}
                       {lineAfter && <span className={`${DROP_LINE} inset-x-0 bottom-0 h-[calc(var(--line)*2)] translate-y-1/2`} />}
@@ -352,7 +356,7 @@ export function TypeList({
                         <span className="block type-code-sm break-words text-ink-faint">
                           {look ? <Spec look={look} tokens={all} /> : <span className="text-danger">읽을 수 없는 값</span>}
                         </span>
-                        {text && (
+                        {!plain && text && (
                           <span className="mt-label block type-caption break-words text-ink-faint">
                             <Phrases text={text} />
                           </span>
@@ -360,7 +364,7 @@ export function TypeList({
                       </span>
                       {/* 쓰임이 여럿인 조합은 예시도 여럿이다. 위아래로 8px 띄워 쌓는다. */}
                       <span className="min-w-0 flex-1 space-y-blocks">
-                        {look && [{ shape, words }, ...more].map((e, k) => <TypeSample key={k} shape={e.shape} look={look} around={around} words={e.words} />)}
+                        {!plain && look && [{ shape, words }, ...more].map((e, k) => <TypeSample key={k} shape={e.shape} look={look} around={around} words={e.words} />)}
                       </span>
                       {isSelected && selected.length === 1 && <SelectionLabel name={short} value={look ? figures(look) : undefined} />}
                     </button>
@@ -460,7 +464,7 @@ export function TypeInspector({
     if (!next) return setNameError('이름을 입력해 주세요.')
     if (!SLUG.test(next)) return setNameError('영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.')
     if (next === short) return
-    if (names.has(STYLE.prefix + next)) return setNameError('같은 이름의 의미 글꼴이 이미 있어요.')
+    if (names.has(STYLE.prefix + next)) return setNameError('같은 이름이 이미 있어요.')
     onRename(STYLE.prefix + next)
   }
 
@@ -548,10 +552,10 @@ export function TypeInspector({
                 <button
                   type="button"
                   onClick={() => onOpenComponent(u.index)}
-                  className="-ml-button-quiet-x flex h-8 max-w-full items-center rounded-md px-button-quiet-x type-label outline-selection hover:bg-hover focus-visible:outline-2"
+                  className="-ml-button-ghost-x flex h-8 max-w-full items-center rounded-md px-button-ghost-x type-label outline-selection hover:bg-hover focus-visible:outline-2"
                 >
                   <span className="truncate">{u.name}</span>
-                  <span className="ml-row-gap shrink-0 type-body text-ink-faint">{u.where.length}곳</span>
+                  <span className="ml-row-inner shrink-0 type-body text-ink-faint">{u.where.length}곳</span>
                 </button>
                 <p className="type-body text-ink-faint">{u.where.join(', ')}</p>
               </div>
@@ -560,33 +564,78 @@ export function TypeInspector({
       </FoldSection>
 
       <FoldSection title="코드" storageKey={CODE_OPEN}>
-        <div className="space-y-blocks">
-          <div>
-            <p className="mb-label type-label text-ink-faint">쓰는 법</p>
-            {/* 클래스가 먼저다. FF가 저장할 때 의미 글꼴마다 type-이름 클래스를 함께 적어 두므로, 코드에서는 이 한 단어로 글꼴, 크기, 굵기, 줄 높이를 모두 정한다. CSS로 직접 적을 때의 한 줄은 그 아래에 둔다. */}
-            <div className="space-y-rows">
-              {[{ shown: className, copied: className, label: '클래스 복사' }, { shown: `font: var(${token.name})`, copied: `font: var(${token.name});`, label: 'CSS 복사' }].map((row) => (
-                <span key={row.label} className="flex items-center gap-actions-tight">
-                  <span className="min-w-0 flex-1">
-                    <Chip>{row.shown}</Chip>
-                  </span>
-                  <button type="button" title={`${row.shown} 복사`} aria-label={row.label} onClick={() => onCopy(row.copied)} className={ICON_BUTTON}>
-                    <Copy size={16} strokeWidth={1.5} />
-                  </button>
-                </span>
-              ))}
-            </div>
-          </div>
-          <div>
-            <p className="mb-label type-label text-ink-faint">저장된 값</p>
-            <Chip>{token.value}</Chip>
-          </div>
-          <div>
-            <p className="mb-label type-label text-ink-faint">저장 위치</p>
-            <Chip>{file}</Chip>
-          </div>
-        </div>
+        {/* 클래스가 먼저다. FF가 저장할 때 의미 글꼴마다 type-이름 클래스를 함께 적어 두므로, 코드에서는 이 한 단어로 글꼴, 크기, 굵기, 줄 높이가 모두 정해진다. */}
+        <CodeRows uses={[className, `font: var(${token.name});`]} value={token.value} file={file} onCopy={onCopy} />
       </FoldSection>
     </div>
+  )
+}
+
+/**
+ * 의미 글꼴을 만드는 양식. 이름, 조합(글꼴 종류 · 글자 크기 · 굵기), 묶음을 정한다. 설명은 만든 뒤에 패널에서 적는다.
+ * 처음에는 기본 한 벌 가운데 아직 없는 다음 것의 이름과 조합이 채워져 있어서, 그대로 "추가"를 누르면 전처럼 다음 조합이 생긴다.
+ * 다른 의미 판(의미 색, 의미 간격)의 추가도 창에서 이름과 가리키는 값을 정한다.
+ */
+export function NewTypeForm({ tokens, onCreate, onCancel }: { tokens: Token[]; onCreate: (name: string, value: string, note: string) => void; onCancel: () => void }) {
+  const made = nextType(tokens)
+  const start = made ? readType(made.value) : null
+  const options = (kind: Kind) => tokens.filter((t) => kind.matches(t.name)).map((t) => ({ id: t.name, label: shortName(kind, t.name), hint: kind.id === 'font' ? shownFont(t.value) : t.value }))
+  const fonts = options(FONT)
+  const sizes = options(SIZE)
+  const weights = options(WEIGHT)
+  const pick = (list: { id: string }[], want?: string) => (list.some((o) => o.id === want) ? want! : (list[0]?.id ?? ''))
+  const [name, setName] = useState(made ? shortName(STYLE, made.name) : '')
+  const [font, setFont] = useState(pick(fonts, start?.font))
+  const [size, setSize] = useState(pick(sizes, start?.size))
+  const [weight, setWeight] = useState(pick(weights, start?.weight))
+  // 묶음은 직접 고르기 전까지 이름에서 짐작한 것을 보여 준다.
+  const [use, setUse] = useState<TypeUse | null>(null)
+  const [error, setError] = useState<string>()
+  const shownUse = use ?? guessTypeUse(name.trim())
+
+  function submit(e: FormEvent) {
+    e.preventDefault()
+    const n = name.trim()
+    const problem = !n ? '이름을 입력해 주세요.' : !SLUG.test(n) ? '영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.' : tokens.some((t) => t.name === STYLE.prefix + n) ? '같은 이름이 이미 있어요.' : undefined
+    setError(problem)
+    if (problem) return
+    onCreate(STYLE.prefix + n, writeType({ font, size, weight }, new Set(tokens.map((t) => t.name))), writeTypeNote(shownUse, ''))
+  }
+
+  return (
+    <form onSubmit={submit} className="space-y-fields">
+      <Field label="이름" error={error}>
+        <input
+          autoFocus
+          className={inputClass}
+          value={name}
+          placeholder="body"
+          onChange={(e) => {
+            setName(e.target.value)
+            setError(undefined)
+          }}
+        />
+      </Field>
+      <Field label="글꼴 종류" plain>
+        <UsePicker label="글꼴 종류" options={fonts} value={font} onChange={setFont} />
+      </Field>
+      <Field label="글자 크기" plain>
+        <UsePicker label="글자 크기" options={sizes} value={size} onChange={setSize} />
+      </Field>
+      <Field label="굵기" plain>
+        <UsePicker label="굵기" options={weights} value={weight} nameWidth="w-20" onChange={setWeight} />
+      </Field>
+      <Field label="묶음" plain>
+        <UsePicker label="묶음" options={TYPE_USES} value={shownUse} nameWidth="w-16" onChange={setUse} />
+      </Field>
+      <div className="mt-dialog-actions flex justify-end gap-actions">
+        <Button variant="ghost" onClick={onCancel}>
+          취소
+        </Button>
+        <Button variant="primary" type="submit">
+          추가
+        </Button>
+      </div>
+    </form>
   )
 }

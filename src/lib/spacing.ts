@@ -31,7 +31,7 @@ export function guessSpaceUse(short: string): SpaceUse {
  * 예시의 모양. 그 간격이 어디에 놓였는지다.
  * 여백은 "좌우 여백", "안쪽 여백"처럼 방향으로 나누지 않고 무엇의 여백인지로 나눈다(버튼, 입력칸, 면). 방향만으로는 그림이 무엇인지 알 수 없다.
  */
-export type SpaceShape = 'gap' | 'icon' | 'stack' | 'label' | 'rows' | 'fields' | 'groups' | 'button' | 'input' | 'surface' | 'surfacex'
+export type SpaceShape = 'gap' | 'icon' | 'stack' | 'label' | 'rows' | 'fields' | 'groups' | 'button' | 'filled' | 'ghost' | 'ghosts' | 'rowicon' | 'row' | 'rowy' | 'menu' | 'input' | 'unit' | 'inputs' | 'chip' | 'heading' | 'cols' | 'grid' | 'gridy' | 'box' | 'footer' | 'bar' | 'surface' | 'surfacex' | 'surfacey'
 
 export const SPACE_SHAPES: { id: SpaceShape; label: string; hint: string }[] = [
   { id: 'gap', label: '사이', hint: '나란히 놓인 버튼들 사이' },
@@ -41,10 +41,28 @@ export const SPACE_SHAPES: { id: SpaceShape; label: string; hint: string }[] = [
   { id: 'rows', label: '줄', hint: '목록의 줄과 줄 사이' },
   { id: 'fields', label: '칸', hint: '이름표가 붙은 입력칸들 사이' },
   { id: 'groups', label: '묶음', hint: '제목이 붙은 묶음들 사이' },
-  { id: 'button', label: '버튼', hint: '버튼의 왼쪽과 오른쪽 여백' },
+  { id: 'button', label: '버튼', hint: '테두리 버튼의 왼쪽과 오른쪽 여백' },
+  { id: 'filled', label: '채운 버튼', hint: '채운 버튼의 왼쪽과 오른쪽 여백' },
+  { id: 'ghost', label: '바탕 없는 버튼', hint: '바탕 없는 버튼의 왼쪽과 오른쪽 여백' },
+  { id: 'ghosts', label: '바탕 없는 버튼 사이', hint: '나란한 바탕 없는 버튼들 사이' },
+  { id: 'rowicon', label: '줄 아이콘', hint: '메뉴 줄 안의 아이콘과 글자 사이' },
+  { id: 'row', label: '줄 좌우', hint: '메뉴 줄의 왼쪽과 오른쪽 여백' },
+  { id: 'rowy', label: '줄 위아래', hint: '줄의 위와 아래 여백' },
+  { id: 'menu', label: '목록 상자', hint: '줄들을 담은 상자의 네 가장자리 여백' },
+  { id: 'unit', label: '단위', hint: '입력칸 안의 값과 단위 사이' },
+  { id: 'inputs', label: '나란한 칸', hint: '가로로 나란한 입력칸들 사이' },
+  { id: 'chip', label: '칩', hint: '칩의 왼쪽과 오른쪽 여백' },
+  { id: 'heading', label: '제목과 내용', hint: '제목과 그 아래 내용 사이' },
+  { id: 'cols', label: '열 사이', hint: '한 줄 안의 이름 칸과 옆 칸 사이' },
+  { id: 'grid', label: '격자', hint: '격자의 칸과 칸 사이' },
+  { id: 'gridy', label: '격자 줄', hint: '격자의 줄과 줄 사이' },
+  { id: 'box', label: '상자', hint: '판, 카드, 작은 창의 네 가장자리 여백' },
+  { id: 'footer', label: '버튼 줄', hint: '창의 내용과 아래 버튼 줄 사이' },
+  { id: 'bar', label: '막대 좌우', hint: '상단 바, 알림의 왼쪽과 오른쪽 여백' },
   { id: 'input', label: '입력칸', hint: '입력칸의 왼쪽과 오른쪽 여백' },
   { id: 'surface', label: '면', hint: '패널, 창, 카드의 네 가장자리 여백' },
   { id: 'surfacex', label: '면 좌우', hint: '패널, 창, 카드의 왼쪽과 오른쪽 여백' },
+  { id: 'surfacey', label: '면 위아래', hint: '패널 구역의 위와 아래 여백' },
 ]
 
 /** 모양마다의 기본 예시 문구. 사이와 쌓임은 ", "로 나눠 하나씩 놓는다. */
@@ -56,14 +74,32 @@ export const SPACE_WORDS: Record<SpaceShape, string> = {
   rows: '첫째, 둘째',
   fields: '이름, 값',
   groups: '첫째, 둘째',
-  button: '추가',
+  button: '취소',
+  filled: '추가',
+  ghost: '원래대로',
+  rowicon: '색상',
+  ghosts: '원래대로, 접기',
+  row: '색상',
+  rowy: '색상',
+  menu: '첫째, 둘째',
+  unit: '12, px',
+  inputs: '값, 값',
+  chip: '이름',
+  heading: '제목',
+  cols: '이름',
+  grid: '',
+  gridy: '',
+  box: '',
+  footer: '취소, 추가',
+  bar: '제목',
+  surfacey: '제목',
   input: '값',
   surface: '제목',
   surfacex: '제목',
 }
 
 /** 여럿을 늘어놓는 모양인지. 문구를 ", "로 나눈다. */
-export const isSpaceListShape = (shape: SpaceShape) => ['gap', 'stack', 'label', 'rows', 'fields', 'groups'].includes(shape)
+export const isSpaceListShape = (shape: SpaceShape) => ['gap', 'stack', 'label', 'rows', 'fields', 'groups', 'ghosts', 'menu', 'unit', 'inputs', 'footer'].includes(shape)
 
 /** 예시 하나. 어떤 자리에 놓을지(모양)와 그 안에 적을 말(문구. 비어 있으면 모양의 기본 문구). */
 export type SpaceExample = { shape: SpaceShape; words: string }

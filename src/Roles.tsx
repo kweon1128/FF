@@ -2,15 +2,15 @@
 // 한 줄에 색 하나. 색, 이름과 가리키는 단계, 역할과 설명, 그 역할로 쓰인 예시를 나란히 보여 준다.
 
 import { useContext, useRef, useState, type FormEvent, type PointerEvent, type ReactNode } from 'react'
-import { ArrowUpRight, Copy } from 'lucide-react'
+import { ArrowUpRight } from 'lucide-react'
 import type { Token } from './lib/api'
 import { KINDS, SLUG, groupOf, shortName, type Kind } from './lib/catalog'
 import { contrast, showColor } from './lib/color'
 import { ROLE_USES, ROLE_WORDS, guessUse, isRoleListShape, readNote, refOf, refTo, resolveColor, roleGroups, surroundings, writeNote, type Around, type RoleShape, type RoleUse } from './lib/roles'
 import { DARK, PreviewFontContext, PreviewSpaceContext, inkOn } from './ColorUses'
-import { CODE_OPEN, FoldSection, ICON_BUTTON, Section, WHERE_OPEN } from './Inspector'
+import { CODE_OPEN, CodeRows, FoldSection, ICON_BUTTON, Section, WHERE_OPEN } from './Inspector'
 import { HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
-import { Button, Chip, Field, UsePicker, inputClass, swatchBackground } from './ui'
+import { Button, Chip, Field, Phrases, UsePicker, inputClass, swatchBackground } from './ui'
 
 const COLOR = KINDS.color
 const ROLE = KINDS.role
@@ -36,7 +36,7 @@ export function RoleSample({ shape, color, around, words: written = '' }: { shap
   // 막대의 색. 그 면에 놓이는 글자 색을 면에 옅게 섞는다.
   const faintOn = (ink: string, surface: string) => `color-mix(in oklab, ${ink} 16%, ${surface})`
   const frame = (background: string, body: ReactNode) => (
-    <span className={`block w-full overflow-hidden rounded-md px-board-row py-board-row ${light(background) ? EDGE : ''}`} style={{ ...space, background: swatchBackground(background), fontFamily: font }}>
+    <span className={`block w-full overflow-hidden rounded-md p-sample ${light(background) ? EDGE : ''}`} style={{ ...space, background: swatchBackground(background), fontFamily: font }}>
       {body}
     </span>
   )
@@ -318,13 +318,13 @@ export function RoleList({
               <span className={`${DROP_LINE} inset-x-0 -bottom-3 h-[calc(var(--line)*2)] translate-y-1/2`} />
             )}
             {/* 묶음 제목을 누르면 그 묶음의 색이 모두 선택되고, 잡고 위아래로 끌면 묶음이 통째로 옮겨진다. */}
-            <div className="mb-title -ml-chip-x flex">
+            <div className="mb-heading -ml-chip-x flex">
               <button
                 type="button"
                 data-role-title={use}
                 onClick={(e) => !dragged.current && onSelectGroup(list.map((t) => t.name), isAdditive(e), false)}
                 {...grab('group', use, use)}
-                className="rounded-sm px-chip-x type-heading outline-selection hover:bg-hover focus-visible:outline-2"
+                className="cursor-grab active:cursor-grabbing rounded-sm px-chip-x type-heading outline-selection hover:bg-hover focus-visible:outline-2"
               >
                 {ROLE_USES.find((u) => u.id === use)!.label}
               </button>
@@ -350,8 +350,8 @@ export function RoleList({
                     onClick={(e) => !dragged.current && onSelect(t.name, isAdditive(e))}
                     onDoubleClick={() => onRename(t.name)}
                     {...grab('row', t.name, use)}
-                    className={`relative w-full items-center rounded-md px-board-row py-board-row-y text-left select-none ${
-                      folded ? 'flex gap-board-row' : 'grid grid-cols-[40px_176px_minmax(0,1fr)_280px] gap-columns'
+                    className={`relative w-full items-center rounded-md px-board-row-x py-board-row-y text-left select-none ${
+                      folded ? 'flex gap-sample' : 'grid grid-cols-[40px_176px_minmax(0,1fr)_280px] gap-columns'
                     } ${moving ? 'opacity-40' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
                   >
                     {lineBefore && (
@@ -365,22 +365,26 @@ export function RoleList({
                       style={{ background: swatchBackground(color ?? 'transparent') }}
                     />
                     <span className="min-w-0">
-                      <span data-name className="block truncate type-label">
+                      <span data-name className="block type-label break-words">
                         {short}
                       </span>
                       {/* 접으면 색과 이름만 남긴다. 가리키는 색과 # 값은 색을 고르면 뜨는 파란 이름표와 오른쪽 패널에서 볼 수 있다. */}
                       {!folded && (
                         <>
-                          <span className="block truncate type-code text-ink-faint">
+                          <span className={`block type-code break-words ${color === null ? 'text-danger' : 'text-ink-faint'}`}>
                             {ref}
-                            {color === null && <span className="text-danger"> · 없는 색</span>}
+                            {color === null && ' · 없어짐'}
                           </span>
                           {/* 가리키는 색의 실제 값. 색상 판에서 보이는 것과 같은 # 값이다. */}
-                          {color && <span className="block truncate type-code text-ink-faint">{color}</span>}
+                          {color && <span className="block type-code break-words text-ink-faint">{color}</span>}
                         </>
                       )}
                     </span>
-                    {!folded && <span className="min-w-0 type-body break-keep text-ink-soft">{text}</span>}
+                    {!folded && (
+                      <span className="min-w-0 type-body break-words text-ink-soft">
+                        <Phrases text={text} />
+                      </span>
+                    )}
                     {/* 쓰임이 여럿인 색은 예시도 여럿이다. 위아래로 8px 띄워 쌓는다. */}
                     {!folded &&
                       (color ? (
@@ -476,7 +480,7 @@ export function NewRoleForm({
     const n = name.trim()
     if (!n) next.name = '이름을 입력해 주세요.'
     else if (!SLUG.test(n)) next.name = '영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.'
-    else if (tokens.some((t) => t.name === ROLE.prefix + n)) next.name = '같은 이름의 색이 이미 있어요.'
+    else if (tokens.some((t) => t.name === ROLE.prefix + n)) next.name = '같은 이름이 이미 있어요.'
     if (!ref) next.ref = '색을 골라 주세요.'
     setError(next)
     if (Object.keys(next).length === 0 && ref) onCreate(ROLE.prefix + n, ref, writeNote(shownUse, text))
@@ -499,7 +503,7 @@ export function NewRoleForm({
       {/* 견본 버튼들이 label 안에 있으면 한 번 누를 때 첫 버튼이 함께 눌린다. 그래서 Field를 쓰지 않는다. */}
       <div>
         <p className="mb-label type-label text-ink-faint">
-          가리키는 색{ref && <span className="ml-row-gap type-code text-ink">{refName(ref)}</span>}
+          가리키는 색{ref && <span className="ml-row-inner type-code text-ink">{refName(ref)}</span>}
         </p>
         <RefPicker
           tokens={tokens}
@@ -568,7 +572,7 @@ export function RoleInspector({
     if (!next) return setNameError('이름을 입력해 주세요.')
     if (!SLUG.test(next)) return setNameError('영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.')
     if (next === short) return
-    if (tokens.some((t) => t.name === ROLE.prefix + next)) return setNameError('같은 이름의 색이 이미 있어요.')
+    if (tokens.some((t) => t.name === ROLE.prefix + next)) return setNameError('같은 이름이 이미 있어요.')
     onRename(ROLE.prefix + next)
   }
 
@@ -612,7 +616,7 @@ export function RoleInspector({
           <span className="min-w-0">
             <Chip>{refName(token.value)}</Chip>
           </span>
-          <span className="min-w-0 flex-1 truncate type-code text-ink-faint">{color ?? <span className="text-danger">없는 색</span>}</span>
+          <span className="min-w-0 flex-1 truncate type-code text-ink-faint">{color ?? <span className="text-danger">없어짐</span>}</span>
           {/* 가리키는 색이 색상 판의 어디에 있는지 보러 가는 버튼. "쓰이는 곳"의 반대 방향이다. 가리키는 색이 없어졌으면 갈 곳이 없어 꺼진다. */}
           <button
             type="button"
@@ -650,10 +654,10 @@ export function RoleInspector({
                 <button
                   type="button"
                   onClick={() => onOpenComponent(u.index)}
-                  className="-ml-button-quiet-x flex h-8 max-w-full items-center rounded-md px-button-quiet-x type-label outline-selection hover:bg-hover focus-visible:outline-2"
+                  className="-ml-button-ghost-x flex h-8 max-w-full items-center rounded-md px-button-ghost-x type-label outline-selection hover:bg-hover focus-visible:outline-2"
                 >
                   <span className="truncate">{u.name}</span>
-                  <span className="ml-row-gap shrink-0 type-body text-ink-faint">{u.where.length}곳</span>
+                  <span className="ml-row-inner shrink-0 type-body text-ink-faint">{u.where.length}곳</span>
                 </button>
                 <p className="type-body text-ink-faint">{u.where.join(', ')}</p>
               </div>
@@ -662,33 +666,8 @@ export function RoleInspector({
       </FoldSection>
 
       <FoldSection title="코드" storageKey={CODE_OPEN}>
-        <div className="space-y-blocks">
-          <div>
-            <p className="mb-label type-label text-ink-faint">변수 이름</p>
-            <span className="flex items-center gap-actions-tight">
-              <span className="min-w-0 flex-1">
-                <Chip>{token.name}</Chip>
-              </span>
-              <button
-                type="button"
-                title={`var(${token.name}) 복사`}
-                aria-label="코드 복사"
-                onClick={() => onCopy(`var(${token.name})`)}
-                className={ICON_BUTTON}
-              >
-                <Copy size={16} strokeWidth={1.5} />
-              </button>
-            </span>
-          </div>
-          <div>
-            <p className="mb-label type-label text-ink-faint">저장된 값</p>
-            <Chip>{token.value}</Chip>
-          </div>
-          <div>
-            <p className="mb-label type-label text-ink-faint">저장 위치</p>
-            <Chip>{file}</Chip>
-          </div>
-        </div>
+        {/* 의미 색은 글자, 바탕, 테두리에 모두 쓰일 수 있어 셋을 적는다. */}
+        <CodeRows uses={[`text-${short}`, `bg-${short}`, `border-${short}`, `var(${token.name})`]} value={token.value} file={file} onCopy={onCopy} />
       </FoldSection>
     </div>
   )

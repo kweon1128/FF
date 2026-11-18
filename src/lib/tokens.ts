@@ -1,7 +1,7 @@
 // 기본 값 목록을 다루는 계산: 복제, 붙여넣기, 순서 바꾸기, 글자로 주고받기.
 
 import type { Token } from './api'
-import { ALL_KINDS, COLOR_REF, KINDS, SLUG, boundNames, groupOf, lineName, shortName, trackName } from './catalog'
+import { ALL_KINDS, COLOR_REF, KINDS, SLUG, SPACE_REF, boundNames, groupOf, lineName, shortName, trackName } from './catalog'
 import { isColor, toHex, toOklch } from './color'
 import { LEADINGS, lineFor, trackFor } from './presets'
 
@@ -64,6 +64,9 @@ export function shiftTokens(tokens: Token[], names: string[], dir: 1 | -1) {
 // 주석(의미 색의 역할과 설명)도 파일에서처럼 같은 줄 뒤에 붙인다. 그래야 붙여넣었을 때 역할과 설명이 따라온다.
 export const toCss = (tokens: Token[]) => tokens.map((t) => `${t.name}: ${t.value};${t.note ? ` /* ${t.note} */` : ''}`).join('\n')
 
+/** 값에 딸린 것의 이름 끝(글자 크기의 줄 높이와 글자 사이, 의미 글꼴의 글자 사이). */
+const BOUND = /--(line-height|letter-spacing)$/
+
 /**
  * 붙여넣은 글자에서 변수 선언을 찾는다.
  * FF가 아는 종류(이름이 --color-, --spacing- 등으로 시작하고 영문 소문자·숫자·하이픈으로 된 것)는 tokens에,
@@ -77,14 +80,13 @@ export function scanCss(text: string): { tokens: Token[]; skipped: Token[] } {
     const name = m[1]
     const value = m[2].trim().replace(/\s+/g, ' ')
     if (!value || [...tokens, ...skipped].some((t) => t.name === name)) continue
-    const known = /^--[a-z0-9]+(-[a-z0-9]+)*$/.test(name) && kindOf(name)
+    // 값에 딸린 것(--text-sm--line-height)은 제 값의 종류로 받는다.
+    const base = name.replace(BOUND, '')
+    const known = /^--[a-z0-9]+(-[a-z0-9]+)*$/.test(base) && kindOf(base)
     ;(known ? tokens : skipped).push(m[3] ? { name, value, note: m[3] } : { name, value })
   }
   return { tokens, skipped }
 }
-
-/** 붙여넣은 글자에서 FF가 아는 종류의 변수 선언만 골라낸다. */
-export const fromCss = (text: string) => scanCss(text).tokens
 
 /**
  * 읽지 못한 선언 중 값이 색인 것을 색 값으로 받아들일 수 있게 이름을 고친다.
@@ -123,7 +125,18 @@ export function pasteTokens(tokens: Token[], pasted: Token[], intoGroup: string 
   const next = [...tokens]
   const added: string[] = []
   let replaced = 0
+  // 붙여넣으면서 이름이 달라진 값(이름이 겹쳐 copy가 붙은 것). 딸린 것이 제 값을 따라가게 한다.
+  const renamed = new Map<string, string>()
+  for (const p of pasted.filter((t) => BOUND.test(t.name))) {
+    const suffix = BOUND.exec(p.name)![0]
+    const owner = p.name.slice(0, -suffix.length)
+    // 제 값과 함께 붙여넣은 것만 받는다. 값 없이 딸린 것만 온 것은 버린다.
+    if (!pasted.some((t) => t.name === owner)) continue
+    renamed.set(p.name, suffix)
+  }
+  const owners = new Map<string, string>()
   for (const p of pasted) {
+    if (BOUND.test(p.name)) continue
     const kind = kindOf(p.name)
     if (!kind) continue
     // 다른 색을 가리키는 값(의미 색)은 목록에 속하지 않으므로 이름을 그대로 둔다.
@@ -138,10 +151,27 @@ export function pasteTokens(tokens: Token[], pasted: Token[], intoGroup: string 
     }
     if (taken.has(name)) name = copyName(name, taken)
     taken.add(name)
-    let at = next.findLastIndex(siblingTest(name))
+    owners.set(p.name, name)
+    // 다른 값을 가리키는 값(의미 색, 의미 간격)은 같은 의미 값들의 맨 뒤에 놓는다. 붙이는 순간에는 아직 종류가 가려지지 않아 토대 값들 사이에 끼기 때문이다.
+    const semantic = name.startsWith('--color-') && COLOR_REF.test(p.value) ? KINDS.role : name.startsWith('--spacing-') && SPACE_REF.test(p.value) ? KINDS.spaceUse : null
+    let at = semantic ? next.findLastIndex((t) => semantic.matches(t.name)) : -1
+    if (at === -1) at = next.findLastIndex(siblingTest(name))
     if (at === -1) at = next.findLastIndex((t) => kind.matches(t.name))
     next.splice(at === -1 ? next.length : at + 1, 0, p.note ? { name, value: p.value, note: p.note } : { name, value: p.value })
     added.push(name)
+  }
+  // 값에 딸린 것을 제 값(새 이름) 바로 뒤에 놓는다. 이미 있으면 값만 바꾼다.
+  for (const [boundName, suffix] of renamed) {
+    const p = pasted.find((t) => t.name === boundName)!
+    const owner = owners.get(boundName.slice(0, -suffix.length))
+    if (!owner) continue
+    const name = owner + suffix
+    const has = next.findIndex((t) => t.name === name)
+    if (has !== -1) next[has] = { ...next[has], value: p.value }
+    else {
+      const at = next.findLastIndex((t) => t.name === owner || t.name.startsWith(owner + '--'))
+      next.splice(at + 1, 0, { name, value: p.value })
+    }
   }
   return { next, added, replaced }
 }

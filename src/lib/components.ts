@@ -3,7 +3,7 @@
 
 import type { CSSProperties } from 'react'
 import type { Token } from './api'
-import { lineName, trackName } from './catalog'
+import { SPACE_REF, lineName, trackName } from './catalog'
 import { refOf, resolveColor } from './roles'
 import { suggestLine } from './tokens'
 import { lookOf } from './types'
@@ -144,7 +144,10 @@ export function cellStyle(comp: Comp, cell: Cell, tokens: Token[]): CSSPropertie
   // 의미 색은 다른 색을 가리키는 값이라, 가리키는 색을 따라가 실제 색을 쓴다(FF 화면에는 사용자의 변수가 선언되어 있지 않다).
   const value = (name: Ref) => {
     const raw = name ? tokens.find((t) => t.name === name)?.value : undefined
-    return raw && refOf(raw) ? (resolveColor(tokens, raw) ?? undefined) : raw
+    if (raw && refOf(raw)) return resolveColor(tokens, raw) ?? undefined
+    // 의미 간격도 가리키는 간격의 길이로 푼다.
+    const space = raw ? SPACE_REF.exec(raw)?.[1] : undefined
+    return space ? tokens.find((t) => t.name === space)?.value : raw
   }
   const variant = comp.variants[cell.v] ?? comp.variants[0]
   const size = comp.sizes[cell.s] ?? comp.sizes[0]

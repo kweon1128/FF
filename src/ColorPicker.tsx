@@ -274,7 +274,7 @@ function Panel({
 
       {swatches.length > 0 && (
         <div className="mt-popover border-t border-hairline pt-popover">
-          <p className="mb-title type-caption-strong text-ink-faint">이 디자인 시스템의 색</p>
+          <p className="mb-heading type-caption-strong text-ink-faint">이 디자인 시스템의 색</p>
           {/* 색상 판처럼 목록마다 한 줄. 한 줄에 11칸이라 50부터 950까지가 한 줄에 들어가고, 줄끼리 같은 단계가 위아래로 맞는다. */}
           <div className="max-h-40 space-y-rows overflow-y-auto">
             {swatches.map((row) => (

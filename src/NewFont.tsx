@@ -177,7 +177,7 @@ export function FontSample({
         한라봉 선물세트
       </p>
       {/* 금액과, 그 줄의 오른쪽 끝에 상태 표시. 상태 표시는 연한 배경 버튼의 모양이다(글자색을 옅게 깐 바탕). */}
-      <div className="mt-label flex items-center justify-between gap-row-gap">
+      <div className="mt-label flex items-center justify-between gap-row-inner">
         <p className={LINE} style={{ ...sub, fontWeight: W_HEADING }}>
           38,000원 · 2상자
         </p>
@@ -404,7 +404,7 @@ export function NewFontForm({
       if (!SLUG.test(name)) return setNameError('영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.')
       // --font-weight-로 시작하면 굵기로 읽힌다.
       if (name === 'weight' || name.startsWith('weight-')) return setNameError('weight로 시작하는 이름은 굵기에 쓰여요.')
-      if (existing.has(name)) return setNameError('같은 이름의 글꼴 종류가 이미 있어요.')
+      if (existing.has(name)) return setNameError('같은 이름이 이미 있어요.')
     }
     // 추천 글꼴이면 불러오는 주소를 시스템의 fonts.css에 적어 둔다.
     void recordFont(picked)
@@ -423,7 +423,7 @@ export function NewFontForm({
         aria-selected={on}
         aria-disabled={full}
         onClick={() => toggle(family)}
-        className={`flex h-8 w-full items-center gap-row-gap overflow-hidden rounded-md px-row-x text-left type-body outline-selection focus-visible:outline-2 ${
+        className={`flex h-8 w-full items-center gap-row-inner overflow-hidden rounded-md px-row-x text-left type-body outline-selection focus-visible:outline-2 ${
           on ? 'bg-selection-soft' : full ? 'cursor-default opacity-40' : 'hover:bg-hover'
         }`}
       >
@@ -431,7 +431,7 @@ export function NewFontForm({
         <span className={`min-w-0 flex-1 whitespace-nowrap ${TRIM}`} style={{ fontFamily: `"${family}", system-ui, sans-serif` }}>
           {family}
         </span>
-        {on && <Check size={14} strokeWidth={1.5} className="shrink-0 text-ink-soft" />}
+        {on && <Check size={16} strokeWidth={1.5} className="shrink-0 text-ink-soft" />}
       </button>
     )
   }
@@ -566,7 +566,7 @@ export function NewFontForm({
                   onClick={() => toggle(family)}
                   className="absolute top-2 right-2 flex size-6 items-center justify-center rounded-sm text-ink-faint outline-selection hover:bg-hover hover:text-ink focus-visible:outline-2"
                 >
-                  <X size={14} strokeWidth={1.5} />
+                  <X size={16} strokeWidth={1.5} />
                 </button>
               </div>
             )

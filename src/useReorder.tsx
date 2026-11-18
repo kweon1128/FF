@@ -9,9 +9,10 @@ const LINE = 'pointer-events-none absolute z-10 bg-selection'
 /**
  * names는 목록에 놓인 차례대로의 값 이름, onMove는 놓았을 때 부르는 것(before 앞에 놓는다. 맨 끝이면 null).
  * onMove를 주지 않으면 끌 수 없는 목록이다(차례가 값의 크기로 저절로 정해지는 종류).
+ * attr은 줄(칸)을 찾을 때 쓰는 속성의 이름이다. 값이 아니라 묶음이나 종류를 옮길 때는 그것에 붙인 속성(data-kind 등)을 준다.
  * grid면 여러 칸으로 놓인 목록이라 읽는 순서(왼쪽에서 오른쪽, 위에서 아래)로 자리를 찾고, 선을 칸의 왼쪽·오른쪽에 세로로 긋는다.
  */
-export function useReorder(names: string[], onMove: ((name: string, before: string | null) => void) | undefined, grid = false) {
+export function useReorder(names: string[], onMove: ((name: string, before: string | null) => void) | undefined, grid = false, attr = 'data-token') {
   const drag = useRef<{ name: string; x: number; y: number; moved: boolean } | null>(null)
   // 끌기가 끝난 직후에 따라오는 클릭은 선택으로 치지 않는다.
   const dragged = useRef(false)
@@ -20,7 +21,7 @@ export function useReorder(names: string[], onMove: ((name: string, before: stri
   /** 마우스 자리에서 놓으면 어느 것의 앞에 들어가는지. */
   function slotAt(x: number, y: number): string | null {
     for (const name of names) {
-      const box = document.querySelector(`[data-token="${CSS.escape(name)}"]`)?.getBoundingClientRect()
+      const box = document.querySelector(`[${attr}="${CSS.escape(name)}"]`)?.getBoundingClientRect()
       if (!box) continue
       const first = grid ? y < box.top || (y <= box.bottom && x < box.left + box.width / 2) : y < box.top + box.height / 2
       if (first) return name

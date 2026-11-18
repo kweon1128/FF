@@ -231,7 +231,7 @@ export function NewWeightsForm({
                     role="radio"
                     aria-checked={f.name === fontName}
                     onClick={() => setFontName(f.name)}
-                    className={`flex h-8 w-full items-center gap-row-gap rounded-md px-row-x text-left type-body outline-selection focus-visible:outline-2 ${
+                    className={`flex h-8 w-full items-center gap-row-inner rounded-md px-row-x text-left type-body outline-selection focus-visible:outline-2 ${
                       f.name === fontName ? 'bg-selection-soft' : 'hover:bg-hover'
                     }`}
                   >
@@ -252,10 +252,10 @@ export function NewWeightsForm({
           {steps.map((s) => {
             const real = drawn[s.name]
             return (
-              <div key={s.name} data-step={s.name} onMouseEnter={() => setHot(s.name)} onMouseLeave={() => setHot(null)} className="flex h-8 items-center gap-grid">
+              <div key={s.name} data-step={s.name} onMouseEnter={() => setHot(s.name)} onMouseLeave={() => setHot(null)} className="flex h-8 items-center gap-cells">
                 {/* 마우스를 올렸을 때의 회색 바탕은 이름, 값, 쓰이는 곳까지만 덮는다. 견본 문장은 바탕 밖에 두고 화면 예시의 글자처럼 1px 선을 둘러 표시한다(글자 크기 한 벌 만들기와 같다).
                     바탕의 좌우 여백은 그 끝에 놓인 것의 위아래 여백과 같게 한다. 왼쪽 끝은 이름 칸(24px, 위아래 4px)이라 4px, 오른쪽 끝은 쓰이는 곳의 글자(줄 높이 16px, 위아래 8px)라 8px. */}
-                <span className={`-ml-chip-x flex h-8 shrink-0 items-center gap-grid rounded-md pr-row-x pl-chip-x ${hot === s.name ? 'bg-hover' : ''}`}>
+                <span className={`-ml-chip-x flex h-8 shrink-0 items-center gap-cells rounded-md pr-row-x pl-chip-x ${hot === s.name ? 'bg-hover' : ''}`}>
                   <StepName wide label={`${s.name} 이름`} value={nameOf(s.name)} onChange={(name) => setNames({ ...names, [s.name]: name })} />
                   <StepWeight
                     name={s.name}

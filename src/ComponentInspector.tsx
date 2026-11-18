@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Copy, CopyPlus, Trash2 } from 'lucide-react'
 import { DynamicIcon, iconNames } from 'lucide-react/dynamic'
 import type { Token } from './lib/api'
-import { KINDS, SLUG, shortName, type Kind } from './lib/catalog'
+import { KINDS, SLUG, SPACE_REF, shortName, type Kind } from './lib/catalog'
 import { showColor } from './lib/color'
 import { refOf, resolveColor } from './lib/roles'
 import { readType } from './lib/types'
@@ -82,7 +82,10 @@ function TokenField({
 }) {
   const options = tokens.filter((t) => kind.matches(t.name))
   // 색 칸에서는 의미 색도 고를 수 있다. 쓰임새에 이름을 붙여 둔 색이라 단계 색보다 먼저 보여 준다.
-  const roles = kind.id === 'color' ? tokens.filter((t) => KINDS.role.matches(t.name)) : []
+  // 간격 칸에서도 의미 간격을 먼저 보여 준다. 화면은 숫자 간격을 바로 쓰지 않고 쓰임의 이름을 쓴다.
+  const roles = kind.id === 'color' ? tokens.filter((t) => KINDS.role.matches(t.name)) : kind.id === 'space' ? tokens.filter((t) => KINDS.spaceUse.matches(t.name)) : []
+  // 의미 값이 가리키는 값의 짧은 이름(색은 gray-900, 간격은 2).
+  const pointsAt = (t: Token) => (refOf(t.value) ?? SPACE_REF.exec(t.value)?.[1] ?? t.value).replace(kind.prefix, '')
   const current = [...roles, ...options].find((t) => t.name === value)
   const missing = value !== undefined && !current
   const plain = (t: Token) => (
@@ -94,7 +97,7 @@ function TokenField({
   return (
     <Field
       label={label}
-      error={missing ? '고른 값이 기본 값에서 없어졌어요. 다시 골라 주세요.' : null}
+      error={missing ? '고른 값이 없어졌어요. 다시 골라 주세요.' : null}
       hint={options.length + roles.length === 0 ? `${kind.title} 값을 먼저 만들어 주세요.` : undefined}
     >
       <span className="flex items-center gap-field-row">
@@ -113,16 +116,16 @@ function TokenField({
           <option value="">{empty}</option>
           {missing && <option value={value}>{shortName(kind, value)} (없어짐)</option>}
           {roles.length > 0 && (
-            <optgroup label="의미 색">
+            <optgroup label={kind.id === 'space' ? '의미 간격' : '의미 색'}>
               {roles.map((t) => (
                 <option key={t.name} value={t.name}>
-                  {shortName(kind, t.name)} · {(refOf(t.value) ?? t.value).replace(kind.prefix, '')}
+                  {shortName(kind, t.name)} · {pointsAt(t)}
                 </option>
               ))}
             </optgroup>
           )}
           {roles.length > 0 ? (
-            <optgroup label="색상">{options.map(plain)}</optgroup>
+            <optgroup label={kind.id === 'space' ? '간격' : '색상'}>{options.map(plain)}</optgroup>
           ) : (
             options.map(plain)
           )}
@@ -386,7 +389,7 @@ export function ComponentInspector({
           <p className="mb-label type-label text-ink-faint">저장 위치</p>
           <Chip>{file}</Chip>
         </div>
-        <div className="mt-blocks -ml-button-quiet-x">
+        <div className="mt-blocks -ml-button-ghost-x">
           <Button variant="ghost" onClick={onCopyCss}>
             <Copy size={16} strokeWidth={1.5} />
             CSS 복사
@@ -396,7 +399,7 @@ export function ComponentInspector({
 
       {/* 복제와 삭제는 맨 아래에 모은다. 칸 하나를 골랐을 때만 그 칸의 종류와 크기를 복제하고 지울 수 있다. 버튼의 바탕이 닿지 않게 4px 띄운다. */}
       <Section>
-        <div className="-ml-button-quiet-x flex flex-wrap gap-actions-tight">
+        <div className="-ml-button-ghost-x flex flex-wrap gap-actions-tight">
           {cell && single && variant && (
             <>
               <Button variant="ghost" title="Ctrl+D" onClick={() => onDuplicateVariant(cell.v)}>

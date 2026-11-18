@@ -52,7 +52,7 @@ const PLAIN = /^[a-z0-9]+$/
 export function Section({ title, children }: { title?: string; children: ReactNode }) {
   return (
     <section className="border-b border-hairline px-section-x py-section-y last:border-b-0">
-      {title && <h3 className="mb-title type-heading">{title}</h3>}
+      {title && <h3 className="mb-heading type-heading">{title}</h3>}
       {children}
     </section>
   )
@@ -103,7 +103,7 @@ export function FoldSection({
   if (empty)
     return (
       <section className="border-b border-hairline last:border-b-0">
-        <h3 className="flex h-11 items-center gap-button-icon px-section-x type-heading">
+        <h3 className="flex h-11 items-center gap-button-inner px-section-x type-heading">
           <span className="flex-1">{title}</span>
           {note && <span className="type-body text-ink-faint">{note}</span>}
         </h3>
@@ -116,7 +116,7 @@ export function FoldSection({
           type="button"
           aria-expanded={open}
           onClick={toggle}
-          className="flex h-11 w-full items-center gap-button-icon px-section-x type-heading outline-selection hover:bg-hover focus-visible:outline-2 focus-visible:-outline-offset-2"
+          className="flex h-11 w-full items-center gap-button-inner px-section-x type-heading outline-selection hover:bg-hover focus-visible:outline-2 focus-visible:-outline-offset-2"
         >
           <span className="flex-1 text-left">{title}</span>
           {note && <span className="type-body text-ink-faint">{note}</span>}
@@ -125,6 +125,78 @@ export function FoldSection({
       </h3>
       {open && <div className="px-section-x pt-label pb-section-y">{children}</div>}
     </section>
+  )
+}
+
+/**
+ * 그 값을 코드에서 쓰는 클래스. Tailwind가 값의 이름으로 만들어 주는 것 가운데 가장 흔히 쓰는 것이다.
+ * 색은 글자와 바탕, 간격은 여백과 사이처럼 쓰임이 여럿인 종류는 둘을 적는다.
+ */
+export function classesOf(kind: Kind, short: string): string[] {
+  switch (kind.id) {
+    case 'color':
+    case 'role':
+      return [`text-${short}`, `bg-${short}`]
+    case 'font':
+    case 'weight':
+      return [`font-${short}`]
+    case 'size':
+      return [`text-${short}`]
+    case 'leading':
+      return [`leading-${short}`]
+    case 'tracking':
+      return [`tracking-${short}`]
+    case 'space':
+    case 'spaceuse':
+      return [`p-${short}`, `gap-${short}`]
+    case 'radius':
+      return [`rounded-${short}`]
+    case 'border':
+      return [`border-${short}`]
+    case 'breakpoint':
+      return [`${short}:`]
+    case 'container':
+      return [`max-w-${short}`]
+    case 'style':
+      return [`type-${short}`]
+    default:
+      // 그림자, 투명도, 흐림, 비율, 겹치는 순서, 움직임 시간과 흐름은 종류의 이름이 곧 클래스의 앞머리다.
+      return [`${kind.prefix.replace(/^--|-$/g, '')}-${short}`]
+  }
+}
+
+/**
+ * 패널의 "코드" 구역 안. 어느 패널이나 같은 모양이다: 쓰는 법(클래스와 변수. 줄마다 복사 버튼), 저장된 값(복사 버튼), 저장 위치.
+ * uses는 쓰는 법에 적을 것들이고 그대로 복사된다. note는 저장된 값 아래에 붙이는 한 줄(가까운 색으로 보여 준다는 것 등)이다.
+ */
+export function CodeRows({ uses, value, file, onCopy, note, valueNote }: { uses: string[]; value: string; file: string; onCopy: (text: string) => void; note?: string; valueNote?: string }) {
+  const row = (text: string) => (
+    <span key={text} className="flex items-center gap-actions-tight">
+      <span className="min-w-0 flex-1">
+        <Chip>{text}</Chip>
+      </span>
+      <button type="button" title={`${text} 복사`} aria-label={`${text} 복사`} onClick={() => onCopy(text)} className={ICON_BUTTON}>
+        <Copy size={16} strokeWidth={1.5} />
+      </button>
+    </span>
+  )
+  return (
+    <div className="space-y-blocks">
+      <div>
+        <p className="mb-label type-label text-ink-faint">쓰는 법</p>
+        <div className="space-y-rows">{uses.map(row)}</div>
+      </div>
+      <div>
+        <p className="mb-label type-label text-ink-faint">저장된 값</p>
+        {row(value)}
+        {valueNote && <p className="mt-label type-body text-ink-faint">{valueNote}</p>}
+        {note && <p className="mt-label type-body text-ink-faint">{note}</p>}
+      </div>
+      <div>
+        <p className="mb-label type-label text-ink-faint">저장 위치</p>
+        <Chip>{file}</Chip>
+      </div>
+    </div>
   )
 }
 
@@ -428,7 +500,7 @@ export function Inspector({
           </div>
         )}
         {isFont && (
-          <Button variant="ghost" className="-ml-button-quiet-x" onClick={() => setPickingFont(true)}>
+          <Button variant="ghost" className="-ml-button-ghost-x" onClick={() => setPickingFont(true)}>
             <Type size={16} strokeWidth={1.5} />
             글꼴 고르기
           </Button>
@@ -449,7 +521,7 @@ export function Inspector({
         {scaleMissing !== null && (
           <Button
             variant="ghost"
-            className="mt-blocks -ml-button-quiet-x"
+            className="mt-blocks -ml-button-ghost-x"
             disabled={!HEX6.test(liveColor ?? '')}
             title={
               scaleMissing === 0
@@ -467,20 +539,19 @@ export function Inspector({
       {/* 구역의 차례는 어느 패널이나 같다: 이름, 값, 설명, 쓰이는 곳, 코드. 고치는 것은 늘 펼쳐 두고, 보기만 하는 것(쓰이는 곳, 코드)은 접을 수 있다.
           "쓰인 모습" 구역은 두지 않는다. 패널은 값을 고치는 곳이고, 쓰인 모습은 판(의미 색과 의미 글꼴의 예시)과 색 선택 창, 글꼴 추가 창이 보여 준다. */}
       <FoldSection title="쓰이는 곳" storageKey={WHERE_OPEN} startOpen note={uses.length + roles.length > 0 ? String(uses.length + roles.length) : '없음'} empty={uses.length + roles.length === 0}>
-        {uses.length === 0 && roles.length === 0 ? (
-          <p className="type-body text-ink-faint">이 값을 쓰는 곳이 아직 없어요.</p>
-        ) : (
+        {/* 쓰는 곳이 없으면 이 구역은 제목 줄만 남는다("없음"). 그래서 안에는 쓰는 곳이 있을 때의 목록만 있다. */}
+        {(
           <div className="space-y-blocks">
-            {/* 이 색을 가리키는 의미 색. 누르면 의미 색 판의 그 색으로 간다. */}
+            {/* 이 값을 가리키는 의미 색, 의미 글꼴, 의미 간격. 누르면 그 판의 그 값으로 간다. */}
             {roles.map((name) => (
               <button
                 key={name}
                 type="button"
                 onClick={() => onOpenToken(name)}
-                className="-ml-button-quiet-x flex h-8 max-w-full items-center rounded-md px-button-quiet-x type-label outline-selection hover:bg-hover focus-visible:outline-2"
+                className="-ml-button-ghost-x flex h-8 max-w-full items-center rounded-md px-button-ghost-x type-label outline-selection hover:bg-hover focus-visible:outline-2"
               >
                 <span className="truncate">{name.startsWith('--type-') ? name.slice('--type-'.length) : name.slice(kind.prefix.length)}</span>
-                <span className="ml-row-gap shrink-0 type-body text-ink-faint">{name.startsWith('--type-') ? '의미 글꼴' : '의미 색'}</span>
+                <span className="ml-row-inner shrink-0 type-body text-ink-faint">{name.startsWith('--type-') ? '의미 글꼴' : name.startsWith('--spacing-') ? '의미 간격' : '의미 색'}</span>
               </button>
             ))}
             {uses.map((u) => (
@@ -488,10 +559,10 @@ export function Inspector({
                 <button
                   type="button"
                   onClick={() => onOpenComponent(u.index)}
-                  className="-ml-button-quiet-x flex h-8 max-w-full items-center rounded-md px-button-quiet-x type-label outline-selection hover:bg-hover focus-visible:outline-2"
+                  className="-ml-button-ghost-x flex h-8 max-w-full items-center rounded-md px-button-ghost-x type-label outline-selection hover:bg-hover focus-visible:outline-2"
                 >
                   <span className="truncate">{u.name}</span>
-                  <span className="ml-row-gap shrink-0 type-body text-ink-faint">{u.where.length}곳</span>
+                  <span className="ml-row-inner shrink-0 type-body text-ink-faint">{u.where.length}곳</span>
                 </button>
                 <p className="type-body text-ink-faint">{u.where.join(', ')}</p>
               </div>
@@ -501,45 +572,13 @@ export function Inspector({
       </FoldSection>
 
       <FoldSection title="코드" storageKey={CODE_OPEN}>
-        <div className="space-y-blocks">
-          <div>
-            <p className="mb-label type-label text-ink-faint">변수 이름</p>
-            <span className="flex items-center gap-actions-tight">
-              <span className="min-w-0 flex-1">
-                <Chip>{token.name}</Chip>
-              </span>
-              <button
-                type="button"
-                title={`var(${token.name}) 복사`}
-                aria-label="코드 복사"
-                onClick={() => onCopy(`var(${token.name})`)}
-                className={ICON_BUTTON}
-              >
-                <Copy size={16} strokeWidth={1.5} />
-              </button>
-            </span>
-          </div>
-          {(isColor || isFont) && (
-            <div>
-              <p className="mb-label type-label text-ink-faint">저장된 값</p>
-              <span className="flex items-center gap-actions-tight">
-                <span className="min-w-0 flex-1">
-                  <Chip>{token.value}</Chip>
-                </span>
-                <button type="button" title="저장된 값 복사" aria-label="저장된 값 복사" onClick={() => onCopy(token.value)} className={ICON_BUTTON}>
-                  <Copy size={16} strokeWidth={1.5} />
-                </button>
-              </span>
-              {isColor && isApprox(token.value) && (
-                <p className="mt-label type-body text-ink-faint">화면이 낼 수 없는 선명한 색이라, 위의 # 값은 가장 가까운 색이에요.</p>
-              )}
-            </div>
-          )}
-          <div>
-            <p className="mb-label type-label text-ink-faint">저장 위치</p>
-            <Chip>{file}</Chip>
-          </div>
-        </div>
+        <CodeRows
+          uses={[...classesOf(kind, short), `var(${token.name})`]}
+          value={token.value}
+          file={file}
+          onCopy={onCopy}
+          note={isColor && isApprox(token.value) ? '화면이 낼 수 없는 선명한 색이라, 위의 # 값은 가장 가까운 색이에요.' : undefined}
+        />
       </FoldSection>
     </div>
   )
@@ -601,7 +640,7 @@ export function MultiInspector({
       </Section>
 
       <Section>
-        <Button variant="ghost" className="-ml-button-quiet-x" title="Ctrl+R" onClick={onRename}>
+        <Button variant="ghost" className="-ml-button-ghost-x" title="Ctrl+R" onClick={onRename}>
           <PencilLine size={16} strokeWidth={1.5} />
           번호 다시 매기기
         </Button>

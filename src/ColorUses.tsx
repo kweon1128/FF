@@ -93,7 +93,7 @@ export function ColorUses({ color, step, compact = false }: { color: string; ste
   const font = useContext(PreviewFontContext)
   const space = useContext(PreviewSpaceContext)
   const { hover, pressed } = statesOf(color, step)
-  const pad = compact ? 'p-blocks' : 'p-board-row'
+  const pad = compact ? 'p-box' : 'p-sample'
   const gap = compact ? 'space-y-rows' : 'space-y-blocks'
   // 옅은 배경: 이 색을 바탕에 조금만 섞는다. 밝은 쪽은 흰색에 12%, 어두운 쪽은 짙은 바탕에 24%.
   const soft = (surface: string, amount: number): CSSProperties => ({
