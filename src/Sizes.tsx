@@ -1,6 +1,7 @@
 // 크기 판(토대)의 패널과 추가 창, 의미 크기 판의 내용.
 // 의미 크기 판은 쓰임마다 이름과 가리키는 크기, 설명, 그 크기가 실제로 쓰인 모습을 보여 준다.
 
+import { SAMPLE_BAR, SAMPLE_W } from './lib/sample'
 import { CHECK_STROKE, ICON_STROKE } from './lib/icons'
 import { useContext, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import { ArrowUpRight, Check as CheckIcon, ChevronDown, Copy, Folder, Minus, Plus, X } from 'lucide-react'
@@ -61,7 +62,9 @@ export function SizeSample({ kind, shape, value, pair, around, tint, words: writ
         .filter(Boolean)
     : [all]
   // pair는 폭과 함께 그릴 높이다(요소별 보기에서 높이와 폭이 함께 있는 요소). 있으면 정사각형처럼 폭과 높이를 모두 정해 그리고, 두 치수선을 함께 긋는다(높이는 왼쪽, 폭은 위).
-  const both = kind.id === 'width' && pair !== undefined
+  // 메뉴는 예외다. 함께 그릴 높이가 메뉴 전체가 아니라 그 안의 줄 하나의 높이라서, 메뉴의 폭은 그대로 재고 첫 줄 옆에 높이의 선을 하나 더 긋는다.
+  const inner = kind.id === 'width' && pair !== undefined && pairsInside(shape)
+  const both = kind.id === 'width' && pair !== undefined && !inner
   const high = (both && pair) || value
   const tall = kind.id === 'height'
   const wide = kind.id === 'width' && !both
@@ -90,18 +93,20 @@ export function SizeSample({ kind, shape, value, pair, around, tint, words: writ
   /** 재는 상자. 이 상자의 높이(폭)가 그 값이고, 치수선이 그 옆에 같은 길이로 그어진다. */
   // inset은 재는 상자가 눈에 보이는 요소의 가장자리에서 안쪽으로 들어가 있는 만큼이다(전환 버튼의 칸은 바깥 상자의 안쪽 여백만큼 들어가 있다).
   // 그만큼 선을 더 밖으로 내서, 선과 눈에 보이는 요소 사이가 어느 예시에서나 8px이 되게 한다.
+  /** 높이의 치수선과 그 값의 이름표. 재는 것(relative)의 왼쪽에 놓인다. */
+  const heightMark = (text: string, inset = 0) => (
+    <span data-measure="height" className="pointer-events-none absolute" style={{ top: 0, bottom: 0, left: -away - inset * scale, width: thick, background: MARK }}>
+      <span className="absolute" style={{ top: 0, left: capAt, width: cap, height: thick, background: MARK }} />
+      <span className="absolute" style={{ bottom: 0, left: capAt, width: cap, height: thick, background: MARK }} />
+      {/* 값의 이름표. 선의 한가운데 높이에서 선의 왼쪽에 놓는다. 요소를 가리지 않는다. 줄여 그리는 그림에서도 글자는 제 크기다. 이름표에만 zoom을 되돌린다(자리를 잡는 바깥 상자에 주면 그 거리까지 함께 커진다). */}
+      <span className="absolute" style={{ top: '50%', left: -(cap - thick) / 2 - TAG_GAP * scale }}>
+        <span data-measure-tag className={`absolute top-0 right-0 -translate-y-1/2 ${TAG}`} style={{ zoom: scale }}>{text}</span>
+      </span>
+    </span>
+  )
   const m = (children: ReactNode, more = '', inset = 0) => (
     <span data-sample className={`relative flex shrink-0 ${more}`} style={{ ...dims, zoom: 1 / scale }}>
-      {!wide && (
-        <span data-measure="height" className="pointer-events-none absolute" style={{ top: 0, bottom: 0, left: -away - inset * scale, width: thick, background: MARK }}>
-          <span className="absolute" style={{ top: 0, left: capAt, width: cap, height: thick, background: MARK }} />
-          <span className="absolute" style={{ bottom: 0, left: capAt, width: cap, height: thick, background: MARK }} />
-          {/* 값의 이름표. 선의 한가운데 높이에서 선의 왼쪽에 놓는다. 요소를 가리지 않는다. 줄여 그리는 그림에서도 글자는 제 크기다. 이름표에만 zoom을 되돌린다(자리를 잡는 바깥 상자에 주면 그 거리까지 함께 커진다). */}
-          <span className="absolute" style={{ top: '50%', left: -(cap - thick) / 2 - TAG_GAP * scale }}>
-            <span data-measure-tag className={`absolute top-0 right-0 -translate-y-1/2 ${TAG}`} style={{ zoom: scale }}>{amountHigh}</span>
-          </span>
-        </span>
-      )}
+      {!wide && heightMark(amountHigh, inset)}
       {!tall && (
         <span data-measure="width" className="pointer-events-none absolute" style={{ left: 0, right: 0, top: -away - inset * scale, height: thick, background: MARK }}>
           <span className="absolute" style={{ left: 0, top: capAt, height: cap, width: thick, background: MARK }} />
@@ -118,17 +123,17 @@ export function SizeSample({ kind, shape, value, pair, around, tint, words: writ
   // 치수선이 놓이는 쪽(높이는 왼쪽, 폭은 위쪽, 정사각형은 둘 다)은 예시 상자의 안쪽 여백을 그만큼 더 준다.
   // 선은 요소에서 8px 떨어져 있고 굵기 1px에 가로대가 3px 더 나가므로 12px이 든다. 더 주지 않으면 선의 가로대가 상자의 가장자리에 닿는다.
   // 이름표가 놓이는 자리도 더한다: 왼쪽은 이름표의 폭, 위쪽은 이름표의 높이, 그리고 선과 이름표 사이 4px.
-  const roomLeft = `calc(var(--spacing-sample) + ${RESERVE + TAG_GAP + tagWidth(amountHigh)}px)`
+  const roomLeft = `calc(var(--spacing-sample) + ${RESERVE + TAG_GAP + tagWidth(inner ? String(parseFloat(pair!)) : amountHigh)}px)`
   const roomTop = `calc(var(--spacing-sample) + ${RESERVE + TAG_GAP + TAG_HEIGHT}px)`
   const frame = (body: ReactNode) => (
     <span
       className={`flex w-full items-center justify-center overflow-hidden rounded-card p-sample ${EDGE}`}
-      style={{ ...space, background: around.surface, color: around.ink, fontFamily: font, ...(wide ? {} : { paddingLeft: roomLeft }), ...(tall ? {} : { paddingTop: roomTop }) }}
+      style={{ ...space, background: around.surface, color: around.ink, fontFamily: font, ...(wide && !inner ? {} : { paddingLeft: roomLeft }), ...(tall ? {} : { paddingTop: roomTop }) }}
     >
       {body}
     </span>
   )
-  const bar = (more = '') => <span className={`block h-[8px] rounded-small ${more}`} style={{ background: faint }} />
+  const bar = (more = '') => <span className={`block ${SAMPLE_BAR} rounded-small ${more}`} style={{ background: faint }} />
   const square = (icon: ReactNode) => (
     <span className="flex size-icon-button shrink-0 items-center justify-center rounded-control" style={{ background: hover, color: soft }}>
       {icon}
@@ -136,7 +141,7 @@ export function SizeSample({ kind, shape, value, pair, around, tint, words: writ
   )
   switch (shape) {
     case 'input':
-      return frame(m(<span className={`${F} ${other('w-[160px]', 'h-control')} flex items-center overflow-hidden rounded-control px-input-x whitespace-nowrap ${TEXT}`} style={ring}>{all}</span>))
+      return frame(m(<span className={`${F} ${other(SAMPLE_W, 'h-control')} flex items-center overflow-hidden rounded-control px-input-x whitespace-nowrap ${TEXT}`} style={ring}>{all}</span>))
     case 'button':
       // 나란한 버튼. 마지막은 채운 버튼이다(취소, 추가처럼 끝의 것이 주된 동작이다). 그 앞의 것은 바탕 없는 버튼이라, 마우스를 올린 모습(옅은 바탕)으로 그려 버튼이 어디까지인지 보여 준다. 하나뿐이면 테두리 버튼이다.
       return frame(
@@ -158,7 +163,7 @@ export function SizeSample({ kind, shape, value, pair, around, tint, words: writ
       // 왼쪽 메뉴의 줄. 지금 열려 있는 화면의 줄이라 옅은 바탕이 깔려 있고 글자가 굵다(16px). 앞에 그 화면의 아이콘이 있다.
       return frame(
         m(
-          <span className={`${F} ${other('w-[160px]', 'h-row')} flex items-center gap-row-inner overflow-hidden rounded-row px-row-x text-base leading-6 font-[550] whitespace-nowrap`} style={{ background: hover }}>
+          <span className={`${F} ${other(SAMPLE_W, 'h-row')} flex items-center gap-row-inner overflow-hidden rounded-row px-row-x text-base leading-6 font-[550] whitespace-nowrap`} style={{ background: hover }}>
             <NavIcon label={all} />
             {all}
           </span>,
@@ -198,7 +203,7 @@ export function SizeSample({ kind, shape, value, pair, around, tint, words: writ
         </span>,
       )
     case 'slider':
-      return frame(m(<span className={`${F} ${other('w-[160px]', 'h-[12px]')} block rounded-pill`} style={{ background: 'linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)' }} />))
+      return frame(m(<span className={`${F} ${other(SAMPLE_W, 'h-[12px]')} block rounded-pill`} style={{ background: 'linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)' }} />))
     case 'iconbutton':
       return frame(
         m(
@@ -228,7 +233,7 @@ export function SizeSample({ kind, shape, value, pair, around, tint, words: writ
       // 상단 바. 디자인 시스템을 고르는 자리(폴더 아이콘, 이름, 화살표)가 놓이고 아래에 선이 있다.
       return frame(
         m(
-          <span className={`${F} ${other('w-[160px]', 'h-bar')} flex items-center gap-row-inner overflow-hidden px-bar-x font-[550] whitespace-nowrap ${TEXT}`} style={{ boxShadow: `inset 0 -1px 0 ${line}` }}>
+          <span className={`${F} ${other(SAMPLE_W, 'h-bar')} flex items-center gap-row-inner overflow-hidden px-bar-x font-[550] whitespace-nowrap ${TEXT}`} style={{ boxShadow: `inset 0 -1px 0 ${line}` }}>
             <Folder size={16} strokeWidth={ICON_STROKE} className="shrink-0" />
             {all}
             <ChevronDown size={16} strokeWidth={ICON_STROKE} className="shrink-0" style={{ color: soft }} />
@@ -239,7 +244,7 @@ export function SizeSample({ kind, shape, value, pair, around, tint, words: writ
       // 제목 줄. 첫 문구가 제목, 나머지가 오른쪽의 버튼이다.
       return frame(
         m(
-          <span className={`${F} ${other('w-[160px]', 'h-compact')} flex items-center justify-between gap-columns font-[550] whitespace-nowrap ${SMALL}`}>
+          <span className={`${F} ${other(SAMPLE_W, 'h-compact')} flex items-center justify-between gap-columns font-[550] whitespace-nowrap ${SMALL}`}>
             <span>{list[0]}</span>
             <span style={{ color: soft }}>{list.slice(1).join(', ')}</span>
           </span>,
@@ -261,7 +266,7 @@ export function SizeSample({ kind, shape, value, pair, around, tint, words: writ
     case 'card':
       // 카드. 위에 이름 줄이 있고 그 아래에 내용이 있다. 재는 것은 이름 줄이다.
       return frame(
-        <span className={`block rounded-card ${other('w-[160px]', '')}`} style={ring}>
+        <span className={`block rounded-card ${other(SAMPLE_W, '')}`} style={ring}>
           {m(<span className={`${F} ${other('w-full', 'h-[40px]')} flex items-center px-section-x whitespace-nowrap ${SMALL}`} style={{ color: soft }}>{all}</span>, tall ? 'w-full' : '')}
           <span className="block px-section-x pb-section-y">{bar('w-full')}</span>
         </span>,
@@ -270,7 +275,7 @@ export function SizeSample({ kind, shape, value, pair, around, tint, words: writ
       // 줄이 넘치면 스크롤되는 목록 상자. 재는 것은 상자의 높이(폭)이고, 줄은 그 안에서 잘린다.
       return frame(
         m(
-          <span className={`${F} ${other('w-[160px]', 'h-[144px]')} block overflow-hidden rounded-card p-box`} style={ring}>
+          <span className={`${F} ${other(SAMPLE_W, 'h-[144px]')} block overflow-hidden rounded-card p-box`} style={ring}>
             <span className="block space-y-rows">
               {Array.from({ length: 16 }, (_, i) => list[i % list.length]).map((text, i) => (
                 <span key={i} className={`flex h-row items-center rounded-row px-row-x whitespace-nowrap ${TEXT}`} style={i === 0 ? { background: hover } : undefined}>
@@ -287,20 +292,24 @@ export function SizeSample({ kind, shape, value, pair, around, tint, words: writ
       return frame(
         m(
           <span className={`${F} block space-y-rows rounded-float p-menu`} style={ring}>
-            {list.map((text, i) =>
-              isNavLabel(list[0]) ? (
-                <span key={i} className={`flex h-row items-center gap-row-inner overflow-hidden rounded-row px-row-x text-base leading-6 whitespace-nowrap ${i === 0 ? 'font-[550]' : ''}`} style={i === 0 ? { background: hover } : { color: soft }}>
+            {list.map((text, i) => (
+              // 줄을 감싼 상자. 첫 줄 옆에 줄 높이의 치수선을 긋는다(줄은 넘치는 것을 자르므로 선을 줄 안에 둘 수 없다). 4는 메뉴 상자의 안쪽 여백이다.
+              <span key={i} className="relative block">
+                {inner && i === 0 && heightMark(String(parseFloat(pair!)), 4)}
+                {isNavLabel(list[0]) ? (
+                <span className={`flex h-row items-center gap-row-inner overflow-hidden rounded-row px-row-x text-base leading-6 whitespace-nowrap ${i === 0 ? 'font-[550]' : ''}`} style={i === 0 ? { background: hover } : { color: soft }}>
                   <NavIcon label={text} />
                   {text}
                 </span>
               ) : (
-                <span key={i} className={`flex h-row items-center gap-row-inner overflow-hidden rounded-row px-row-x whitespace-nowrap ${TEXT}`} style={text.startsWith('새 ') ? { color: soft } : undefined}>
+                <span className={`flex h-row items-center gap-row-inner overflow-hidden rounded-row px-row-x whitespace-nowrap ${TEXT}`} style={text.startsWith('새 ') ? { color: soft } : undefined}>
                   {text.startsWith('새 ') && <Plus size={16} strokeWidth={ICON_STROKE} className="shrink-0" />}
                   <span className="min-w-0 flex-1">{text}</span>
                   {i === 0 && <CheckIcon size={16} strokeWidth={ICON_STROKE} className="shrink-0" />}
                 </span>
-              ),
-            )}
+                )}
+              </span>
+            ))}
           </span>,
         ),
       )
@@ -311,7 +320,7 @@ export function SizeSample({ kind, shape, value, pair, around, tint, words: writ
       const [title, label, ...actions] = list
       return frame(
         m(
-          <span className={`${F} ${other('w-[160px]', '')} block overflow-hidden rounded-float px-section-x py-section-y`} style={ring}>
+          <span className={`${F} ${other(SAMPLE_W, '')} block overflow-hidden rounded-float px-section-x py-section-y`} style={ring}>
             {title && title !== '-' && <span className={`mb-heading block font-[650] whitespace-nowrap ${TEXT}`}>{title}</span>}
             {label ? (
               <span className={`block max-w-full ${parseFloat(value) <= 400 ? 'w-full' : 'w-[224px]'}`}>
@@ -343,6 +352,22 @@ export function SizeSample({ kind, shape, value, pair, around, tint, words: writ
         ),
       )
     }
+    case 'select': {
+      // 고르는 칸. 재는 것은 진하게 적는 이름의 자리이고, 그 옆에 옅은 덧글과 화살표가 놓인다. 문구는 이름, 덧글의 차례다("높이, h-이름").
+      // 이름의 자리는 칸의 위쪽 가장자리에서 6px 들어가 있어서(칸 32px에 글자 20px), 치수선을 그만큼 더 밖으로 낸다.
+      // 덧글에는 쉼표가 들어갈 수 있어서("카드, 메뉴, 창") 첫 문구만 이름이고 나머지는 모두 덧글이다.
+      const [name, ...rest] = list
+      const hint = rest.join(', ')
+      return frame(
+        <span className={`flex h-control w-[224px] items-center gap-row-inner rounded-control px-input-x ${TEXT}`} style={ring}>
+          {m(<span className={`${F} ${other('', 'h-[20px]')} font-[550] whitespace-nowrap`}>{name}</span>, '', 6)}
+          <span className="min-w-0 flex-1 overflow-hidden whitespace-nowrap" style={{ color: soft }}>
+            {hint}
+          </span>
+          <ChevronDown size={16} strokeWidth={ICON_STROKE} className="shrink-0" style={{ color: soft }} />
+        </span>,
+      )
+    }
     case 'column':
       // 한 줄 안의 글자 칸. 재는 것은 글자 칸이고, 그 옆에 다음 칸을 옅게 그려 어디까지인지 보여 준다. 첫 문구는 진하게, 나머지는 옅게 적는다.
       return frame(
@@ -364,7 +389,7 @@ export function SizeSample({ kind, shape, value, pair, around, tint, words: writ
     case 'preview':
       return frame(
         m(
-          <span className={`${F} ${other('w-[160px]', 'h-[96px]')} flex items-center justify-center rounded-float`} style={ring}>
+          <span className={`${F} ${other(SAMPLE_W, 'h-[96px]')} flex items-center justify-center rounded-float`} style={ring}>
             <span className={`flex h-control items-center rounded-control px-button-x font-[550] whitespace-nowrap ${TEXT}`} style={{ background: around.ink, color: around.surface }}>
               {all}
             </span>
@@ -372,12 +397,12 @@ export function SizeSample({ kind, shape, value, pair, around, tint, words: writ
         ),
       )
     case 'picker':
-      return frame(m(<span className={`${F} ${other('w-[160px]', 'h-[144px]')} block rounded-card`} style={{ background: `linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, ${tint})` }} />))
+      return frame(m(<span className={`${F} ${other(SAMPLE_W, 'h-[144px]')} block rounded-card`} style={{ background: `linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, ${tint})` }} />))
     case 'stage':
       // 효과를 얹어 보이는 무대. 막대들이 놓인 면이다.
       return frame(
         m(
-          <span className={`${F} ${other('w-[160px]', 'h-[80px]')} block overflow-hidden`}>
+          <span className={`${F} ${other(SAMPLE_W, 'h-[80px]')} block overflow-hidden`}>
             {bar('w-3/4')}
             {bar('mt-blocks w-1/2')}
             {bar('mt-blocks w-2/3')}
@@ -386,7 +411,7 @@ export function SizeSample({ kind, shape, value, pair, around, tint, words: writ
         ),
       )
     case 'placeholder':
-      return frame(m(<span className={`${F} ${other('w-[96px]', 'h-[8px]')} block rounded-small`} style={{ background: faint }} />))
+      return frame(m(<span className={`${F} ${other('w-[96px]', SAMPLE_BAR)} block rounded-small`} style={{ background: faint }} />))
     case 'badge':
       return frame(m(<span className={`${F} ${other('', 'h-compact')} flex items-center justify-center overflow-hidden rounded-pill px-row-x font-[550] whitespace-nowrap ${SMALL}`} style={{ background: hover }}>{all}</span>))
     case 'dot':
@@ -598,6 +623,13 @@ export function SizeViewSwitch({ value, onChange }: { value: SizeView; onChange:
 }
 
 const SIZE_KINDS_IN_ORDER = [KINDS.height, KINDS.width, KINDS.square]
+/**
+ * 제 높이가 없는 요소가 빌려 그리는 높이. 숫자 칸은 입력칸의 높이로 놓이고, 메뉴는 그 안의 줄이 줄의 높이다.
+ * 요소별 보기에서 그 요소의 폭을 이 모양의 높이와 함께 그린다.
+ */
+const PAIR_FROM: Partial<Record<SizeShape, SizeShape>> = { value: 'input', menu: 'row' }
+/** 함께 그릴 높이가 요소 전체가 아니라 그 안의 한 부분(메뉴의 줄)의 높이인 모양. */
+const pairsInside = (shape: SizeShape | undefined) => shape === 'menu'
 /** 요소별 보기의 줄 앞에 적는, 그 값이 어느 쪽 길이인지. */
 const DIMENSION: Record<string, string> = { height: '높이', width: '폭', square: '정사각형' }
 
@@ -658,7 +690,7 @@ export function SizeThings({
             </button>
             <div className="space-y-rows rounded-float border-edge border-hairline bg-canvas p-menu">
               {things.map((thing) => (
-                <SizeThing key={thing.key} rows={thing.rows} around={around} tint={tint} selected={selected} onSelect={onSelect} onRename={onRename} />
+                <SizeThing key={thing.key} rows={thing.rows} all={rows} around={around} tint={tint} selected={selected} onSelect={onSelect} onRename={onRename} />
               ))}
             </div>
           </div>
@@ -676,6 +708,7 @@ export function SizeThings({
  */
 function SizeThing({
   rows,
+  all,
   around,
   tint,
   selected,
@@ -683,6 +716,8 @@ function SizeThing({
   onRename,
 }: {
   rows: ThingRow[]
+  /** 판의 모든 값. 제 높이가 없는 요소가 빌려 그릴 높이를 여기서 찾는다. */
+  all: ThingRow[]
   around: Around
   tint: string
   selected: string[]
@@ -695,48 +730,54 @@ function SizeThing({
   const heights = rows.filter((r) => r.kind.id === 'height' && r.length !== null)
   const widths = rows.filter((r) => r.kind.id === 'width' && r.length !== null)
   // 폭과 짝지을 높이. 높이와 폭이 함께 있는 요소에만 있다.
-  const base = shape && heights.length > 0 && widths.length > 0 ? heights[0] : null
+  // 제 높이가 없으면 정해 둔 모양의 높이를 빌린다(숫자 칸은 입력칸의 높이, 메뉴는 줄의 높이).
+  const lent = shape && PAIR_FROM[shape] ? all.find((r) => r.kind.id === 'height' && r.picked === PAIR_FROM[shape] && r.length !== null) : undefined
+  const base = shape && widths.length > 0 ? (heights[0] ?? lent ?? null) : null
   const paired = (r: ThingRow) => base !== null && r.kind.id === 'width' && r.length !== null
   // 그 값의 그림을 몇 분의 일로 줄여 그렸는지. 짝지은 높이는 그것과 함께 그린 폭들 가운데 가장 많이 줄인 것을 따른다.
   const scaleOf = (r: ThingRow) => {
     if (r.length === null || r.examples.length === 0) return 1
-    if (base && paired(r)) return sampleScale(r.kind, r.length, base.length!)
+    if (base && paired(r)) return sampleScale(r.kind, r.length, pairsInside(shape) ? undefined : base.length!)
     if (r === base) return Math.max(...widths.map((w) => sampleScale(w.kind, w.length!, base.length!)))
     return sampleScale(r.kind, r.length)
   }
-  const drawings = plain
-    ? []
-    : rows.flatMap((r) =>
-        r.length === null
-          ? []
-          : r.examples.flatMap((e, k) => {
-              // 짝지은 높이의 첫 예시는 폭과 함께 그렸으므로 따로 그리지 않는다.
-              if (k === 0 && r === base) return []
-              return [<SizeSample key={`${r.t.name}:${k}`} kind={r.kind} shape={e.shape} value={r.length!} pair={k === 0 && paired(r) ? base!.length! : undefined} around={around} tint={tint} words={e.words} />]
-            }),
-      )
+  // 값마다 그 값의 예시를 바로 옆에 놓는다. 설명과 그림이 한 줄에 있어야 어느 그림이 어느 값의 것인지 보인다.
+  // (왼쪽에 값들을 모으고 오른쪽에 그림들을 모아 두면, 값이 여럿인 요소에서 설명과 그림이 서로 다른 높이에 놓인다.)
+  const drawingsOf = (r: ThingRow) =>
+    plain || r.length === null
+      ? []
+      : r.examples.flatMap((e, k) => {
+          // 짝지은 제 높이의 첫 예시는 폭과 함께 그렸으므로 따로 그리지 않는다.
+          if (k === 0 && r === base) return []
+          return [<SizeSample key={`${r.t.name}:${k}`} kind={r.kind} shape={e.shape} value={r.length!} pair={k === 0 && paired(r) ? base!.length! : undefined} around={around} tint={tint} words={e.words} />]
+        })
+  // 그림이 하나라도 있는 요소는 왼쪽 칸의 폭을 정해 두어, 그림들이 같은 자리에서 시작하게 한다.
+  const any = rows.some((r) => drawingsOf(r).length > 0)
   return (
-    <div data-thing={shape ?? rows[0].short} className="flex items-center gap-[calc(var(--spacing-columns)-var(--spacing-board-row-x))] pr-board-row-x">
-      <div className={drawings.length > 0 ? 'w-[calc(var(--width-row-name)+var(--spacing-board-row-x)*2)] shrink-0 space-y-rows' : 'min-w-0 flex-1 space-y-rows'}>
-        {shape && (
-          <p data-thing-name className="px-board-row-x pt-board-row-y type-label">
-            {SIZE_SHAPES.find((s) => s.id === shape)!.label}
-          </p>
-        )}
-        {rows.map((r) => {
-          const isSelected = selected.includes(r.t.name)
-          const scale = scaleOf(r)
-          return (
-            <button
-              key={r.t.name}
-              type="button"
-              data-token={r.t.name}
-              aria-pressed={isSelected}
-              aria-label={`${DIMENSION[r.kind.id]} ${r.short} ${r.shown}`}
-              onClick={(e) => onSelect(r.t.name, isAdditive(e))}
-              onDoubleClick={() => onRename(r.t.name)}
-              className={`group relative block w-full rounded-row px-board-row-x py-board-row-y text-left select-none ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
-            >
+    <div data-thing={shape ?? rows[0].short} className="space-y-rows">
+      {shape && (
+        <p data-thing-name className="px-board-row-x pt-board-row-y type-label">
+          {SIZE_SHAPES.find((s) => s.id === shape)!.label}
+        </p>
+      )}
+      {rows.map((r) => {
+        const isSelected = selected.includes(r.t.name)
+        const scale = scaleOf(r)
+        const drawings = drawingsOf(r)
+        return (
+          <button
+            key={r.t.name}
+            type="button"
+            data-thing-row
+            data-token={r.t.name}
+            aria-pressed={isSelected}
+            aria-label={`${DIMENSION[r.kind.id]} ${r.short} ${r.shown}`}
+            onClick={(e) => onSelect(r.t.name, isAdditive(e))}
+            onDoubleClick={() => onRename(r.t.name)}
+            className={`group relative flex w-full items-center gap-columns rounded-row px-board-row-x py-board-row-y text-left select-none ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
+          >
+            {/* 왼쪽은 이름·길이·설명. 그림이 하나라도 있는 요소는 이 칸의 폭을 정해 두어, 그림들이 같은 자리에서 시작하게 한다. */}
+            <span className={any ? 'w-row-name shrink-0' : 'min-w-0 flex-1'}>
               <span className="flex flex-wrap items-baseline gap-x-row-inner">
                 <span data-dimension className="type-caption text-ink-faint">
                   {DIMENSION[r.kind.id]}
@@ -755,13 +796,13 @@ function SizeThing({
                   <Phrases text={r.text} />
                 </span>
               )}
-              {isSelected && selected.length === 1 && <SelectionLabel name={r.short} value={r.shown} />}
-            </button>
-          )
-        })}
-      </div>
-      {/* 쓰임이 여럿인 값은 예시도 여럿이다. 위아래로 8px 띄워 쌓는다. */}
-      {drawings.length > 0 && <div className="min-w-0 flex-1 space-y-blocks py-board-row-y">{drawings}</div>}
+            </span>
+            {/* 쓰임이 여럿인 값은 예시도 여럿이다. 위아래로 8px 띄워 쌓는다. */}
+            {drawings.length > 0 && <span className="block min-w-0 flex-1 space-y-blocks">{drawings}</span>}
+            {isSelected && selected.length === 1 && <SelectionLabel name={r.short} value={r.shown} />}
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -857,7 +898,7 @@ export function SizeInspector({
           // 고르는 칸 옆에, 가리키는 크기가 크기 판의 어디에 있는지 보러 가는 버튼. "쓰이는 곳"의 반대 방향이다.
           <div className="flex items-center gap-actions-tight">
             <div className="min-w-0 flex-1">
-              <UsePicker label="가리키는 크기" options={options} value={ref} nameWidth="w-[64px]" onChange={(next) => onChange({ value: `var(${next})` })} />
+              <UsePicker label="가리키는 크기" options={options} value={ref} nameWidth="w-picker-name-wide" onChange={(next) => onChange({ value: `var(${next})` })} />
             </div>
             <button type="button" aria-label="가리키는 크기 보러 가기" title={`크기 판에서 ${lengthLabel(LENGTH, ref)} 보기`} onClick={() => onOpenToken(ref)} className={ICON_BUTTON}>
               <ArrowUpRight size={16} strokeWidth={ICON_STROKE} />
@@ -971,7 +1012,7 @@ export function NewSizeForm({ start, tokens, onCreate, onCancel }: { start?: Kin
         <UsePicker
           label="종류"
           options={SIZE_KINDS}
-          nameWidth="w-[64px]"
+          nameWidth="w-picker-name-wide"
           value={kindId}
           onChange={(next) => {
             setKindId(next)
@@ -997,7 +1038,7 @@ export function NewSizeForm({ start, tokens, onCreate, onCancel }: { start?: Kin
           label="가리키는 크기"
           options={options}
           value={ref}
-          nameWidth="w-[64px]"
+          nameWidth="w-picker-name-wide"
           onChange={(next) => {
             setRef(next)
             setError({ ...error, ref: undefined })

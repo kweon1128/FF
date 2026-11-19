@@ -1,6 +1,7 @@
 // 의미 글꼴: 글꼴 판의 재료 가운데 실제로 쓰는 조합(글꼴 종류 · 글자 크기 · 굵기)에 쓰임새의 이름을 붙여 모아 둔 판과, 그것을 만들고 고치는 양식.
 // 한 줄에 조합 하나. 이름과 가리키는 값, 설명, 그 조합으로 적은 견본을 나란히 보여 준다.
 
+import { SAMPLE_BAR, SAMPLE_W } from './lib/sample'
 import { ICON_STROKE } from './lib/icons'
 import { useContext, useState, type CSSProperties, type FormEvent } from 'react'
 import { PreviewSpaceContext } from './ColorUses'
@@ -93,7 +94,7 @@ export function TypeSample({ shape, look, around, words: written = '' }: { shape
   const faint = `color-mix(in oklab, ${around.ink} 16%, ${around.surface})`
   const soft = `color-mix(in oklab, ${around.ink} 8%, ${around.surface})`
   /** 곁에 놓이는 글의 자리. 높이 8px의 막대이고 폭은 자리마다 다르다. */
-  const bar = (width: string, more = '') => <span className={`block h-[8px] rounded-small ${width} ${more}`} style={{ background: faint }} />
+  const bar = (width: string, more = '') => <span className={`block ${SAMPLE_BAR} rounded-small ${width} ${more}`} style={{ background: faint }} />
   const words = (text: string, more = '', style?: CSSProperties) => (
     <span key={text} data-sample className={`block ${more}`} style={{ ...own, ...style }}>
       {text}
@@ -127,21 +128,21 @@ export function TypeSample({ shape, look, around, words: written = '' }: { shape
         return (
           <>
             {words(all, 'break-words')}
-            <span className="mt-label flex h-control w-[160px] items-center rounded-control px-input-x" style={{ boxShadow: `inset 0 0 0 1px ${faint}` }}>
+            <span className={`mt-label flex h-control ${SAMPLE_W} items-center rounded-control px-input-x`} style={{ boxShadow: `inset 0 0 0 1px ${faint}` }}>
               {bar('w-[64px]')}
             </span>
           </>
         )
       case 'menu':
         return (
-          <span className="block w-[160px] space-y-rows">
+          <span className={`block ${SAMPLE_W} space-y-rows`}>
             {list.map((text) => words(text, 'rounded-row px-row-x py-menu whitespace-nowrap'))}
           </span>
         )
       case 'menu-on':
         // 고른 줄만 글자다. 고르지 않은 줄은 다른 조합(보통 굵기)으로 적히는 자리라 막대로 둔다.
         return (
-          <span className="block w-[160px] space-y-rows">
+          <span className={`block ${SAMPLE_W} space-y-rows`}>
             <span className="flex h-row items-center px-row-x">{bar('w-[48px]')}</span>
             {words(all, 'rounded-row px-row-x py-menu whitespace-nowrap', { background: soft })}
             <span className="flex h-row items-center px-row-x">{bar('w-[64px]')}</span>
@@ -462,7 +463,7 @@ export function TypeInspector({
 
       {/* 묶음은 판에서 이 조합이 놓이는 자리와 예시의 장면을 정한다. 의미 색 패널의 "역할"과 같은 자리다. */}
       <Section title="묶음">
-        <UsePicker label="묶음" options={TYPE_USES} value={use} nameWidth="w-[64px]" onChange={(next) => saveNote({ use: next })} />
+        <UsePicker label="묶음" options={TYPE_USES} value={use} nameWidth="w-picker-name-wide" onChange={(next) => saveNote({ use: next })} />
       </Section>
 
       <Section title="설명">
@@ -573,7 +574,7 @@ export function NewTypeForm({ tokens, onCreate, onCancel }: { tokens: Token[]; o
         <UsePicker label="굵기" options={weights} value={weight} nameWidth="w-[80px]" onChange={setWeight} />
       </Field>
       <Field label="묶음" plain>
-        <UsePicker label="묶음" options={TYPE_USES} value={shownUse} nameWidth="w-[64px]" onChange={setUse} />
+        <UsePicker label="묶음" options={TYPE_USES} value={shownUse} nameWidth="w-picker-name-wide" onChange={setUse} />
       </Field>
       <Field label="설명">
         <input className={inputClass} value={text} onChange={(e) => setText(e.target.value)} />

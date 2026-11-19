@@ -176,7 +176,7 @@ function Panel({
       ref={box}
       role="dialog"
       aria-label="색 선택"
-      className="fixed z-[60] rounded-float border-edge border-hairline bg-canvas p-popover shadow-dialog"
+      className="fixed z-popover rounded-float border-edge border-hairline bg-canvas p-popover shadow-dialog"
       style={{ width: WIDTH, left: pos?.left ?? -9999, top: pos?.top ?? 0 }}
     >
       <div

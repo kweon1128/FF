@@ -172,6 +172,8 @@ export function classesOf(kind: Kind, short: string): string[] {
       return [`border-${short}`]
     case 'outline':
       return [`outline-${short}`]
+    case 'z':
+      return [`z-${short}`]
     case 'breakpoint':
       return [`${short}:`]
     case 'container':

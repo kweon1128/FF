@@ -47,7 +47,7 @@ export type SizeShape =
   | 'input' | 'button' | 'row' | 'field' | 'segment' | 'value' | 'slider' | 'iconbutton' | 'icon' | 'check' | 'mark' | 'handle' | 'knob'
   | 'bar' | 'heading' | 'line' | 'toast' | 'card' | 'list' | 'menu' | 'frame' | 'column'
   | 'color' | 'preview' | 'picker' | 'stage'
-  | 'placeholder' | 'badge' | 'dot' | 'box'
+  | 'placeholder' | 'badge' | 'dot' | 'box' | 'select'
 
 export const SIZE_SHAPES: { id: SizeShape; label: string; hint: string }[] = [
   { id: 'input', label: '입력칸', hint: '테두리가 있는 입력칸' },
@@ -72,6 +72,7 @@ export const SIZE_SHAPES: { id: SizeShape; label: string; hint: string }[] = [
   { id: 'menu', label: '메뉴', hint: '떠 있는 메뉴' },
   { id: 'frame', label: '창', hint: '패널, 창처럼 내용을 담는 상자' },
   { id: 'column', label: '열', hint: '한 줄 안의 글자 칸' },
+  { id: 'select', label: '고르는 칸', hint: '고르는 칸의 이름 자리' },
   { id: 'color', label: '색 칸', hint: '색을 칠한 칸' },
   { id: 'preview', label: '미리보기', hint: '컴포넌트 미리보기 칸' },
   { id: 'picker', label: '색 고르는 판', hint: '색 선택 창에서 색을 고르는 네모' },
@@ -106,6 +107,7 @@ export const SIZE_WORDS: Record<SizeShape, string> = {
   menu: '첫째, 둘째',
   frame: '제목',
   column: '이름, 값',
+  select: '높이, h-이름',
   color: '',
   preview: '버튼',
   picker: '',
@@ -117,7 +119,7 @@ export const SIZE_WORDS: Record<SizeShape, string> = {
 }
 
 /** 여럿을 늘어놓는 모양인지. 문구를 ", "로 나눈다. */
-export const isSizeListShape = (shape: SizeShape) => ['button', 'segment', 'heading', 'list', 'menu', 'column', 'frame'].includes(shape)
+export const isSizeListShape = (shape: SizeShape) => ['button', 'segment', 'heading', 'list', 'menu', 'column', 'frame', 'select'].includes(shape)
 
 /** 예시 하나. 어떤 것으로 그릴지(모양)와 그 안에 적을 말(문구. 비어 있으면 모양의 기본 문구). */
 export type SizeExample = { shape: SizeShape; words: string }

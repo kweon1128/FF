@@ -83,6 +83,7 @@ import { NewRadiusForm, RadiusInspector } from './Radius'
 import { readRadiusNote, type RadiusGroup } from './lib/radius'
 import { BorderInspector, NewBorderForm } from './Borders'
 import { isBorderKind } from './lib/borders'
+import { LayerInspector, NewLayerForm } from './Layers'
 import { isEffectKind } from './lib/effects'
 import { NewSpaceUseForm, SpaceUseInspector, spaceVars } from './Spacing'
 import { LengthInspector, NewLengthForm, NewSizeForm, SizeInspector, SizeThings, SizeViewSwitch, sizeVars, type SizeView } from './Sizes'
@@ -104,7 +105,7 @@ import { Button, EmptyState, Field, Modal, inputClass } from './ui'
 
 const LAST_SYSTEM_KEY = 'ff.system'
 /** 줄마다 설명과 예시가 있어서 접을 수 있는 판(의미 색과 색상 판은 접기가 따로 있다). */
-const FOLDABLE: string[] = ['style', 'spaceuse', 'effect', 'sizeuse', 'radius', 'border']
+const FOLDABLE: string[] = ['style', 'spaceuse', 'effect', 'sizeuse', 'radius', 'border', 'z']
 const SAVE_DELAY = 300
 const COLOR = KINDS.color
 const ROLE = KINDS.role
@@ -338,6 +339,8 @@ export function App() {
   const [addingRadius, setAddingRadius] = useState(false)
   // 의미 테두리(테두리 선, 외곽선)를 만드는 창이 어느 종류로 떠 있는지.
   const [addingBorder, setAddingBorder] = useState<Kind | null>(null)
+  // 겹치는 차례를 만드는 창이 떠 있는지.
+  const [addingLayer, setAddingLayer] = useState(false)
   // 의미 글꼴을 만드는 창이 떠 있는지.
   const [addingType, setAddingType] = useState(false)
   const [addingRole, setAddingRole] = useState(false)
@@ -718,6 +721,8 @@ export function App() {
     if (kind.id === 'length' || kind.id === 'space' || kind.id === 'corner' || kind.id === 'thickness') return setAddingLength(kind)
     // 의미 테두리(테두리 선, 외곽선)도 이름과 가리키는 테두리를 정해야 만들 수 있다.
     if (isBorderKind(kind)) return setAddingBorder(kind)
+    // 겹치는 차례는 이름과 차례의 숫자를 정해야 만들 수 있다. 무엇보다 위여야 하는지는 사람이 정한다.
+    if (kind.id === 'z') return setAddingLayer(true)
     // 의미 모서리도 이름과 가리키는 모서리를 정해야 만들 수 있다.
     if (kind.id === 'radius') return setAddingRadius(true)
     // 의미 글꼴도 이름과 조합, 묶음을 묻는 창을 연다(다른 의미 판의 추가와 같다). 짝지을 재료(글꼴 종류, 글자 크기, 굵기)가 모자라면 그 창이 무엇을 먼저 만들지 알린다.
@@ -1746,6 +1751,7 @@ export function App() {
         { id: 'a:shadow', group: '명령', label: '그림자 추가', run: () => setAddingEffect(KINDS.shadow) },
         { id: 'a:opacity', group: '명령', label: '투명도 추가', run: () => setAddingEffect(KINDS.opacity) },
         { id: 'a:blur', group: '명령', label: '흐림 추가', run: () => setAddingEffect(KINDS.blur) },
+        { id: 'a:z', group: '명령', label: '겹치는 차례 추가', run: () => setAddingLayer(true) },
         { id: 'a:sizes', group: '명령', label: '글자 크기 한 벌 만들기', run: () => setMakingSizes(true) },
         { id: 'a:weights', group: '명령', label: '굵기 한 벌 만들기', run: () => setMakingWeights(true) },
         { id: 'a:types', group: '명령', label: '의미 글꼴 한 벌 만들기', run: () => setMakingTypes(true) },
@@ -1893,7 +1899,8 @@ export function App() {
                           <div className="mb-header flex justify-end gap-actions-tight">
                             {/* 의미 크기 판은 보는 방식이 둘이다(종류별, 요소별). "원래대로"는 어느 보기에서나 종류별 보기의 차례(파일의 차례)를 돌려놓는다. */}
                             {id === 'sizeuse' && <SizeViewSwitch value={sizeView} onChange={changeSizeView} />}
-                            <ResetButton title="종류와 그 안의 차례를 기본 순서로 돌려놓아요" onReset={next === tokens ? undefined : () => commit(next)} />
+                            {/* 요소별 보기는 차례를 다루지 않는다(끌어 옮길 수 없다). 그래서 이 보기에서는 "원래대로"도 꺼 둔다. */}
+                            <ResetButton title="종류와 그 안의 차례를 기본 순서로 돌려놓아요" onReset={next === tokens || (id === 'sizeuse' && sizeView === 'thing') ? undefined : () => commit(next)} />
                             {FOLDABLE.includes(id) && <FoldButton folded={!!plainBoards[id]} title="설명과 예시를 모두 숨기거나 보여요" onToggle={() => togglePlain(id)} />}
                             {/* 의미 크기는 종류가 셋이지만 추가는 판에 하나다. 종류는 창에서 고른다(다른 의미 판처럼 판마다 추가가 하나). */}
                             {id === 'sizeuse' && (
@@ -2117,6 +2124,19 @@ export function App() {
               onChange={(patch) => commit(tokens.map((t) => (t.name === selectedTokens[0].name ? { ...t, ...patch } : t)))}
               onCopy={(text) => copyText(text, '코드를 복사했어요.')}
             />
+          ) : selectedTokens.length === 1 && commonKind?.id === 'z' ? (
+            <LayerInspector
+              key={selectionId}
+              token={selectedTokens[0]}
+              kind={commonKind}
+              tokens={tokens}
+              file={file}
+              uses={usesOf(comps, selectedTokens[0].name)}
+              onOpenComponent={openComp}
+              onRename={(to) => renameToken(selectedTokens[0].name, to)}
+              onChange={(patch) => commit(tokens.map((t) => (t.name === selectedTokens[0].name ? { ...t, ...patch } : t)))}
+              onCopy={(text) => copyText(text, '코드를 복사했어요.')}
+            />
           ) : selectedTokens.length === 1 && commonKind && isBorderKind(commonKind) ? (
             <BorderInspector
               key={selectionId}
@@ -2311,6 +2331,20 @@ export function App() {
         </Modal>
       )}
 
+      {addingLayer && (
+        <Modal title="겹치는 차례 추가" onClose={() => setAddingLayer(false)}>
+          <NewLayerForm
+            tokens={tokens}
+            onCancel={() => setAddingLayer(false)}
+            onCreate={(name, value, note) => {
+              setAddingLayer(false)
+              // 같은 종류의 뒤에 놓는다(파일에서는 숫자가 작은 것부터 저절로 놓인다). 첫 값이면 파일의 맨 뒤다.
+              insert({ name, value, note }, (t) => KINDS.z.matches(t.name))
+            }}
+          />
+        </Modal>
+      )}
+
       {addingBorder && (
         <Modal title="의미 테두리 추가" onClose={() => setAddingBorder(null)}>
           <NewBorderForm
@@ -2447,7 +2481,7 @@ export function App() {
       {notice && (
         <div
           role="status"
-          className="pointer-events-none fixed bottom-[24px] left-1/2 z-50 flex h-control -translate-x-1/2 items-center rounded-control bg-ink px-bar-x type-body whitespace-nowrap text-on-primary shadow-float"
+          className="pointer-events-none fixed bottom-[24px] left-1/2 z-toast flex h-control -translate-x-1/2 items-center rounded-control bg-ink px-bar-x type-body whitespace-nowrap text-on-primary shadow-float"
         >
           {notice}
         </div>

@@ -2,6 +2,7 @@
 // 효과 판과 같은 짜임이다. 종류마다 한 줄에 값 하나, 왼쪽에 이름·가리키는 굵기·설명, 오른쪽에 그 선이 그어진 모습.
 // 토대(테두리 판)의 패널과 추가 창은 크기·간격·모서리와 함께 쓴다(Sizes.tsx의 LengthInspector, NewLengthForm).
 
+import { SAMPLE_W } from './lib/sample'
 import { ICON_STROKE } from './lib/icons'
 import { useContext, useState, type FormEvent, type ReactNode } from 'react'
 import { ArrowUpRight } from 'lucide-react'
@@ -58,7 +59,7 @@ export function BorderSample({ shape, value, colors: c, words: written = '' }: {
     case 'box':
       // 판 안의 목록 상자. 선은 상자의 테두리이고, 안에는 값의 줄들이 있다(줄에는 값의 이름).
       return frame(
-        <span data-sample className="block w-[160px] space-y-rows rounded-float p-menu" style={{ border: edge }}>
+        <span data-sample className={`block ${SAMPLE_W} space-y-rows rounded-float p-menu`} style={{ border: edge }}>
           {list.map((text, i) => (
             <span key={i} className={`block rounded-row px-board-row-x py-board-row-y whitespace-nowrap ${STRONG}`}>
               {text}
@@ -111,7 +112,7 @@ export function BorderSample({ shape, value, colors: c, words: written = '' }: {
     default:
       // 입력칸
       return frame(
-        <span data-sample className={`flex h-control w-[160px] items-center rounded-control px-input-x whitespace-nowrap ${TEXT}`} style={{ border: edge, background: c.surface }}>
+        <span data-sample className={`flex h-control ${SAMPLE_W} items-center rounded-control px-input-x whitespace-nowrap ${TEXT}`} style={{ border: edge, background: c.surface }}>
           {all}
         </span>,
       )
@@ -310,7 +311,7 @@ export function BorderInspector({
           // 고르는 칸 옆에, 가리키는 굵기가 테두리 판의 어디에 있는지 보러 가는 버튼. "쓰이는 곳"의 반대 방향이다.
           <div className="flex items-center gap-actions-tight">
             <div className="min-w-0 flex-1">
-              <UsePicker label="가리키는 테두리" options={options} value={ref} nameWidth="w-[64px]" onChange={(next) => onChange({ value: `var(${next})` })} />
+              <UsePicker label="가리키는 테두리" options={options} value={ref} nameWidth="w-picker-name-wide" onChange={(next) => onChange({ value: `var(${next})` })} />
             </div>
             <button type="button" aria-label="가리키는 테두리 보러 가기" title={`테두리 판에서 ${lengthLabel(THICKNESS, ref)} 보기`} onClick={() => onOpenToken(ref)} className={ICON_BUTTON}>
               <ArrowUpRight size={16} strokeWidth={ICON_STROKE} />
@@ -409,7 +410,7 @@ export function NewBorderForm({ start, tokens, onCreate, onCancel }: { start?: K
         <UsePicker
           label="종류"
           options={BORDER_KINDS}
-          nameWidth="w-[64px]"
+          nameWidth="w-picker-name-wide"
           value={kindId}
           onChange={(next) => {
             setKindId(next)
@@ -435,7 +436,7 @@ export function NewBorderForm({ start, tokens, onCreate, onCancel }: { start?: K
           label="가리키는 테두리"
           options={options}
           value={ref}
-          nameWidth="w-[64px]"
+          nameWidth="w-picker-name-wide"
           onChange={(next) => {
             setRef(next)
             setError({ ...error, ref: undefined })

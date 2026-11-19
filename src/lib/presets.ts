@@ -87,7 +87,6 @@ const LADDERS: Partial<Record<Kind['id'], Ladder>> = {
     ],
   },
   // 겹치는 순서도 값이 곧 이름이다.
-  z: { steps: [10, 20, 30, 40, 50].map((n) => [String(n), String(n)]) },
   duration: {
     steps: [
       ['fast', '100ms'],

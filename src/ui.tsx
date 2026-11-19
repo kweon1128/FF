@@ -296,7 +296,7 @@ export function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-scrim/40"
+      className="fixed inset-0 z-dialog flex items-center justify-center bg-scrim/40"
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
@@ -317,7 +317,7 @@ export function Modal({
  * 브라우저의 고르는 칸(select)을 쓰지 않는다. 그 목록에서는 글자를 한 가지 모양으로만 적을 수 있어서,
  * 묶음의 이름(글자, 바탕…)과 그 묶음에 드는 것들(본문, 링크, 아이콘)이 한 줄에 같은 모양으로 이어져 무엇이 이름인지 헷갈린다.
  * 여기서는 이름을 진하게 정해진 폭에 적고, 드는 것들은 그 옆에 옅게 적는다. 이름들이 한 열로 줄을 서서 이름만 훑어 고를 수 있다.
- * nameWidth는 이름 칸의 폭이다. 가장 긴 이름이 들어가는 폭으로 정한다(두 글자 이름이면 w-12, "숫자·코드"가 있으면 w-16).
+ * nameWidth는 이름 칸의 폭이다. 가장 긴 이름이 들어가는 폭으로 정한다(세 글자까지는 w-picker-name 48px, 네 글자나 "숫자·코드"가 있으면 w-picker-name-wide 64px).
  * value가 null이면 아직 고르지 않은 칸이다(추가 창의 가리키는 값). 칸에 옅게 "고르기"가 보이고 목록에는 고른 줄이 없다.
  */
 export function UsePicker<T extends string>({
@@ -325,7 +325,7 @@ export function UsePicker<T extends string>({
   options,
   value,
   onChange,
-  nameWidth = 'w-[48px]',
+  nameWidth = 'w-picker-name',
 }: {
   label: string
   options: { id: T; label: string; hint: string }[]
@@ -378,13 +378,23 @@ export function UsePicker<T extends string>({
       window.removeEventListener('keydown', esc, true)
     }
   }, [open])
-  /** 한 줄의 내용. 이름은 진하게 정해진 폭에, 드는 것들은 옅게. 닫힌 칸과 목록의 줄이 같은 모양이다. */
-  const line = (u: { label: string; hint: string }) => (
-    <>
-      <span className={`${nameWidth} shrink-0 type-label text-ink`}>{u.label}</span>
-      <span className="min-w-0 flex-1 truncate text-ink-faint">{u.hint}</span>
-    </>
-  )
+  /**
+   * 한 줄의 내용. 이름은 진하게 정해진 폭에, 드는 것들(덧글)은 옅게.
+   * 덧글은 말줄임표로 자르지 않는다. 목록의 줄에서는 길면 줄을 바꿔 다 보여 주고(줄이 그만큼 높아진다),
+   * 닫힌 칸은 높이가 한 줄로 정해져 있어서 덧글이 다 들어갈 때만 보여 준다. 들어가지 않으면 둘째 줄로 넘어가 보이지 않는다(이름만 남는다).
+   */
+  const line = (u: { label: string; hint: string }, closed: boolean) =>
+    closed ? (
+      <span className="flex h-[20px] min-w-0 flex-1 flex-wrap gap-x-row-inner overflow-hidden">
+        <span className={`${nameWidth} shrink-0 type-label text-ink`}>{u.label}</span>
+        <span className="whitespace-nowrap text-ink-faint">{u.hint}</span>
+      </span>
+    ) : (
+      <>
+        <span className={`${nameWidth} shrink-0 type-label text-ink`}>{u.label}</span>
+        <span className="min-w-0 flex-1 break-words text-ink-faint">{u.hint}</span>
+      </>
+    )
   return (
     <div className="relative">
       <button
@@ -405,16 +415,16 @@ export function UsePicker<T extends string>({
         }}
         className={`${inputClass} flex items-center gap-row-inner text-left`}
       >
-        {now ? line(now) : <span className="min-w-0 flex-1 truncate text-ink-faint">고르기</span>}
+        {now ? line(now, true) : <span className="min-w-0 flex-1 text-ink-faint">고르기</span>}
         <ChevronDown size={16} strokeWidth={ICON_STROKE} className="shrink-0 text-ink-faint" />
       </button>
       {open &&
         createPortal(
         <>
-          {/* 목록 바깥을 누르면 닫는다. 창(z-50)과 색 선택 창(z-60)보다 위에 뜬다. */}
-          <div className="fixed inset-0 z-[70]" onClick={() => setOpen(false)} />
+          {/* 목록 바깥을 누르면 닫는다. 이 면과 목록은 창(z-dialog)과 색 선택 창(z-popover)보다 위에 뜨고, 목록(z-listbox)은 이 면(z-listbox-backdrop) 바로 위다. */}
+          <div className="fixed inset-0 z-listbox-backdrop" onClick={() => setOpen(false)} />
           {/* 줄의 바탕(올렸을 때, 고른 것)이 서로 닿지 않게 줄 사이를 4px 띄운다. */}
-          <div ref={list} role="listbox" aria-label={label} style={place} className="fixed z-[71] space-y-rows overflow-y-auto rounded-float border-edge border-hairline bg-canvas p-menu shadow-float">
+          <div ref={list} role="listbox" aria-label={label} style={place} className="fixed z-listbox space-y-rows overflow-y-auto rounded-float border-edge border-hairline bg-canvas p-menu shadow-float">
             {options.map((u) => (
               <button
                 key={u.id}
@@ -423,9 +433,10 @@ export function UsePicker<T extends string>({
                 aria-selected={u.id === value}
                 data-use-option={u.id}
                 onClick={() => pick(u.id)}
-                className={`flex h-row w-full items-center gap-row-inner rounded-row px-row-x text-left type-body outline-selection focus-visible:outline-focus ${u.id === value ? 'bg-hover' : 'hover:bg-hover'}`}
+                // 줄의 높이는 한 줄일 때 32px이고(글자 20px에 위아래 6px), 덧글이 줄을 바꾸면 그만큼 늘어난다.
+                className={`flex min-h-row w-full items-center gap-row-inner rounded-row px-row-x py-[6px] text-left type-body outline-selection focus-visible:outline-focus ${u.id === value ? 'bg-hover' : 'hover:bg-hover'}`}
               >
-                {line(u)}
+                {line(u, false)}
                 {u.id === value && <CheckIcon size={16} strokeWidth={ICON_STROKE} className="shrink-0" />}
               </button>
             ))}

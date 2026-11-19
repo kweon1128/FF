@@ -395,14 +395,19 @@ const aspect: Kind = {
   tiles: true,
 }
 
+/**
+ * 겹치는 차례. 무엇이 무엇보다 위에 놓이는지다. 층은 하나이고, 값에 쓰임의 이름을 붙여 차례의 숫자를 적는다(--z-index-dialog: 50. 클수록 위).
+ * 앞머리는 Tailwind가 읽는 --z-index-라서 z-이름 클래스가 생긴다(z-dialog). 토대를 두지 않는다. 차례의 숫자는 골라 쓰는 재료가 아니라 앞뒤만 뜻한다.
+ * 다른 도구로 만든 파일의 --z-10: 10처럼 예전 앞머리(--z-)의 값도 이 종류로 보여 준다(shortName이 z-10으로 적는다). Tailwind가 읽지 않는 이름이라 클래스는 없고 변수로만 쓴다.
+ */
 const z: Kind = {
   id: 'z',
-  title: '겹치는 순서',
-  prefix: '--z-',
+  title: '겹치는 차례',
+  prefix: '--z-index-',
   matches: starts('--z-'),
-  defaultValue: '10',
-  addLabel: '겹치는 순서 추가',
-  valueLabel: '순서 (클수록 위)',
+  defaultValue: '',
+  addLabel: '겹치는 차례 추가',
+  valueLabel: '차례 (클수록 위)',
 }
 
 const duration: Kind = {
@@ -458,7 +463,7 @@ export const KINDS = {
 
 export const ALL_KINDS: Kind[] = Object.values(KINDS)
 
-export type TokenScreenId = 'color' | 'role' | 'style' | 'spaceuse' | 'length' | 'sizeuse' | 'type' | 'spacing' | 'radius' | 'corner' | 'border' | 'thickness' | 'effect' | 'layout' | 'motion'
+export type TokenScreenId = 'color' | 'role' | 'style' | 'spaceuse' | 'length' | 'sizeuse' | 'type' | 'spacing' | 'radius' | 'corner' | 'border' | 'thickness' | 'effect' | 'layout' | 'motion' | 'z'
 export type PlaceholderScreenId = 'layouts' | 'assets'
 export type ScreenId = 'canvas' | 'components' | TokenScreenId | PlaceholderScreenId
 
@@ -484,7 +489,7 @@ export const TOKEN_SCREENS: Record<TokenScreenId, { title: string; kinds: Kind[]
   radius: { title: '의미 모서리', kinds: [radius] },
   border: { title: '의미 테두리', kinds: [border, outline] },
   effect: { title: '효과', kinds: [shadow, opacity, blur] },
-  layout: { title: '화면 크기', kinds: [breakpoint, container, aspect, z] },
+  layout: { title: '화면 크기', kinds: [breakpoint, container, aspect] },
   motion: { title: '움직임', kinds: [duration, ease] },
   // 나중에 생긴 판이라 맨 뒤에 둔다. 앞의 판들은 순서대로 기본 자리가 정해져 있어서, 사이에 끼우면 모두 밀린다.
   role: { title: '의미 색', kinds: [role] },
@@ -494,6 +499,7 @@ export const TOKEN_SCREENS: Record<TokenScreenId, { title: string; kinds: Kind[]
   sizeuse: { title: '의미 크기', kinds: [height, width, square] },
   corner: { title: '모서리', kinds: [corner] },
   thickness: { title: '테두리', kinds: [thickness] },
+  z: { title: '겹치는 차례', kinds: [z] },
 }
 
 export const PLACEHOLDER_SCREENS: Record<PlaceholderScreenId, { title: string }> = {

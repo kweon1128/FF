@@ -11,6 +11,7 @@ import { suggestLine } from './lib/tokens'
 import { EffectList } from './Effects'
 import { RadiusList } from './Radius'
 import { BorderList } from './Borders'
+import { LayerList } from './Layers'
 import { isBorderKind } from './lib/borders'
 import { isEffectKind } from './lib/effects'
 import { isFreeKind, orderKinds } from './lib/order'
@@ -89,7 +90,7 @@ export type SectionProps = {
 export const DetailsFolded = createContext(false)
 
 /** 판 안에 묶음 제목이 따로 있는 종류. 그 종류 하나로 된 판에서는 종류의 제목을 두지 않는다. */
-const OWN_TITLES = ['color', 'role', 'style', 'spaceuse', 'radius']
+const OWN_TITLES = ['color', 'role', 'style', 'spaceuse', 'radius', 'z']
 
 /** Shift, Ctrl, Cmd 중 하나를 누른 채 누르면 여러 개 선택이다. */
 export const isAdditive = (e: MouseEvent) => e.shiftKey || e.ctrlKey || e.metaKey
@@ -184,6 +185,9 @@ export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGr
             ) : kind.id === 'height' || kind.id === 'width' || kind.id === 'square' ? (
               // 의미 크기(높이, 폭, 정사각형)는 묶음마다 한 줄에 하나씩, 그 크기가 실제로 쓰인 모습과 함께 보여 준다.
               <SizeList kind={kind} items={items} all={tokens} selected={selected} onSelect={onSelect} onSelectGroup={onSelectGroup} onRename={onRename} onMove={onMove} onMoveGroup={(group, before) => onMoveSizeGroup(kind, group, before)} />
+            ) : kind.id === 'z' ? (
+              // 겹치는 차례는 묶음마다 한 줄에 하나씩, 그것이 무엇 위에 놓이는지를 보여 주는 예시와 함께 놓는다. 차례는 숫자에서 정해져 끌지 않는다.
+              <LayerList kind={kind} items={items} all={tokens} selected={selected} onSelect={onSelect} onSelectGroup={onSelectGroup} onRename={onRename} />
             ) : isBorderKind(kind) ? (
               // 의미 테두리(테두리 선, 외곽선)는 효과처럼 한 줄에 하나씩, 그 선이 그어진 모습과 함께 보여 준다.
               <BorderList kind={kind} items={items} all={tokens} selected={selected} onSelect={onSelect} onRename={onRename} onMove={onMove} />
@@ -261,7 +265,7 @@ type ListProps = {
 }
 
 // 꼭짓점 사각형과 이름표는 확대 비율과 관계없이 화면에서 같은 크기로 보인다.
-export const HANDLE = 'pointer-events-none absolute z-10 size-(--handle) border-edge border-selection bg-canvas [scale:var(--unzoom)] [--handle:7px] [--handle-at:calc((1px-var(--handle))/2)]'
+export const HANDLE = 'pointer-events-none absolute z-mark size-(--handle) border-edge border-selection bg-canvas [scale:var(--unzoom)] [--handle:7px] [--handle-at:calc((1px-var(--handle))/2)]'
 /**
  * 손잡이가 놓이는 네 꼭짓점. 손잡이의 한가운데가 선택 테두리(1px) 위에 오도록, 손잡이 크기에서 테두리 굵기를 뺀 것의 절반만큼 바깥으로 내민다.
  * 자리를 숫자로 따로 적지 않고 손잡이 크기(--handle)에서 계산하므로, 크기를 바꾸면 자리도 따라간다.
@@ -288,7 +292,7 @@ export function SelectionHandles() {
 /** 선택한 항목 바로 아래에 붙는 파란 이름표(이름 · 값). 주변에 무엇이 있든 가장 위에 겹쳐 보인다. */
 export function SelectionTag({ name, value }: { name: string; value?: string }) {
   return (
-    <span className="pointer-events-none absolute top-full left-1/2 z-20 mt-blocks origin-top -translate-x-1/2 [scale:var(--unzoom)] rounded-tag bg-selection px-chip-x type-caption-strong whitespace-nowrap text-on-selection">
+    <span className="pointer-events-none absolute top-full left-1/2 z-callout mt-blocks origin-top -translate-x-1/2 [scale:var(--unzoom)] rounded-tag bg-selection px-chip-x type-caption-strong whitespace-nowrap text-on-selection">
       {value === undefined ? name : `${name} · ${value}`}
     </span>
   )

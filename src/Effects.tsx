@@ -1,6 +1,7 @@
 // 효과(그림자, 투명도, 흐림) 판의 줄 목록과 예시, 그리고 값을 고치는 패널.
 // 의미 색·의미 글꼴 판과 같은 짜임이다. 한 줄에 값 하나, 왼쪽에 이름·값·설명, 오른쪽에 그 값이 쓰인 모습.
 
+import { SAMPLE_BAR, SAMPLE_W } from './lib/sample'
 import { ICON_STROKE } from './lib/icons'
 import { useContext, useState, type ReactNode } from 'react'
 import { Plus, X } from 'lucide-react'
@@ -29,7 +30,7 @@ export function EffectSample({ shape, value, around, accent, words: written = ''
   const space = useContext(PreviewSpaceContext)
   const all = written || EFFECT_WORDS[shape]
   const faint = `color-mix(in oklab, ${around.ink} 16%, ${around.surface})`
-  const bar = (width: string, more = '') => <span className={`block h-[8px] rounded-small ${width} ${more}`} style={{ background: faint }} />
+  const bar = (width: string, more = '') => <span className={`block ${SAMPLE_BAR} rounded-small ${width} ${more}`} style={{ background: faint }} />
   const STRONG = 'text-sm leading-5 font-[550]'
   // 그림자는 상자 밖으로 지므로, 잘리지 않게 상자 둘레에 24px을 비워 둔다.
   // 내용은 상자의 가운데에 놓는다. 예시는 읽는 글이 아니라 요소 하나를 보여 주는 것이라, 왼쪽에 붙이면 오른쪽만 비어 덜 만든 것처럼 보인다.
@@ -43,7 +44,7 @@ export function EffectSample({ shape, value, around, accent, words: written = ''
   switch (shape) {
     case 'menu':
       return frame(
-        <span className="block w-[160px] space-y-rows rounded-float p-menu" style={lifted}>
+        <span className={`block ${SAMPLE_W} space-y-rows rounded-float p-menu`} style={lifted}>
           {all
             .split(', ')
             .map((w) => w.trim())
@@ -112,7 +113,7 @@ export function EffectSample({ shape, value, around, accent, words: written = ''
         .map((w) => w.trim())
         .filter(Boolean)
       return frame(
-        <span className="block w-[160px] space-y-rows rounded-float p-menu" style={{ boxShadow: `inset 0 0 0 1px ${faint}` }}>
+        <span className={`block ${SAMPLE_W} space-y-rows rounded-float p-menu`} style={{ boxShadow: `inset 0 0 0 1px ${faint}` }}>
           {rows.map((text, i) => (
             <span key={i} {...(i === 0 ? { 'data-sample': true } : {})} className={`relative block rounded-row px-board-row-x py-board-row-y whitespace-nowrap ${STRONG}`} style={i === 0 ? { opacity: value } : undefined}>
               {text}
@@ -168,9 +169,9 @@ export function EffectSample({ shape, value, around, accent, words: written = ''
         <span className="flex items-center gap-columns">
           {[undefined, `blur(${value})`].map((filter, i) => (
             <span key={i} {...(filter ? { 'data-sample': true } : {})} className="block w-[96px] space-y-blocks" style={{ filter }}>
-              <span className="block h-[8px] w-full rounded-small" style={{ background: around.ink }} />
-              <span className="block h-[8px] w-2/3 rounded-small" style={{ background: around.ink }} />
-              <span className="block h-[8px] w-3/4 rounded-small" style={{ background: around.ink }} />
+              <span className={`block ${SAMPLE_BAR} w-full rounded-small`} style={{ background: around.ink }} />
+              <span className={`block ${SAMPLE_BAR} w-2/3 rounded-small`} style={{ background: around.ink }} />
+              <span className={`block ${SAMPLE_BAR} w-3/4 rounded-small`} style={{ background: around.ink }} />
             </span>
           ))}
         </span>,

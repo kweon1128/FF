@@ -5,7 +5,7 @@
 import { useRef, useState, type PointerEvent } from 'react'
 
 // 끄는 중에 놓일 자리를 알려 주는 선. 확대 비율과 관계없이 화면에서 같은 굵기로 보인다.
-const LINE = 'pointer-events-none absolute z-10 bg-selection'
+const LINE = 'pointer-events-none absolute z-mark bg-selection'
 
 // 선은 이웃한 둘 사이의 한가운데에 긋는다. 그래서 둘 사이의 틈(px)의 절반만큼 바깥으로 내민다.
 // 내미는 거리는 따로 적어 두지 않고 틈에서 계산한다. 틈이 바뀌어도 선은 한가운데에 놓인다.

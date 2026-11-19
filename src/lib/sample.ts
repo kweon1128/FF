@@ -27,6 +27,8 @@ export type SampleColors = {
   onSelection: string
   /** 치수선과 안내선의 색. */
   guide: string
+  /** 창 뒤의 화면을 가리는 막의 색(40%로 옅게 깐다). */
+  scrim: string
 }
 
 export function sampleColors(tokens: Token[]): SampleColors {
@@ -53,5 +55,13 @@ export function sampleColors(tokens: Token[]): SampleColors {
     selection,
     onSelection: named('on-selection', 'on-primary') ?? around.surface,
     guide: named('guide') ?? selection,
+    scrim: named('scrim', 'overlay', 'backdrop') ?? '#000000',
   }
 }
+
+// 예시 그림의 치수. 디자인 시스템의 값이 아니라 그림을 그리는 약속이라 판에 올리지 않고 여기 한 곳에서 정한다.
+// 판마다 따로 적으면 한 판에서만 고쳤을 때 판끼리 어긋난다. Tailwind가 클래스를 찾을 수 있게 글자 그대로 적는다.
+/** 예시 속 요소의 기본 폭(폭이 따로 정해지지 않은 입력칸, 목록, 상자). */
+export const SAMPLE_W = 'w-[160px]'
+/** 글줄을 대신 그리는 옅은 막대의 높이. */
+export const SAMPLE_BAR = 'h-[8px]'

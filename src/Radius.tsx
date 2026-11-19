@@ -2,6 +2,7 @@
 // 의미 크기 판과 같은 짜임이다. 묶음마다 한 줄에 값 하나, 왼쪽에 이름·가리키는 둥글기·설명, 오른쪽에 그 둥글기가 쓰인 모습.
 // 토대(모서리 판)의 패널과 추가 창은 크기·간격과 함께 쓴다(Sizes.tsx의 LengthInspector, NewLengthForm).
 
+import { SAMPLE_BAR, SAMPLE_W } from './lib/sample'
 import { CHECK_STROKE, ICON_STROKE } from './lib/icons'
 import { useContext, useState, type FormEvent, type ReactNode } from 'react'
 import { ArrowUpRight, Check as CheckIcon, Plus, X } from 'lucide-react'
@@ -55,7 +56,7 @@ export function RadiusSample({ shape, value, colors: c, shadow, words: written =
   const STRONG = 'text-sm leading-5 font-[550]'
   const ring = { boxShadow: `inset 0 0 0 1px ${c.line}` }
   const round = { borderRadius: value }
-  const bar = (width: string, more = '') => <span className={`block h-[8px] rounded-small ${width} ${more}`} style={{ background: c.filler }} />
+  const bar = (width: string, more = '') => <span className={`block ${SAMPLE_BAR} rounded-small ${width} ${more}`} style={{ background: c.filler }} />
   // 떠 있는 것(메뉴, 창)의 가장자리: 테두리 1px과 그 시스템의 그림자.
   const lifted = { background: c.surface, boxShadow: [`inset 0 0 0 1px ${c.line}`, shadow].filter(Boolean).join(', ') }
   // 내용은 상자의 가운데에 놓는다(효과 판과 같다). 예시는 읽는 글이 아니라 요소 하나를 보여 주는 것이다. 그림자를 드리우는 것은 잘리지 않게 둘레를 넓게 비운다.
@@ -144,14 +145,14 @@ export function RadiusSample({ shape, value, colors: c, shadow, words: written =
       )
     case 'input':
       return frame(
-        <span data-sample className={`flex h-control w-[160px] items-center px-input-x whitespace-nowrap ${TEXT}`} style={{ ...round, ...ring }}>
+        <span data-sample className={`flex h-control ${SAMPLE_W} items-center px-input-x whitespace-nowrap ${TEXT}`} style={{ ...round, ...ring }}>
           {all}
         </span>,
       )
     case 'row':
       // 메뉴의 줄들. 첫 줄은 지금 열려 있는 화면이라 옅은 바탕이 깔려 있고, 그 바탕의 모서리가 이 둥글기다.
       return frame(
-        <span className="block w-[160px]">
+        <span className={`block ${SAMPLE_W}`}>
           <NavRows labels={list} colors={c} radius={value} />
         </span>,
       )
@@ -208,7 +209,7 @@ export function RadiusSample({ shape, value, colors: c, shadow, words: written =
     }
     case 'slider':
       // 색 선택 창의 슬라이더. 높이의 절반보다 큰 둥글기면 양 끝이 반원이 된다.
-      return frame(<span data-sample className="block h-[12px] w-[160px]" style={{ ...round, background: 'linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)' }} />)
+      return frame(<span data-sample className={`block h-[12px] ${SAMPLE_W}`} style={{ ...round, background: 'linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)' }} />)
     case 'badge':
       return frame(
         <span className="flex flex-wrap items-center justify-center gap-actions-tight">
@@ -472,7 +473,7 @@ export function RadiusInspector({
           // 고르는 칸 옆에, 가리키는 모서리가 모서리 판의 어디에 있는지 보러 가는 버튼. "쓰이는 곳"의 반대 방향이다.
           <div className="flex items-center gap-actions-tight">
             <div className="min-w-0 flex-1">
-              <UsePicker label="가리키는 모서리" options={options} value={ref} nameWidth="w-[64px]" onChange={(next) => onChange({ value: `var(${next})` })} />
+              <UsePicker label="가리키는 모서리" options={options} value={ref} nameWidth="w-picker-name-wide" onChange={(next) => onChange({ value: `var(${next})` })} />
             </div>
             <button type="button" aria-label="가리키는 모서리 보러 가기" title={`모서리 판에서 ${lengthLabel(CORNER, ref)} 보기`} onClick={() => onOpenToken(ref)} className={ICON_BUTTON}>
               <ArrowUpRight size={16} strokeWidth={ICON_STROKE} />
@@ -494,7 +495,7 @@ export function RadiusInspector({
       </Section>
 
       <Section title="묶음">
-        <UsePicker label="묶음" options={RADIUS_GROUPS} value={group} nameWidth="w-[64px]" onChange={(next) => saveNote({ group: next })} />
+        <UsePicker label="묶음" options={RADIUS_GROUPS} value={group} nameWidth="w-picker-name-wide" onChange={(next) => saveNote({ group: next })} />
       </Section>
 
       <Section title="설명">
@@ -591,7 +592,7 @@ export function NewRadiusForm({ tokens, onCreate, onCancel }: { tokens: Token[];
           label="가리키는 모서리"
           options={options}
           value={ref}
-          nameWidth="w-[64px]"
+          nameWidth="w-picker-name-wide"
           onChange={(next) => {
             setRef(next)
             setError({ ...error, ref: undefined })
@@ -599,7 +600,7 @@ export function NewRadiusForm({ tokens, onCreate, onCancel }: { tokens: Token[];
         />
       </Field>
       <Field label="묶음" plain>
-        <UsePicker label="묶음" options={RADIUS_GROUPS} value={shownGroup} nameWidth="w-[64px]" onChange={setGroup} />
+        <UsePicker label="묶음" options={RADIUS_GROUPS} value={shownGroup} nameWidth="w-picker-name-wide" onChange={setGroup} />
       </Field>
       <Field label="설명">
         <input className={inputClass} value={text} onChange={(e) => setText(e.target.value)} />

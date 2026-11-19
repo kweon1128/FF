@@ -77,7 +77,7 @@ export const RADIUS_WORDS: Record<RadiusShape, string> = {
   row: '홈, 주문, 설정',
   card: '카드 제목',
   menu: '이름 바꾸기, 복제, 삭제',
-  dialog: '삭제할까요?, , 취소, 삭제',
+  dialog: '삭제할까요?, 이름, 취소, 삭제',
   slider: '',
   badge: '새 글, 완료',
   knob: '',

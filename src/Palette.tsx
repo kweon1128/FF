@@ -37,7 +37,7 @@ export function Palette({ items, onClose }: { items: PaletteItem[]; onClose: () 
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-scrim/40 pt-[18vh]" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="fixed inset-0 z-dialog flex items-start justify-center bg-scrim/40 pt-[18vh]" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div role="dialog" aria-modal="true" aria-label="빠른 실행" className="w-[480px] overflow-hidden rounded-float border-edge border-hairline bg-canvas shadow-dialog">
         <label className="flex h-bar items-center gap-row-inner border-b-divider border-hairline px-bar-x">
           <Search size={16} strokeWidth={ICON_STROKE} className="shrink-0 text-ink-faint" />

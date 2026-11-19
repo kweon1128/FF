@@ -1,6 +1,7 @@
 // 의미 색: 색상 판의 색 가운데 실제로 쓰는 색에 쓰임새의 이름을 붙여 모아 둔 판과, 그것을 만들고 고치는 양식.
 // 한 줄에 색 하나. 색, 이름과 가리키는 단계, 역할과 설명, 그 역할로 쓰인 예시를 나란히 보여 준다.
 
+import { SAMPLE_BAR } from './lib/sample'
 import { ICON_STROKE } from './lib/icons'
 import { useContext, useState, type FormEvent, type ReactNode } from 'react'
 import { ArrowUpRight } from 'lucide-react'
@@ -42,7 +43,7 @@ export function RoleSample({ shape, color, around, words: written = '' }: { shap
       {body}
     </span>
   )
-  const bar = (width: string, tone: string, more = '') => <span className={`block h-[8px] rounded-small ${width} ${more}`} style={{ background: tone }} />
+  const bar = (width: string, tone: string, more = '') => <span className={`block ${SAMPLE_BAR} rounded-small ${width} ${more}`} style={{ background: tone }} />
   // 선택 이름표와 간격 숫자 위의 글자. 이런 표시는 밝은 파랑이나 주황 위에 흰 글자를 쓰는 것이 보통이라, 흰 글자가 어느 정도 읽히면 흰색을 쓴다.
   const onMark = (hex: string) => (contrast('#ffffff', hex.slice(0, 7)) >= 2.5 ? '#ffffff' : inkOn(hex))
   const STRONG = 'text-sm leading-5 font-[550]'

@@ -1050,7 +1050,7 @@ export function Canvas({
         {[...guides, ...measures].map((g, i) => (
           <div
             key={i}
-            className={`pointer-events-none absolute z-30 ${g.dashed ? '' : 'bg-guide'}`}
+            className={`pointer-events-none absolute z-canvas-top ${g.dashed ? '' : 'bg-guide'}`}
             style={{
               left: g.x,
               top: g.y,
@@ -1083,7 +1083,7 @@ export function Canvas({
       {grid && view.z >= GRID_ZOOM && (
         <div
           data-pixel-grid
-          className="pointer-events-none absolute inset-0 z-10"
+          className="pointer-events-none absolute inset-0 z-mark"
           style={{
             backgroundImage:
               'linear-gradient(to right, rgb(0 0 0 / 0.06) 1px, transparent 1px), linear-gradient(to bottom, rgb(0 0 0 / 0.06) 1px, transparent 1px)',
@@ -1095,7 +1095,7 @@ export function Canvas({
 
       {marquee && (
         <div
-          className="pointer-events-none absolute z-20 border-edge border-selection bg-selection/10"
+          className="pointer-events-none absolute z-callout border-edge border-selection bg-selection/10"
           style={{
             left: marquee.left,
             top: marquee.top,
@@ -1105,11 +1105,11 @@ export function Canvas({
         />
       )}
 
-      {space && <div className={`absolute inset-0 z-20 ${panning ? 'cursor-grabbing' : 'cursor-grab'}`} />}
+      {space && <div className={`absolute inset-0 z-callout ${panning ? 'cursor-grabbing' : 'cursor-grab'}`} />}
 
       <div
         data-canvas-tools
-        className="absolute right-[16px] bottom-[16px] z-30 flex items-center gap-actions-tight rounded-float border-edge border-hairline bg-canvas p-menu shadow-float"
+        className="absolute right-[16px] bottom-[16px] z-canvas-top flex items-center gap-actions-tight rounded-float border-edge border-hairline bg-canvas p-menu shadow-float"
         onPointerDown={(e) => e.stopPropagation()}
       >
         <button

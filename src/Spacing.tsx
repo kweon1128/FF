@@ -1,5 +1,6 @@
 // 의미 간격 판의 내용. 쓰임마다 이름과 가리키는 간격, 설명, 예시를 보여 준다.
 
+import { SAMPLE_BAR, SAMPLE_W } from './lib/sample'
 import { ICON_STROKE } from './lib/icons'
 import { useContext, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import { ArrowUpRight } from 'lucide-react'
@@ -60,7 +61,7 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
     </span>
   )
   const outline = (round: string) => <span className={`pointer-events-none absolute inset-0 border-edge ${round}`} style={{ borderColor: line }} />
-  const bar = (width: string) => <span className={`mt-blocks block h-[8px] rounded-small ${width}`} style={{ background: faint }} />
+  const bar = (width: string) => <span className={`mt-blocks block ${SAMPLE_BAR} rounded-small ${width}`} style={{ background: faint }} />
   // 내용은 상자의 가운데에 놓는다(효과 판의 예시와 같다).
   const frame = (body: ReactNode) => (
     <span className={`flex w-full items-center justify-center overflow-hidden rounded-card p-sample ${EDGE}`} style={{ ...space, background: around.surface, color: around.ink, fontFamily: font }}>
@@ -80,7 +81,7 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
   // 이름표(입력칸 위의 작은 글자)와 입력칸. 입력칸의 값이 없으면 빈 칸이다.
   const tag = (text: string) => <span className={`block font-[550] ${TEXT}`} style={{ color: soft }}>{text}</span>
   const box = (text = '') => (
-    <span className={`flex h-control w-[160px] max-w-full items-center rounded-control px-input-x whitespace-nowrap ${TEXT}`} style={{ boxShadow: `inset 0 0 0 1px ${line}` }}>
+    <span className={`flex h-control ${SAMPLE_W} max-w-full items-center rounded-control px-input-x whitespace-nowrap ${TEXT}`} style={{ boxShadow: `inset 0 0 0 1px ${line}` }}>
       {text}
     </span>
   )
@@ -152,7 +153,7 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
               {i > 0 && wide}
               <span className={`block font-[550] ${TEXT}`}>{text}</span>
               <span className="mt-heading block rounded-card px-box py-box" style={{ boxShadow: `inset 0 0 0 1px ${faint}` }}>
-                <span className="block h-[8px] w-[96px] rounded-small" style={{ background: faint }} />
+                <span className={`block ${SAMPLE_BAR} w-[96px] rounded-small`} style={{ background: faint }} />
               </span>
             </span>
           ))}
@@ -223,7 +224,7 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
     case 'row':
       // 메뉴 줄의 왼쪽과 오른쪽. 줄은 마우스를 올린 모습으로 그린다.
       return frame(
-        <span className={`relative flex h-control w-[160px] max-w-full items-stretch whitespace-nowrap ${TEXT}`}>
+        <span className={`relative flex h-control ${SAMPLE_W} max-w-full items-stretch whitespace-nowrap ${TEXT}`}>
           <span className="absolute inset-0 rounded-row" style={{ background: hover }} />
           {tall}
           <span className="relative flex min-w-0 flex-1 items-center">{all}</span>
@@ -233,7 +234,7 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
     case 'rowy':
       // 줄의 위와 아래.
       return frame(
-        <span className={`relative flex w-[160px] max-w-full flex-col ${TEXT}`}>
+        <span className={`relative flex ${SAMPLE_W} max-w-full flex-col ${TEXT}`}>
           <span className="absolute inset-0 rounded-row" style={{ background: hover }} />
           {wide}
           <span className="relative block px-row-x">{all}</span>
@@ -259,7 +260,7 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
         ring(
           <span className="block w-[112px]">
             {written && <span className={`block break-words font-[550] ${TEXT}`}>{written}</span>}
-            <span className={`block h-[8px] w-[112px] rounded-small ${written ? 'mt-blocks' : ''}`} style={{ background: faint }} />
+            <span className={`block ${SAMPLE_BAR} w-[112px] rounded-small ${written ? 'mt-blocks' : ''}`} style={{ background: faint }} />
             {bar('w-[80px]')}
           </span>,
         ),
@@ -267,11 +268,11 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
     case 'heading':
       // 제목과 그 아래 내용 사이.
       return frame(
-        <span className="block w-[160px] max-w-full">
+        <span className={`block ${SAMPLE_W} max-w-full`}>
           <span className={`block font-[550] ${TEXT}`}>{all}</span>
           {wide}
           <span className="block rounded-card px-box py-box" style={{ boxShadow: `inset 0 0 0 1px ${faint}` }}>
-            <span className="block h-[8px] w-[96px] rounded-small" style={{ background: faint }} />
+            <span className={`block ${SAMPLE_BAR} w-[96px] rounded-small`} style={{ background: faint }} />
           </span>
         </span>,
       )
@@ -282,7 +283,7 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
           <span className={`flex items-center font-[550] ${TEXT}`}>{all}</span>
           {tall}
           <span className="flex h-[40px] w-[96px] items-center rounded-card px-box" style={{ boxShadow: `inset 0 0 0 1px ${faint}` }}>
-            <span className="block h-[8px] w-[64px] rounded-small" style={{ background: faint }} />
+            <span className={`block ${SAMPLE_BAR} w-[64px] rounded-small`} style={{ background: faint }} />
           </span>
         </span>,
       )
@@ -330,7 +331,7 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
     case 'footer':
       // 창의 내용(입력칸)과 그 아래 버튼 줄 사이.
       return frame(
-        <span className="block w-[160px] max-w-full">
+        <span className={`block ${SAMPLE_W} max-w-full`}>
           {box()}
           {wide}
           <span className="flex justify-end gap-actions">
@@ -394,7 +395,7 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
     case 'rowicon':
       // 메뉴 줄 안의 아이콘(네모로 자리만 그린다)과 글자 사이. 줄은 마우스를 올린 모습으로 그린다.
       return frame(
-        <span className={`relative flex h-row w-[160px] max-w-full items-stretch px-row-x whitespace-nowrap ${TEXT}`}>
+        <span className={`relative flex h-row ${SAMPLE_W} max-w-full items-stretch px-row-x whitespace-nowrap ${TEXT}`}>
           <span className="absolute inset-0 rounded-row" style={{ background: hover }} />
           <span className="relative flex items-center">
             <span className="block size-icon rounded-small" style={{ background: soft }} />
@@ -406,7 +407,7 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
     case 'input':
       // 입력칸. 적은 값의 왼쪽과, 칸의 오른쪽 끝이 여백이다.
       return frame(
-        <span className={`relative flex h-control w-[160px] max-w-full items-stretch whitespace-nowrap ${TEXT}`}>
+        <span className={`relative flex h-control ${SAMPLE_W} max-w-full items-stretch whitespace-nowrap ${TEXT}`}>
           {tall}
           <span className="flex min-w-0 flex-1 items-center overflow-hidden">{all}</span>
           {tall}
@@ -705,7 +706,7 @@ export function SpaceUseInspector({
           // 고르는 칸 옆에, 가리키는 간격이 간격 판의 어디에 있는지 보러 가는 버튼. "쓰이는 곳"의 반대 방향이다(의미 크기 패널과 같다).
           <div className="flex items-center gap-actions-tight">
             <div className="min-w-0 flex-1">
-              <UsePicker label="가리키는 간격" options={options} value={ref} nameWidth="w-[48px]" onChange={(next) => onChange({ value: `var(${next})` })} />
+              <UsePicker label="가리키는 간격" options={options} value={ref} nameWidth="w-picker-name" onChange={(next) => onChange({ value: `var(${next})` })} />
             </div>
             <button type="button" aria-label="가리키는 간격 보러 가기" title={`간격 판에서 ${length ?? ''} 보기`} onClick={() => onOpenToken(ref)} className={ICON_BUTTON}>
               <ArrowUpRight size={16} strokeWidth={ICON_STROKE} />
@@ -727,7 +728,7 @@ export function SpaceUseInspector({
       </Section>
 
       <Section title="묶음">
-        <UsePicker label="묶음" options={SPACE_USES} value={use} nameWidth="w-[48px]" onChange={(next) => saveNote({ use: next })} />
+        <UsePicker label="묶음" options={SPACE_USES} value={use} nameWidth="w-picker-name" onChange={(next) => saveNote({ use: next })} />
       </Section>
 
       <Section title="설명">
@@ -824,7 +825,7 @@ export function NewSpaceUseForm({ tokens, onCreate, onCancel }: { tokens: Token[
           label="가리키는 간격"
           options={options}
           value={ref}
-          nameWidth="w-[48px]"
+          nameWidth="w-picker-name"
           onChange={(next) => {
             setRef(next)
             setError({ ...error, ref: undefined })
@@ -832,7 +833,7 @@ export function NewSpaceUseForm({ tokens, onCreate, onCancel }: { tokens: Token[
         />
       </Field>
       <Field label="묶음" plain>
-        <UsePicker label="묶음" options={SPACE_USES} value={shownUse} nameWidth="w-[48px]" onChange={setUse} />
+        <UsePicker label="묶음" options={SPACE_USES} value={shownUse} nameWidth="w-picker-name" onChange={setUse} />
       </Field>
       <Field label="설명">
         <input className={inputClass} value={text} onChange={(e) => setText(e.target.value)} />

@@ -44,12 +44,12 @@ export function TopBar({
 
         {open && (
           <>
-            <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+            <div className="fixed inset-0 z-menu-backdrop" onClick={() => setOpen(false)} />
             <div
               role="menu"
               // 줄 사이를 띄워, 마우스를 올린 바탕이 옆 줄과 붙지 않게 한다.
               // 버튼 바로 아래에서 4px 띄워 놓는다(고르는 목록과 같다). 버튼의 높이를 숫자로 다시 적지 않으므로 높이가 바뀌어도 붙어 다닌다.
-              className="absolute top-full left-0 mt-[4px] z-20 w-menu space-y-rows rounded-float border-edge border-hairline bg-canvas p-menu shadow-float"
+              className="absolute top-full left-0 mt-[4px] z-menu w-menu space-y-rows rounded-float border-edge border-hairline bg-canvas p-menu shadow-float"
             >
               {systems.map((name) => (
                 <button
