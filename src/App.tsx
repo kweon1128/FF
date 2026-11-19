@@ -84,6 +84,8 @@ import { readRadiusNote, type RadiusGroup } from './lib/radius'
 import { BorderInspector, NewBorderForm } from './Borders'
 import { isBorderKind } from './lib/borders'
 import { LayerInspector, NewLayerForm } from './Layers'
+import { NewValueForm, ValueInspector } from './ValueBoard'
+import { specOf } from './valueSpecs'
 import { isEffectKind } from './lib/effects'
 import { NewSpaceUseForm, SpaceUseInspector, spaceVars } from './Spacing'
 import { LengthInspector, NewLengthForm, NewSizeForm, SizeInspector, SizeThings, SizeViewSwitch, sizeVars, type SizeView } from './Sizes'
@@ -105,7 +107,7 @@ import { Button, EmptyState, Field, Modal, inputClass } from './ui'
 
 const LAST_SYSTEM_KEY = 'ff.system'
 /** 줄마다 설명과 예시가 있어서 접을 수 있는 판(의미 색과 색상 판은 접기가 따로 있다). */
-const FOLDABLE: string[] = ['style', 'spaceuse', 'effect', 'sizeuse', 'radius', 'border', 'z']
+const FOLDABLE: string[] = ['style', 'spaceuse', 'effect', 'sizeuse', 'radius', 'border', 'z', 'motion', 'layout']
 const SAVE_DELAY = 300
 const COLOR = KINDS.color
 const ROLE = KINDS.role
@@ -341,6 +343,8 @@ export function App() {
   const [addingBorder, setAddingBorder] = useState<Kind | null>(null)
   // 겹치는 차례를 만드는 창이 떠 있는지.
   const [addingLayer, setAddingLayer] = useState(false)
+  // 움직임(시간, 이징)이나 화면 크기(브레이크포인트, 컨테이너 폭, 비율)의 값을 만드는 창이 어느 종류로 떠 있는지.
+  const [addingValue, setAddingValue] = useState<Kind | null>(null)
   // 의미 글꼴을 만드는 창이 떠 있는지.
   const [addingType, setAddingType] = useState(false)
   const [addingRole, setAddingRole] = useState(false)
@@ -723,6 +727,8 @@ export function App() {
     if (isBorderKind(kind)) return setAddingBorder(kind)
     // 겹치는 차례는 이름과 차례의 숫자를 정해야 만들 수 있다. 무엇보다 위여야 하는지는 사람이 정한다.
     if (kind.id === 'z') return setAddingLayer(true)
+    // 움직임과 화면 크기의 값도 이름과 값을 정해야 만들 수 있다. 종류마다 묻는 값이 달라서(시간, 곡선, 폭, 비율) 추가는 종류의 제목 줄마다 있다.
+    if (specOf(kind)) return setAddingValue(kind)
     // 의미 모서리도 이름과 가리키는 모서리를 정해야 만들 수 있다.
     if (kind.id === 'radius') return setAddingRadius(true)
     // 의미 글꼴도 이름과 조합, 묶음을 묻는 창을 연다(다른 의미 판의 추가와 같다). 짝지을 재료(글꼴 종류, 글자 크기, 굵기)가 모자라면 그 창이 무엇을 먼저 만들지 알린다.
@@ -1752,6 +1758,7 @@ export function App() {
         { id: 'a:opacity', group: '명령', label: '투명도 추가', run: () => setAddingEffect(KINDS.opacity) },
         { id: 'a:blur', group: '명령', label: '흐림 추가', run: () => setAddingEffect(KINDS.blur) },
         { id: 'a:z', group: '명령', label: '겹치는 차례 추가', run: () => setAddingLayer(true) },
+        ...[KINDS.duration, KINDS.ease, KINDS.breakpoint, KINDS.container, KINDS.aspect].map((kind) => ({ id: `a:${kind.id}`, group: '명령', label: kind.addLabel, run: () => setAddingValue(kind) })),
         { id: 'a:sizes', group: '명령', label: '글자 크기 한 벌 만들기', run: () => setMakingSizes(true) },
         { id: 'a:weights', group: '명령', label: '굵기 한 벌 만들기', run: () => setMakingWeights(true) },
         { id: 'a:types', group: '명령', label: '의미 글꼴 한 벌 만들기', run: () => setMakingTypes(true) },
@@ -2002,6 +2009,28 @@ export function App() {
             input.focus()
             input.select()
           }}
+          // 칸에 들어올 때의 값을 기억해 둔다. Esc는 그 값으로 되돌리고 칸을 벗어난다(DESIGN.md field-rules).
+          // 칸마다 되돌리는 코드를 두지 않고 여기 한 곳에서 한다. 그래야 새로 만드는 칸도 같은 약속을 따른다.
+          onFocusCapture={(e) => {
+            const input = e.target
+            if (!(input instanceof HTMLInputElement)) return
+            // 오류 문구와 함께 틀린 값이 남아 있는 칸(같은 이름을 적고 벗어난 이름 칸)에 다시 들어온 것이면, 그 틀린 값을 기억하지 않고 처음 들어올 때의 값을 그대로 둔다. Esc가 저장된 값으로 돌아가야 한다.
+            const wrong = [input, input.parentElement, input.parentElement?.parentElement].some((el) => el?.nextElementSibling?.matches('.text-danger'))
+            if (!wrong || input.dataset.entered === undefined) input.dataset.entered = input.value
+          }}
+          onKeyDownCapture={(e) => {
+            const input = e.target
+            if (e.key !== 'Escape' || !(input instanceof HTMLInputElement) || input.readOnly) return
+            if ((input.type !== 'text' && input.type !== '') || input.dataset.entered === undefined) return
+            e.stopPropagation()
+            // 값을 되돌린 것을 그 칸이 "적었다"로 듣게 한다(React는 input 이벤트로 듣는다). 적는 동안은 저장하지 않으므로 저장은 일어나지 않는다.
+            if (input.value !== input.dataset.entered) {
+              Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, input.dataset.entered)
+              input.dispatchEvent(new Event('input', { bubbles: true }))
+            }
+            // 되돌린 값이 칸에 반영된 뒤에 벗어난다. 바로 벗어나면 칸이 되돌리기 전의 값을 저장한다.
+            setTimeout(() => input.blur())
+          }}
         >
           {bare ? null : ready && screen === 'components' && comp ? (
             <ComponentInspector
@@ -2117,6 +2146,20 @@ export function App() {
               token={selectedTokens[0]}
               kind={commonKind}
               allNames={tokens.map((t) => t.name)}
+              file={file}
+              uses={usesOf(comps, selectedTokens[0].name)}
+              onOpenComponent={openComp}
+              onRename={(to) => renameToken(selectedTokens[0].name, to)}
+              onChange={(patch) => commit(tokens.map((t) => (t.name === selectedTokens[0].name ? { ...t, ...patch } : t)))}
+              onCopy={(text) => copyText(text, '코드를 복사했어요.')}
+            />
+          ) : selectedTokens.length === 1 && commonKind && specOf(commonKind) ? (
+            <ValueInspector
+              key={selectionId}
+              token={selectedTokens[0]}
+              kind={commonKind}
+              spec={specOf(commonKind)!}
+              tokens={tokens}
               file={file}
               uses={usesOf(comps, selectedTokens[0].name)}
               onOpenComponent={openComp}
@@ -2326,6 +2369,23 @@ export function App() {
               const inGroup = (t: Token) => kind.matches(t.name) && readSizeNote(t.note, shortName(kind, t.name)).group === group
               const after = tokens.some(inGroup) ? inGroup : tokens.some((t) => kind.matches(t.name)) ? (t: Token) => kind.matches(t.name) : (t: Token) => [KINDS.length, KINDS.height, KINDS.width, KINDS.square].some((k) => k.matches(t.name))
               insert({ name, value, note }, after)
+            }}
+          />
+        </Modal>
+      )}
+
+      {addingValue && specOf(addingValue) && (
+        <Modal title={addingValue.addLabel} onClose={() => setAddingValue(null)}>
+          <NewValueForm
+            kind={addingValue}
+            spec={specOf(addingValue)!}
+            tokens={tokens}
+            onCancel={() => setAddingValue(null)}
+            onCreate={(name, value, note) => {
+              const kind = addingValue
+              setAddingValue(null)
+              // 같은 종류의 뒤에 놓는다(크기의 차례가 있는 종류는 저절로 제자리에 놓인다). 그 종류의 첫 값이면 파일의 맨 뒤다.
+              insert({ name, value, note }, (t) => kind.matches(t.name))
             }}
           />
         </Modal>

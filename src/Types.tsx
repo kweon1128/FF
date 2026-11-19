@@ -337,7 +337,7 @@ function PartField({
     <Field label={label} error={missing ? '고른 값이 없어졌어요. 다시 골라 주세요.' : null}>
       {/* 고르는 칸 옆에, 고른 값이 글꼴 판의 어디에 있는지 보러 가는 버튼. "쓰이는 곳"의 반대 방향이다. 고른 값이 없어졌으면 갈 곳이 없어 꺼진다. */}
       <span className="flex items-center gap-actions-tight">
-      <select aria-label={label} className={`${inputClass} min-w-0 flex-1 ${missing ? 'border-danger' : ''}`} value={value} onChange={(e) => onChange(e.target.value)}>
+      <select aria-label={label} className={`${inputClass} min-w-0 flex-1 ${missing ? 'border-danger!' : ''}`} value={value} onChange={(e) => onChange(e.target.value)}>
         {missing && <option value={value}>{shortName(kind, value)} (없어짐)</option>}
         {options.map((t) => (
           <option key={t.name} value={t.name}>

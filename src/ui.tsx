@@ -25,6 +25,8 @@ export function Button({
   return (
     <button
       type="button"
+      // 창이 열릴 때 커서를 둘 칸이 없으면 주 버튼에 초점을 준다(Modal). 그때 찾는 표시다.
+      data-primary={variant === 'primary' ? '' : undefined}
       className={`inline-flex h-control shrink-0 items-center gap-button-inner rounded-control type-label whitespace-nowrap outline-selection focus-visible:outline-focus focus-visible:outline-offset-[1px] disabled:opacity-disabled ${BUTTON_STYLES[variant]} ${className}`}
       {...rest}
     >
@@ -75,8 +77,13 @@ export function Check({
   )
 }
 
+/**
+ * 오류 문구가 뜬 칸은 테두리도 빨갛다(DESIGN.md field-input-error). 칸마다 따로 적지 않도록 여기서 한다.
+ * 칸 바로 뒤에 오류 문구(text-danger)가 오거나, 칸을 감싼 Field에 오류가 있으면(data-field-error) 빨갛게 한다.
+ * 칸에 직접 붙일 때는 'border-danger! focus:border-danger!'로 적는다. 느낌표가 없으면 아래의 border-hairline과 focus:border-selection에 덮여 보이지 않는다.
+ */
 export const inputClass =
-  'h-control w-full rounded-control border-edge border-hairline bg-canvas px-input-x type-body text-ink outline-none placeholder:text-ink-faint focus:border-selection'
+  'h-control w-full rounded-control border-edge border-hairline bg-canvas px-input-x type-body text-ink outline-none placeholder:text-ink-faint focus:border-selection has-[+.text-danger]:border-danger has-[+.text-danger]:focus:border-danger [[data-field-error]_&]:border-danger [[data-field-error]_&]:focus:border-danger'
 
 /** 변수 이름이나 값처럼 코드 글꼴로 적는 칸. 의미 글꼴 클래스는 한 요소에 하나만 붙이므로, inputClass에 글꼴 클래스를 덧붙이지 않고 이것을 쓴다. */
 export const monoInputClass = inputClass.replace('type-body', 'type-code')
@@ -139,8 +146,8 @@ export function UnitInput({
   onBlur?: () => void
 }) {
   const box = small
-    ? `h-compact rounded-small bg-canvas px-chip-x type-code-sm hover:border-ink-faint ${invalid ? 'border-danger' : 'border-hairline'}`
-    : `h-control w-full rounded-control bg-canvas px-input-x type-body ${invalid ? 'border-danger focus-within:border-danger' : 'border-hairline'}`
+    ? `h-compact rounded-small bg-canvas px-chip-x type-code-sm hover:border-ink-faint ${invalid ? 'border-danger focus-within:border-danger!' : 'border-hairline'}`
+    : `h-control w-full rounded-control bg-canvas px-input-x type-body ${invalid ? 'border-danger focus-within:border-danger!' : 'border-hairline'}`
   // 마우스로 눌러서 고치기 시작했는지. 누른 손을 뗄 때 브라우저가 방금 한 전체 선택을 풀어 버리지 않게 막는 데 쓴다.
   const picking = useRef(false)
   // 숫자 칸의 폭은 적힌 글자가 실제로 차지하는 폭이다. 그래야 단위가 숫자 바로 뒤에 온다.
@@ -185,7 +192,14 @@ export function UnitInput({
         }}
         onKeyDown={(e) => {
           picking.current = false
-          if (e.key === 'Enter') return e.currentTarget.blur()
+          if (e.key === 'Enter') {
+            // 창의 칸이면 Enter로 창을 낸다(DESIGN.md dialog). 칸을 먼저 벗어나면 브라우저가 창을 내지 않는다.
+            // 표 안의 작은 입력칸은 칸이 여럿이라 Enter가 그 칸의 값만 끝내고 창은 내지 않는다.
+            const form = small ? null : e.currentTarget.form
+            if (!form) return e.currentTarget.blur()
+            e.preventDefault()
+            return form.requestSubmit()
+          }
           if (e.key === 'Tab' && fillOnTab && !digits && placeholder) {
             e.preventDefault()
             return onDigits(placeholder)
@@ -222,7 +236,7 @@ export function Field({
 }) {
   const Box = plain ? 'div' : 'label'
   return (
-    <Box className="block">
+    <Box className="block" data-field-error={error ? '' : undefined}>
       <span className="mb-label block type-label text-ink-faint">{label}</span>
       {children}
       {error ? (
@@ -294,16 +308,27 @@ export function Modal({
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
+  // 창이 열릴 때 커서를 둘 입력칸이 없으면(삭제 확인, 붙여넣기, 한 벌 만들기) 주 버튼에 초점을 준다.
+  // Enter로 바로 끝낼 수 있고, Tab이 창 뒤의 화면을 먼저 돌지 않는다. 주 버튼이 없거나 꺼져 있으면 창 자체에 준다.
+  const box = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = box.current
+    if (!el || el.contains(document.activeElement)) return
+    ;(el.querySelector<HTMLElement>('button[data-primary]:not(:disabled)') ?? el).focus()
+  }, [])
+
   return (
     <div
       className="fixed inset-0 z-dialog flex items-center justify-center bg-scrim/40"
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
+        ref={box}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={`${size ? DIALOG_WIDTHS[size] : 'w-dialog'} ${tall ? 'flex h-[calc(100vh-48px)] flex-col' : 'max-h-[calc(100vh-48px)] overflow-y-auto'} max-w-[calc(100vw-48px)] rounded-float border-edge border-hairline bg-canvas p-dialog shadow-dialog`}
+        className={`${size ? DIALOG_WIDTHS[size] : 'w-dialog'} ${tall ? 'flex h-[calc(100vh-48px)] flex-col' : 'max-h-[calc(100vh-48px)] overflow-y-auto'} max-w-[calc(100vw-48px)] rounded-float border-edge border-hairline bg-canvas p-dialog shadow-dialog outline-none`}
       >
         <h2 className="mb-header shrink-0 type-title">{title}</h2>
         {tall ? <div className="min-h-0 flex-1">{children}</div> : children}

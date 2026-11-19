@@ -37,11 +37,15 @@ const tagWidth = (text: string) => 8 + 7 * text.length
 /** 그림이 예시 칸에 들어가는 가장 큰 길이(px). 이보다 크면 절반씩 줄여 그린다. 폭은 칸이 넓어서 더 크게 잡는다. */
 const LIMIT = { height: 200, width: 520, square: 200 }
 
-/** 그 크기를 몇 분의 일로 줄여 그리는지. 줄이지 않으면 1. pair는 폭과 함께 그리는 높이다. 둘 가운데 더 많이 줄여야 하는 쪽을 따른다. */
-export function sampleScale(kind: Kind, value: string, pair?: string): number {
+/**
+ * 그 크기를 몇 분의 일로 줄여 그리는지. 줄이지 않으면 1. pair는 폭과 함께 그리는 높이다. 둘 가운데 더 많이 줄여야 하는 쪽을 따른다.
+ * fit은 예시 칸이 좁은 판(화면 크기 판)에서 그림이 들어가야 하는 폭이다. 주면 그 폭에 맞추고, 16분의 1까지 줄인다.
+ */
+export function sampleScale(kind: Kind, value: string, pair?: string, fit?: number): number {
   const px = parseFloat(value)
-  const limit = LIMIT[kind.id as keyof typeof LIMIT] ?? 200
-  const own = [1, 2, 4, 8].find((n) => px / n <= limit) ?? 8
+  const limit = fit ?? LIMIT[kind.id as keyof typeof LIMIT] ?? 200
+  const steps = fit === undefined ? [1, 2, 4, 8] : [1, 2, 4, 8, 16]
+  const own = steps.find((n) => px / n <= limit) ?? steps[steps.length - 1]
   return pair === undefined ? own : Math.max(own, sampleScale(KINDS.height, pair))
 }
 
@@ -51,7 +55,29 @@ export function sampleScale(kind: Kind, value: string, pair?: string): number {
  * 높이는 요소의 왼쪽에 세로선, 폭은 요소의 위에 가로선, 정사각형은 둘 다다. 요소는 칠하지 않는다. 길이는 값 그대로다. 예시 칸보다 큰 것만 통째로 줄여 그리고, 판의 줄이 몇 분의 일인지 적는다.
  * 이 안은 사용자의 값을 보여 주는 미리보기라, FF 도구의 글자 규칙(type- 클래스)을 따르지 않는다. 간격과 다른 크기는 보여 주는 시스템의 값으로 그려진다(PreviewSpaceContext).
  */
-export function SizeSample({ kind, shape, value, pair, around, tint, words: written = '' }: { kind: Kind; shape: SizeShape; value: string; pair?: string; around: Around; tint: string; words?: string }) {
+export function SizeSample({
+  kind,
+  shape,
+  value,
+  pair,
+  fit,
+  custom,
+  around,
+  tint,
+  words: written = '',
+}: {
+  kind: Kind
+  shape: SizeShape
+  value: string
+  pair?: string
+  /** 그림이 들어가야 하는 폭(px). 예시 칸이 좁은 판에서 준다. */
+  fit?: number
+  /** 재는 요소를 밖에서 그린다(화면 크기 판의 브레이크포인트와 페이지). fill은 재는 상자를 채우는 클래스이고, scale은 그림을 몇 분의 일로 줄였는지다(글자를 제 크기로 되돌릴 때 쓴다). 치수선과 예시 상자는 여기 것을 그대로 쓴다. */
+  custom?: (fill: string, scale: number) => ReactNode
+  around: Around
+  tint: string
+  words?: string
+}) {
   const font = useContext(PreviewFontContext)
   const space = useContext(PreviewSpaceContext)
   const all = written || SIZE_WORDS[shape]
@@ -68,7 +94,7 @@ export function SizeSample({ kind, shape, value, pair, around, tint, words: writ
   const high = (both && pair) || value
   const tall = kind.id === 'height'
   const wide = kind.id === 'width' && !both
-  const scale = sampleScale(kind, value, both ? pair : undefined)
+  const scale = sampleScale(kind, value, both ? pair : undefined, fit)
   const TEXT = 'text-sm leading-5'
   const SMALL = 'text-xs leading-4'
   const line = `color-mix(in oklab, ${around.ink} 32%, ${around.surface})`
@@ -139,6 +165,7 @@ export function SizeSample({ kind, shape, value, pair, around, tint, words: writ
       {icon}
     </span>
   )
+  if (custom) return frame(m(custom(F, scale)))
   switch (shape) {
     case 'input':
       return frame(m(<span className={`${F} ${other(SAMPLE_W, 'h-control')} flex items-center overflow-hidden rounded-control px-input-x whitespace-nowrap ${TEXT}`} style={ring}>{all}</span>))

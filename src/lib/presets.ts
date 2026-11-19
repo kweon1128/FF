@@ -11,13 +11,6 @@ type Ladder = { steps: Step[]; start?: number }
 
 const px = (pairs: [string, number][]): Step[] => pairs.map(([name, n]) => [name, `${n}px`])
 
-const SCREEN_WIDTHS = px([
-  ['sm', 640],
-  ['md', 768],
-  ['lg', 1024],
-  ['xl', 1280],
-  ['2xl', 1536],
-])
 
 const LADDERS: Partial<Record<Kind['id'], Ladder>> = {
   size: {
@@ -74,35 +67,6 @@ const LADDERS: Partial<Record<Kind['id'], Ladder>> = {
       ['lg', 16],
       ['xl', 24],
     ]),
-  },
-  breakpoint: { steps: SCREEN_WIDTHS },
-  container: { steps: SCREEN_WIDTHS },
-  aspect: {
-    steps: [
-      ['square', '1 / 1'],
-      ['photo', '4 / 3'],
-      ['video', '16 / 9'],
-      ['wide', '21 / 9'],
-      ['portrait', '3 / 4'],
-    ],
-  },
-  // 겹치는 순서도 값이 곧 이름이다.
-  duration: {
-    steps: [
-      ['fast', '100ms'],
-      ['normal', '200ms'],
-      ['slow', '300ms'],
-      ['slower', '500ms'],
-    ],
-  },
-  ease: {
-    steps: [
-      // 화면에 나타나고 반응하는 움직임은 거의 다 out이다(빠르게 출발해 부드럽게 멈춤). 그래서 out이 먼저 생긴다.
-      // in은 화면에서 사라질 때만 쓴다. 곡선은 끝에서 더 길게 감속하는 것으로, 예전 Material의 (0.4, 0, 0.2, 1)보다 부드럽게 멈춘다.
-      ['out', 'cubic-bezier(0.16, 1, 0.3, 1)'],
-      ['in-out', 'cubic-bezier(0.65, 0, 0.35, 1)'],
-      ['in', 'cubic-bezier(0.7, 0, 0.84, 0)'],
-    ],
   },
 }
 

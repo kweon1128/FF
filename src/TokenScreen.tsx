@@ -12,6 +12,8 @@ import { EffectList } from './Effects'
 import { RadiusList } from './Radius'
 import { BorderList } from './Borders'
 import { LayerList } from './Layers'
+import { ValueList } from './ValueBoard'
+import { specOf } from './valueSpecs'
 import { isBorderKind } from './lib/borders'
 import { isEffectKind } from './lib/effects'
 import { isFreeKind, orderKinds } from './lib/order'
@@ -194,8 +196,10 @@ export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGr
             ) : kind.id === 'radius' ? (
               // 의미 모서리는 묶음마다 한 줄에 하나씩, 그 둥글기가 실제로 쓰인 모습과 함께 보여 준다.
               <RadiusList kind={kind} items={items} all={tokens} selected={selected} onSelect={onSelect} onSelectGroup={onSelectGroup} onRename={onRename} onMove={onMove} onMoveGroup={onMoveRadiusGroup} />
-            ) : kind.tiles ? (
-              <TileGrid {...list} />
+            ) : specOf(kind) ? (
+              // 움직임(시간, 이징)과 화면 크기(브레이크포인트, 컨테이너 폭, 비율)는 효과처럼 한 줄에 하나씩, 그 값이 제 일을 하는 모습과 함께 보여 준다.
+              // 쓰임으로 이름 붙인 종류(시간, 이징, 비율)만 끌어서 차례를 바꾼다. 브레이크포인트와 컨테이너 폭은 크기순으로 저절로 놓인다.
+              <ValueList kind={kind} spec={specOf(kind)!} items={items} all={tokens} selected={selected} onSelect={onSelect} onRename={onRename} onMove={onMove} />
             ) : (
               <RowList {...list} lineOf={lineOf} trackOf={trackOf} />
             )}
@@ -468,48 +472,6 @@ function ColorGroups({
   )
 }
 
-/** 네모 칸 하나에 값이 적용된 모습. 네모 칸으로 보여 주는 종류는 비율뿐이다. */
-function TileSample({ value }: { value: string }) {
-  return (
-    <span className="flex size-[64px] items-center justify-center">
-      <span className="block max-h-full w-full border-edge border-ink-soft bg-hover" style={{ aspectRatio: value }} />
-    </span>
-  )
-}
-
-function TileGrid({ kind, items, selected, onSelect, onRename, onMove }: ListProps) {
-  const reorder = useReorder(items.map((t) => t.name), onMove, { grid: true })
-  // 값이 없으면 아무것도 그리지 않는다. 추가는 묶음 제목 줄의 버튼으로 한다.
-  if (items.length === 0) return null
-  return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(112px,1fr))] gap-cells">
-      {items.map((t) => {
-        const short = shortName(kind, t.name)
-        const isSelected = selected.includes(t.name)
-        return (
-          <button
-            key={t.name}
-            type="button"
-            data-token={t.name}
-            aria-pressed={isSelected}
-            aria-label={`${short} ${t.value}`}
-            onClick={(e) => !reorder.justDragged() && onSelect(t.name, isAdditive(e))}
-            onDoubleClick={() => onRename(t.name)}
-            {...reorder.grab(t.name)}
-            className={`relative flex flex-col items-center rounded-float border-edge border-hairline bg-canvas p-card select-none ${reorder.moving(t.name) ? 'opacity-dragging' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
-          >
-            {reorder.line(t.name)}
-            <TileSample value={t.value} />
-            <span data-name className="mt-sample block max-w-full text-center type-body break-words text-ink-soft">{short}</span>
-            <span className="block max-w-full text-center type-code break-all text-ink-faint">{t.value}</span>
-            {isSelected && selected.length === 1 && <SelectionLabel name={short} value={t.value} />}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
-
 function RowList({
   kind,
   items,
@@ -582,16 +544,6 @@ function RowList({
   )
 }
 
-/** 줄에 마우스를 올리면 오른쪽으로 움직이는 점. 움직임 값을 눈으로 확인하는 용도. */
-function MovingDot({ style }: { style: CSSProperties }) {
-  return (
-    <span
-      className="block size-[12px] rounded-pill bg-ink transition-transform group-hover:translate-x-[192px]"
-      style={style}
-    />
-  )
-}
-
 function RowSample({ kind, value, line, track }: { kind: Kind; value: string; line?: string; track?: string }) {
   switch (kind.id) {
     case 'font':
@@ -644,16 +596,6 @@ function RowSample({ kind, value, line, track }: { kind: Kind; value: string; li
     case 'thickness':
       // 테두리는 그 굵기의 선 하나로 보여 준다.
       return <span data-thickness className="block w-full max-w-[240px] bg-ink" style={{ height: value }} />
-    case 'breakpoint':
-    case 'container':
-      // 실제 폭은 화면에 다 담기지 않으므로 8분의 1로 줄여 서로 비교할 수 있게 한다.
-      return <span className="block h-[12px] max-w-full rounded-tag bg-ink" style={{ width: `calc(${value} / 8)` }} />
-    case 'z':
-      return null
-    case 'duration':
-      return <MovingDot style={{ transitionDuration: value }} />
-    case 'ease':
-      return <MovingDot style={{ transitionDuration: '800ms', transitionTimingFunction: value }} />
     default:
       return <span className="block h-[12px] max-w-full rounded-tag bg-ink" style={{ width: value }} />
   }

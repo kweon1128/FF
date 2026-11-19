@@ -249,7 +249,7 @@ export function NewTypesForm({
           <Button variant="ghost" onClick={onCancel}>
             취소
           </Button>
-          <Button variant="primary" type="submit">
+          <Button variant="primary" type="submit" disabled={!!problem}>
             만들기
           </Button>
         </div>

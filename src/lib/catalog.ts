@@ -39,8 +39,6 @@ export type Kind = {
   defaultValue: string
   addLabel: string
   valueLabel: string
-  /** 줄 목록 대신 네모 칸 격자로 보여 준다. */
-  tiles?: boolean
   /** 이제 쓰지 않는 종류. 파일에 그 값이 있을 때만 보여 주고, 새로 추가하지는 못한다. */
   legacy?: boolean
 }
@@ -364,35 +362,47 @@ const blur: Kind = {
   valueLabel: '흐림 정도',
 }
 
+/**
+ * 브레이크포인트. 화면의 폭이 이 값 이상일 때 배치를 바꾸는 기준이다(--breakpoint-md: 768px). 이름이 곧 코드에 적는 앞머리다(md:flex, max-md:hidden).
+ * 층은 하나이고 Tailwind의 이름(sm, md, lg, xl, 2xl…)을 그대로 쓴다. 한 폭에서 화면의 여러 곳이 함께 바뀌므로 쓰임의 이름을 붙일 하나가 없고, 한 벌로 정해 크기의 차례대로 쓰는 값이다.
+ */
 const breakpoint: Kind = {
   id: 'breakpoint',
-  title: '화면 폭 기준',
+  title: '브레이크포인트',
   prefix: '--breakpoint-',
   matches: starts('--breakpoint-'),
-  defaultValue: '768px',
-  addLabel: '화면 폭 기준 추가',
+  defaultValue: '',
+  addLabel: '브레이크포인트 추가',
   valueLabel: '폭',
 }
 
+/**
+ * 컨테이너 폭. 담는 상자의 폭을 정하거나(max-w-md), 그 상자의 폭을 보고 안의 배치를 바꾸는 기준이다(@container 안에서 @md:flex). 값은 --container-md: 448px.
+ * 브레이크포인트처럼 층은 하나이고 Tailwind의 이름을 쓴다. 이름이 곧 앞머리(@md:)이기 때문이다.
+ * w-이름과 max-w-이름은 의미 크기의 폭(--width-이름)도 읽으므로, 같은 이름을 양쪽에 두면 안 된다.
+ */
 const container: Kind = {
   id: 'container',
-  title: '최대 너비',
+  title: '컨테이너 폭',
   prefix: '--container-',
   matches: starts('--container-'),
-  defaultValue: '960px',
-  addLabel: '최대 너비 추가',
-  valueLabel: '너비',
+  defaultValue: '',
+  addLabel: '컨테이너 폭 추가',
+  valueLabel: '폭',
 }
 
+/**
+ * 비율. 가로와 세로의 비다(--aspect-video: 16 / 9. 클래스는 aspect-video). 층은 하나이고 쓰임의 이름을 붙인다(video, card).
+ * 숫자 하나가 아니라 둘이라 "값이 곧 이름"인 토대를 만들 수 없다.
+ */
 const aspect: Kind = {
   id: 'aspect',
   title: '비율',
   prefix: '--aspect-',
   matches: starts('--aspect-'),
-  defaultValue: '16 / 9',
+  defaultValue: '',
   addLabel: '비율 추가',
   valueLabel: '가로 / 세로',
-  tiles: true,
 }
 
 /**
@@ -410,24 +420,32 @@ const z: Kind = {
   valueLabel: '차례 (클수록 위)',
 }
 
+/**
+ * 움직임 시간. 움직임이 얼마 동안 이어지는지다(--transition-duration-glide: 300ms. 클래스는 duration-glide). 층은 하나이고 쓰임의 이름을 붙인다(효과와 같다).
+ * 앞머리는 Tailwind가 읽는 --transition-duration-다. 다른 도구로 만든 파일의 --duration-fast: 100ms처럼 예전 앞머리의 값도 이 종류로 보여 준다(Tailwind가 읽지 않아 클래스는 없다).
+ */
 const duration: Kind = {
   id: 'duration',
   title: '움직임 시간',
-  prefix: '--duration-',
-  matches: starts('--duration-'),
-  defaultValue: '200ms',
+  prefix: '--transition-duration-',
+  matches: (n) => n.startsWith('--transition-duration-') || n.startsWith('--duration-'),
+  defaultValue: '',
   addLabel: '움직임 시간 추가',
   valueLabel: '시간',
 }
 
+/**
+ * 이징. 움직임이 어떤 빠르기로 흘러가는지를 정하는 곡선이다(--ease-glide: cubic-bezier(0, 0, 0.58, 1). 클래스는 ease-glide). 층은 하나이고 쓰임의 이름을 붙인다.
+ * 곡선은 숫자 넷이라 "값이 곧 이름"인 토대를 만들 수 없다.
+ */
 const ease: Kind = {
   id: 'ease',
-  title: '움직임 흐름',
+  title: '이징',
   prefix: '--ease-',
   matches: starts('--ease-'),
-  defaultValue: 'cubic-bezier(0.16, 1, 0.3, 1)',
-  addLabel: '움직임 흐름 추가',
-  valueLabel: '속도 곡선',
+  defaultValue: '',
+  addLabel: '이징 추가',
+  valueLabel: '곡선',
 }
 
 export const KINDS = {

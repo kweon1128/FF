@@ -671,10 +671,10 @@ export function NewSizesForm({
       </div>
 
       {/* 창이 좁으면 표, 예시 상자, 화면 예시가 위아래로 놓이고 이 상자가 통째로 스크롤된다. 넓으면 표와 화면 예시가 좌우로 놓이고 저마다 높이를 채운다. */}
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-blocks overflow-y-auto min-[1700px]:flex-row min-[1700px]:gap-groups min-[1700px]:overflow-visible">
-      <div className="min-w-0 flex-1 min-[1700px]:flex min-[1700px]:min-h-0 min-[1700px]:flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-blocks overflow-y-auto 3xl:flex-row 3xl:gap-groups 3xl:overflow-visible">
+      <div className="min-w-0 flex-1 3xl:flex 3xl:min-h-0 3xl:flex-col">
         {/* 큰 것부터 작은 것 순서로, 한 줄에 한 단계. 높이는 가장 크게 골랐을 때에 맞춰 고정해서 고르는 동안 창이 늘었다 줄었다 하지 않는다. */}
-        <div ref={scale} data-scale className="min-h-[360px] space-y-rows rounded-card border-edge border-hairline px-section-x py-section-y min-[1700px]:min-h-0 min-[1700px]:flex-1 min-[1700px]:overflow-y-auto">
+        <div ref={scale} data-scale className="min-h-[360px] space-y-rows rounded-card border-edge border-hairline px-section-x py-section-y 3xl:min-h-0 3xl:flex-1 3xl:overflow-y-auto">
           {[...steps].reverse().map((s) => (
             <div
               key={s.name}
@@ -812,7 +812,7 @@ export function NewSizesForm({
           여기서 볼 것은 글자 크기뿐이라 글 한 편만 위계대로 놓는다. 그 크기가 들어가는 상자들(버튼, 입력칸, 칩, 뱃지)은 표 아래에 따로 있다.
           창이 넓으면(1700px 이상) 표의 오른쪽에, 좁으면 표의 아래에 놓인다.
           이 안은 사용자의 글꼴을 보여 주는 미리보기라, FF 도구의 글자 규칙을 따르지 않는다. */}
-      <div data-screen className="w-full shrink-0 rounded-card border-edge border-hairline bg-canvas text-ink min-[1700px]:min-h-0 min-[1700px]:w-[560px] min-[1700px]:overflow-y-auto">
+      <div data-screen className="w-full shrink-0 rounded-card border-edge border-hairline bg-canvas text-ink 3xl:min-h-0 3xl:w-[560px] 3xl:overflow-y-auto">
         <div className="p-board" style={previewSpace}>
           {pageRows(upCount).map((row, i) => {
             const stepName = row.step
@@ -853,7 +853,7 @@ export function NewSizesForm({
           <Button variant="ghost" onClick={onCancel}>
             취소
           </Button>
-          <Button variant="primary" type="submit">
+          <Button variant="primary" type="submit" disabled={!!problem}>
             만들기
           </Button>
         </div>

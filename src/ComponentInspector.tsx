@@ -116,7 +116,7 @@ function TokenField({
           />
         )}
         <select
-          className={`${inputClass} min-w-0 ${missing ? 'border-danger' : ''}`}
+          className={`${inputClass} min-w-0 ${missing ? 'border-danger!' : ''}`}
           value={value ?? ''}
           disabled={options.length + roles.length === 0 && !missing}
           onChange={(e) => onChange(e.target.value || undefined)}

@@ -508,7 +508,7 @@ export function LayerInspector({
 
       <Section title="차례">
         <input
-          className={`${inputClass} ${valueError ? 'border-danger focus:border-danger' : ''}`}
+          className={`${inputClass} ${valueError ? 'border-danger! focus:border-danger!' : ''}`}
           value={valueDraft}
           aria-label="차례"
           inputMode="numeric"

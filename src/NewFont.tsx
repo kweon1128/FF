@@ -476,7 +476,7 @@ export function NewFontForm({
               <input
                 aria-label="이름"
                 spellCheck={false}
-                className={`${inputClass} ${nameError ? 'border-danger focus:border-danger' : ''}`}
+                className={`${inputClass} ${nameError ? 'border-danger! focus:border-danger!' : ''}`}
                 value={nameDraft ?? autoName}
                 placeholder={autoName}
                 onChange={(e) => {

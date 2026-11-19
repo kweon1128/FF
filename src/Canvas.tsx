@@ -36,7 +36,12 @@ const GRID_ZOOM = 8
 const GRID_KEY = 'ff.pixelGrid'
 const DRAG_START = 3
 /** 메뉴를 눌러 판으로 이동할 때 걸리는 시간. */
-const GLIDE_MS = 300
+/** 판으로 미끄러져 가는 시간(ms). 디자인 시스템의 값(--transition-duration-glide)을 읽는다. 값이 없거나 읽을 수 없으면 300이다. */
+function glideMs() {
+  const written = getComputedStyle(document.documentElement).getPropertyValue('--transition-duration-glide').trim()
+  const m = /^(\d*\.?\d+)(ms|s)$/.exec(written)
+  return m ? Number(m[1]) * (m[2] === 's' ? 1000 : 1) : 300
+}
 /** 화면 맞춤을 할 때 가장자리에 남기는 여백. */
 const FIT_PADDING = 48
 /** 끌 때 이 거리(화면 px) 안으로 들어오면 다른 판에 붙는다. */
@@ -467,7 +472,7 @@ export function Canvas({
     ]
     setGliding(!opening)
     fitTo(targets, 1)
-    const timer = window.setTimeout(() => setGliding(false), GLIDE_MS + 50)
+    const timer = window.setTimeout(() => setGliding(false), glideMs() + 50)
     return () => window.clearTimeout(timer)
     // 이동은 고른 화면이 바뀔 때만 한다. 보는 위치가 바뀔 때마다 다시 맞추면 안 된다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -939,10 +944,10 @@ export function Canvas({
       }}
     >
       <div
-        className="absolute top-0 left-0 origin-top-left"
+        // 미끄러져 가는 동안에만 움직임을 건다. 시간과 곡선은 디자인 시스템의 값이다(duration-glide, ease-glide).
+        className={`absolute top-0 left-0 origin-top-left ${gliding ? 'transition-transform duration-glide ease-glide' : ''}`}
         style={
           {
-            transition: gliding ? `transform ${GLIDE_MS}ms ease-out` : undefined,
             transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`,
             // 선과 꼭짓점이 축소해도 화면에서 같은 크기로 보이도록 확대 비율의 반대를 넘긴다.
             '--line': `${1 / view.z}px`,

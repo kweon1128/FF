@@ -292,7 +292,8 @@ const draftOf = (l: ShadowLayer): LayerDraft => ({ x: digitsOf(l.x), y: digitsOf
 /**
  * 그림자를 겹마다 숫자로 고치는 칸들. 겹 하나는 가로, 세로, 흐림, 퍼짐, 진하기 다섯 칸이다.
  * 값을 글자로 통째로 적게 하면 "0 4px 16px rgb(0 0 0 / 0.08)"에서 어느 숫자가 무엇인지 외워야 하고, 쉼표 하나를 빠뜨려도 값이 깨진다.
- * 칸이 모두 숫자일 때만 저장한다. 적는 중에 비었거나 숫자가 아닌 칸이 있으면 저장하지 않고 그 칸에 빨간 테두리를 둔다.
+ * 적는 동안은 저장하지 않고 칸을 벗어나거나 Enter를 누를 때 저장한다(↑↓는 바로 저장한다). 칸이 모두 숫자일 때만 저장한다.
+ * 숫자가 아닌 것을 적으면 그 칸을 빨갛게 하고 까닭을 적으며, 그대로 벗어나면 저장된 값으로 되돌린다. 비운 칸도 벗어나면 되돌린다.
  * 색을 rgb(…/진하기)가 아닌 꼴로 적은 겹은 진하기 칸 대신 색을 적힌 그대로 보여 준다(여기서 고치지 않는다).
  */
 function ShadowFields({ value, onChange }: { value: string; onChange: (value: string) => void }) {
@@ -329,11 +330,23 @@ function ShadowFields({ value, onChange }: { value: string; onChange: (value: st
     if (written !== value) onChange(written)
   }
 
-  const patch = (i: number, key: keyof LayerDraft, digits: string) => save(layers, drafts.map((d, k) => (k === i ? { ...d, [key]: digits } : d)))
+  const patch = (i: number, key: keyof LayerDraft, digits: string, typing = false) => {
+    const next = drafts.map((d, k) => (k === i ? { ...d, [key]: digits } : d))
+    // 자판으로 적는 동안은 칸의 글자만 바꾼다. 28을 적으려면 2를 거치는데, 그 2가 저장되면 그림자가 그사이에 바뀐다.
+    if (typing) return setDrafts(next)
+    save(layers, next)
+  }
+  /** 칸을 벗어날 때. 숫자면 저장하고, 비었거나 숫자가 아니면 저장된 값으로 되돌린다. */
+  const leave = (i: number, key: keyof LayerDraft) => {
+    if (NUMBER.test(drafts[i][key])) return save(layers, drafts)
+    setDrafts(drafts.map((d, k) => (k === i ? { ...d, [key]: draftOf(layers[i])[key] } : d)))
+  }
+  /** 숫자가 아닌 것이 적힌 칸. 비운 칸은 틀린 것이 아니라 고치는 중이다. */
+  const wrong = (i: number, key: keyof LayerDraft) => drafts[i][key] !== '' && !NUMBER.test(drafts[i][key])
 
   const cell = (i: number, key: keyof LayerDraft, label: string, unit: string, negative = false) => (
-    <Field label={label}>
-      <UnitInput label={`겹 ${i + 1} ${label}`} digits={drafts[i][key]} unit={unit} negative={negative} invalid={!NUMBER.test(drafts[i][key])} onDigits={(digits) => patch(i, key, digits)} />
+    <Field label={label} error={wrong(i, key) ? '숫자를 입력해 주세요.' : null}>
+      <UnitInput label={`겹 ${i + 1} ${label}`} digits={drafts[i][key]} unit={unit} negative={negative} invalid={wrong(i, key)} onDigits={(digits, typing) => patch(i, key, digits, typing)} onBlur={() => leave(i, key)} />
     </Field>
   )
 
@@ -390,7 +403,11 @@ function ShadowFields({ value, onChange }: { value: string; onChange: (value: st
   )
 }
 
-/** 숫자 하나로 된 값(투명도는 퍼센트, 흐림은 px)을 고치는 칸. 숫자일 때만 저장한다. */
+/**
+ * 숫자 하나로 된 값(투명도는 퍼센트, 흐림은 px)을 고치는 칸.
+ * 적는 동안은 저장하지 않고 칸을 벗어나거나 Enter를 누를 때 저장한다(↑↓는 바로 저장한다).
+ * 숫자가 아닌 것을 적으면 빨갛게 하고 까닭을 적으며, 그대로 벗어나면 저장된 값으로 되돌린다. 비운 칸도 벗어나면 되돌린다.
+ */
 function NumberField({ label, unit, value, toDigits, fromDigits, onChange }: { label: string; unit: string; value: string; toDigits: (value: string) => string; fromDigits: (digits: string) => string; onChange: (value: string) => void }) {
   const [digits, setDigits] = useState(() => toDigits(value))
   const [seen, setSeen] = useState(value)
@@ -398,20 +415,29 @@ function NumberField({ label, unit, value, toDigits, fromDigits, onChange }: { l
     setSeen(value)
     if (!NUMBER.test(digits) || fromDigits(digits) !== value) setDigits(toDigits(value))
   }
+  const wrong = digits !== '' && !NUMBER.test(digits)
+  function save(next: string) {
+    const written = fromDigits(next)
+    setSeen(written)
+    // 범위를 넘겨 적은 값(투명도 150)은 저장되는 값(100)으로 칸도 맞춘다.
+    setDigits(toDigits(written))
+    if (written !== value) onChange(written)
+  }
   return (
-    <UnitInput
-      label={label}
-      digits={digits}
-      unit={unit}
-      invalid={!NUMBER.test(digits)}
-      onDigits={(next) => {
-        setDigits(next)
-        if (!NUMBER.test(next)) return
-        const written = fromDigits(next)
-        setSeen(written)
-        if (written !== value) onChange(written)
-      }}
-    />
+    <>
+      <UnitInput
+        label={label}
+        digits={digits}
+        unit={unit}
+        invalid={wrong}
+        onDigits={(next, typing) => {
+          setDigits(next)
+          if (!typing && NUMBER.test(next)) save(next)
+        }}
+        onBlur={() => (NUMBER.test(digits) ? save(digits) : setDigits(toDigits(value)))}
+      />
+      {wrong && <span className="mt-label block type-body text-danger">숫자를 입력해 주세요.</span>}
+    </>
   )
 }
 
@@ -505,7 +531,12 @@ export function EffectInspector({
             className={inputClass}
             value={rawDraft}
             onChange={(e) => setRawDraft(e.target.value)}
-            onBlur={() => rawDraft.trim() && rawDraft.trim() !== token.value && onChange({ value: rawDraft.trim() })}
+            // 비운 채로 벗어나면 저장된 값으로 돌아간다. 빈 칸으로 남겨 두지 않는다.
+            onBlur={() => {
+              const next = rawDraft.trim()
+              if (!next) return setRawDraft(token.value)
+              if (next !== token.value) onChange({ value: next })
+            }}
             onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
           />
         )}

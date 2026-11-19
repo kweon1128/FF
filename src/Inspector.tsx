@@ -178,6 +178,8 @@ export function classesOf(kind: Kind, short: string): string[] {
       return [`${short}:`]
     case 'container':
       return [`max-w-${short}`]
+    case 'duration':
+      return [`duration-${short}`]
     case 'style':
       return [`type-${short}`]
     default:
@@ -486,13 +488,13 @@ export function Inspector({
           {isColor && <ColorSwatch label="색 고르기" value={liveColor ?? valueDraft} alpha preview onChange={changeValue} />}
           <input
             aria-label={kind.valueLabel}
-            className={`${inputClass} ${valueError ? 'border-danger focus:border-danger' : ''}`}
+            className={`${inputClass} ${valueError ? 'border-danger! focus:border-danger!' : ''}`}
             value={valueDraft}
             onChange={(e) => changeValue(e.target.value, false)}
             onBlur={commitValue}
             onKeyDown={(e) => {
-              // Enter는 적은 값을 저장하고, Esc는 적던 것을 버리고 저장된 값으로 돌아간다.
-              if (e.key === 'Enter') return commitValue()
+              // Enter는 칸을 벗어나고, 벗어날 때 저장한다. Esc는 적던 것을 버리고 저장된 값으로 돌아간다(패널이 칸을 벗어나게 한다).
+              if (e.key === 'Enter') return e.currentTarget.blur()
               if (e.key === 'Escape') return revertValue()
               // ↑↓로 숫자를 올리고 내린다(Shift는 10배). 16px, 1.5처럼 숫자 하나로 된 값만.
               if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
@@ -668,7 +670,7 @@ export function MultiInspector({
           <input
             aria-label="목록 이름"
             data-rename="group"
-            className={`${inputClass} ${error ? 'border-danger focus:border-danger' : ''}`}
+            className={`${inputClass} ${error ? 'border-danger! focus:border-danger!' : ''}`}
             value={draft}
             onChange={(e) => {
               setDraft(e.target.value)
