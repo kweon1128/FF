@@ -7,7 +7,7 @@ import { ICON_STROKE } from './lib/icons'
 import { useContext, useState, type FormEvent, type ReactNode } from 'react'
 import { ArrowUpRight } from 'lucide-react'
 import type { Token } from './lib/api'
-import { KINDS, SLUG, lengthLabel, shortName, type Kind } from './lib/catalog'
+import { KINDS, SLUG, lengthLabel, shortName, typedNameProblem, type Kind } from './lib/catalog'
 import { BORDER_WORDS, isBorderListShape, readBorderNote, resolveThickness, thicknessRefOf, writeBorderNote, type BorderKind, type BorderShape } from './lib/borders'
 import { sampleColors, type SampleColors } from './lib/sample'
 import { NavRows, PanelSection } from './SampleParts'
@@ -105,7 +105,7 @@ export function BorderSample({ shape, value, colors: c, words: written = '' }: {
     case 'mark':
       // 가리키는 것에 두르는 선. 한 벌 만들기 창에서 표의 줄에 마우스를 올리면 예시 화면의 그 버튼에 2px 띄워 두른다.
       return frame(
-        <span data-sample className={`flex h-control items-center rounded-control px-button-x whitespace-nowrap ${STRONG}`} style={{ background: c.ink, color: c.surface, outline: `${value} solid ${c.selection}`, outlineOffset: 2 }}>
+        <span data-sample className={`flex h-control items-center rounded-control px-button-x whitespace-nowrap ${STRONG}`} style={{ background: c.primary, color: c.onPrimary, outline: `${value} solid ${c.selection}`, outlineOffset: 2 }}>
           {all}
         </span>,
       )
@@ -273,9 +273,16 @@ export function BorderInspector({
 
   function commitName() {
     const next = nameDraft.trim()
+    // 비웠거나 쓸 수 없는 글자가 든 이름은 적는 중에 알 수 있는 것이다. 그대로 벗어나면 저장된 이름으로 되돌린다(DESIGN.md field-rules).
+    if (!next || !SLUG.test(next)) {
+      setNameError(null)
+      return setNameDraft(short)
+    }
+    // 고치지 않은 이름은 검사하지 않는다(예전부터 있던 이름에 오류를 붙이지 않는다).
+    if (next === short) return setNameError(null)
     const problem = nameProblem(kind, next, tokens, token.name)
     setNameError(problem)
-    if (problem || next === short) return
+    if (problem) return
     onRename(kind.prefix + next)
   }
 
@@ -298,7 +305,7 @@ export function BorderInspector({
           data-rename="token"
           onChange={(e) => {
             setNameDraft(e.target.value)
-            setNameError(null)
+            setNameError(typedNameProblem(e.target.value))
           }}
           onBlur={commitName}
           onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
@@ -399,7 +406,7 @@ export function NewBorderForm({ start, tokens, onCreate, onCancel }: { start?: K
       <div>
         <p className="type-body text-ink-soft">의미 테두리는 테두리 판의 값을 가리켜요. 테두리 판에 값을 먼저 추가해 주세요.</p>
         <div className="mt-dialog-actions flex justify-end">
-          <Button onClick={onCancel}>닫기</Button>
+          <Button autoFocus onClick={onCancel}>닫기</Button>
         </div>
       </div>
     )

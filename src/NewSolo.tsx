@@ -59,7 +59,7 @@ export function NewSoloForm({
           }}
         />
       </Field>
-      <Field label="색" error={error.color}>
+      <Field label="색" plain error={error.color}>
         <span className="flex items-center gap-field-row">
           <ColorSwatch
             label="색 고르기"

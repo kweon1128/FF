@@ -153,7 +153,7 @@ export function UnitInput({
   onBlur?: () => void
 }) {
   const box = small
-    ? `h-compact rounded-small bg-canvas px-chip-x type-code-sm hover:border-ink-faint ${invalid ? 'border-danger focus-within:border-danger!' : 'border-hairline'}`
+    ? `h-compact rounded-small bg-canvas px-chip-x type-code-sm hover:border-ink-faint ${invalid ? 'border-danger! focus-within:border-danger!' : 'border-hairline'}`
     : `h-control w-full rounded-control bg-canvas px-input-x type-body ${invalid ? 'border-danger focus-within:border-danger!' : 'border-hairline'}`
   // 마우스로 눌러서 고치기 시작했는지. 누른 손을 뗄 때 브라우저가 방금 한 전체 선택을 풀어 버리지 않게 막는 데 쓴다.
   const picking = useRef(false)
@@ -262,16 +262,34 @@ export function Field({
  */
 export function Segmented<T extends string>({ label, options, value, fit = false, onChange }: { label: string; options: { id: T; label: string }[]; value: T; fit?: boolean; onChange: (next: T) => void }) {
   return (
-    <div role="radiogroup" aria-label={label} className="flex gap-actions-tight rounded-control bg-hover p-menu">
-      {options.map((o) => (
+    <div
+      role="radiogroup"
+      aria-label={label}
+      className="flex gap-actions-tight rounded-control bg-hover p-menu"
+      // 하나를 고르는 묶음이라 Tab은 고른 칸에만 서고, ←→(↑↓)로 옆 칸을 고른다.
+      onKeyDown={(e) => {
+        const step = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0
+        if (!step) return
+        e.preventDefault()
+        // 캔버스가 같은 방향키로 선택한 판을 옮긴다. 거기까지 가지 않게 한다.
+        e.stopPropagation()
+        const at = Math.max(0, options.findIndex((o) => o.id === value))
+        const next = options[(at + step + options.length) % options.length]
+        onChange(next.id)
+        e.currentTarget.querySelectorAll<HTMLElement>('[role="radio"]')[options.indexOf(next)]?.focus()
+      }}
+    >
+      {options.map((o, i) => (
         <button
           key={o.id}
           type="button"
           role="radio"
           aria-checked={value === o.id}
+          tabIndex={value === o.id || (i === 0 && !options.some((x) => x.id === value)) ? 0 : -1}
           onClick={() => value !== o.id && onChange(o.id)}
-          className={`h-compact rounded-small type-label outline-selection focus-visible:outline-focus ${fit ? 'px-row-x' : 'flex-1'} ${
-            value === o.id ? 'border-edge border-hairline bg-canvas text-ink' : 'text-ink-soft hover:text-ink'
+          // 고르지 않은 칸에도 보이지 않는 테두리를 둔다. 고른 칸에만 1px 테두리가 있으면 고를 때마다 글자가 1px씩 움직인다.
+          className={`h-compact rounded-small border-edge type-label outline-selection focus-visible:outline-focus ${fit ? 'px-row-x' : 'flex-1'} ${
+            value === o.id ? 'border-hairline bg-canvas text-ink' : 'border-transparent text-ink-soft hover:text-ink'
           }`}
         >
           {o.label}
@@ -386,6 +404,7 @@ export function UsePicker<T extends string>({
   nameWidth = 'w-picker-name',
   small = false,
   disabled = false,
+  lost,
 }: {
   label: string
   /** heading이 있는 줄 앞에는 그 글자로 묶음 제목이 놓인다(의미 색 / 색상처럼 목록이 두 묶음일 때). */
@@ -397,6 +416,8 @@ export function UsePicker<T extends string>({
   small?: boolean
   /** 고를 것이 없거나 꺼 둔 줄의 칸. 누를 수 없고 옅게 보인다. */
   disabled?: boolean
+  /** 고른 값이 없어졌을 때 그 이름. 칸에 "이름 · 없어짐"을 빨갛게 적어, 무엇이 없어졌는지 알고 다시 고르게 한다. */
+  lost?: string
 }) {
   const [open, setOpen] = useState(false)
   const now = options.find((u) => u.id === value) ?? null
@@ -418,7 +439,8 @@ export function UsePicker<T extends string>({
     const need = options.length * 36 + options.filter((u) => u.heading).length * 24 + 6
     const up = below < need && above > below
     // 작은 칸의 목록은 칸보다 넓게 편다. 화면 오른쪽 끝을 넘지 않게 왼쪽으로 당긴다.
-    const width = small ? Math.max(r.width, 200) : r.width
+    // 좁은 칸(두 칸이 나란한 패널의 칸)의 목록도 이름과 덧글이 한 줄에 들어갈 만큼은 넓게 편다.
+    const width = Math.max(r.width, small ? 200 : 240)
     setPlace({ left: Math.max(8, Math.min(r.left, window.innerWidth - width - 8)), width, maxHeight: up ? above : below, ...(up ? { bottom: window.innerHeight - r.top + 4 } : { top: r.bottom + 4 }) })
     setOpen(true)
   }
@@ -453,7 +475,7 @@ export function UsePicker<T extends string>({
   const line = (u: { label: string; hint: string }, closed: boolean) =>
     closed ? (
       <span className="flex h-[20px] min-w-0 flex-1 flex-wrap gap-x-row-inner overflow-hidden">
-        <span className={`${nameWidth} shrink-0 type-label text-ink`}>{u.label}</span>
+        <span className={`${nameWidth} max-w-full shrink-0 truncate type-label text-ink`}>{u.label}</span>
         <span className="whitespace-nowrap text-ink-faint">{u.hint}</span>
       </span>
     ) : (
@@ -477,26 +499,35 @@ export function UsePicker<T extends string>({
           if (e.key === 'Escape') return setOpen(false)
           if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
           e.preventDefault()
+          // 고른 값이 없어진 칸에서는 ↑↓로 고르지 않는다. 첫 줄("없음")이 골라져 가리키던 것이 말없이 지워진다.
+          if (lost) return
           const at = now ? options.indexOf(now) + (e.key === 'ArrowDown' ? 1 : -1) : 0
           if (options[at]) onChange(options[at].id)
         }}
         disabled={disabled}
         className={
           small
-            ? 'flex h-compact w-full min-w-0 items-center gap-button-inner rounded-small border-edge border-hairline bg-canvas px-chip-x text-left type-caption text-ink-soft outline-none focus:border-selection disabled:opacity-disabled'
+            ? 'flex h-compact w-full min-w-0 items-center gap-button-inner rounded-small border-edge border-hairline bg-canvas px-chip-x text-left type-caption text-ink-soft outline-none hover:border-ink-faint focus:border-selection disabled:opacity-disabled'
             : `${inputClass} flex items-center gap-row-inner text-left disabled:opacity-disabled`
         }
       >
-        {small ? <span className="min-w-0 flex-1 truncate">{now?.label ?? '고르기'}</span> : now ? line(now, true) : <span className="min-w-0 flex-1 text-ink-faint">고르기</span>}
+        {small ? <span className="min-w-0 flex-1 truncate">{now?.label ?? '고르기'}</span> : now ? line(now, true) : lost ? <span className="min-w-0 flex-1 truncate text-danger">{lost} · 없어짐</span> : <span className="min-w-0 flex-1 text-ink-faint">고르기</span>}
         <ChevronDown size={16} strokeWidth={ICON_STROKE} className="shrink-0 text-ink-faint" />
       </button>
       {open &&
         createPortal(
         <>
           {/* 목록 바깥을 누르면 닫는다. 이 면과 목록은 창(z-dialog)과 색 선택 창(z-popover)보다 위에 뜨고, 목록(z-listbox)은 이 면(z-listbox-backdrop) 바로 위다. */}
-          <div className="fixed inset-0 z-listbox-backdrop" onClick={() => setOpen(false)} />
+          <div
+            className="fixed inset-0 z-listbox-backdrop"
+            onClick={(e) => {
+              // 목록과 이 면은 body에 그리지만 React의 이벤트는 칸을 감싼 요소까지 올라간다. 거기서 멈춘다. 줄을 누르면 일이 일어나는 표 안에서, 바깥을 눌러 닫았을 뿐인데 그 줄이 눌리면 안 된다.
+              e.stopPropagation()
+              setOpen(false)
+            }}
+          />
           {/* 줄의 바탕(올렸을 때, 고른 것)이 서로 닿지 않게 줄 사이를 4px 띄운다. */}
-          <div ref={list} role="listbox" aria-label={label} style={place} className="fixed z-listbox space-y-rows overflow-y-auto rounded-float border-edge border-hairline bg-canvas p-menu shadow-float">
+          <div ref={list} role="listbox" aria-label={label} style={place} onClick={(e) => e.stopPropagation()} className="fixed z-listbox space-y-rows overflow-y-auto rounded-float border-edge border-hairline bg-canvas p-menu shadow-float">
             {options.map((u) => (
               <Fragment key={u.id}>
               {u.heading && <p className="px-row-x pt-menu type-caption-strong text-ink-faint">{u.heading}</p>}

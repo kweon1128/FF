@@ -7,7 +7,7 @@ import { CHECK_STROKE, ICON_STROKE } from './lib/icons'
 import { useContext, useState, type FormEvent, type ReactNode } from 'react'
 import { ArrowUpRight, Check as CheckIcon, Plus, X } from 'lucide-react'
 import type { Token } from './lib/api'
-import { KINDS, SLUG, lengthLabel, shortName, type Kind } from './lib/catalog'
+import { KINDS, SLUG, lengthLabel, shortName, typedNameProblem, type Kind } from './lib/catalog'
 import {
   RADIUS_GROUPS,
   RADIUS_WORDS,
@@ -434,11 +434,11 @@ export function RadiusInspector({
   function commitName() {
     const next = nameDraft.trim()
     setNameError(null)
-    if (!next) return setNameError('이름을 입력해 주세요.')
-    if (!SLUG.test(next)) return setNameError('영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.')
+    // 비웠거나 쓸 수 없는 글자가 든 이름은 적는 중에 알 수 있는 것이다. 그대로 벗어나면 저장된 이름으로 되돌린다(DESIGN.md field-rules).
+    if (!next || !SLUG.test(next)) return setNameDraft(short)
+    if (next === short) return
     // 숫자로 시작하는 이름(--radius-8)은 토대의 이름과 헷갈린다. 쓰임의 이름을 짓게 한다.
     if (/^\d/.test(next)) return setNameError('숫자로 시작할 수 없어요.')
-    if (next === short) return
     if (tokens.some((t) => t.name === kind.prefix + next)) return setNameError('같은 이름이 이미 있어요.')
     onRename(kind.prefix + next)
   }
@@ -460,7 +460,7 @@ export function RadiusInspector({
           data-rename="token"
           onChange={(e) => {
             setNameDraft(e.target.value)
-            setNameError(null)
+            setNameError(typedNameProblem(e.target.value))
           }}
           onBlur={commitName}
           onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
@@ -568,7 +568,7 @@ export function NewRadiusForm({ tokens, onCreate, onCancel }: { tokens: Token[];
       <div>
         <p className="type-body text-ink-soft">의미 모서리는 모서리 판의 값을 가리켜요. 모서리 판에 값을 먼저 추가해 주세요.</p>
         <div className="mt-dialog-actions flex justify-end">
-          <Button onClick={onCancel}>닫기</Button>
+          <Button autoFocus onClick={onCancel}>닫기</Button>
         </div>
       </div>
     )

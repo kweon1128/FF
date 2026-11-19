@@ -4,7 +4,7 @@
 import { useContext, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import { Check as CheckIcon, ChevronDown, Folder, Minus, Plus } from 'lucide-react'
 import type { Token } from './lib/api'
-import { KINDS, SLUG, shortName, type Kind } from './lib/catalog'
+import { KINDS, SLUG, shortName, typedNameProblem, type Kind } from './lib/catalog'
 import { ICON_STROKE } from './lib/icons'
 import { LAYER_GROUPS, LAYER_WORDS, guessLayerGroup, layerNumber, readLayerNote, writeLayerNote, type LayerExample, type LayerGroup, type LayerShape } from './lib/layers'
 import { SAMPLE_BAR, sampleColors, type SampleColors } from './lib/sample'
@@ -461,20 +461,27 @@ export function LayerInspector({
 
   function commitName() {
     const next = nameDraft.trim()
+    // 비웠거나 쓸 수 없는 글자가 든 이름은 적는 중에 알 수 있는 것이다. 그대로 벗어나면 저장된 이름으로 되돌린다(DESIGN.md field-rules).
+    if (!next || !SLUG.test(next)) {
+      setNameError(null)
+      return setNameDraft(short)
+    }
+    // 고치지 않은 이름은 검사하지 않는다(예전부터 있던 이름에 오류를 붙이지 않는다).
+    if (next === short) return setNameError(null)
     const problem = nameProblem(kind, next, tokens, token.name)
     setNameError(problem)
-    if (problem || next === short) return
+    if (problem) return
     onRename(kind.prefix + next)
   }
 
   /** 칸을 벗어날 때. 비어 있으면 저장된 값으로 되돌리고, 정수가 아니면 알리고 저장하지 않는다. */
-  function commitValue() {
-    const next = valueDraft.trim()
-    if (!next) {
+  function commitValue(raw = valueDraft) {
+    const next = raw.trim()
+    // 비웠거나 정수가 아닌 값은 적는 중에 알 수 있는 것이다. 그대로 벗어나면 저장된 값으로 되돌린다(DESIGN.md field-rules).
+    if (!next || !NUMBER.test(next)) {
       setValueDraft(token.value)
       return setValueError(null)
     }
-    if (!NUMBER.test(next)) return setValueError('정수를 입력해 주세요.')
     setValueError(null)
     const value = String(Number(next))
     setValueDraft(value)
@@ -498,7 +505,7 @@ export function LayerInspector({
           data-rename="token"
           onChange={(e) => {
             setNameDraft(e.target.value)
-            setNameError(null)
+            setNameError(typedNameProblem(e.target.value))
           }}
           onBlur={commitName}
           onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
@@ -514,10 +521,20 @@ export function LayerInspector({
           inputMode="numeric"
           onChange={(e) => {
             setValueDraft(e.target.value)
-            setValueError(null)
+            // 정수가 아닌 것은 적는 중에 알린다. "-"만 적힌 것은 적는 도중이라 알리지 않는다.
+            const typed = e.target.value.trim()
+            setValueError(typed && typed !== '-' && !NUMBER.test(typed) ? '정수를 입력해 주세요.' : null)
           }}
-          onBlur={commitValue}
-          onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+          onBlur={() => commitValue()}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') return e.currentTarget.blur()
+            // 다른 숫자 칸처럼 ↑↓로 1씩(Shift는 10씩) 올리고 내린다. 바로 저장한다.
+            if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
+            const from = NUMBER.test(valueDraft.trim()) ? Number(valueDraft) : Number(token.value)
+            if (!Number.isFinite(from)) return
+            e.preventDefault()
+            commitValue(String(from + (e.key === 'ArrowUp' ? 1 : -1) * (e.shiftKey ? 10 : 1)))
+          }}
         />
         {valueError && <span className="mt-label block type-body text-danger">{valueError}</span>}
       </Section>

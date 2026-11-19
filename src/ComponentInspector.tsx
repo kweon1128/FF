@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { Copy, CopyPlus, Trash2 } from 'lucide-react'
 import { DynamicIcon, iconNames } from 'lucide-react/dynamic'
 import type { Token } from './lib/api'
-import { KINDS, SLUG, SPACE_REF, shortName, type Kind } from './lib/catalog'
+import { KINDS, SLUG, SPACE_REF, lengthLabel, shortName, type Kind } from './lib/catalog'
 import { showColor } from './lib/color'
 import { refOf, resolveColor } from './lib/roles'
 import { readType } from './lib/types'
@@ -123,9 +123,9 @@ function TokenField({
             style={{ background: current ? swatchBackground(resolveColor(tokens, current.value) ?? 'transparent') : undefined }}
           />
         )}
-        {/* 다른 패널과 같은 고르는 칸이다. 고른 값이 없어졌으면 칸이 "고르기"로 비고 아래에 까닭이 적힌다. */}
+        {/* 다른 패널과 같은 고르는 칸이다. 고른 값이 없어졌으면 칸에 "이름 · 없어짐"이 빨갛게 적히고 아래에 까닭이 적힌다. */}
         <span className="min-w-0 flex-1">
-          <UsePicker label={label} nameWidth="w-cell-long" disabled={options.length + roles.length === 0 && !missing} options={picks} value={missing ? null : (value ?? '')} onChange={(name) => onChange(name || undefined)} />
+          <UsePicker label={label} nameWidth="w-cell-long" disabled={options.length + roles.length === 0 && !missing} options={picks} value={missing ? null : (value ?? '')} lost={missing && value ? (kind.matches(value) ? lengthLabel(kind, value) : value.replace(/^--[a-z]+-/, '')) : undefined} onChange={(name) => onChange(name || undefined)} />
         </span>
       </span>
     </Field>
@@ -393,7 +393,7 @@ export function ComponentInspector({
         <div className="-ml-button-ghost-x flex flex-wrap gap-actions-tight">
           {cell && single && variant && (
             <>
-              <Button variant="ghost" title="Ctrl+D" onClick={() => onDuplicateVariant(cell.v)}>
+              <Button variant="ghost" title="종류 복제 (Ctrl+D)" onClick={() => onDuplicateVariant(cell.v)}>
                 <CopyPlus size={16} strokeWidth={ICON_STROKE} />
                 종류 복제
               </Button>

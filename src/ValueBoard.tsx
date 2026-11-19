@@ -4,7 +4,7 @@
 
 import { useContext, useState, type FormEvent, type ReactNode } from 'react'
 import type { Token } from './lib/api'
-import { SLUG, shortName, type Kind } from './lib/catalog'
+import { SLUG, shortName, typedNameProblem, type Kind } from './lib/catalog'
 import { readKindNote, writeKindNote, type KindExample, type KindShape } from './lib/kindnote'
 import { sampleColors, type SampleColors } from './lib/sample'
 import { CODE_OPEN, CodeRows, FoldSection, Section, WHERE_OPEN } from './Inspector'
@@ -87,7 +87,13 @@ export function CellsInput({ spec, value, onValue, live = false, invalid = false
       return setBad(false)
     }
     const made = valueOf(drafts)
-    if (made === null) return setBad(true)
+    if (made === null) {
+      // 숫자가 아닌 칸은 적는 중에 이미 빨갛게 보였다. 그대로 벗어나면 저장된 값으로 되돌린다.
+      // 칸은 모두 숫자인데 값이 되지 않는 것(범위 밖)은 다 적어야 아는 것이라 빨갛게 남긴다.
+      if (drafts.every((d) => NUMBER.test(d))) return setBad(true)
+      setDrafts(spec.read(value) ?? blank)
+      return setBad(false)
+    }
     if (made !== value) onValue(made)
   }
 
@@ -98,7 +104,8 @@ export function CellsInput({ spec, value, onValue, live = false, invalid = false
       unit={spec.cells[i].unit}
       negative={spec.cells[i].negative}
       placeholder={spec.cells[i].placeholder}
-      invalid={invalid || (bad && !NUMBER.test(drafts[i])) || (bad && valueOf(drafts) === null)}
+      // 숫자가 아닌 것은 적는 중에 알린다("-", "0."처럼 적는 도중의 꼴은 아니다).
+      invalid={invalid || (!live && drafts[i] !== '' && !NUMBER.test(drafts[i]) && !/^-?\d*\.?$/.test(drafts[i])) || (bad && !NUMBER.test(drafts[i])) || (bad && valueOf(drafts) === null)}
       onDigits={(digits, typing) => change(i, digits, typing)}
       onBlur={commit}
     />
@@ -249,9 +256,16 @@ export function ValueInspector<S extends string>({
 
   function commitName() {
     const next = nameDraft.trim()
+    // 비웠거나 쓸 수 없는 글자가 든 이름은 적는 중에 알 수 있는 것이다. 그대로 벗어나면 저장된 이름으로 되돌린다(DESIGN.md field-rules).
+    if (!next || !SLUG.test(next)) {
+      setNameError(null)
+      return setNameDraft(short)
+    }
+    // 고치지 않은 이름은 검사하지 않는다(예전부터 있던 이름에 오류를 붙이지 않는다).
+    if (next === short) return setNameError(null)
     const problem = nameProblem(kind, spec as unknown as ValueSpec, next, tokens, token.name)
     setNameError(problem)
-    if (problem || next === short) return
+    if (problem) return
     onRename(kind.prefix + next)
   }
 
@@ -280,7 +294,7 @@ export function ValueInspector<S extends string>({
           data-rename="token"
           onChange={(e) => {
             setNameDraft(e.target.value)
-            setNameError(null)
+            setNameError(typedNameProblem(e.target.value))
           }}
           onBlur={commitName}
           onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
@@ -301,6 +315,8 @@ export function ValueInspector<S extends string>({
             onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
           />
         )}
+        {/* 글자로 적는 값의 기호 검사는 어느 패널이나 같다. 적는 중에 알리고, 그대로 벗어나면 되돌린다. */}
+        {!celled && /[;{}]/.test(rawDraft) && <span className="mt-label block type-body text-danger">; {'{ }'} 기호는 쓸 수 없어요.</span>}
       </Section>
 
       <Section title="설명">

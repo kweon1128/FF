@@ -36,6 +36,19 @@ export function PasteDialog({
 
   return (
     <Modal title="붙여넣기" onClose={onCancel}>
+      {/* 창 안 어디에서 Enter를 눌러도 붙여넣는다(다른 창과 같다). 전환 버튼이나 체크박스를 누른 뒤에도 듣는다. */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault()
+          if (total > 0) onPaste({ overwrite, adopt })
+        }}
+        // 전환 버튼의 칸에 초점이 있을 때의 Enter는 그 칸을 다시 누를 뿐이라 창이 내지지 않는다. 여기서 받아 낸다.
+        onKeyDown={(e) => {
+          if (e.key !== 'Enter' || (e.target as HTMLElement).getAttribute('role') !== 'radio') return
+          e.preventDefault()
+          e.currentTarget.requestSubmit()
+        }}
+      >
       <div className="space-y-settings">
         <p className="text-ink-soft">
           값 <span className="type-label text-ink">{total}개</span>를 붙여넣어요.
@@ -82,10 +95,11 @@ export function PasteDialog({
         <Button variant="ghost" onClick={onCancel}>
           취소
         </Button>
-        <Button variant="primary" disabled={total === 0} onClick={() => onPaste({ overwrite, adopt })}>
+        <Button variant="primary" type="submit" disabled={total === 0}>
           붙여넣기
         </Button>
       </div>
+      </form>
     </Modal>
   )
 }

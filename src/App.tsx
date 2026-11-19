@@ -376,7 +376,10 @@ export function App() {
   const [renameAsk, setRenameAsk] = useState<{ what: 'token' | 'variant' | 'size' | 'group'; n: number } | null>(null)
   useEffect(() => {
     if (!renameAsk) return
-    const input = document.querySelector<HTMLInputElement>(`aside [data-rename="${renameAsk.what}"]`)
+    // 이름이 곧 길이인 토대 값(8px)의 패널에는 이름 칸이 없다. 그 값은 길이 칸이 이름 칸이다.
+    const input =
+      document.querySelector<HTMLInputElement>(`aside [data-rename="${renameAsk.what}"]`) ??
+      (renameAsk.what === 'token' ? document.querySelector<HTMLInputElement>('aside input[aria-label="길이"]') : null)
     input?.focus()
     input?.select()
   }, [renameAsk])
@@ -1249,6 +1252,12 @@ export function App() {
     selectCells([{ v: cells.at(-1)?.v ?? 0, s: index + 1, state: 'default' }])
   }
 
+  /** 이름이 곧 길이인 토대 값인지(--gutter-8, --length-32). 예전 이름의 간격(--spacing-md)은 이름이 길이가 아니라서 아니다. */
+  const isLengthNamed = (name: string) => {
+    const kind = kindOf(name)
+    return !!kind && ['space', 'length', 'corner', 'thickness'].includes(kind.id) && /^\d+$/.test(shortName(kind, name))
+  }
+
   /** Ctrl+D: 선택한 값(컴포넌트 화면에서는 선택한 칸의 종류)을 하나 더 만든다. */
   function duplicate() {
     if (screen === 'components') {
@@ -1258,7 +1267,7 @@ export function App() {
     }
     if (selected.length === 0) return
     // 이름이 곧 길이인 토대 값(간격, 크기, 모서리, 테두리)은 같은 길이를 둘 수 없다. "추가" 창이 막는 것을 복제가 뚫지 않게 한다.
-    if (selectedKinds.some((k) => k && ['space', 'length', 'corner', 'thickness'].includes(k.id))) return notify('같은 길이는 둘 수 없어서 복제하지 않았어요.')
+    if (selected.some(isLengthNamed)) return notify('같은 길이는 둘 수 없어서 복제하지 않았어요.')
     // 한 목록을 통째로 골랐으면(색이 둘 이상) 목록을 복제한다. 같은 목록에 copy가 끼어들지 않고 "이름-copy"라는 새 목록이 생긴다.
     if (movableGroup && selected.length > 1) {
       const head = `${COLOR.prefix}${movableGroup}-`
@@ -1296,7 +1305,7 @@ export function App() {
     const names = selected.filter((n) => COLOR.matches(n))
     if (names.length === 0 && selectedBoards.length === 0) return notify('색 값이나 판을 먼저 선택해 주세요.')
     const Dropper = (window as unknown as { EyeDropper?: new () => { open: () => Promise<{ sRGBHex: string }> } }).EyeDropper
-    if (!Dropper) return notify('이 브라우저에서는 스포이드를 쓸 수 없어요.')
+    if (!Dropper) return notify('이 브라우저에서는 화면에서 색을 찍을 수 없어요.')
     let hex: string
     try {
       hex = (await new Dropper().open()).sRGBHex.toLowerCase()
@@ -1440,7 +1449,7 @@ export function App() {
     if (screen === 'components') return
     if (clip.type === 'token') {
       // 이름이 곧 길이인 토대 값(간격, 크기, 모서리, 테두리)에는 값을 입히지 않는다. 8px라는 이름에 16px이 들어가면 이름과 길이가 어긋난다.
-      if (['space', 'length', 'corner', 'thickness'].includes(clip.kind)) return notify('길이는 이름이 곧 값이라 속성을 붙여넣지 않았어요.')
+      if (selected.some((name) => kindOf(name)?.id === clip.kind && isLengthNamed(name))) return notify('길이는 이름이 곧 값이라 속성을 붙여넣지 않았어요.')
       // 같은 종류의 값에만 입힌다(색은 색에, 간격은 간격에).
       const targets = selected.filter((name) => kindOf(name)?.id === clip.kind)
       // 아무 일도 일어나지 않으면 붙여넣기가 된 것인지 알 수 없다. 까닭을 알린다.
@@ -1568,8 +1577,10 @@ export function App() {
       else if (selected.every((n) => KINDS.radius.matches(n))) commitIfMoved(shiftRadii(tokens, selected, dir))
       // 차례가 값의 크기로 정해지는 값(글자 크기, 간격, 색 목록 안의 단계…)은 옮기지 않는다.
       else if (selectedTokens.some(isAutoOrdered)) return
-      else commit(shiftTokens(tokens, selected, dir))
+      else commitIfMoved(shiftTokens(tokens, selected, dir))
     } else if (e.code === 'Tab' && !mod && !e.altKey) {
+      // 패널 안의 고르는 칸이나 버튼에 초점이 있으면 Tab은 초점을 옮긴다. 선택을 옮기면 고치던 패널이 다른 값으로 바뀐다.
+      if (e.target instanceof Element && e.target.closest('aside')) return
       if (stepSelection(e.shiftKey ? -1 : 1)) e.preventDefault()
     } else if (e.code === 'KeyI' && !mod && !e.altKey && !e.shiftKey) {
       if (screen !== 'components') pickColor()
@@ -1612,13 +1623,35 @@ export function App() {
     return () => window.removeEventListener('keydown', listen)
   }, [])
 
+  /** 줄이 끌려 다닐 수 있는 범위. 종류와, 묶음이 있는 종류는 그 묶음이다(끌기의 scopeOf와 같은 뜻). */
+  const scopeOfToken = (t: Token) => {
+    const kind = kindOf(t.name)
+    if (!kind) return ''
+    const short = shortName(kind, t.name)
+    const group = ROLE.matches(t.name)
+      ? roleGroups([t])[0]?.use
+      : STYLE.matches(t.name)
+        ? typeGroups([t])[0]?.use
+        : KINDS.spaceUse.matches(t.name)
+          ? readSpaceNote(t.note, short).use
+          : isSizeKind(kind)
+            ? readSizeNote(t.note, short).group
+            : KINDS.radius.matches(t.name)
+              ? readRadiusNote(t.note, short).group
+              : ''
+    return `${kind.id}:${group ?? ''}`
+  }
+
   /**
    * 줄을 끌어 옮긴다. 여러 개를 선택하고 그 가운데 하나를 끌면 선택한 것이 모두 함께 옮겨진다(Ctrl+]/[와 같다). 선택하지 않은 줄을 끌면 그 줄만 옮겨진다.
    * 선택한 것을 파일에 적힌 차례대로 하나씩 놓일 자리 앞에 넣으므로 서로의 앞뒤는 그대로다. 놓일 자리가 선택한 것 가운데 하나면 잡은 줄만 옮긴다.
    */
   const moveTogether = (move: (list: Token[], name: string, before: string | null) => Token[], name: string, before: string | null) => {
     const many = selected.length > 1 && selected.includes(name) && (before === null || !selected.includes(before))
-    const names = many ? tokens.filter((t) => selected.includes(t.name)).map((t) => t.name) : [name]
+    // 잡은 줄과 같은 묶음에 있는 것만 함께 옮긴다. 줄은 묶음 밖으로 나가지 못하므로, 다른 묶음의 것까지 같은 자리로 보내면 그 값이 제 묶음의 끝으로 튄다.
+    const held = tokens.find((t) => t.name === name)
+    const scope = held ? scopeOfToken(held) : ''
+    const names = many ? tokens.filter((t) => selected.includes(t.name) && scopeOfToken(t) === scope).map((t) => t.name) : [name]
     return names.reduce((list, n) => move(list, n, before), tokens)
   }
 
@@ -1927,7 +1960,7 @@ export function App() {
                             {/* 의미 크기 판은 보는 방식이 둘이다(종류별, 요소별). "원래대로"는 어느 보기에서나 종류별 보기의 차례(파일의 차례)를 돌려놓는다. */}
                             {id === 'sizeuse' && <SizeViewSwitch value={sizeView} onChange={changeSizeView} />}
                             {/* 요소별 보기는 차례를 다루지 않는다(끌어 옮길 수 없다). 그래서 이 보기에서는 "원래대로"도 꺼 둔다. */}
-                            <ResetButton title="종류와 그 안의 순서를 처음대로 돌려놓아요" onReset={next === tokens || (id === 'sizeuse' && sizeView === 'thing') ? undefined : () => commit(next)} />
+                            <ResetButton title="종류와 그 안의 값을 처음 순서로 돌려놓아요" onReset={next === tokens || (id === 'sizeuse' && sizeView === 'thing') ? undefined : () => commit(next)} />
                             {FOLDABLE.includes(id) && <FoldButton folded={!!plainBoards[id]} title="설명과 예시를 모두 숨기거나 보여요" onToggle={() => togglePlain(id)} />}
                             {/* 의미 크기는 종류가 셋이지만 추가는 판에 하나다. 종류는 창에서 고른다(다른 의미 판처럼 판마다 추가가 하나). */}
                             {id === 'sizeuse' && (
@@ -2034,14 +2067,15 @@ export function App() {
           // 칸마다 되돌리는 코드를 두지 않고 여기 한 곳에서 한다. 그래야 새로 만드는 칸도 같은 약속을 따른다.
           onFocusCapture={(e) => {
             const input = e.target
-            if (!(input instanceof HTMLInputElement)) return
+            // 패널 안에 그려지는 창(글꼴 고르기)의 칸은 창의 약속을 따른다(Esc는 창을 닫는다).
+            if (!(input instanceof HTMLInputElement) || input.closest('[role="dialog"]')) return
             // 오류 문구와 함께 틀린 값이 남아 있는 칸(같은 이름을 적고 벗어난 이름 칸)에 다시 들어온 것이면, 그 틀린 값을 기억하지 않고 처음 들어올 때의 값을 그대로 둔다. Esc가 저장된 값으로 돌아가야 한다.
             const wrong = [input, input.parentElement, input.parentElement?.parentElement].some((el) => el?.nextElementSibling?.matches('.text-danger'))
             if (!wrong || input.dataset.entered === undefined) input.dataset.entered = input.value
           }}
           onKeyDownCapture={(e) => {
             const input = e.target
-            if (e.key !== 'Escape' || !(input instanceof HTMLInputElement) || input.readOnly) return
+            if (e.key !== 'Escape' || !(input instanceof HTMLInputElement) || input.readOnly || input.closest('[role="dialog"]')) return
             if ((input.type !== 'text' && input.type !== '') || input.dataset.entered === undefined) return
             e.stopPropagation()
             // 값을 되돌린 것을 그 칸이 "적었다"로 듣게 한다(React는 input 이벤트로 듣는다). 적는 동안은 저장하지 않으므로 저장은 일어나지 않는다.

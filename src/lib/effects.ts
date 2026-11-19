@@ -1,7 +1,7 @@
 // 효과(그림자, 투명도, 흐림): 설명과 예시를 주석에서 읽고 쓰는 것, 그리고 그림자 값을 겹으로 나누어 읽고 쓰는 것.
 // 효과에는 의미 판을 따로 두지 않는다. 그림자는 개수가 적고 한 값이 한 쓰임에만 쓰여서(떠 있는 것, 창) 재료와 쓰임을 두 층으로 나눌 이유가 약하다.
 // 그래서 효과 판의 값에 쓰임의 이름(float, dialog)을 붙이고, 의미 색·의미 글꼴처럼 설명과 예시를 값 뒤의 주석에 적는다.
-//   --shadow-float: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 16px rgb(0 0 0 / 0.06); /* 그림자(메뉴): 드롭다운 목록 | 이름 바꾸기, 복제, 삭제 | 알림: 저장했어요 */
+//   --shadow-float: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 16px rgb(0 0 0 / 0.06); /* 그림자(메뉴): 고르는 목록 | 이름 바꾸기, 복제, 삭제 | 알림: 저장했어요 */
 
 export type EffectKind = 'shadow' | 'opacity' | 'blur'
 
@@ -47,7 +47,7 @@ export const EFFECT_WORDS: Record<EffectShape, string> = {
  * 그림자는 두 겹이다. 가까이 짧게 지는 겹과 멀리 넓게 퍼지는 겹. 멀리 뜬 것일수록 뒤의 겹이 넓고 진하다(카드 < 메뉴 < 알림 < 창).
  */
 export const EFFECT_PRESETS: Record<EffectShape, { name: string; value: string; text: string }> = {
-  menu: { name: 'float', value: '0 1px 2px rgb(0 0 0 / 0.04), 0 4px 16px rgb(0 0 0 / 0.06)', text: '드롭다운 목록, 떠 있는 메뉴' },
+  menu: { name: 'float', value: '0 1px 2px rgb(0 0 0 / 0.04), 0 4px 16px rgb(0 0 0 / 0.06)', text: '고르는 목록, 떠 있는 메뉴' },
   dialog: { name: 'dialog', value: '0 2px 4px rgb(0 0 0 / 0.04), 0 8px 32px rgb(0 0 0 / 0.1)', text: '화면 위에 뜨는 창' },
   toast: { name: 'toast', value: '0 2px 4px rgb(0 0 0 / 0.04), 0 8px 24px rgb(0 0 0 / 0.08)', text: '잠깐 떴다 사라지는 알림' },
   card: { name: 'card', value: '0 1px 2px rgb(0 0 0 / 0.04), 0 2px 8px rgb(0 0 0 / 0.04)', text: '살짝 떠 있는 면' },
@@ -87,7 +87,7 @@ const MARK_ALL = /\s*\|\s*/g
 const labelsOf = (kind: EffectKind) => EFFECT_SHAPES.filter((s) => s.kind === kind).map((s) => s.label).join('|')
 
 /**
- * 주석에서 설명과 예시들을 읽는다. "그림자(메뉴): 드롭다운 목록 | 문구 | 알림: 문구"처럼 종류의 이름으로 시작하지 않으면 주석 전체가 설명이다.
+ * 주석에서 설명과 예시들을 읽는다. "그림자(메뉴): 고르는 목록 | 문구 | 알림: 문구"처럼 종류의 이름으로 시작하지 않으면 주석 전체가 설명이다.
  * shape는 첫 예시를 그릴 모양이고, picked는 주석에 직접 적혀 있던 모양이다(없으면 undefined. 그때 shape는 이름에서 짐작한 것이다).
  */
 export function readEffectNote(kind: EffectKind, note: string | undefined, short: string): { text: string; shape: EffectShape; picked?: EffectShape; words: string; more: EffectExample[] } {

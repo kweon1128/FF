@@ -1,5 +1,5 @@
 import { ICON_STROKE } from './lib/icons'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ArrowLeft, ArrowRight, Check, ChevronDown, Folder, Plus } from 'lucide-react'
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
@@ -25,6 +25,18 @@ export function TopBar({
   onForward?: () => void
 }) {
   const [open, setOpen] = useState(false)
+  // 메뉴가 떠 있을 때의 Esc는 메뉴만 닫는다(고르는 목록과 같다). 먼저 받지 않으면 판의 선택이 풀린다.
+  useEffect(() => {
+    if (!open) return
+    const esc = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      e.stopImmediatePropagation()
+      e.preventDefault()
+      setOpen(false)
+    }
+    window.addEventListener('keydown', esc, true)
+    return () => window.removeEventListener('keydown', esc, true)
+  }, [open])
 
   return (
     <header className="flex h-bar shrink-0 items-center justify-between border-b-divider border-hairline px-bar-x">

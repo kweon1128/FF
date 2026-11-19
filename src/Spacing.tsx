@@ -5,7 +5,7 @@ import { ICON_STROKE } from './lib/icons'
 import { useContext, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import { ArrowUpRight } from 'lucide-react'
 import type { Token } from './lib/api'
-import { KINDS, SLUG, SPACE_REF, lengthLabel, shortName, type Kind } from './lib/catalog'
+import { KINDS, SLUG, SPACE_REF, lengthLabel, shortName, typedNameProblem, type Kind } from './lib/catalog'
 import type { Around } from './lib/roles'
 import { SPACE_USES, SPACE_WORDS, guessSpaceUse, isSpaceListShape, readSpaceNote, writeSpaceNote, type SpaceExample, type SpaceShape, type SpaceUse } from './lib/spacing'
 import { PreviewFontContext, PreviewSpaceContext } from './ColorUses'
@@ -38,10 +38,10 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
         .map((w) => w.trim())
         .filter(Boolean)
     : [all]
-  const faint = `color-mix(in oklab, ${around.ink} 16%, ${around.surface})`
+  const faint = paints(around).filler
   const TEXT = 'text-sm leading-5'
   // 버튼, 입력칸, 면의 테두리. 칠한 자리 위에서도 보이게 예시의 다른 옅은 선보다 진하게 긋는다.
-  const line = paints(around).line
+  const line = `color-mix(in oklab, ${around.ink} 32%, ${around.surface})`
   // 칠하는 자리는 어느 모양에서나 같은 규칙이다: 간격의 방향으로는 값만큼, 그 가로지르는 방향으로는 예시 상자의 끝에서 끝까지 길게 긋는다.
   // 가로 간격(사이, 좌우 여백)은 위에서 아래까지 세로 띠, 세로 간격(글줄 사이, 위아래 여백)은 왼쪽에서 오른쪽까지 가로 띠다.
   // 어떤 것은 길게 어떤 것은 딱 맞게 그으면 같은 판 안에서 표시가 두 가지 말이 되어 어색하다. (띠는 내용이 가운데에 놓여도 상자의 끝에 닿게 아주 길게 긋고, 넘치는 것은 상자가 자른다.)
@@ -79,7 +79,7 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
   )
   const soft = paints(around).soft
   // 이름표(입력칸 위의 작은 글자)와 입력칸. 입력칸의 값이 없으면 빈 칸이다.
-  const tag = (text: string) => <span className={`block font-[550] ${TEXT}`} style={{ color: soft }}>{text}</span>
+  const tag = (text: string) => <span className={`block font-[550] ${TEXT}`} style={{ color: paints(around).faint }}>{text}</span>
   const box = (text = '') => (
     <span className={`flex h-control ${SAMPLE_W} max-w-full items-center rounded-control px-input-x whitespace-nowrap ${TEXT}`} style={{ boxShadow: `inset 0 0 0 1px ${line}` }}>
       {text}
@@ -124,7 +124,7 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
           {list.map((text, i) => (
             <span key={i} className="block">
               {i > 0 && wide}
-              <span className={`flex h-row items-center rounded-row px-row-x whitespace-nowrap ${TEXT}`} style={i === 0 ? { background: `color-mix(in oklab, ${around.ink} 6%, ${around.surface})` } : undefined}>
+              <span className={`flex h-row items-center rounded-row px-row-x whitespace-nowrap ${TEXT}`} style={i === 0 ? { background: paints(around).hover } : undefined}>
                 {text}
               </span>
             </span>
@@ -375,8 +375,8 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
     case 'filled':
       // 채운 버튼. 바탕이 글자 색이라 그 위의 띠는 더 진하게 칠해야 보인다.
       return frame(
-        <span className={`relative inline-flex h-control items-stretch font-[550] whitespace-nowrap ${TEXT}`} style={{ color: around.surface }}>
-          <span className="absolute inset-0 rounded-control" style={{ background: around.ink }} />
+        <span className={`relative inline-flex h-control items-stretch font-[550] whitespace-nowrap ${TEXT}`} style={{ color: paints(around).onPrimary }}>
+          <span className="absolute inset-0 rounded-control" style={{ background: paints(around).primary }} />
           {tallOn(MARK_ON_DARK)}
           <span className="relative flex items-center">{all}</span>
           {tallOn(MARK_ON_DARK)}
@@ -447,7 +447,7 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
             {content}
             <span className="mt-dialog-actions flex justify-end gap-actions">
               <span className="block h-control w-[48px] rounded-control" style={{ boxShadow: `inset 0 0 0 1px ${line}` }} />
-              <span className="block h-control w-[48px] rounded-control" style={{ background: around.ink }} />
+              <span className="block h-control w-[48px] rounded-control" style={{ background: paints(around).primary }} />
             </span>
           </span>
           {outline('rounded-float')}
@@ -595,7 +595,7 @@ function SpaceRows({
                     className={`group relative flex w-full items-center gap-columns rounded-row px-board-row-x py-board-row-y text-left select-none ${reorder.moving(t.name) ? 'opacity-dragging' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
                   >
                     {reorder.line(t.name)}
-                    <span className={examples.length && !plain ? 'w-row-name shrink-0' : 'min-w-0 flex-1'}>
+                    <span className={examples.length && !plain && length !== null ? 'w-row-name shrink-0' : 'min-w-0 flex-1'}>
                       <span data-name className="block type-label break-words">
                         {short}
                       </span>
@@ -607,7 +607,7 @@ function SpaceRows({
                       )}
                     </span>
                     {/* 쓰임이 여럿인 값은 예시도 여럿이다. 위아래로 8px 띄워 쌓는다. */}
-                    {!plain && examples.length > 0 && (
+                    {!plain && length !== null && examples.length > 0 && (
                       <span className="block min-w-0 flex-1 space-y-blocks">
                         {examples.map((e, k) => (
                           <SpaceSample key={k} shape={e.shape} value={length ?? '0px'} around={around} words={e.words} />
@@ -667,8 +667,8 @@ export function SpaceUseInspector({
   function commitName() {
     const next = nameDraft.trim()
     setNameError(null)
-    if (!next) return setNameError('이름을 입력해 주세요.')
-    if (!SLUG.test(next)) return setNameError('영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.')
+    // 비웠거나 쓸 수 없는 글자가 든 이름은 적는 중에 알 수 있는 것이다. 그대로 벗어나면 저장된 이름으로 되돌린다(DESIGN.md field-rules).
+    if (!next || !SLUG.test(next)) return setNameDraft(short)
     if (next === short) return
     // 만들 때와 같은 규칙. 숫자로 시작하는 이름(--spacing-8)은 Tailwind의 숫자 클래스(p-8, top-8)가 그 값을 따라가게 만들어서 의미 간격에 쓸 수 없다.
     if (/^\d/.test(next)) return setNameError('숫자로 시작할 수 없어요.')
@@ -693,7 +693,7 @@ export function SpaceUseInspector({
           data-rename="token"
           onChange={(e) => {
             setNameDraft(e.target.value)
-            setNameError(null)
+            setNameError(typedNameProblem(e.target.value))
           }}
           onBlur={commitName}
           onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
@@ -706,7 +706,7 @@ export function SpaceUseInspector({
           // 고르는 칸 옆에, 가리키는 간격이 간격 판의 어디에 있는지 보러 가는 버튼. "쓰이는 곳"의 반대 방향이다(의미 크기 패널과 같다).
           <div className="flex items-center gap-actions-tight">
             <div className="min-w-0 flex-1">
-              <UsePicker label="가리키는 간격" options={options} value={ref} nameWidth="w-picker-name" onChange={(next) => onChange({ value: `var(${next})` })} />
+              <UsePicker label="가리키는 간격" options={options} value={ref} nameWidth="w-picker-name-wide" onChange={(next) => onChange({ value: `var(${next})` })} />
             </div>
             <button type="button" aria-label="가리키는 간격 보러 가기" title={`간격 판에서 ${length ?? ''} 보기`} onClick={() => onOpenToken(ref)} className={ICON_BUTTON}>
               <ArrowUpRight size={16} strokeWidth={ICON_STROKE} />
@@ -801,7 +801,7 @@ export function NewSpaceUseForm({ tokens, onCreate, onCancel }: { tokens: Token[
       <div>
         <p className="type-body text-ink-soft">의미 간격은 간격 판의 값을 가리켜요. 간격 판에 값을 먼저 추가해 주세요.</p>
         <div className="mt-dialog-actions flex justify-end">
-          <Button onClick={onCancel}>닫기</Button>
+          <Button autoFocus onClick={onCancel}>닫기</Button>
         </div>
       </div>
     )

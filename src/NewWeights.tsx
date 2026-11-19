@@ -12,7 +12,7 @@ import { Button } from './ui'
 
 const LABEL = 'mb-label type-label text-ink-faint'
 const STEP_BUTTON =
-  'flex size-icon-button shrink-0 items-center justify-center rounded-control text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-focus disabled:opacity-disabled disabled:hover:bg-transparent'
+  'flex size-icon-button shrink-0 items-center justify-center rounded-control text-ink-soft outline-selection enabled:hover:bg-hover enabled:hover:text-ink focus-visible:outline-focus disabled:opacity-disabled'
 /** 처음에 고르는 단계 수. 셋(본문, 중간, 굵게)이다. */
 const COUNT_START = 3
 
@@ -71,6 +71,12 @@ function StepWeight({ name, rule, custom, onChange }: { name: string; rule: numb
         if (weight >= WEIGHT_MIN && weight <= WEIGHT_MAX) onChange(weight === rule ? null : weight)
       }}
       onBlur={() => setDraft(null)}
+      // 표 안의 칸에서 Enter는 그 칸만 끝낸다. 막지 않으면 브라우저가 창을 내어 한 벌이 통째로 만들어진다.
+      onKeyDown={(e) => {
+        if (e.key !== 'Enter') return
+        e.preventDefault()
+        e.currentTarget.blur()
+      }}
     />
   )
 }

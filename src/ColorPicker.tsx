@@ -245,6 +245,7 @@ function Panel({
             if (next.length === 6) onChange(withAlpha(`#${next}`, a))
           }}
           onBlur={() => setDraft(rgb.slice(1))}
+          onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
         />
         {allowAlpha && (
           <label className={`${FIELD} flex w-[72px] shrink-0 items-center gap-input-inner focus-within:border-selection`}>
@@ -255,11 +256,13 @@ function Panel({
               value={percent}
               maxLength={3}
               onChange={(e) => {
+                // 색 고르는 창은 고르는 도구라 손잡이를 끌 때처럼 적는 대로 반영한다. 벗어날 때 저장하면 바깥을 눌러 창을 닫을 때 적은 값이 버려진다.
                 const next = e.target.value.replace(/\D/g, '')
                 setPercent(next)
                 if (next !== '') onChange(withAlpha(rgb, Math.min(100, Number(next)) / 100))
               }}
               onBlur={() => setPercent(String(Math.round(a * 100)))}
+              onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
             />
             <span className="type-caption text-ink-faint">%</span>
           </label>

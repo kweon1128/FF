@@ -38,7 +38,7 @@ export function Palette({ items, onClose }: { items: PaletteItem[]; onClose: () 
 
   return (
     <div className="fixed inset-0 z-dialog flex items-start justify-center bg-scrim/40 pt-[18vh]" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div role="dialog" aria-modal="true" aria-label="빠른 실행" className="w-[480px] overflow-hidden rounded-float border-edge border-hairline bg-canvas shadow-dialog">
+      <div role="dialog" aria-modal="true" aria-label="빠른 실행" onKeyDown={(e) => e.key === 'Escape' && onClose()} className="w-[480px] overflow-hidden rounded-float border-edge border-hairline bg-canvas shadow-dialog">
         <label className="flex h-bar items-center gap-row-inner border-b-divider border-hairline px-bar-x">
           <Search size={16} strokeWidth={ICON_STROKE} className="shrink-0 text-ink-faint" />
           <input
@@ -75,7 +75,7 @@ export function Palette({ items, onClose }: { items: PaletteItem[]; onClose: () 
                 aria-selected={i === at}
                 onPointerMove={() => setIndex(i)}
                 onClick={() => run(item)}
-                className={`flex h-row w-full items-center gap-row-inner rounded-row px-row-x text-left ${i === at ? 'bg-hover' : ''}`}
+                className={`flex h-row w-full items-center gap-row-inner rounded-row px-row-x text-left outline-selection focus-visible:outline-focus ${i === at ? 'bg-hover' : ''}`}
               >
                 <span className="w-[40px] shrink-0 type-caption text-ink-faint">{item.group}</span>
                 <span className="min-w-0 flex-1 truncate">{item.label}</span>

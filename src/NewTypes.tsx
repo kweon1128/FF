@@ -125,7 +125,7 @@ export function NewTypesForm({
           의미 글꼴은 글꼴 판의 값을 짝지어 만들어요. 글꼴 판에서 <span className="type-label text-ink">{missing.join(', ')}</span>부터 만들어 주세요.
         </p>
         <div className="mt-dialog-actions flex justify-end">
-          <Button onClick={onCancel}>닫기</Button>
+          <Button autoFocus onClick={onCancel}>닫기</Button>
         </div>
       </div>
     )

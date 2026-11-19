@@ -55,6 +55,14 @@ export const boundNames = (sizeName: string) => [lineName(sizeName), trackName(s
 
 export const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/
 
+/**
+ * 이름을 적는 중에 알 수 있는 오류. 쓸 수 없는 글자가 들었는지만 본다.
+ * SLUG로 보면 "button-"처럼 적는 도중의 이름도 틀린 것이 되어, 하이픈을 누를 때마다 오류가 떴다 사라진다. 모양은 칸을 벗어날 때 본다.
+ */
+export function typedNameProblem(value: string): string | null {
+  return /^[a-z0-9-]*$/.test(value.trim()) ? null : '영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.'
+}
+
 const starts = (prefix: string) => (n: string) => n.startsWith(prefix)
 
 /** 다른 색을 가리키는 값. var(--color-blue-600)처럼 색 변수 하나를 그대로 가리킨다. */
@@ -178,7 +186,7 @@ const tracking: Kind = {
   legacy: true,
   defaultValue: '0em',
   addLabel: '글자 사이 추가',
-  valueLabel: '글자 사이 간격',
+  valueLabel: '글자 사이',
 }
 
 /**

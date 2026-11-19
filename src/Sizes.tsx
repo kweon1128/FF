@@ -6,7 +6,7 @@ import { CHECK_STROKE, ICON_STROKE } from './lib/icons'
 import { useContext, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import { ArrowUpRight, Check as CheckIcon, ChevronDown, Copy, Folder, Minus, Plus, X } from 'lucide-react'
 import type { Token } from './lib/api'
-import { ALL_KINDS, KINDS, SLUG, lengthLabel, shortName, type Kind } from './lib/catalog'
+import { ALL_KINDS, KINDS, SLUG, lengthLabel, shortName, typedNameProblem, type Kind } from './lib/catalog'
 import { resolveColor, type Around } from './lib/roles'
 import { SIZE_GROUPS, SIZE_SHAPES, SIZE_WORDS, guessSizeGroup, isSizeKind, isSizeListShape, lengthRefOf, readSizeNote, resolveLength, writeSizeNote, type SizeExample, type SizeGroup, type SizeShape } from './lib/sizes'
 import { PreviewFontContext, PreviewSpaceContext } from './ColorUses'
@@ -28,7 +28,7 @@ const MARK = 'var(--color-guide)'
 /** 치수선이 차지하는 자리(px): 요소와의 거리 8, 선의 굵기 1, 선 밖으로 나가는 가로대 3. 예시 상자가 선이 놓이는 쪽에 이만큼 여백을 더 둔다. */
 const RESERVE = 12
 /** 치수선에 적는 값의 이름표. 판을 끌 때 간격을 적는 이름표와 같은 모양이다(안내 색 바탕에 흰 숫자, 높이 16px). 선의 바깥쪽에 4px 띄워 놓는다. */
-const TAG = 'rounded-tag bg-guide px-[4px] type-caption-strong whitespace-nowrap text-on-selection tabular-nums'
+const TAG = 'rounded-tag bg-guide px-chip-x type-caption-strong whitespace-nowrap text-on-selection tabular-nums!'
 const TAG_GAP = 4
 const TAG_HEIGHT = 16
 /** 이름표의 폭(px)을 어림한 값. 좌우 여백 4씩에 숫자 한 글자가 7쯤이다. 예시 상자의 여백을 정하는 데 쓴다. */
@@ -97,8 +97,8 @@ export function SizeSample({
   const scale = sampleScale(kind, value, both ? pair : undefined, fit)
   const TEXT = 'text-sm leading-5'
   const SMALL = 'text-xs leading-4'
-  const line = paints(around).line
-  const faint = `color-mix(in oklab, ${around.ink} 16%, ${around.surface})`
+  const line = `color-mix(in oklab, ${around.ink} 32%, ${around.surface})`
+  const faint = paints(around).filler
   const hover = paints(around).hover
   const soft = paints(around).soft
   const ring = { boxShadow: `inset 0 0 0 1px ${line}` }
@@ -348,10 +348,10 @@ export function SizeSample({
       return frame(
         m(
           <span className={`${F} ${other(SAMPLE_W, '')} block overflow-hidden rounded-float px-section-x py-section-y`} style={ring}>
-            {title && title !== '-' && <span className={`mb-heading block font-[650] whitespace-nowrap ${TEXT}`}>{title}</span>}
+            {title && title !== '-' && <span className="mb-header block text-base leading-6 font-[650] whitespace-nowrap">{title}</span>}
             {label ? (
               <span className={`block max-w-full ${parseFloat(value) <= 400 ? 'w-full' : 'w-[224px]'}`}>
-                <span className={`mb-label block font-[550] whitespace-nowrap ${SMALL}`} style={{ color: soft }}>
+                <span className={`mb-label block font-[550] whitespace-nowrap ${TEXT}`} style={{ color: paints(around).faint }}>
                   {label}
                 </span>
                 <span className="block h-control rounded-control" style={ring} />
@@ -363,12 +363,12 @@ export function SizeSample({
               </>
             )}
             {actions.length > 0 && (
-              <span className="mt-settings flex justify-end gap-actions">
+              <span className="mt-dialog-actions flex justify-end gap-actions">
                 {actions.map((text, i) => (
                   <span
                     key={i}
-                    className={`flex h-control items-center rounded-control px-button-x font-[550] whitespace-nowrap ${TEXT}`}
-                    style={i === actions.length - 1 ? { background: paints(around).primary, color: paints(around).onPrimary } : undefined}
+                    className={`flex h-control items-center rounded-control font-[550] whitespace-nowrap ${i === actions.length - 1 ? 'px-button-x' : 'px-button-ghost-x'} ${TEXT}`}
+                    style={i === actions.length - 1 ? { background: paints(around).primary, color: paints(around).onPrimary } : { color: soft }}
                   >
                     {text}
                   </span>
@@ -417,7 +417,7 @@ export function SizeSample({
       return frame(
         m(
           <span className={`${F} ${other(SAMPLE_W, 'h-[96px]')} flex items-center justify-center rounded-float`} style={ring}>
-            <span className={`flex h-control items-center rounded-control px-button-x font-[550] whitespace-nowrap ${TEXT}`} style={{ background: around.ink, color: around.surface }}>
+            <span className={`flex h-control items-center rounded-control px-button-x font-[550] whitespace-nowrap ${TEXT}`} style={{ background: paints(around).primary, color: paints(around).onPrimary }}>
               {all}
             </span>
           </span>,
@@ -876,9 +876,11 @@ export function SizeInspector({
   function commitName() {
     const next = nameDraft.trim()
     setNameError(null)
-    if (!next) return setNameError('이름을 입력해 주세요.')
-    if (!SLUG.test(next)) return setNameError('영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.')
+    // 비웠거나 쓸 수 없는 글자가 든 이름은 적는 중에 알 수 있는 것이다. 그대로 벗어나면 저장된 이름으로 되돌린다(DESIGN.md field-rules).
+    if (!next || !SLUG.test(next)) return setNameDraft(short)
     if (next === short) return
+    // 숫자로 시작하는 이름은 Tailwind의 숫자 클래스(h-8, opacity-50)와 같은 글자가 된다. 다른 의미 판과 같이 막는다.
+    if (/^\d/.test(next)) return setNameError('숫자로 시작할 수 없어요.')
     if (tokens.some((t) => t.name === kind.prefix + next)) return setNameError('같은 이름이 이미 있어요.')
     onRename(kind.prefix + next)
   }
@@ -900,7 +902,7 @@ export function SizeInspector({
           data-rename="token"
           onChange={(e) => {
             setNameDraft(e.target.value)
-            setNameError(null)
+            setNameError(typedNameProblem(e.target.value))
           }}
           onBlur={commitName}
           onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
@@ -1004,6 +1006,7 @@ export function NewSizeForm({ start, tokens, onCreate, onCancel }: { start?: Kin
     const next: typeof error = {}
     if (!n) next.name = '이름을 입력해 주세요.'
     else if (!SLUG.test(n)) next.name = '영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.'
+    else if (/^\d/.test(n)) next.name = '숫자로 시작할 수 없어요.'
     else if (tokens.some((t) => t.name === kind.prefix + n)) next.name = '같은 이름이 이미 있어요.'
     if (!ref) next.ref = '크기를 골라 주세요.'
     setError(next)
@@ -1016,7 +1019,7 @@ export function NewSizeForm({ start, tokens, onCreate, onCancel }: { start?: Kin
       <div>
         <p className="type-body text-ink-soft">의미 크기는 크기 판의 값을 가리켜요. 크기 판에 값을 먼저 추가해 주세요.</p>
         <div className="mt-dialog-actions flex justify-end">
-          <Button onClick={onCancel}>닫기</Button>
+          <Button autoFocus onClick={onCancel}>닫기</Button>
         </div>
       </div>
     )
@@ -1180,7 +1183,7 @@ export function LengthInspector({
 
       <FoldSection title="쓰이는 곳" storageKey={WHERE_OPEN} startOpen note={count > 0 ? String(count) : '없음'} empty={count === 0}>
         {/* 이 길이를 가리키는 의미 값(높이·폭·정사각형, 의미 간격). 누르면 그 판의 그 값으로 간다. 그 아래는 이 길이를 바로 쓰는 컴포넌트다. */}
-        <div className="space-y-rows">
+        <div className="space-y-blocks">
           {users.map((name) => (
             <button
               key={name}

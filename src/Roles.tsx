@@ -6,7 +6,7 @@ import { ICON_STROKE } from './lib/icons'
 import { useContext, useState, type FormEvent, type ReactNode } from 'react'
 import { ArrowUpRight } from 'lucide-react'
 import type { Token } from './lib/api'
-import { KINDS, SLUG, groupOf, shortName, type Kind } from './lib/catalog'
+import { KINDS, SLUG, groupOf, shortName, typedNameProblem, type Kind } from './lib/catalog'
 import { contrast, showColor } from './lib/color'
 import { ROLE_USES, ROLE_WORDS, guessUse, isRoleListShape, readNote, refOf, refTo, resolveColor, roleGroups, surroundings, writeNote, type Around, type RoleShape, type RoleUse } from './lib/roles'
 import { DARK, PreviewFontContext, PreviewSpaceContext, inkOn } from './ColorUses'
@@ -326,7 +326,7 @@ export function RoleList({
                         )}
                       </>
                     )}
-                    {isSelected && selected.length === 1 && <SelectionLabel name={short} value={ref} />}
+                    {isSelected && selected.length === 1 && <SelectionLabel name={short} value={color === null ? `${ref} · 없어짐` : ref} />}
                   </button>
                 )
               })}
@@ -410,6 +410,7 @@ export function NewRoleForm({
     const n = name.trim()
     if (!n) next.name = '이름을 입력해 주세요.'
     else if (!SLUG.test(n)) next.name = '영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.'
+    else if (/^\d/.test(n)) next.name = '숫자로 시작할 수 없어요.'
     else if (tokens.some((t) => t.name === ROLE.prefix + n)) next.name = '같은 이름이 이미 있어요.'
     if (!ref) next.ref = '색을 골라 주세요.'
     setError(next)
@@ -422,7 +423,7 @@ export function NewRoleForm({
       <div>
         <p className="type-body text-ink-soft">의미 색은 색상 판의 색을 가리켜요. 색상 판에 색을 먼저 추가해 주세요.</p>
         <div className="mt-dialog-actions flex justify-end">
-          <Button onClick={onCancel}>닫기</Button>
+          <Button autoFocus onClick={onCancel}>닫기</Button>
         </div>
       </div>
     )
@@ -510,9 +511,11 @@ export function RoleInspector({
   function commitName() {
     const next = nameDraft.trim()
     setNameError(null)
-    if (!next) return setNameError('이름을 입력해 주세요.')
-    if (!SLUG.test(next)) return setNameError('영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.')
+    // 비웠거나 쓸 수 없는 글자가 든 이름은 적는 중에 알 수 있는 것이다. 그대로 벗어나면 저장된 이름으로 되돌린다(DESIGN.md field-rules).
+    if (!next || !SLUG.test(next)) return setNameDraft(short)
     if (next === short) return
+    // 숫자로 시작하는 이름은 Tailwind의 숫자 클래스(h-8, opacity-50)와 같은 글자가 된다. 다른 의미 판과 같이 막는다.
+    if (/^\d/.test(next)) return setNameError('숫자로 시작할 수 없어요.')
     if (tokens.some((t) => t.name === ROLE.prefix + next)) return setNameError('같은 이름이 이미 있어요.')
     onRename(ROLE.prefix + next)
   }
@@ -543,7 +546,7 @@ export function RoleInspector({
           data-rename="token"
           onChange={(e) => {
             setNameDraft(e.target.value)
-            setNameError(null)
+            setNameError(typedNameProblem(e.target.value))
           }}
           onBlur={commitName}
           onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}

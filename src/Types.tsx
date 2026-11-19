@@ -7,7 +7,7 @@ import { useContext, useState, type CSSProperties, type FormEvent } from 'react'
 import { PreviewSpaceContext } from './ColorUses'
 import { ArrowUpRight, X } from 'lucide-react'
 import type { Token } from './lib/api'
-import { KINDS, SLUG, lineName, shortName, trackName, type Kind } from './lib/catalog'
+import { KINDS, SLUG, lineName, shortName, typedNameProblem, trackName, type Kind } from './lib/catalog'
 import { shownFont } from './lib/fonts'
 import type { Around } from './lib/roles'
 import { SHAPE_WORDS, TYPE_USES, guessTypeUse, isListShape, lookOf, missingForTypes, nextType, readType, readTypeNote, trackOverride, typeGroups, writeType, writeTypeNote, type TypeLook, type TypeParts, type TypeShape, type TypeUse } from './lib/types'
@@ -93,7 +93,7 @@ export function TypeSample({ shape, look, around, words: written = '' }: { shape
   // 막대, 테두리, 옅은 바탕의 색. 글자 색을 바탕에 옅게 섞는다.
   const { line: faint, hover: soft, primary, onPrimary } = paints(around)
   /** 곁에 놓이는 글의 자리. 높이 8px의 막대이고 폭은 자리마다 다르다. */
-  const bar = (width: string, more = '') => <span className={`block ${SAMPLE_BAR} rounded-small ${width} ${more}`} style={{ background: faint }} />
+  const bar = (width: string, more = '') => <span className={`block ${SAMPLE_BAR} rounded-small ${width} ${more}`} style={{ background: paints(around).filler }} />
   const words = (text: string, more = '', style?: CSSProperties) => (
     <span key={text} data-sample className={`block ${more}`} style={{ ...own, ...style }}>
       {text}
@@ -265,7 +265,7 @@ export function TypeList({
                       className={`group relative flex w-full items-center gap-columns rounded-row px-board-row-x py-board-row-y text-left select-none ${rows.moving(t.name) ? 'opacity-dragging' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
                     >
                       {rows.line(t.name)}
-                      <span className={plain ? 'min-w-0 flex-1' : 'w-row-name shrink-0'}>
+                      <span className={plain || !look || look.broken ? 'min-w-0 flex-1' : 'w-row-name shrink-0'}>
                         {/* 이름, 가리키는 값, 설명, 예시는 자르지 않는다(말줄임표를 쓰지 않는다). 칸보다 길면 줄을 바꿔 다 보여 준다. */}
                         <span data-name className="block type-label break-words">
                           {short}
@@ -280,8 +280,8 @@ export function TypeList({
                         )}
                       </span>
                       {/* 쓰임이 여럿인 조합은 예시도 여럿이다. 위아래로 8px 띄워 쌓는다. */}
-                      <span className={`min-w-0 flex-1 space-y-blocks ${plain ? 'hidden' : ''}`}>
-                        {!plain && look && [{ shape, words }, ...more].map((e, k) => <TypeSample key={k} shape={e.shape} look={look} around={around} words={e.words} />)}
+                      <span className={`min-w-0 flex-1 space-y-blocks ${plain || !look || look.broken ? 'hidden' : ''}`}>
+                        {!plain && look && !look.broken && [{ shape, words }, ...more].map((e, k) => <TypeSample key={k} shape={e.shape} look={look} around={around} words={e.words} />)}
                       </span>
                       {isSelected && selected.length === 1 && <SelectionLabel name={short} value={look ? figures(look) : undefined} />}
                     </button>
@@ -322,9 +322,9 @@ function PartField({
     <Field label={label} plain error={missing ? '고른 값이 없어졌어요. 다시 골라 주세요.' : null}>
       {/* 고르는 칸 옆에, 고른 값이 글꼴 판의 어디에 있는지 보러 가는 버튼. "쓰이는 곳"의 반대 방향이다. 고른 값이 없어졌으면 갈 곳이 없어 꺼진다. */}
       <span className="flex items-center gap-actions-tight">
-        {/* 추가 창과 같은 고르는 칸이다. 브라우저의 select는 이름과 값을 한 모양으로만 적는다. 고른 값이 없어졌으면 칸이 "고르기"로 비고 아래에 까닭이 적힌다. */}
+        {/* 추가 창과 같은 고르는 칸이다. 브라우저의 select는 이름과 값을 한 모양으로만 적는다. 고른 값이 없어졌으면 칸에 "이름 · 없어짐"이 빨갛게 적히고 아래에 까닭이 적힌다. */}
         <span className="min-w-0 flex-1">
-          <UsePicker label={label} nameWidth="w-[80px]" options={options.map((t) => ({ id: t.name, label: shortName(kind, t.name), hint: show(t) }))} value={missing ? null : value} onChange={onChange} />
+          <UsePicker label={label} nameWidth="w-cell" options={options.map((t) => ({ id: t.name, label: shortName(kind, t.name), hint: show(t) }))} value={missing ? null : value} lost={missing ? shortName(kind, value) : undefined} onChange={onChange} />
         </span>
         <button type="button" aria-label={`${label} 보러 가기`} title={`글꼴 판에서 ${shortName(kind, value)} 보기`} disabled={missing} onClick={() => onOpen(value)} className={`${ICON_BUTTON} disabled:pointer-events-none disabled:opacity-disabled`}>
           <ArrowUpRight size={16} strokeWidth={ICON_STROKE} />
@@ -374,9 +374,11 @@ export function TypeInspector({
   function commitName() {
     const next = nameDraft.trim()
     setNameError(null)
-    if (!next) return setNameError('이름을 입력해 주세요.')
-    if (!SLUG.test(next)) return setNameError('영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.')
+    // 비웠거나 쓸 수 없는 글자가 든 이름은 적는 중에 알 수 있는 것이다. 그대로 벗어나면 저장된 이름으로 되돌린다(DESIGN.md field-rules).
+    if (!next || !SLUG.test(next)) return setNameDraft(short)
     if (next === short) return
+    // 숫자로 시작하는 이름은 Tailwind의 숫자 클래스(h-8, opacity-50)와 같은 글자가 된다. 다른 의미 판과 같이 막는다.
+    if (/^\d/.test(next)) return setNameError('숫자로 시작할 수 없어요.')
     if (names.has(STYLE.prefix + next)) return setNameError('같은 이름이 이미 있어요.')
     onRename(STYLE.prefix + next)
   }
@@ -414,7 +416,7 @@ export function TypeInspector({
           data-rename="token"
           onChange={(e) => {
             setNameDraft(e.target.value)
-            setNameError(null)
+            setNameError(typedNameProblem(e.target.value))
           }}
           onBlur={commitName}
           onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
@@ -511,7 +513,7 @@ export function NewTypeForm({ tokens, onCreate, onCancel }: { tokens: Token[]; o
   function submit(e: FormEvent) {
     e.preventDefault()
     const n = name.trim()
-    const problem = !n ? '이름을 입력해 주세요.' : !SLUG.test(n) ? '영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.' : tokens.some((t) => t.name === STYLE.prefix + n) ? '같은 이름이 이미 있어요.' : undefined
+    const problem = !n ? '이름을 입력해 주세요.' : !SLUG.test(n) ? '영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.' : /^\d/.test(n) ? '숫자로 시작할 수 없어요.' : tokens.some((t) => t.name === STYLE.prefix + n) ? '같은 이름이 이미 있어요.' : undefined
     setError(problem)
     if (problem) return
     onCreate(STYLE.prefix + n, writeType({ font, size, weight }, new Set(tokens.map((t) => t.name))), writeTypeNote(shownUse, text))
@@ -526,7 +528,7 @@ export function NewTypeForm({ tokens, onCreate, onCancel }: { tokens: Token[]; o
           의미 글꼴은 글꼴 판의 값을 짝지어 만들어요. 글꼴 판에서 <span className="type-label text-ink">{missing.join(', ')}</span>부터 만들어 주세요.
         </p>
         <div className="mt-dialog-actions flex justify-end">
-          <Button onClick={onCancel}>닫기</Button>
+          <Button autoFocus onClick={onCancel}>닫기</Button>
         </div>
       </div>
     )
@@ -546,13 +548,13 @@ export function NewTypeForm({ tokens, onCreate, onCancel }: { tokens: Token[]; o
         />
       </Field>
       <Field label="글꼴 종류" plain>
-        <UsePicker label="글꼴 종류" options={fonts} value={font} onChange={setFont} />
+        <UsePicker label="글꼴 종류" options={fonts} value={font} nameWidth="w-cell" onChange={setFont} />
       </Field>
       <Field label="글자 크기" plain>
-        <UsePicker label="글자 크기" options={sizes} value={size} onChange={setSize} />
+        <UsePicker label="글자 크기" options={sizes} value={size} nameWidth="w-cell" onChange={setSize} />
       </Field>
       <Field label="굵기" plain>
-        <UsePicker label="굵기" options={weights} value={weight} nameWidth="w-[80px]" onChange={setWeight} />
+        <UsePicker label="굵기" options={weights} value={weight} nameWidth="w-cell" onChange={setWeight} />
       </Field>
       <Field label="묶음" plain>
         <UsePicker label="묶음" options={TYPE_USES} value={shownUse} nameWidth="w-picker-name-wide" onChange={setUse} />

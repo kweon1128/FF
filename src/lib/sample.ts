@@ -69,6 +69,12 @@ export function paints(around: { surface: string; ink: string } & Partial<Sample
     line: around.line ?? mix(16),
     hover: around.hover ?? mix(8),
     soft: around.soft ?? mix(56),
+    /** 입력칸의 이름표처럼 더 옅은 글자. */
+    faint: around.faint ?? mix(48),
+    /** 곁에 놓이는 것을 대신 그리는 막대. */
+    filler: around.filler ?? mix(16),
+    /** 창 뒤의 화면을 가리는 막. */
+    scrim: around.scrim ?? '#000000',
     primary: around.primary ?? around.ink,
     onPrimary: around.onPrimary ?? around.surface,
   }

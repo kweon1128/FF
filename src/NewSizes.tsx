@@ -23,7 +23,7 @@ const shiftOf = (gap: { top: number; bottom: number }) => (gap.bottom - gap.top)
 
 const LABEL = 'mb-label type-label text-ink-faint'
 const STEP_BUTTON =
-  'flex size-icon-button shrink-0 items-center justify-center rounded-control text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-focus disabled:opacity-disabled disabled:hover:bg-transparent'
+  'flex size-icon-button shrink-0 items-center justify-center rounded-control text-ink-soft outline-selection enabled:hover:bg-hover enabled:hover:text-ink focus-visible:outline-focus disabled:opacity-disabled'
 
 /** 예시 상자에 쓰는 세 크기. 작은 것부터. 상자에 들어가는 글자는 본문 크기 이하다. */
 const EXAMPLE_SIZES = ['xs', 'sm', 'base'] as const
@@ -604,7 +604,7 @@ export function NewSizesForm({
               <Minus size={16} strokeWidth={ICON_STROKE} />
             </button>
             {/* 배수의 숫자 대신 이름을 보여 준다. 숫자는 마우스를 올리면 나온다. */}
-            <span data-spread title={`한 단계마다 ${spread}배씩 커져요`} className="w-stepper-value text-center type-body">
+            <span data-spread title={`한 단계마다 ${spread}배씩 커져요`} className="w-stepper-value text-center type-body tabular-nums!">
               {SPREAD_STEPS[spreadAt]?.label}
             </span>
             <button type="button" aria-label="단계 사이 넓게" disabled={spreadAt >= SPREAD_STEPS.length - 1} onClick={() => stepSpread(1)} className={STEP_BUTTON}>

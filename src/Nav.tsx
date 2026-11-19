@@ -124,7 +124,7 @@ export function Nav({
                   ) : locked.includes(id) ? (
                     <button
                       type="button"
-                      title="잠금 풀기"
+                      title="잠금 풀기 (Ctrl+Shift+L)"
                       aria-label={`${label} 판 잠금 풀기`}
                       onClick={() => onUnlock(id)}
                       className={MARK}

@@ -19,9 +19,9 @@ export type RoleUse = 'text' | 'surface' | 'border' | 'fill' | 'status' | 'chart
  */
 export const ROLE_USES: { id: RoleUse; label: string; hint: string }[] = [
   { id: 'text', label: '글자', hint: '본문, 링크, 아이콘' },
-  { id: 'surface', label: '바탕', hint: '화면, 카드, 호버' },
+  { id: 'surface', label: '바탕', hint: '화면, 카드, 마우스를 올린 줄' },
   { id: 'border', label: '테두리', hint: '구분선, 초점' },
-  { id: 'fill', label: '채움', hint: '버튼, 뱃지, 칩, 토글, 선택' },
+  { id: 'fill', label: '채움', hint: '버튼, 뱃지, 칩, 전환 버튼, 선택' },
   { id: 'status', label: '상태', hint: '성공, 경고, 위험, 정보' },
   { id: 'chart', label: '차트', hint: '그래프의 계열' },
 ]

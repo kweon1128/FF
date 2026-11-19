@@ -192,7 +192,7 @@ export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGr
                   )}
                   <span className="flex gap-actions-tight">
                     {/* "원래대로"는 판마다 하나다. 종류가 하나뿐인 판은 여기에, 여럿인 판은 판 위에 하나만 둔다. */}
-                    {single && isFreeKind(kind) && <ResetButton title="묶음과 그 안의 순서를 처음대로 돌려놓아요" onReset={resetOf(kind)} />}
+                    {single && isFreeKind(kind) && <ResetButton title="묶음과 그 안의 값을 처음 순서로 돌려놓아요" onReset={resetOf(kind)} />}
                     {kind.id === 'style' && <ResetButton title="묶음과 그 안의 조합을 처음 순서로 돌려놓아요" onReset={onResetTypes} />}
                     {single && onToggleDetails && <FoldButton folded={!!detailsFolded} title="설명과 예시를 모두 숨기거나 보여요" onToggle={onToggleDetails} />}
                     {makeSet && (
@@ -625,7 +625,7 @@ function RowSample({ kind, value, line, track }: { kind: Kind; value: string; li
             <span className="absolute inset-x-0 top-[3px] h-px bg-guide" />
             <span className="absolute top-0 left-0 h-full w-px bg-guide" />
             <span className="absolute top-0 right-0 h-full w-px bg-guide" />
-            <span data-measure-tag className="absolute bottom-full left-1/2 mb-[4px] -translate-x-1/2 rounded-tag bg-guide px-[4px] type-caption-strong whitespace-nowrap text-on-selection tabular-nums">
+            <span data-measure-tag className="absolute bottom-full left-1/2 mb-[4px] -translate-x-1/2 rounded-tag bg-guide px-chip-x type-caption-strong whitespace-nowrap text-on-selection tabular-nums!">
               {parseFloat(value)}
             </span>
           </span>

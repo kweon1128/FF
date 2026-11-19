@@ -6,7 +6,7 @@ import { ICON_STROKE } from './lib/icons'
 import { useContext, useState, type ReactNode } from 'react'
 import { Plus, X } from 'lucide-react'
 import type { Token } from './lib/api'
-import { SLUG, shortName, type Kind } from './lib/catalog'
+import { SLUG, shortName, typedNameProblem, type Kind } from './lib/catalog'
 import { EFFECT_WORDS, nextLayer, parseShadow, splitLayers, readEffectNote, writeEffectNote, writeShadow, type EffectKind, type EffectShape, type ShadowLayer } from './lib/effects'
 import type { Around } from './lib/roles'
 import { paints, sampleColors } from './lib/sample'
@@ -30,7 +30,7 @@ export function EffectSample({ shape, value, around, accent, words: written = ''
   const space = useContext(PreviewSpaceContext)
   const all = written || EFFECT_WORDS[shape]
   const faint = paints(around).line
-  const bar = (width: string, more = '') => <span className={`block ${SAMPLE_BAR} rounded-small ${width} ${more}`} style={{ background: faint }} />
+  const bar = (width: string, more = '') => <span className={`block ${SAMPLE_BAR} rounded-small ${width} ${more}`} style={{ background: paints(around).filler }} />
   const STRONG = 'text-sm leading-5 font-[550]'
   // 그림자는 상자 밖으로 지므로, 잘리지 않게 상자 둘레에 24px을 비워 둔다.
   // 내용은 상자의 가운데에 놓는다. 예시는 읽는 글이 아니라 요소 하나를 보여 주는 것이라, 왼쪽에 붙이면 오른쪽만 비어 덜 만든 것처럼 보인다.
@@ -50,7 +50,7 @@ export function EffectSample({ shape, value, around, accent, words: written = ''
             .map((w) => w.trim())
             .filter(Boolean)
             .map((text) => (
-              <span key={text} data-sample className="block rounded-row px-row-x py-menu text-sm leading-5 whitespace-nowrap">
+              <span key={text} data-sample className="flex h-row items-center rounded-row px-row-x text-sm leading-5 whitespace-nowrap">
                 {text}
               </span>
             ))}
@@ -66,7 +66,7 @@ export function EffectSample({ shape, value, around, accent, words: written = ''
           <span className="block text-base leading-6 font-[650] break-words">{title}</span>
           {label && label !== '-' && (
             <span className="mt-header block">
-              <span className={`mb-label block ${STRONG}`} style={{ color: `color-mix(in oklab, ${around.ink} 55%, ${around.surface})` }}>
+              <span className={`mb-label block ${STRONG}`} style={{ color: paints(around).faint }}>
                 {label}
               </span>
               <span className="block h-control rounded-control" style={{ boxShadow: `inset 0 0 0 1px ${faint}` }} />
@@ -78,7 +78,7 @@ export function EffectSample({ shape, value, around, accent, words: written = ''
                 <span
                   key={i}
                   className={`flex h-control items-center rounded-control whitespace-nowrap ${i === actions.length - 1 ? 'px-button-x' : 'px-button-ghost-x'} ${STRONG}`}
-                  style={i === actions.length - 1 ? { background: paints(around).primary, color: paints(around).onPrimary } : undefined}
+                  style={i === actions.length - 1 ? { background: paints(around).primary, color: paints(around).onPrimary } : { color: paints(around).soft }}
                 >
                   {text}
                 </span>
@@ -156,7 +156,7 @@ export function EffectSample({ shape, value, around, accent, words: written = ''
           {bar('w-1/2', 'mt-blocks')}
           {bar('w-2/3', 'mt-blocks')}
           {bar('w-1/3', 'mt-blocks')}
-          <span data-sample className="absolute -inset-sample" style={{ background: around.ink, opacity: value }} />
+          <span data-sample className="absolute -inset-sample" style={{ background: paints(around).scrim, opacity: value }} />
           <span className="absolute top-1/2 left-1/2 block h-[48px] w-[96px] -translate-x-1/2 -translate-y-1/2 rounded-card p-box" style={{ background: around.surface }}>
             {bar('w-3/4')}
             {bar('w-1/2', 'mt-blocks')}
@@ -284,6 +284,8 @@ export function EffectList({
 /** 칸에 적는 숫자로 바꾼다. 0.06 → 6(%). */
 const digitsOf = (n: number) => String(Math.round(n * 1000) / 1000)
 const NUMBER = /^-?\d*\.?\d+$/
+/** 숫자를 적는 도중의 꼴("-", "0.", "-."). 아직 숫자는 아니지만 틀린 것도 아니라서 오류로 알리지 않는다. */
+const PARTIAL = /^-?\d*\.?$/
 
 /** 그림자 한 겹의 칸들에 적는 중인 숫자. */
 type LayerDraft = { x: string; y: string; blur: string; spread: string; alpha: string }
@@ -324,6 +326,8 @@ function ShadowFields({ value, onChange }: { value: string; onChange: (value: st
     const read_ = nextLayers.map((l, i) => read(l, nextDrafts[i]))
     if (read_.some((l) => l === null)) return
     const done = read_ as ShadowLayer[]
+    // 범위를 넘겨 적은 값(진하기 150)은 저장되는 값(100)으로 칸의 글자도 맞춘다.
+    setDrafts(done.map(draftOf))
     setLayers(done)
     const written = writeShadow(done)
     setSeen(written)
@@ -342,7 +346,7 @@ function ShadowFields({ value, onChange }: { value: string; onChange: (value: st
     setDrafts(drafts.map((d, k) => (k === i ? { ...d, [key]: draftOf(layers[i])[key] } : d)))
   }
   /** 숫자가 아닌 것이 적힌 칸. 비운 칸은 틀린 것이 아니라 고치는 중이다. */
-  const wrong = (i: number, key: keyof LayerDraft) => drafts[i][key] !== '' && !NUMBER.test(drafts[i][key])
+  const wrong = (i: number, key: keyof LayerDraft) => !NUMBER.test(drafts[i][key]) && !PARTIAL.test(drafts[i][key])
 
   const cell = (i: number, key: keyof LayerDraft, label: string, unit: string, negative = false) => (
     <Field label={label} error={wrong(i, key) ? '숫자를 입력해 주세요.' : null}>
@@ -361,7 +365,7 @@ function ShadowFields({ value, onChange }: { value: string; onChange: (value: st
               <button
                 type="button"
                 aria-label={`겹 ${i + 1} 삭제`}
-                title="이 겹 삭제"
+                title={`겹 ${i + 1} 삭제`}
                 onClick={() => {
                   const keep = (_: unknown, k: number) => k !== i
                   setLayers(layers.filter(keep))
@@ -415,7 +419,7 @@ function NumberField({ label, unit, value, toDigits, fromDigits, onChange }: { l
     setSeen(value)
     if (!NUMBER.test(digits) || fromDigits(digits) !== value) setDigits(toDigits(value))
   }
-  const wrong = digits !== '' && !NUMBER.test(digits)
+  const wrong = !NUMBER.test(digits) && !PARTIAL.test(digits)
   function save(next: string) {
     const written = fromDigits(next)
     setSeen(written)
@@ -481,8 +485,8 @@ export function EffectInspector({
   function commitName() {
     const next = nameDraft.trim()
     setNameError(null)
-    if (!next) return setNameError('이름을 입력해 주세요.')
-    if (!SLUG.test(next)) return setNameError('영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.')
+    // 비웠거나 쓸 수 없는 글자가 든 이름은 적는 중에 알 수 있는 것이다. 그대로 벗어나면 저장된 이름으로 되돌린다(DESIGN.md field-rules).
+    if (!next || !SLUG.test(next)) return setNameDraft(short)
     if (next === short) return
     if (allNames.includes(kind.prefix + next)) return setNameError('같은 이름이 이미 있어요.')
     onRename(kind.prefix + next)
@@ -510,7 +514,7 @@ export function EffectInspector({
           data-rename="token"
           onChange={(e) => {
             setNameDraft(e.target.value)
-            setNameError(null)
+            setNameError(typedNameProblem(e.target.value))
           }}
           onBlur={commitName}
           onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
@@ -534,11 +538,16 @@ export function EffectInspector({
             // 비운 채로 벗어나면 저장된 값으로 돌아간다. 빈 칸으로 남겨 두지 않는다.
             onBlur={() => {
               const next = rawDraft.trim()
-              if (!next) return setRawDraft(token.value)
+              // 파일을 깨뜨리는 기호가 든 값은 적는 중에 알렸다. 그대로 벗어나면 저장된 값으로 되돌린다.
+              if (!next || /[;{}]/.test(next)) return setRawDraft(token.value)
               if (next !== token.value) onChange({ value: next })
             }}
             onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
           />
+        )}
+        {/* 글자로 적는 값의 기호 검사는 어느 패널이나 같다. 적는 중에 알리고, 그대로 벗어나면 되돌린다. */}
+        {!layered && id !== 'opacity' && !(id === 'blur' && /^\d*\.?\d+px$/.test(token.value)) && /[;{}]/.test(rawDraft) && (
+          <span className="mt-label block type-body text-danger">; {'{ }'} 기호는 쓸 수 없어요.</span>
         )}
       </Section>
 

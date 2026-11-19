@@ -155,7 +155,7 @@ export function ColorUses({ color, step, compact = false }: { color: string; ste
               <span className={TRIM}>테두리</span>
             </span>
             <span className={`${BOX} font-[550]`} style={soft(s.surface, s.mix)}>
-              <span className={TRIM}>옅은 배경</span>
+              <span className={TRIM}>옅은 바탕</span>
             </span>
           </div>
         </div>

@@ -77,7 +77,7 @@ export function BatchRename({
   const seen = new Map<string, number>()
   for (const r of rows) seen.set(r.full, (seen.get(r.full) ?? 0) + 1)
   const problemOf = (r: (typeof rows)[number]) =>
-    !SLUG.test(r.next) ? '쓸 수 없는 이름이에요.' : others.has(r.full) || seen.get(r.full)! > 1 ? '같은 이름이 이미 있어요.' : null
+    !SLUG.test(r.next) ? '영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.' : others.has(r.full) || seen.get(r.full)! > 1 ? '같은 이름이 이미 있어요.' : null
   const changed = rows.some((r) => r.full !== r.old)
   const ready = valid && changed && rows.every((r) => problemOf(r) === null)
 

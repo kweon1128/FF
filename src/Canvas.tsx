@@ -555,8 +555,10 @@ export function Canvas({
     }
 
     if (!e.altKey) return
-    // Alt+글자는 정렬, Alt+Shift+H/V(피그마의 윈도우 키. Ctrl+Alt도 받는다)는 간격 고르게.
-    const spread = e.shiftKey || mod
+    // Alt+글자는 정렬, Alt+Shift+H/V(피그마의 윈도우 키)는 간격 고르게.
+    // Ctrl+Alt는 받지 않는다. Ctrl+Alt+V는 속성 붙여넣기라서, 함께 받으면 붙여넣으면서 세로 간격까지 바뀐다.
+    if (mod) return
+    const spread = e.shiftKey
     const keys: Record<string, Arrange> = spread
       ? { KeyH: 'spreadX', KeyV: 'spreadY' }
       : { KeyA: 'left', KeyD: 'right', KeyH: 'centerX', KeyW: 'top', KeyS: 'bottom', KeyV: 'centerY' }
@@ -1128,7 +1130,7 @@ export function Canvas({
         </button>
         <button
           type="button"
-          title="100%로 되돌리기"
+          title="100%로 되돌리기 (Ctrl+0)"
           onClick={() => zoomBy(1 / view.z)}
           className="h-control w-[56px] rounded-control text-center type-caption tabular-nums! outline-selection focus-visible:outline-focus hover:bg-hover"
         >

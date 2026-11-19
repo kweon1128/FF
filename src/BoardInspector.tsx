@@ -74,7 +74,7 @@ export function NumberField({
     // 이름표와 숫자를 한 칸 안에 나란히 둔다. 이름표가 길어도 숫자와 겹치지 않는다.
     <label
       title={label}
-      className={`flex h-control min-w-0 items-center gap-row-inner rounded-control border-edge border-hairline px-input-x focus-within:border-selection ${draft.trim() !== '' && !Number.isFinite(Number(draft)) ? 'border-danger! focus-within:border-danger!' : ''} ${
+      className={`flex h-control min-w-0 items-center gap-row-inner rounded-control border-edge border-hairline px-input-x focus-within:border-selection ${draft.trim() !== '' && draft.trim() !== '-' && !Number.isFinite(Number(draft)) ? 'border-danger! focus-within:border-danger!' : ''} ${
         readOnly ? 'bg-hover' : 'bg-canvas'
       }`}
     >

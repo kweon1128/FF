@@ -115,7 +115,7 @@ export function ffApi(): Plugin {
 
   const systemDir = (name: string) => {
     if (!SYSTEM_NAME.test(name)) {
-      throw new HttpError(400, '이름은 영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.')
+      throw new HttpError(400, '영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.')
     }
     return path.join(systemsDir, name)
   }

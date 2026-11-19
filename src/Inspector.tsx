@@ -2,7 +2,7 @@ import { ICON_STROKE } from './lib/icons'
 import { useState, type ReactNode } from 'react'
 import { ChevronDown, ChevronRight, Copy, PencilLine, Pipette, Rows3, Type } from 'lucide-react'
 import type { Token } from './lib/api'
-import { ALL_KINDS, COLOR_REF, SLUG, groupOf, shortName, type Kind } from './lib/catalog'
+import { ALL_KINDS, COLOR_REF, SLUG, groupOf, shortName, typedNameProblem, type Kind } from './lib/catalog'
 import { asHex, isApprox, showColor, toHex, toOklch } from './lib/color'
 import { stepValue, suggestLine, suggestTrack } from './lib/tokens'
 import { ColorSwatch } from './ColorPicker'
@@ -233,6 +233,8 @@ function userOf(name: string) {
 const UNIT = /^(-?\d*\.?\d+)(px|rem|em|ms|s|%)$/
 const NUMBER = /^\d*\.?\d+$/
 const SIGNED = /^-?\d*\.?\d+$/
+/** 숫자를 적는 도중의 꼴("-", "0.", "-."). 아직 숫자는 아니지만 틀린 것도 아니라서 적는 중에는 알리지 않는다. */
+const PARTIAL = /^-?\d*\.?$/
 const digitsOf = (value: string | null | undefined) => (value ?? '').replace(/px$/, '')
 
 /** 오른쪽 편집 패널. 선택한 값이 바뀌면 key로 새로 만들어져 입력 중이던 내용이 초기화된다. */
@@ -313,7 +315,7 @@ export function Inspector({
   function changeTrack(next: string, typing = false) {
     setTrackDraft(next)
     setTrackError(null)
-    if (next && !SIGNED.test(next)) return setTrackError('숫자를 입력해 주세요.')
+    if (next && !SIGNED.test(next)) return setTrackError(PARTIAL.test(next) ? null : '숫자를 입력해 주세요.')
     // 적는 동안은 저장하지 않는다(값 칸과 같다). 칸을 벗어날 때 저장한다.
     if (typing) return
     if (!next) return onTrack?.(null)
@@ -333,6 +335,7 @@ export function Inspector({
     setDigits(next)
     // 비운 것은 틀린 값이 아니라 고치는 중이다. 알리지 않고, 저장된 값은 그대로 둔다.
     if (!next) return setValueError(null)
+    if (typing && PARTIAL.test(next) && (negative || !next.startsWith('-'))) return setValueError(null)
     if (!(negative ? SIGNED : NUMBER).test(next) || (positive && Number(next) <= 0)) return setValueError('숫자를 입력해 주세요.')
     setValueError(null)
     if (!typing && `${next}${unit}` !== token.value) onValue(`${next}${unit}`)
@@ -351,7 +354,7 @@ export function Inspector({
   function changeLine(digits: string, typing = false) {
     setLineDraft(digits)
     setLineError(null)
-    if (digits && (!NUMBER.test(digits) || Number(digits) <= 0)) return setLineError('숫자를 입력해 주세요.')
+    if (digits && (!NUMBER.test(digits) || Number(digits) <= 0)) return setLineError(typing && /^\d*\.?$/.test(digits) ? null : '숫자를 입력해 주세요.')
     // 적는 동안은 저장하지 않는다(값 칸과 같다). 칸을 벗어날 때 저장한다.
     if (typing) return
     if (!digits) return onLine?.(null)
@@ -363,10 +366,10 @@ export function Inspector({
     const name = nameDraft.trim()
     setGroupError(null)
     setNameError(null)
-    if (group && !SLUG.test(group)) return setGroupError('영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.')
-    if (!name) return setNameError('이름을 입력해 주세요.')
-    if (isColor ? !PLAIN.test(name) : !SLUG.test(name)) {
-      return setNameError(isColor ? '영문 소문자와 숫자만 쓸 수 있어요.' : '영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.')
+    // 비웠거나 쓸 수 없는 글자가 든 이름은 적는 중에 알 수 있는 것이다. 그대로 벗어나면 저장된 이름으로 되돌린다(DESIGN.md field-rules).
+    if ((group && !SLUG.test(group)) || !name || (isColor ? !PLAIN.test(name) : !SLUG.test(name))) {
+      setGroupDraft(initialGroup)
+      return setNameDraft(initialName)
     }
     const next = group ? `${group}-${name}` : name
     if (next === short) return
@@ -386,7 +389,7 @@ export function Inspector({
   function changeValue(raw: string, save = true) {
     setValueDraft(raw)
     const next = raw.trim()
-    if (!next) return setValueError('값을 입력해 주세요.')
+    if (!next) return setValueError(null)
     if (/[;{}]/.test(next)) return setValueError('; { } 기호는 쓸 수 없어요.')
     // 색 칸에서 쓰다 만 # 값(#12345)은 저장하지 않는다. 그대로 저장되면 이 색을 가리키는 의미 색이 모두 "없는 색"이 된다.
     // 이름으로 된 색(white)이나 color-mix(…)처럼 FF가 읽지 못할 뿐인 값은 막지 않는다.
@@ -422,7 +425,8 @@ export function Inspector({
       data-rename="token"
       onChange={(e) => {
         setNameDraft(e.target.value)
-        setNameError(null)
+        // 쓸 수 없는 글자는 적는 중에 알린다. 색의 단계 이름은 하이픈도 쓸 수 없다.
+        setNameError(isColor ? (/^[a-z0-9]*$/.test(e.target.value.trim()) ? null : '영문 소문자와 숫자만 쓸 수 있어요.') : typedNameProblem(e.target.value))
       }}
       onBlur={commitName}
       onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
@@ -528,7 +532,14 @@ export function Inspector({
                 fillOnTab={!!lineHint}
                 invalid={!!lineError}
                 onDigits={changeLine}
-                onBlur={() => changeLine(!lineDraft && lineHint ? lineHint : lineDraft)}
+                // 틀린 값을 둔 채 벗어나면 저장된 값으로 되돌린다(값 칸과 같다).
+                onBlur={() => {
+                  if (lineError) {
+                    setLineDraft(digitsOf(line))
+                    return setLineError(null)
+                  }
+                  changeLine(!lineDraft && lineHint ? lineHint : lineDraft)
+                }}
               />
             </Field>
           </div>
@@ -546,7 +557,13 @@ export function Inspector({
                 invalid={!!trackError}
                 negative
                 onDigits={changeTrack}
-                onBlur={() => changeTrack(!trackDraft && trackHint ? trackHint : trackDraft)}
+                onBlur={() => {
+                  if (trackError) {
+                    setTrackDraft((track ?? '').replace(/em$/, ''))
+                    return setTrackError(null)
+                  }
+                  changeTrack(!trackDraft && trackHint ? trackHint : trackDraft)
+                }}
               />
             </Field>
           </div>
@@ -694,7 +711,7 @@ export function MultiInspector({
 
       {onRename && (
         <Section>
-          <Button variant="ghost" className="-ml-button-ghost-x" title="Ctrl+R" onClick={onRename}>
+          <Button variant="ghost" className="-ml-button-ghost-x" title="번호 다시 매기기 (Ctrl+R)" onClick={onRename}>
             <PencilLine size={16} strokeWidth={ICON_STROKE} />
             번호 다시 매기기
           </Button>
