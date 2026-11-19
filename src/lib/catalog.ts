@@ -30,6 +30,8 @@ export type PreviewType =
   | 'z'
   | 'duration'
   | 'ease'
+  | 'delay'
+  | 'animate'
 
 export type Kind = {
   id: PreviewType
@@ -59,6 +61,9 @@ export const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/
  * 이름을 적는 중에 알 수 있는 오류. 쓸 수 없는 글자가 들었는지만 본다.
  * SLUG로 보면 "button-"처럼 적는 도중의 이름도 틀린 것이 되어, 하이픈을 누를 때마다 오류가 떴다 사라진다. 모양은 칸을 벗어날 때 본다.
  */
+/** 글자는 맞지만 모양이 틀린 이름의 오류(card-, -card, card--big). 칸을 벗어날 때 알린다. */
+export const NAME_SHAPE = '하이픈(-)은 낱말 사이에 하나씩만 쓸 수 있어요.'
+
 export function typedNameProblem(value: string): string | null {
   return /^[a-z0-9-]*$/.test(value.trim()) ? null : '영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.'
 }
@@ -456,6 +461,33 @@ const ease: Kind = {
   valueLabel: '곡선',
 }
 
+/**
+ * 지연. 움직임이 얼마 뒤에 시작하는지다(--transition-delay-stagger: 40ms. 클래스는 delay-stagger). 층은 하나이고 쓰임의 이름을 붙인다(시간과 같다).
+ */
+const delay: Kind = {
+  id: 'delay',
+  title: '지연',
+  prefix: '--transition-delay-',
+  matches: starts('--transition-delay-'),
+  defaultValue: '',
+  addLabel: '지연 추가',
+  valueLabel: '시간',
+}
+
+/**
+ * 애니메이션. 스스로 되풀이하거나 나타날 때 한 번 움직이는 것이다(--animate-loading: spin 1000ms linear infinite. 클래스는 animate-loading). 층은 하나이고 쓰임의 이름을 붙인다.
+ * 값은 "움직임 시간 이징 되풀이" 네 낱말이다. 움직임은 FF가 준비해 둔 것 가운데서 고르고(src/lib/keyframes.ts), 그 단계(@keyframes)는 저장할 때 FF가 파일 끝에 대신 적는다.
+ */
+const animate: Kind = {
+  id: 'animate',
+  title: '애니메이션',
+  prefix: '--animate-',
+  matches: starts('--animate-'),
+  defaultValue: '',
+  addLabel: '애니메이션 추가',
+  valueLabel: '애니메이션',
+}
+
 export const KINDS = {
   color,
   role,
@@ -485,6 +517,8 @@ export const KINDS = {
   z,
   duration,
   ease,
+  delay,
+  animate,
 }
 
 export const ALL_KINDS: Kind[] = Object.values(KINDS)
@@ -516,7 +550,7 @@ export const TOKEN_SCREENS: Record<TokenScreenId, { title: string; kinds: Kind[]
   border: { title: '의미 테두리', kinds: [border, outline] },
   effect: { title: '효과', kinds: [shadow, opacity, blur] },
   layout: { title: '화면 크기', kinds: [breakpoint, container, aspect] },
-  motion: { title: '움직임', kinds: [duration, ease] },
+  motion: { title: '움직임', kinds: [duration, ease, delay, animate] },
   // 나중에 생긴 판이라 맨 뒤에 둔다. 앞의 판들은 순서대로 기본 자리가 정해져 있어서, 사이에 끼우면 모두 밀린다.
   role: { title: '의미 색', kinds: [role] },
   style: { title: '의미 글꼴', kinds: [style] },

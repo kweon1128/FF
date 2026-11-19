@@ -4,7 +4,7 @@
 
 import { useContext, useState, type FormEvent, type ReactNode } from 'react'
 import type { Token } from './lib/api'
-import { SLUG, shortName, typedNameProblem, type Kind } from './lib/catalog'
+import { SLUG, shortName, NAME_SHAPE, typedNameProblem, type Kind } from './lib/catalog'
 import { readKindNote, writeKindNote, type KindExample, type KindShape } from './lib/kindnote'
 import { sampleColors, type SampleColors } from './lib/sample'
 import { CODE_OPEN, CodeRows, FoldSection, Section, WHERE_OPEN } from './Inspector'
@@ -36,6 +36,10 @@ export type ValueSpec<S extends string = string> = {
   cells: Cell[]
   read: (value: string) => string[] | null
   write: (numbers: number[]) => string | null
+  /** 패널에서 숫자 칸만으로 고칠 수 없는 값을 고치는 칸들(애니메이션, 끊기는 곡선). 그 값을 읽을 수 없으면 null을 돌려주고, 그때는 숫자 칸이나 글자로 고친다. */
+  fields?: (value: string, onValue: (value: string) => void) => ReactNode | null
+  /** 추가 창에서 값 칸의 이름표. 주지 않으면 valueTitle이다. */
+  addTitle?: string
   /** 추가 창에서 값을 정하는 칸. 주지 않으면 cells의 숫자 칸이 빈 채로 나온다. draft는 값(아직 정하지 않았으면 빈 글자)이다. */
   addField?: (draft: string, setDraft: (value: string) => void, error?: string) => ReactNode
   /** 추가 창에서 값을 정하지 않았을 때의 알림. */
@@ -90,7 +94,8 @@ export function CellsInput({ spec, value, onValue, live = false, invalid = false
     if (made === null) {
       // 숫자가 아닌 칸은 적는 중에 이미 빨갛게 보였다. 그대로 벗어나면 저장된 값으로 되돌린다.
       // 칸은 모두 숫자인데 값이 되지 않는 것(범위 밖)은 다 적어야 아는 것이라 빨갛게 남긴다.
-      if (drafts.every((d) => NUMBER.test(d))) return setBad(true)
+      // 칸이 여럿인 값에서 한 칸만 비운 것은 옆 칸으로 옮겨 가며 고치는 중이다. 다른 칸까지 되돌리지 않는다.
+      if (drafts.every((d) => d === '' || NUMBER.test(d))) return setBad(drafts.every((d) => NUMBER.test(d)))
       setDrafts(spec.read(value) ?? blank)
       return setBad(false)
     }
@@ -105,7 +110,7 @@ export function CellsInput({ spec, value, onValue, live = false, invalid = false
       negative={spec.cells[i].negative}
       placeholder={spec.cells[i].placeholder}
       // 숫자가 아닌 것은 적는 중에 알린다("-", "0."처럼 적는 도중의 꼴은 아니다).
-      invalid={invalid || (!live && drafts[i] !== '' && !NUMBER.test(drafts[i]) && !/^-?\d*\.?$/.test(drafts[i])) || (bad && !NUMBER.test(drafts[i])) || (bad && valueOf(drafts) === null)}
+      invalid={invalid || (!live && drafts[i] !== '' && !NUMBER.test(drafts[i]) && !/^-?\d*\.$|^-$/.test(drafts[i])) || (bad && !NUMBER.test(drafts[i])) || (bad && valueOf(drafts) === null)}
       onDigits={(digits, typing) => change(i, digits, typing)}
       onBlur={commit}
     />
@@ -252,15 +257,18 @@ export function ValueInspector<S extends string>({
   const [textDraft, setTextDraft] = useState(text)
   const [rawDraft, setRawDraft] = useState(token.value)
   // 숫자 칸으로 읽을 수 있는 값인지. 읽을 수 없으면(clamp(), steps(), 낱말) 글자로 고친다.
-  const celled = spec.read(token.value) !== null
+  const custom = spec.fields?.(token.value, (value) => onChange({ value })) ?? null
+  const celled = custom !== null || spec.read(token.value) !== null
 
   function commitName() {
     const next = nameDraft.trim()
     // 비웠거나 쓸 수 없는 글자가 든 이름은 적는 중에 알 수 있는 것이다. 그대로 벗어나면 저장된 이름으로 되돌린다(DESIGN.md field-rules).
-    if (!next || !SLUG.test(next)) {
+    if (!next || typedNameProblem(next)) {
       setNameError(null)
       return setNameDraft(short)
     }
+    // 글자는 맞지만 모양이 틀린 이름(card-, card--big)은 다 적어야 아는 것이다. 말없이 되돌리지 않고 까닭과 함께 칸에 남긴다.
+    if (!SLUG.test(next)) return setNameError(NAME_SHAPE)
     // 고치지 않은 이름은 검사하지 않는다(예전부터 있던 이름에 오류를 붙이지 않는다).
     if (next === short) return setNameError(null)
     const problem = nameProblem(kind, spec as unknown as ValueSpec, next, tokens, token.name)
@@ -303,7 +311,9 @@ export function ValueInspector<S extends string>({
       </Section>
 
       <Section title={spec.valueTitle}>
-        {celled ? (
+        {custom !== null ? (
+          custom
+        ) : celled ? (
           <CellsInput spec={spec} value={token.value} onValue={(value) => onChange({ value })} />
         ) : (
           <input
@@ -388,7 +398,7 @@ export function NewValueForm<S extends string>({ kind, spec, tokens, onCreate, o
           }}
         />
       </Field>
-      <Field label={spec.valueTitle} plain error={error.value}>
+      <Field label={spec.addTitle ?? spec.valueTitle} plain error={error.value}>
         {spec.addField ? spec.addField(value, setDraft, error.value) : <CellsInput spec={spec} value="" live invalid={!!error.value} onValue={setDraft} />}
       </Field>
       <Field label="설명">

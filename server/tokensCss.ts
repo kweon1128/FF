@@ -1,6 +1,8 @@
 // tokens.css 안의 @theme 블록을 읽고 쓴다.
 // @theme 바깥의 내용은 건드리지 않는다(FF가 만드는 의미 글꼴 클래스 구역만 예외). 블록 안의 주석은 붙어 있던 값을 따라 보존한다.
 
+import { keyframesCss } from '../src/lib/keyframes.ts'
+
 /** note는 값과 같은 줄 뒤에 붙은 주석의 내용. 의미 색의 역할과 설명을 여기에 적는다. */
 export type Token = { name: string; value: string; note?: string }
 
@@ -75,9 +77,9 @@ export function writeTokens(css: string, tokens: Token[]): string {
       .join('') + tail.map((c) => `  ${c}\n`).join('')
   if (!theme) {
     const head = css.trimEnd()
-    return withGuide(withTypeClasses(`${head}${head ? '\n\n' : ''}@theme {\n${body}}\n`, tokens))
+    return withGuide(withKeyframes(withTypeClasses(`${head}${head ? '\n\n' : ''}@theme {\n${body}}\n`, tokens), tokens))
   }
-  return withGuide(withTypeClasses(`${css.slice(0, theme.open)}\n${body}${css.slice(theme.close)}`, tokens))
+  return withGuide(withKeyframes(withTypeClasses(`${css.slice(0, theme.open)}\n${body}${css.slice(theme.close)}`, tokens), tokens))
 }
 
 // 파일 맨 위에 적어 두는 안내. 이 파일을 여는 AI에게, 값 뒤의 주석을 어떤 형식으로 적으면 FF의 판에 실제 쓰임이 보이는지 알려 준다.
@@ -105,9 +107,11 @@ const GUIDE_TEXT = `/* ff:guide
   효과(--shadow-이름, --opacity-이름, --blur-이름)의 주석
     종류(모양): 설명 | 문구 | 모양: 문구
     예) 그림자(메뉴): 고르는 목록, 알림 | 이름 바꾸기, 복제, 삭제 | 알림: 저장했어요
-    종류와 그 모양: 그림자(메뉴, 창, 알림, 카드), 투명도(비활성, 끌기, 배경 가림, 겹침), 흐림(유리)
+    종류와 그 모양: 그림자(메뉴, 창, 알림, 카드, 입력칸), 투명도(비활성, 끌기, 배경 가림, 겹침), 흐림(유리, 상단 바)
     효과의 이름은 단계(sm, md)보다 쓰임(float, dialog, disabled)으로 짓는다.
     그림자의 창 문구는 제목, 입력칸의 이름표, 아래 버튼들의 순서대로 적는다(새 디자인 시스템, 이름, 취소, 만들기). 입력칸이 없는 창은 이름표 자리에 -를 적는다.
+    그림자의 색은 rgb(0 0 0 / 0.06)처럼 직접 적거나, 색상 판의 값을 따라가게 color-mix(in srgb, var(--color-이름) 20%, transparent)로 적는다. 안쪽 그림자는 겹 앞에 inset을 적는다(모양은 입력칸. 문구는 칸에 적힌 말).
+    흐림의 상단 바 문구는 막대의 제목과 그 아래 내용의 줄들이다.
 
   모서리(--corner-숫자: 숫자px)와 의미 모서리(--radius-이름: var(--corner-숫자))의 주석
     묶음(모양): 설명 | 문구 | 모양: 문구
@@ -146,13 +150,16 @@ const GUIDE_TEXT = `/* ff:guide
     문구: 창은 제목, 이름표, 버튼들. 색 고르는 창은 창의 제목, 이름표, 색 값, 버튼들. 목록과 목록 바깥 면은 창의 제목, 칸의 이름표, 줄들. 메뉴와 바깥 면은 버튼의 말과 줄들. 선택 이름표는 "이름 · 값"과 이웃 줄들. 안내선은 거리와 판의 제목들.
     겹치는 순서는 (모양)을 적은 값에만 예시가 그려진다.
 
-  움직임(시간 --transition-duration-이름, 이징 --ease-이름)의 주석
+  움직임(시간 --transition-duration-이름, 이징 --ease-이름, 지연 --transition-delay-이름, 애니메이션 --animate-이름)의 주석
     종류(모양): 설명 | 문구 | 모양: 문구
     예) 시간(이동): 캔버스가 판으로 미끄러져 가는 시간 | 의미 색
-    종류: 시간, 이징. 모양은 둘이 같다: 이동, 바탕, 창, 알림
-    시간은 ms로 적고(300ms) 클래스는 duration-이름이다. 이징은 곡선의 네 숫자로 적고(cubic-bezier(0, 0, 0.58, 1)) 클래스는 ease-이름이다.
+    종류와 그 모양: 시간과 이징(이동, 바탕, 창, 알림, 접기, 커짐), 지연(차례, 도움말), 애니메이션(로딩 버튼, 자리 표시, 알림 점, 알림, 입력칸)
+    시간은 ms로 적고(300ms) 클래스는 duration-이름이다. 이징은 곡선의 네 숫자로 적고(cubic-bezier(0, 0, 0.58, 1)) 클래스는 ease-이름이다. 끊기는 움직임은 steps(4, end)로 적는다.
+    지연은 ms로 적고(40ms) 클래스는 delay-이름이다.
+    애니메이션은 움직임, 시간, 이징, 되풀이의 네 낱말로 적고(spin 1000ms linear infinite. 되풀이는 횟수나 infinite) 클래스는 animate-이름이다.
+    움직임은 spin(돌기), pulse(깜박임), ping(퍼짐), bounce(튕김), fade-in(나타남), rise(올라옴), shake(흔들림) 가운데 하나다. 그 단계는 FF가 파일 끝의 ff:motion 구역에 적으므로 직접 적지 않는다.
     이름은 빠르기(fast, slow)보다 쓰임(glide, fade)으로 짓고, 숫자로 시작하지 않는다. 화면은 duration-150처럼 숫자를 바로 쓰지 않고 이름을 쓴다.
-    문구: 이동은 움직이는 판의 제목과 그 판의 값 이름들(의미 색, ink, canvas, hairline). 바탕은 메뉴의 줄들. 창은 버튼의 말과 창의 제목. 알림은 알림의 말.
+    문구: 이동은 움직이는 판의 제목과 그 판의 값 이름들(의미 색, ink, canvas, hairline). 바탕은 메뉴의 줄들. 창은 버튼의 말과 창의 제목. 알림은 알림의 말. 접기는 구역의 제목과 그 안의 줄들. 커짐은 카드의 제목과 그 아래 글. 차례는 줄들. 도움말은 버튼의 말과 도움말. 로딩 버튼은 버튼의 말. 알림 점은 그 줄의 말. 입력칸은 이름표와 칸에 적힌 말.
     움직임은 (모양)을 적은 값에만 예시가 그려진다. 예시는 그 줄에 마우스를 올리면 그 값으로 움직인다.
 
   화면 크기(브레이크포인트 --breakpoint-이름, 컨테이너 너비 --container-이름, 비율 --aspect-이름)의 주석
@@ -198,7 +205,7 @@ const GUIDE_TEXT = `/* ff:guide
   한 값을 여러 자리에 쓰면 뒤에 " | 모양: 문구"를 자리마다 이어 적는다.
   여럿을 늘어놓는 모양(버튼, 버튼 글자, 메뉴, 탭, 뱃지, 숫자, 그림자의 메뉴, 투명도의 끌기, 의미 간격의 사이·글줄 사이·이름표·줄·칸·묶음, 의미 모서리의 버튼·줄·메뉴·창·뱃지, 의미 테두리의 상자·구분선·옆선)은 문구를 쉼표와 빈칸으로 나눈다.
   주석은 값과 같은 줄에 한 줄로 적는다.
-  파일 끝의 ff:type 구역은 FF가 저장할 때마다 다시 쓰므로 고치지 않는다.
+  파일 끝의 ff:type 구역과 ff:motion 구역은 FF가 저장할 때마다 다시 쓰므로 고치지 않는다.
 ff:guide 끝 */`
 
 /** 파일 맨 위의 안내를 지금 것으로 바꿔 넣는다. 없으면 맨 위에 더한다. */
@@ -231,6 +238,20 @@ function withTypeClasses(css: string, tokens: Token[]): string {
   const rest = css.replace(CLASSES, '\n').trimEnd()
   const classes = typeClasses(tokens)
   return classes ? `${rest}\n\n${CLASSES_START}\n${classes}${CLASSES_END}\n` : `${rest}\n`
+}
+
+// 애니메이션(--animate-이름)이 고른 움직임의 단계(@keyframes)를 파일 끝에 함께 적어 둔다. 애니메이션의 값은 한 줄이지만 단계는 여러 줄짜리 글이라 값으로 다룰 수 없다.
+// 단계는 FF가 준비해 둔 것이다(src/lib/keyframes.ts). 값의 첫 낱말이 그 이름일 때만 적는다. 다른 이름의 움직임은 사람이 이 구역 밖에 직접 적은 것을 쓴다.
+// 이 구역도 저장할 때마다 값에서 다시 만든다. 값 블록의 밖에 적으므로 쓰지 않는 단계가 남지 않게 지금 쓰는 것만 적는다.
+const MOTION_START = '/* ff:motion 애니메이션이 쓰는 움직임의 단계. 저장할 때마다 다시 쓰므로 직접 고치지 않는다. */'
+const MOTION_END = '/* ff:motion 끝 */'
+const MOTION = /\n*\/\* ff:motion [\s\S]*?\/\* ff:motion 끝 \*\/[ \t]*\n?/g
+
+function withKeyframes(css: string, tokens: Token[]): string {
+  const rest = css.replace(MOTION, '\n').trimEnd()
+  const used = tokens.filter((t) => t.name.startsWith('--animate-')).map((t) => t.value.trim().split(/\s+/)[0])
+  const frames = keyframesCss(used)
+  return frames ? `${rest}\n\n${MOTION_START}\n${frames}${MOTION_END}\n` : `${rest}\n`
 }
 
 export function isValidToken(token: unknown): token is Token {

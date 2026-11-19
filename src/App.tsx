@@ -86,7 +86,7 @@ import { isBorderKind } from './lib/borders'
 import { LayerInspector, NewLayerForm } from './Layers'
 import { NewValueForm, ValueInspector } from './ValueBoard'
 import { specOf } from './valueSpecs'
-import { isEffectKind } from './lib/effects'
+import { followShadowRefs, isEffectKind, shadowRefs } from './lib/effects'
 import { NewSpaceUseForm, SpaceUseInspector, spaceVars } from './Spacing'
 import { LengthInspector, NewLengthForm, NewSizeForm, SizeInspector, SizeThings, SizeViewSwitch, sizeVars, type SizeView } from './Sizes'
 import { isSizeKind, readSizeNote, type SizeGroup } from './lib/sizes'
@@ -803,6 +803,11 @@ export function App() {
     return list.map((t) => {
       const ref = refOf(t.value)
       if (ref && renames[ref]) return { ...t, value: refTo(renames[ref]) }
+      // 그림자의 겹이 가리키는 색도 새 이름을 따라간다.
+      if (KINDS.shadow.matches(t.name)) {
+        const value = followShadowRefs(t.value, renames)
+        return value === t.value ? t : { ...t, value }
+      }
       // 의미 간격은 가리키는 간격의, 의미 크기는 가리키는 크기의, 의미 모서리는 가리키는 모서리의 새 이름을 따라간다.
       const space = (SPACE_REF.exec(t.value) ?? LENGTH_REF.exec(t.value) ?? CORNER_REF.exec(t.value) ?? THICKNESS_REF.exec(t.value))?.[1]
       return space && renames[space] ? { ...t, value: `var(${renames[space]})` } : t
@@ -1036,6 +1041,8 @@ export function App() {
       ...typeUsers(tokens, n)
         .filter((u) => !names.includes(u))
         .map((u) => shortName(STYLE, u)),
+      // 이 색을 가리키는 그림자도 함께 센다.
+      ...tokens.filter((t) => !names.includes(t.name) && KINDS.shadow.matches(t.name) && shadowRefs(t.value).includes(n)).map((t) => shortName(KINDS.shadow, t.name)),
       // 이 간격을 가리키는 의미 간격도 함께 센다.
       ...tokens.filter((t) => !names.includes(t.name) && KINDS.spaceUse.matches(t.name) && SPACE_REF.exec(t.value)?.[1] === n).map((t) => shortName(KINDS.spaceUse, t.name)),
       // 이 크기를 가리키는 의미 크기(높이, 폭, 정사각형)도 함께 센다.
@@ -1811,7 +1818,7 @@ export function App() {
         { id: 'a:opacity', group: '명령', label: '투명도 추가', run: () => setAddingEffect(KINDS.opacity) },
         { id: 'a:blur', group: '명령', label: '흐림 추가', run: () => setAddingEffect(KINDS.blur) },
         { id: 'a:z', group: '명령', label: '겹치는 순서 추가', run: () => setAddingLayer(true) },
-        ...[KINDS.duration, KINDS.ease, KINDS.breakpoint, KINDS.container, KINDS.aspect].map((kind) => ({ id: `a:${kind.id}`, group: '명령', label: kind.addLabel, run: () => setAddingValue(kind) })),
+        ...[KINDS.duration, KINDS.ease, KINDS.delay, KINDS.animate, KINDS.breakpoint, KINDS.container, KINDS.aspect].map((kind) => ({ id: `a:${kind.id}`, group: '명령', label: kind.addLabel, run: () => setAddingValue(kind) })),
         { id: 'a:sizes', group: '명령', label: '글자 크기 한 벌 만들기', run: () => setMakingSizes(true) },
         { id: 'a:weights', group: '명령', label: '굵기 한 벌 만들기', run: () => setMakingWeights(true) },
         { id: 'a:types', group: '명령', label: '의미 글꼴 한 벌 만들기', run: () => setMakingTypes(true) },
@@ -2199,6 +2206,7 @@ export function App() {
             <EffectInspector
               key={selectionId}
               token={selectedTokens[0]}
+              tokens={tokens}
               kind={commonKind}
               allNames={tokens.map((t) => t.name)}
               file={file}
@@ -2289,6 +2297,7 @@ export function App() {
               roles={[
                 ...tokens.filter((t) => refOf(t.value) === selectedTokens[0].name).map((t) => t.name),
                 ...typeUsers(tokens, selectedTokens[0].name),
+                ...tokens.filter((t) => KINDS.shadow.matches(t.name) && shadowRefs(t.value).includes(selectedTokens[0].name)).map((t) => t.name),
                 ...tokens.filter((t) => KINDS.spaceUse.matches(t.name) && SPACE_REF.exec(t.value)?.[1] === selectedTokens[0].name).map((t) => t.name),
               ]}
               onOpenToken={goToken}

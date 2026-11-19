@@ -15,7 +15,7 @@ import { LayerList } from './Layers'
 import { ValueList } from './ValueBoard'
 import { specOf } from './valueSpecs'
 import { isBorderKind, resolveThickness } from './lib/borders'
-import { isEffectKind } from './lib/effects'
+import { isEffectKind, shadowRefs } from './lib/effects'
 import { isFreeKind, orderKinds } from './lib/order'
 import type { SpaceUse } from './lib/spacing'
 import { resolveLength, type SizeGroup } from './lib/sizes'
@@ -112,6 +112,8 @@ const MISSING: Record<string, { noun: string; lost: (all: Token[], t: Token) => 
   radius: { noun: '모서리', lost: pointsNowhere(resolveCorner) },
   border: { noun: '테두리', lost: pointsNowhere(resolveThickness) },
   outline: { noun: '테두리', lost: pointsNowhere(resolveThickness) },
+  // 그림자의 겹이 가리키는 색상 판의 색이 없어진 경우.
+  shadow: { noun: '그림자', lost: (all, t) => shadowRefs(t.value).some((n) => !all.some((x) => x.name === n)) },
 }
 
 /**
@@ -625,7 +627,7 @@ function RowSample({ kind, value, line, track }: { kind: Kind; value: string; li
             <span className="absolute inset-x-0 top-[3px] h-px bg-guide" />
             <span className="absolute top-0 left-0 h-full w-px bg-guide" />
             <span className="absolute top-0 right-0 h-full w-px bg-guide" />
-            <span data-measure-tag className="absolute bottom-full left-1/2 mb-[4px] -translate-x-1/2 rounded-tag bg-guide px-chip-x type-caption-strong whitespace-nowrap text-on-selection tabular-nums!">
+            <span data-measure-tag className="absolute bottom-full left-1/2 mb-[4px] -translate-x-1/2 rounded-tag bg-guide px-[4px] type-caption-strong whitespace-nowrap text-on-selection tabular-nums!">
               {parseFloat(value)}
             </span>
           </span>

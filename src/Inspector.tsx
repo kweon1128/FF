@@ -2,7 +2,7 @@ import { ICON_STROKE } from './lib/icons'
 import { useState, type ReactNode } from 'react'
 import { ChevronDown, ChevronRight, Copy, PencilLine, Pipette, Rows3, Type } from 'lucide-react'
 import type { Token } from './lib/api'
-import { ALL_KINDS, COLOR_REF, SLUG, groupOf, shortName, typedNameProblem, type Kind } from './lib/catalog'
+import { ALL_KINDS, COLOR_REF, SLUG, groupOf, shortName, NAME_SHAPE, typedNameProblem, type Kind } from './lib/catalog'
 import { asHex, isApprox, showColor, toHex, toOklch } from './lib/color'
 import { stepValue, suggestLine, suggestTrack } from './lib/tokens'
 import { ColorSwatch } from './ColorPicker'
@@ -234,7 +234,7 @@ const UNIT = /^(-?\d*\.?\d+)(px|rem|em|ms|s|%)$/
 const NUMBER = /^\d*\.?\d+$/
 const SIGNED = /^-?\d*\.?\d+$/
 /** 숫자를 적는 도중의 꼴("-", "0.", "-."). 아직 숫자는 아니지만 틀린 것도 아니라서 적는 중에는 알리지 않는다. */
-const PARTIAL = /^-?\d*\.?$/
+const PARTIAL = /^-?\d*\.$|^-$/
 const digitsOf = (value: string | null | undefined) => (value ?? '').replace(/px$/, '')
 
 /** 오른쪽 편집 패널. 선택한 값이 바뀌면 key로 새로 만들어져 입력 중이던 내용이 초기화된다. */
@@ -315,7 +315,7 @@ export function Inspector({
   function changeTrack(next: string, typing = false) {
     setTrackDraft(next)
     setTrackError(null)
-    if (next && !SIGNED.test(next)) return setTrackError(PARTIAL.test(next) ? null : '숫자를 입력해 주세요.')
+    if (next && !SIGNED.test(next)) return setTrackError(typing && PARTIAL.test(next) ? null : '숫자를 입력해 주세요.')
     // 적는 동안은 저장하지 않는다(값 칸과 같다). 칸을 벗어날 때 저장한다.
     if (typing) return
     if (!next) return onTrack?.(null)
@@ -343,7 +343,9 @@ export function Inspector({
 
   /** 칸을 벗어날 때. 비어 있거나 받을 수 없는 값이면 저장된 값으로 되돌리고, 아니면 적어 둔 값을 저장한다. */
   function commitDigits() {
-    if (!digits || valueError) {
+    // 적는 도중의 꼴("1.", "-")이나 받을 수 없는 값을 둔 채 벗어나도 되돌린다. 적는 중에 오류가 없었더라도 값이 되지 않으면 남기지 않는다.
+    const unfit = !(negative ? SIGNED : NUMBER).test(digits) || (positive && Number(digits) <= 0)
+    if (!digits || valueError || unfit) {
       setValueError(null)
       return savedDigits ? changeDigits(savedDigits) : undefined
     }
@@ -354,7 +356,7 @@ export function Inspector({
   function changeLine(digits: string, typing = false) {
     setLineDraft(digits)
     setLineError(null)
-    if (digits && (!NUMBER.test(digits) || Number(digits) <= 0)) return setLineError(typing && /^\d*\.?$/.test(digits) ? null : '숫자를 입력해 주세요.')
+    if (digits && (!NUMBER.test(digits) || Number(digits) <= 0)) return setLineError(typing && /^\d*\.$/.test(digits) ? null : '숫자를 입력해 주세요.')
     // 적는 동안은 저장하지 않는다(값 칸과 같다). 칸을 벗어날 때 저장한다.
     if (typing) return
     if (!digits) return onLine?.(null)
@@ -367,10 +369,15 @@ export function Inspector({
     setGroupError(null)
     setNameError(null)
     // 비웠거나 쓸 수 없는 글자가 든 이름은 적는 중에 알 수 있는 것이다. 그대로 벗어나면 저장된 이름으로 되돌린다(DESIGN.md field-rules).
-    if ((group && !SLUG.test(group)) || !name || (isColor ? !PLAIN.test(name) : !SLUG.test(name))) {
-      setGroupDraft(initialGroup)
-      return setNameDraft(initialName)
-    }
+    // 틀린 칸만 되돌린다. 이름 칸이 틀렸다고 고쳐 둔 목록 칸까지 버리지 않는다.
+    const badGroup = !!group && !!typedNameProblem(group)
+    const badName = !name || (isColor ? !PLAIN.test(name) : !!typedNameProblem(name))
+    if (badGroup) setGroupDraft(initialGroup)
+    if (badName) setNameDraft(initialName)
+    if (badGroup || badName) return
+    // 글자는 맞지만 모양이 틀린 이름(card-, card--big)은 다 적어야 아는 것이다. 말없이 되돌리지 않고 까닭과 함께 칸에 남긴다.
+    if (group && !SLUG.test(group)) return setGroupError(NAME_SHAPE)
+    if (!isColor && !SLUG.test(name)) return setNameError(NAME_SHAPE)
     const next = group ? `${group}-${name}` : name
     if (next === short) return
     if (allNames.includes(kind.prefix + next)) return setNameError('같은 이름이 이미 있어요.')
@@ -449,7 +456,8 @@ export function Inspector({
                 value={groupDraft}
                 onChange={(e) => {
                   setGroupDraft(e.target.value)
-                  setGroupError(null)
+                  // 목록 이름도 쓸 수 없는 글자는 적는 중에 알린다.
+                  setGroupError(typedNameProblem(e.target.value))
                 }}
                 onBlur={commitName}
                 onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
@@ -534,7 +542,7 @@ export function Inspector({
                 onDigits={changeLine}
                 // 틀린 값을 둔 채 벗어나면 저장된 값으로 되돌린다(값 칸과 같다).
                 onBlur={() => {
-                  if (lineError) {
+                  if (lineError || (lineDraft && (!NUMBER.test(lineDraft) || Number(lineDraft) <= 0))) {
                     setLineDraft(digitsOf(line))
                     return setLineError(null)
                   }
@@ -558,7 +566,7 @@ export function Inspector({
                 negative
                 onDigits={changeTrack}
                 onBlur={() => {
-                  if (trackError) {
+                  if (trackError || (trackDraft && !SIGNED.test(trackDraft))) {
                     setTrackDraft((track ?? '').replace(/em$/, ''))
                     return setTrackError(null)
                   }

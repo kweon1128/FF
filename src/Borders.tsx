@@ -7,7 +7,7 @@ import { ICON_STROKE } from './lib/icons'
 import { useContext, useState, type FormEvent, type ReactNode } from 'react'
 import { ArrowUpRight } from 'lucide-react'
 import type { Token } from './lib/api'
-import { KINDS, SLUG, lengthLabel, shortName, typedNameProblem, type Kind } from './lib/catalog'
+import { KINDS, SLUG, lengthLabel, shortName, NAME_SHAPE, typedNameProblem, type Kind } from './lib/catalog'
 import { BORDER_WORDS, isBorderListShape, readBorderNote, resolveThickness, thicknessRefOf, writeBorderNote, type BorderKind, type BorderShape } from './lib/borders'
 import { sampleColors, type SampleColors } from './lib/sample'
 import { NavRows, PanelSection } from './SampleParts'
@@ -274,10 +274,12 @@ export function BorderInspector({
   function commitName() {
     const next = nameDraft.trim()
     // 비웠거나 쓸 수 없는 글자가 든 이름은 적는 중에 알 수 있는 것이다. 그대로 벗어나면 저장된 이름으로 되돌린다(DESIGN.md field-rules).
-    if (!next || !SLUG.test(next)) {
+    if (!next || typedNameProblem(next)) {
       setNameError(null)
       return setNameDraft(short)
     }
+    // 글자는 맞지만 모양이 틀린 이름(card-, card--big)은 다 적어야 아는 것이다. 말없이 되돌리지 않고 까닭과 함께 칸에 남긴다.
+    if (!SLUG.test(next)) return setNameError(NAME_SHAPE)
     // 고치지 않은 이름은 검사하지 않는다(예전부터 있던 이름에 오류를 붙이지 않는다).
     if (next === short) return setNameError(null)
     const problem = nameProblem(kind, next, tokens, token.name)

@@ -6,7 +6,7 @@ import { CHECK_STROKE, ICON_STROKE } from './lib/icons'
 import { useContext, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import { ArrowUpRight, Check as CheckIcon, ChevronDown, Copy, Folder, Minus, Plus, X } from 'lucide-react'
 import type { Token } from './lib/api'
-import { ALL_KINDS, KINDS, SLUG, lengthLabel, shortName, typedNameProblem, type Kind } from './lib/catalog'
+import { ALL_KINDS, KINDS, SLUG, lengthLabel, shortName, NAME_SHAPE, typedNameProblem, type Kind } from './lib/catalog'
 import { resolveColor, type Around } from './lib/roles'
 import { SIZE_GROUPS, SIZE_SHAPES, SIZE_WORDS, guessSizeGroup, isSizeKind, isSizeListShape, lengthRefOf, readSizeNote, resolveLength, writeSizeNote, type SizeExample, type SizeGroup, type SizeShape } from './lib/sizes'
 import { PreviewFontContext, PreviewSpaceContext } from './ColorUses'
@@ -28,7 +28,7 @@ const MARK = 'var(--color-guide)'
 /** 치수선이 차지하는 자리(px): 요소와의 거리 8, 선의 굵기 1, 선 밖으로 나가는 가로대 3. 예시 상자가 선이 놓이는 쪽에 이만큼 여백을 더 둔다. */
 const RESERVE = 12
 /** 치수선에 적는 값의 이름표. 판을 끌 때 간격을 적는 이름표와 같은 모양이다(안내 색 바탕에 흰 숫자, 높이 16px). 선의 바깥쪽에 4px 띄워 놓는다. */
-const TAG = 'rounded-tag bg-guide px-chip-x type-caption-strong whitespace-nowrap text-on-selection tabular-nums!'
+const TAG = 'rounded-tag bg-guide px-[4px] type-caption-strong whitespace-nowrap text-on-selection tabular-nums!'
 const TAG_GAP = 4
 const TAG_HEIGHT = 16
 /** 이름표의 폭(px)을 어림한 값. 좌우 여백 4씩에 숫자 한 글자가 7쯤이다. 예시 상자의 여백을 정하는 데 쓴다. */
@@ -97,7 +97,7 @@ export function SizeSample({
   const scale = sampleScale(kind, value, both ? pair : undefined, fit)
   const TEXT = 'text-sm leading-5'
   const SMALL = 'text-xs leading-4'
-  const line = `color-mix(in oklab, ${around.ink} 32%, ${around.surface})`
+  const line = paints(around).line
   const faint = paints(around).filler
   const hover = paints(around).hover
   const soft = paints(around).soft
@@ -877,7 +877,9 @@ export function SizeInspector({
     const next = nameDraft.trim()
     setNameError(null)
     // 비웠거나 쓸 수 없는 글자가 든 이름은 적는 중에 알 수 있는 것이다. 그대로 벗어나면 저장된 이름으로 되돌린다(DESIGN.md field-rules).
-    if (!next || !SLUG.test(next)) return setNameDraft(short)
+    if (!next || typedNameProblem(next)) return setNameDraft(short)
+    // 글자는 맞지만 모양이 틀린 이름(card-, card--big)은 다 적어야 아는 것이다. 말없이 되돌리지 않고 까닭과 함께 칸에 남긴다.
+    if (!SLUG.test(next)) return setNameError(NAME_SHAPE)
     if (next === short) return
     // 숫자로 시작하는 이름은 Tailwind의 숫자 클래스(h-8, opacity-50)와 같은 글자가 된다. 다른 의미 판과 같이 막는다.
     if (/^\d/.test(next)) return setNameError('숫자로 시작할 수 없어요.')

@@ -62,6 +62,13 @@
           "padY": "--gutter-12",
           "textSize": "--text-base",
           "gap": "--gutter-8"
+        },
+        {
+          "name": "lg",
+          "padX": "--gutter-24",
+          "padY": "--gutter-16",
+          "textSize": "--text-base",
+          "gap": "--gutter-8"
         }
       ]
     }

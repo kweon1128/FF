@@ -6,14 +6,16 @@ import { ICON_STROKE } from './lib/icons'
 import { useContext, useState, type ReactNode } from 'react'
 import { Plus, X } from 'lucide-react'
 import type { Token } from './lib/api'
-import { SLUG, shortName, typedNameProblem, type Kind } from './lib/catalog'
-import { EFFECT_WORDS, nextLayer, parseShadow, splitLayers, readEffectNote, writeEffectNote, writeShadow, type EffectKind, type EffectShape, type ShadowLayer } from './lib/effects'
-import type { Around } from './lib/roles'
+import { SLUG, shortName, NAME_SHAPE, typedNameProblem, type Kind } from './lib/catalog'
+import { EFFECT_WORDS, hexOfLayer, nextLayer, paintShadow, parseShadow, rgbOfHex, splitLayers, readEffectNote, writeEffectNote, writeShadow, type EffectKind, type EffectShape, type ShadowLayer } from './lib/effects'
+import { resolveColor, type Around } from './lib/roles'
+import { ColorField } from './BoardInspector'
+import { RefPicker } from './Roles'
 import { paints, sampleColors } from './lib/sample'
 import { PreviewFontContext, PreviewSpaceContext } from './ColorUses'
 import { CODE_OPEN, CodeRows, FoldSection, ICON_BUTTON, Section, WHERE_OPEN } from './Inspector'
 import { DetailsFolded, HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
-import { Button, Field, Phrases, UnitInput, inputClass , linkRowClass } from './ui'
+import { Button, Field, Phrases, Segmented, UnitInput, inputClass, linkRowClass } from './ui'
 import { useReorder } from './useReorder'
 
 // 예시의 바탕이 판의 바탕과 같은 색이어도 가장자리가 보이게 하는 옅은 선.
@@ -106,6 +108,14 @@ export function EffectSample({ shape, value, around, accent, words: written = ''
         </span>,
         true,
       )
+    case 'well':
+      // 안쪽 그림자가 지는 입력칸. 칸의 1px 선 안쪽에 그림자가 져서 안으로 들어가 보인다. 문구는 칸에 적힌 말이다.
+      return frame(
+        <span data-sample className={`flex h-control ${SAMPLE_W} items-center rounded-control px-input-x text-sm leading-5 whitespace-nowrap`} style={{ background: around.surface, boxShadow: `${value}, inset 0 0 0 1px ${faint}` }}>
+          {all}
+        </span>,
+        true,
+      )
     case 'drag': {
       // 끌어 옮기는 중인 줄. 목록 상자 안에서 끄는 줄만 옅어지고, 놓일 자리에 선택 색의 선이 그어진다(2px). 첫 문구가 끄는 줄이고, 선은 마지막 줄 아래에 있다.
       const rows = all
@@ -149,7 +159,7 @@ export function EffectSample({ shape, value, around, accent, words: written = ''
       )
     }
     case 'scrim':
-      // 화면(막대들) 위를 이 시스템의 글자 색으로 덮고, 그 위에 창을 하나 띄운다.
+      // 화면(막대들) 위를 이 시스템의 가리는 막 색(scrim)으로 덮고, 그 위에 창을 하나 띄운다.
       return frame(
         <span className="relative block h-[80px] w-full">
           {bar('w-3/4')}
@@ -163,6 +173,28 @@ export function EffectSample({ shape, value, around, accent, words: written = ''
           </span>
         </span>,
       )
+    case 'bar': {
+      // 내용 위에 떠 있는 반투명 상단 바. 그 아래로 지나가는 글이 이 흐림만큼 흐려 보인다. 문구는 막대의 제목과 그 아래 내용의 줄들이다.
+      const [title, ...rows] = all
+        .split(', ')
+        .map((w) => w.trim())
+        .filter(Boolean)
+      return frame(
+        <span className={`relative block h-[96px] ${SAMPLE_W} overflow-hidden rounded-card`} style={{ boxShadow: `inset 0 0 0 1px ${faint}` }}>
+          {/* 첫 줄이 막대 아래에 반쯤 걸려 있어야 흐려진 것이 보인다. */}
+          <span className="block space-y-rows px-row-x pt-[20px]">
+            {rows.map((text, i) => (
+              <span key={i} className="block text-sm leading-5 whitespace-nowrap">
+                {text}
+              </span>
+            ))}
+          </span>
+          <span data-sample className={`absolute inset-x-0 top-0 flex h-control items-center px-row-x whitespace-nowrap ${STRONG}`} style={{ background: `color-mix(in oklab, ${around.surface} 60%, transparent)`, backdropFilter: `blur(${value})`, boxShadow: `inset 0 -1px 0 ${faint}` }}>
+            {title}
+          </span>
+        </span>,
+      )
+    }
     case 'glass':
       // 뒤에 놓인 것이 얼마나 흐려지는지. 왼쪽은 그대로, 오른쪽은 흐려진 것이다.
       return frame(
@@ -269,7 +301,8 @@ export function EffectList({
             {/* 쓰임이 여럿인 값은 예시도 여럿이다. 위아래로 8px 띄워 쌓는다. */}
             <span className={`min-w-0 flex-1 space-y-blocks ${plain ? 'hidden' : 'block'}`}>
               {!plain && [{ shape, words }, ...more].map((e, k) => (
-                <EffectSample key={k} shape={e.shape} value={t.value} around={around} accent={accent} words={e.words} />
+                // 색상 판의 값을 가리키는 그림자는 이 시스템의 그 색으로 바꿔 그린다. 그대로 두면 var()가 FF 자신의 색을 읽는다.
+                <EffectSample key={k} shape={e.shape} value={id === 'shadow' ? paintShadow(t.value, (name) => resolveColor(all, `var(${name})`)) : t.value} around={around} accent={accent} words={e.words} />
               ))}
             </span>
             {/* 그림자 값은 길어서 이름표에 적지 않는다. */}
@@ -285,22 +318,25 @@ export function EffectList({
 const digitsOf = (n: number) => String(Math.round(n * 1000) / 1000)
 const NUMBER = /^-?\d*\.?\d+$/
 /** 숫자를 적는 도중의 꼴("-", "0.", "-."). 아직 숫자는 아니지만 틀린 것도 아니라서 오류로 알리지 않는다. */
-const PARTIAL = /^-?\d*\.?$/
+const PARTIAL = /^-?\d*\.$|^-$/
 
 /** 그림자 한 겹의 칸들에 적는 중인 숫자. */
 type LayerDraft = { x: string; y: string; blur: string; spread: string; alpha: string }
 const draftOf = (l: ShadowLayer): LayerDraft => ({ x: digitsOf(l.x), y: digitsOf(l.y), blur: digitsOf(l.blur), spread: digitsOf(l.spread), alpha: l.alpha === null ? '' : digitsOf(l.alpha * 100) })
 
 /**
- * 그림자를 겹마다 숫자로 고치는 칸들. 겹 하나는 가로, 세로, 흐림, 퍼짐, 진하기 다섯 칸이다.
+ * 그림자를 겹마다 고치는 칸들. 겹 하나는 위치(바깥·안쪽), 가로, 세로, 흐림, 퍼짐, 색, 진하기다.
+ * 색은 직접 고르거나(견본과 #rrggbb) 색상 판의 값을 가리킨다. 가리키는 색은 색상 판에서 그 색을 바꾸면 따라 바뀐다.
  * 값을 글자로 통째로 적게 하면 "0 4px 16px rgb(0 0 0 / 0.08)"에서 어느 숫자가 무엇인지 외워야 하고, 쉼표 하나를 빠뜨려도 값이 깨진다.
  * 적는 동안은 저장하지 않고 칸을 벗어나거나 Enter를 누를 때 저장한다(↑↓는 바로 저장한다). 칸이 모두 숫자일 때만 저장한다.
  * 숫자가 아닌 것을 적으면 그 칸을 빨갛게 하고 까닭을 적으며, 그대로 벗어나면 저장된 값으로 되돌린다. 비운 칸도 벗어나면 되돌린다.
- * 색을 rgb(…/진하기)가 아닌 꼴로 적은 겹은 진하기 칸 대신 색을 적힌 그대로 보여 준다(여기서 고치지 않는다).
+ * 읽을 수 없는 꼴로 적힌 색(이름, 다른 var())은 색 칸에 옅게 그대로 보여 준다. 색을 새로 고르면 그것으로 바뀌고 진하기 칸이 생긴다.
  */
-function ShadowFields({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+function ShadowFields({ value, tokens, onChange }: { value: string; /** 색상 판의 값을 고르고, 가리키는 색을 찾을 전체 값 목록. */ tokens: Token[]; onChange: (value: string) => void }) {
   const [layers, setLayers] = useState(() => parseShadow(value) ?? [])
   const [drafts, setDrafts] = useState(() => layers.map(draftOf))
+  // "색상 판"을 골랐지만 아직 색을 고르지 않은 겹들. 고르기 전에는 값이 바뀌지 않는다.
+  const [picking, setPicking] = useState<number[]>([])
   // 밖에서 값이 바뀌면(되돌리기, 파일을 직접 고침) 칸을 그 값으로 다시 채운다. 여기서 방금 저장한 값이면 그대로 둔다.
   const [seen, setSeen] = useState(value)
   if (value !== seen) {
@@ -334,6 +370,16 @@ function ShadowFields({ value, onChange }: { value: string; onChange: (value: st
     if (written !== value) onChange(written)
   }
 
+  /** 숫자가 아닌 것(위치, 색)을 바꾼다. 읽을 수 없던 색을 새로 고르면 진하기 칸이 생기므로 그 칸을 채운다. */
+  const change = (i: number, next: Partial<ShadowLayer>) => {
+    const nextLayers = layers.map((l, k) => (k === i ? { ...l, ...next } : l))
+    const alpha = nextLayers[i].alpha
+    const nextDrafts = drafts.map((d, k) => (k === i && alpha !== null && !NUMBER.test(d.alpha) ? { ...d, alpha: digitsOf(alpha * 100) } : d))
+    setLayers(nextLayers)
+    setPicking(picking.filter((k) => k !== i))
+    save(nextLayers, nextDrafts)
+  }
+
   const patch = (i: number, key: keyof LayerDraft, digits: string, typing = false) => {
     const next = drafts.map((d, k) => (k === i ? { ...d, [key]: digits } : d))
     // 자판으로 적는 동안은 칸의 글자만 바꾼다. 28을 적으려면 2를 거치는데, 그 2가 저장되면 그림자가 그사이에 바뀐다.
@@ -346,7 +392,7 @@ function ShadowFields({ value, onChange }: { value: string; onChange: (value: st
     setDrafts(drafts.map((d, k) => (k === i ? { ...d, [key]: draftOf(layers[i])[key] } : d)))
   }
   /** 숫자가 아닌 것이 적힌 칸. 비운 칸은 틀린 것이 아니라 고치는 중이다. */
-  const wrong = (i: number, key: keyof LayerDraft) => !NUMBER.test(drafts[i][key]) && !PARTIAL.test(drafts[i][key])
+  const wrong = (i: number, key: keyof LayerDraft) => drafts[i][key] !== '' && !NUMBER.test(drafts[i][key]) && !PARTIAL.test(drafts[i][key])
 
   const cell = (i: number, key: keyof LayerDraft, label: string, unit: string, negative = false) => (
     <Field label={label} error={wrong(i, key) ? '숫자를 입력해 주세요.' : null}>
@@ -368,6 +414,7 @@ function ShadowFields({ value, onChange }: { value: string; onChange: (value: st
                 title={`겹 ${i + 1} 삭제`}
                 onClick={() => {
                   const keep = (_: unknown, k: number) => k !== i
+                  setPicking([])
                   setLayers(layers.filter(keep))
                   save(layers.filter(keep), drafts.filter(keep))
                 }}
@@ -378,17 +425,39 @@ function ShadowFields({ value, onChange }: { value: string; onChange: (value: st
             )}
           </div>
           <div className="grid grid-cols-2 gap-field-row">
+            {/* 바깥은 요소 밖으로 지는 그림자(떠 있는 것), 안쪽은 요소 안으로 지는 그림자(안으로 들어가 보이는 칸)다. */}
+            <div className="col-span-2">
+              <Field label="위치" plain>
+                <Segmented label={`겹 ${i + 1} 위치`} options={SIDES} value={l.inset ? 'in' : 'out'} onChange={(side) => change(i, { inset: side === 'in' })} />
+              </Field>
+            </div>
             {cell(i, 'x', '가로', 'px', true)}
             {cell(i, 'y', '세로', 'px', true)}
             {cell(i, 'blur', '흐림', 'px')}
             {cell(i, 'spread', '퍼짐', 'px', true)}
-            {l.alpha === null ? (
-              <Field label="색">
-                <span className="flex h-control items-center type-code break-all text-ink-soft">{l.color}</span>
+            <div className="col-span-2">
+              <Field label="색" plain>
+                <div className="space-y-blocks">
+                  <Segmented
+                    label={`겹 ${i + 1} 색 고르는 법`}
+                    options={COLOR_FROM}
+                    value={l.ref || picking.includes(i) ? 'ref' : 'own'}
+                    onChange={(from) => {
+                      if (from === 'ref') return setPicking([...picking, i])
+                      // 가리키던 색을 풀면 지금 보이는 그 색을 직접 적은 색으로 남긴다.
+                      if (!l.ref) return setPicking(picking.filter((k) => k !== i))
+                      change(i, { ref: null, rgb: rgbOfHex(resolveColor(tokens, `var(${l.ref})`) ?? '#000000') })
+                    }}
+                  />
+                  {l.ref || picking.includes(i) ? (
+                    <RefPicker tokens={tokens} value={l.ref} onChange={(name) => change(i, { ref: name, alpha: l.alpha ?? 1 })} />
+                  ) : (
+                    <ColorField label={`겹 ${i + 1} 색`} value={hexOfLayer(l)} placeholder={l.alpha === null ? l.color : ''} onCommit={(hex) => change(i, { ref: null, rgb: rgbOfHex(hex), alpha: l.alpha ?? 1 })} />
+                  )}
+                </div>
               </Field>
-            ) : (
-              cell(i, 'alpha', '진하기', '%')
-            )}
+            </div>
+            {l.alpha !== null && cell(i, 'alpha', '진하기', '%')}
           </div>
         </div>
       ))}
@@ -407,6 +476,15 @@ function ShadowFields({ value, onChange }: { value: string; onChange: (value: st
   )
 }
 
+const SIDES: { id: 'out' | 'in'; label: string }[] = [
+  { id: 'out', label: '바깥' },
+  { id: 'in', label: '안쪽' },
+]
+const COLOR_FROM: { id: 'own' | 'ref'; label: string }[] = [
+  { id: 'own', label: '직접' },
+  { id: 'ref', label: '색상 판' },
+]
+
 /**
  * 숫자 하나로 된 값(투명도는 퍼센트, 흐림은 px)을 고치는 칸.
  * 적는 동안은 저장하지 않고 칸을 벗어나거나 Enter를 누를 때 저장한다(↑↓는 바로 저장한다).
@@ -419,7 +497,7 @@ function NumberField({ label, unit, value, toDigits, fromDigits, onChange }: { l
     setSeen(value)
     if (!NUMBER.test(digits) || fromDigits(digits) !== value) setDigits(toDigits(value))
   }
-  const wrong = !NUMBER.test(digits) && !PARTIAL.test(digits)
+  const wrong = digits !== '' && !NUMBER.test(digits) && !PARTIAL.test(digits)
   function save(next: string) {
     const written = fromDigits(next)
     setSeen(written)
@@ -451,6 +529,7 @@ function NumberField({ label, unit, value, toDigits, fromDigits, onChange }: { l
  */
 export function EffectInspector({
   token,
+  tokens,
   kind,
   allNames,
   file,
@@ -461,6 +540,8 @@ export function EffectInspector({
   onCopy,
 }: {
   token: Token
+  /** 그림자의 색을 색상 판에서 고를 때 쓰는 전체 값 목록. */
+  tokens: Token[]
   kind: Kind
   allNames: string[]
   file: string
@@ -486,7 +567,9 @@ export function EffectInspector({
     const next = nameDraft.trim()
     setNameError(null)
     // 비웠거나 쓸 수 없는 글자가 든 이름은 적는 중에 알 수 있는 것이다. 그대로 벗어나면 저장된 이름으로 되돌린다(DESIGN.md field-rules).
-    if (!next || !SLUG.test(next)) return setNameDraft(short)
+    if (!next || typedNameProblem(next)) return setNameDraft(short)
+    // 글자는 맞지만 모양이 틀린 이름(card-, card--big)은 다 적어야 아는 것이다. 말없이 되돌리지 않고 까닭과 함께 칸에 남긴다.
+    if (!SLUG.test(next)) return setNameError(NAME_SHAPE)
     if (next === short) return
     if (allNames.includes(kind.prefix + next)) return setNameError('같은 이름이 이미 있어요.')
     onRename(kind.prefix + next)
@@ -524,7 +607,7 @@ export function EffectInspector({
 
       <Section title={kind.title}>
         {layered ? (
-          <ShadowFields value={token.value} onChange={(value) => onChange({ value })} />
+          <ShadowFields value={token.value} tokens={tokens} onChange={(value) => onChange({ value })} />
         ) : id === 'opacity' ? (
           <NumberField label="투명도" unit="%" value={token.value} toDigits={(v) => digitsOf(Number(v) * 100)} fromDigits={(d) => String(Math.min(100, Math.max(0, Number(d))) / 100)} onChange={(value) => onChange({ value })} />
         ) : id === 'blur' && /^\d*\.?\d+px$/.test(token.value) ? (

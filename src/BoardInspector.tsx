@@ -120,8 +120,8 @@ export function NumberField({
   )
 }
 
-/** 색 칸. 왼쪽 견본을 누르면 옆에 색 선택 창이 열리고, 오른쪽에는 #rrggbb를 직접 적는다. */
-function ColorField({ label, value, onCommit }: { label: string; value: string | null; onCommit: (value: string) => void }) {
+/** 색 칸. 왼쪽 견본을 누르면 옆에 색 선택 창이 열리고, 오른쪽에는 #rrggbb를 직접 적는다. 그림자의 색 칸도 이것을 쓴다(placeholder는 값이 없을 때 칸에 옅게 보이는 말). */
+export function ColorField({ label, value, placeholder = MIXED, onCommit }: { label: string; value: string | null; placeholder?: string; onCommit: (value: string) => void }) {
   const [draft, setDraft] = useState(value ?? '')
   // 색 선택 창에서 끄는 동안에도 창이 닫히지 않도록, 값이 바뀌면 칸을 새로 만들지 않고 적힌 글자만 맞춘다.
   useEffect(() => setDraft(value ?? ''), [value])
@@ -141,7 +141,7 @@ function ColorField({ label, value, onCommit }: { label: string; value: string |
         // 색으로 읽히지 않는 값을 적는 동안은 빨갛게 한다. 그대로 벗어나면 저장된 값으로 되돌린다(DESIGN.md field-rules).
         className={`${monoInputClass} ${draft.trim() !== '' && !HEX6.test(asHex(draft) ?? '') ? 'border-danger! focus:border-danger!' : ''}`}
         value={draft}
-        placeholder={MIXED}
+        placeholder={placeholder}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}

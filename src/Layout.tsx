@@ -33,7 +33,7 @@ function WidthSample({ shape, value, context, words: written = '' }: { shape: La
   const { colors: c } = context
   const px = pxOf(value)
   if (Number.isNaN(px)) return null
-  const around = { surface: c.surface, ink: c.ink }
+  const around = c
   const words = written || LAYOUT_WORDS[shape]
   const list = words.split(', ').map((w) => w.trim())
   const ring = { boxShadow: `inset 0 0 0 1px ${c.line}` }

@@ -507,7 +507,7 @@ export function UsePicker<T extends string>({
         disabled={disabled}
         className={
           small
-            ? 'flex h-compact w-full min-w-0 items-center gap-button-inner rounded-small border-edge border-hairline bg-canvas px-chip-x text-left type-caption text-ink-soft outline-none hover:border-ink-faint focus:border-selection disabled:opacity-disabled'
+            ? 'flex h-compact w-full min-w-0 items-center gap-button-inner rounded-small border-edge border-hairline bg-canvas px-chip-x text-left type-caption text-ink-soft outline-none hover:border-ink-faint focus:border-selection disabled:opacity-disabled disabled:hover:border-hairline'
             : `${inputClass} flex items-center gap-row-inner text-left disabled:opacity-disabled`
         }
       >

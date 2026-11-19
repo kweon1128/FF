@@ -6,7 +6,7 @@ import { ICON_STROKE } from './lib/icons'
 import { useContext, useState, type FormEvent, type ReactNode } from 'react'
 import { ArrowUpRight } from 'lucide-react'
 import type { Token } from './lib/api'
-import { KINDS, SLUG, groupOf, shortName, typedNameProblem, type Kind } from './lib/catalog'
+import { KINDS, SLUG, groupOf, shortName, NAME_SHAPE, typedNameProblem, type Kind } from './lib/catalog'
 import { contrast, showColor } from './lib/color'
 import { ROLE_USES, ROLE_WORDS, guessUse, isRoleListShape, readNote, refOf, refTo, resolveColor, roleGroups, surroundings, writeNote, type Around, type RoleShape, type RoleUse } from './lib/roles'
 import { DARK, PreviewFontContext, PreviewSpaceContext, inkOn } from './ColorUses'
@@ -339,7 +339,7 @@ export function RoleList({
 }
 
 /** 색상 판의 색 가운데 하나를 고르는 곳. 목록별로 한 줄씩 작은 견본을 늘어놓는다. */
-function RefPicker({ tokens, value, onChange }: { tokens: Token[]; value: string | null; onChange: (name: string) => void }) {
+export function RefPicker({ tokens, value, onChange }: { tokens: Token[]; value: string | null; onChange: (name: string) => void }) {
   const groups = new Map<string, Token[]>()
   for (const t of tokens) {
     if (!COLOR.matches(t.name)) continue
@@ -512,7 +512,9 @@ export function RoleInspector({
     const next = nameDraft.trim()
     setNameError(null)
     // 비웠거나 쓸 수 없는 글자가 든 이름은 적는 중에 알 수 있는 것이다. 그대로 벗어나면 저장된 이름으로 되돌린다(DESIGN.md field-rules).
-    if (!next || !SLUG.test(next)) return setNameDraft(short)
+    if (!next || typedNameProblem(next)) return setNameDraft(short)
+    // 글자는 맞지만 모양이 틀린 이름(card-, card--big)은 다 적어야 아는 것이다. 말없이 되돌리지 않고 까닭과 함께 칸에 남긴다.
+    if (!SLUG.test(next)) return setNameError(NAME_SHAPE)
     if (next === short) return
     // 숫자로 시작하는 이름은 Tailwind의 숫자 클래스(h-8, opacity-50)와 같은 글자가 된다. 다른 의미 판과 같이 막는다.
     if (/^\d/.test(next)) return setNameError('숫자로 시작할 수 없어요.')
