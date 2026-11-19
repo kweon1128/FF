@@ -18,7 +18,7 @@ import { parseShadow } from './effects'
 /** 값의 크기순으로 저절로 놓이는 종류. */
 const SCALE_IDS = ['size', 'weight', 'leading', 'tracking', 'space', 'length', 'corner', 'thickness', 'breakpoint', 'container', 'z']
 /** 손으로 차례를 바꿀 수 있는 종류 가운데, 묶음 없이 한 목록으로 놓이는 것(의미 색, 의미 글꼴, 색 목록은 저마다의 방식이 따로 있다). */
-const FREE_IDS = ['font', 'shadow', 'opacity', 'blur', 'aspect', 'duration', 'ease', 'delay', 'animate', 'spaceuse', 'height', 'width', 'square', 'radius', 'border', 'outline']
+const FREE_IDS = ['font', 'shadow', 'opacity', 'blur', 'gradient', 'aspect', 'duration', 'ease', 'delay', 'animate', 'spaceuse', 'height', 'width', 'square', 'radius', 'border', 'outline']
 
 export const isScaleKind = (kind: Kind) => SCALE_IDS.includes(kind.id)
 export const isFreeKind = (kind: Kind) => FREE_IDS.includes(kind.id)

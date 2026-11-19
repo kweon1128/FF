@@ -24,6 +24,7 @@ export type PreviewType =
   | 'shadow'
   | 'opacity'
   | 'blur'
+  | 'gradient'
   | 'breakpoint'
   | 'container'
   | 'aspect'
@@ -63,6 +64,11 @@ export const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/
  */
 /** 글자는 맞지만 모양이 틀린 이름의 오류(card-, -card, card--big). 칸을 벗어날 때 알린다. */
 export const NAME_SHAPE = '하이픈(-)은 낱말 사이에 하나씩만 쓸 수 있어요.'
+
+/** 이름이 SLUG에 맞지 않을 때의 문구. 쓸 수 없는 글자가 들었으면 그것을, 글자는 맞는데 모양이 틀렸으면(card-) 하이픈의 자리를 알린다. 패널과 창이 같은 문구를 쓴다. */
+export function slugMessage(value: string): string {
+  return typedNameProblem(value) ?? NAME_SHAPE
+}
 
 export function typedNameProblem(value: string): string | null {
   return /^[a-z0-9-]*$/.test(value.trim()) ? null : '영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.'
@@ -462,6 +468,20 @@ const ease: Kind = {
 }
 
 /**
+ * 그라데이션. 색이 한 방향으로 이어지며 바뀌는 바탕이다(--background-image-hero: linear-gradient(135deg, var(--color-blue-500) 0%, #ec4899 100%). 클래스는 bg-hero).
+ * 효과 판의 종류이고 층은 하나다. 그림자처럼 여러 값으로 이루어진 한 줄짜리 값이라 쓰임의 이름을 붙인다. 색은 색상 판의 값을 가리키거나 직접 적는다.
+ */
+const gradient: Kind = {
+  id: 'gradient',
+  title: '그라데이션',
+  prefix: '--background-image-',
+  matches: starts('--background-image-'),
+  defaultValue: '',
+  addLabel: '그라데이션 추가',
+  valueLabel: '그라데이션',
+}
+
+/**
  * 지연. 움직임이 얼마 뒤에 시작하는지다(--transition-delay-stagger: 40ms. 클래스는 delay-stagger). 층은 하나이고 쓰임의 이름을 붙인다(시간과 같다).
  */
 const delay: Kind = {
@@ -511,6 +531,7 @@ export const KINDS = {
   shadow,
   opacity,
   blur,
+  gradient,
   breakpoint,
   container,
   aspect,
@@ -548,7 +569,7 @@ export const TOKEN_SCREENS: Record<TokenScreenId, { title: string; kinds: Kind[]
   spacing: { title: '간격', kinds: [space] },
   radius: { title: '의미 모서리', kinds: [radius] },
   border: { title: '의미 테두리', kinds: [border, outline] },
-  effect: { title: '효과', kinds: [shadow, opacity, blur] },
+  effect: { title: '효과', kinds: [shadow, opacity, blur, gradient] },
   layout: { title: '화면 크기', kinds: [breakpoint, container, aspect] },
   motion: { title: '움직임', kinds: [duration, ease, delay, animate] },
   // 나중에 생긴 판이라 맨 뒤에 둔다. 앞의 판들은 순서대로 기본 자리가 정해져 있어서, 사이에 끼우면 모두 밀린다.

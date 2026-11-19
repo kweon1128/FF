@@ -4,7 +4,7 @@
 
 import { useContext, useState, type FormEvent, type ReactNode } from 'react'
 import type { Token } from './lib/api'
-import { SLUG, shortName, NAME_SHAPE, typedNameProblem, type Kind } from './lib/catalog'
+import { SLUG, slugMessage, shortName, NAME_SHAPE, typedNameProblem, type Kind } from './lib/catalog'
 import { readKindNote, writeKindNote, type KindExample, type KindShape } from './lib/kindnote'
 import { sampleColors, type SampleColors } from './lib/sample'
 import { CODE_OPEN, CodeRows, FoldSection, Section, WHERE_OPEN } from './Inspector'
@@ -40,6 +40,10 @@ export type ValueSpec<S extends string = string> = {
   fields?: (value: string, onValue: (value: string) => void) => ReactNode | null
   /** 추가 창에서 값 칸의 이름표. 주지 않으면 valueTitle이다. */
   addTitle?: string
+  /** 추가 창에서 값을 고르면 이름 칸에 채울 이름. 값 자체에 이름이 있는 종류에 준다(애니메이션의 spin). 이미 있는 이름이면 빈 글자를 돌려준다. 이름을 직접 고친 뒤에는 채우지 않는다. */
+  nameFor?: (value: string, tokens: Token[]) => string
+  /** 추가 창에서 값 칸을 이름 칸보다 먼저 묻는지. 값을 골라야 이름이 정해지는 종류에 준다. */
+  valueFirst?: boolean
   /** 추가 창에서 값을 정하는 칸. 주지 않으면 cells의 숫자 칸이 빈 채로 나온다. draft는 값(아직 정하지 않았으면 빈 글자)이다. */
   addField?: (draft: string, setDraft: (value: string) => void, error?: string) => ReactNode
   /** 추가 창에서 값을 정하지 않았을 때의 알림. */
@@ -94,8 +98,9 @@ export function CellsInput({ spec, value, onValue, live = false, invalid = false
     if (made === null) {
       // 숫자가 아닌 칸은 적는 중에 이미 빨갛게 보였다. 그대로 벗어나면 저장된 값으로 되돌린다.
       // 칸은 모두 숫자인데 값이 되지 않는 것(범위 밖)은 다 적어야 아는 것이라 빨갛게 남긴다.
-      // 칸이 여럿인 값에서 한 칸만 비운 것은 옆 칸으로 옮겨 가며 고치는 중이다. 다른 칸까지 되돌리지 않는다.
-      if (drafts.every((d) => d === '' || NUMBER.test(d))) return setBad(drafts.every((d) => NUMBER.test(d)))
+      // 칸이 여럿인 값에서 한 칸만 비운 것은 옆 칸으로 옮겨 가며 고치는 중일 수 있다. 다른 칸까지 되돌리지 않는다.
+      // 다만 빈 칸을 빨갛게 해서 아직 저장되지 않았음을 보인다. 표시가 없으면 고친 것이 저장된 줄 알고 떠나게 된다.
+      if (drafts.every((d) => d === '' || NUMBER.test(d))) return setBad(true)
       setDrafts(spec.read(value) ?? blank)
       return setBad(false)
     }
@@ -110,7 +115,7 @@ export function CellsInput({ spec, value, onValue, live = false, invalid = false
       negative={spec.cells[i].negative}
       placeholder={spec.cells[i].placeholder}
       // 숫자가 아닌 것은 적는 중에 알린다("-", "0."처럼 적는 도중의 꼴은 아니다).
-      invalid={invalid || (!live && drafts[i] !== '' && !NUMBER.test(drafts[i]) && !/^-?\d*\.$|^-$/.test(drafts[i])) || (bad && !NUMBER.test(drafts[i])) || (bad && valueOf(drafts) === null)}
+      invalid={invalid || (!live && drafts[i] !== '' && !NUMBER.test(drafts[i]) && !/^-?\d*\.$|^-$/.test(drafts[i])) || (bad && !NUMBER.test(drafts[i])) || (bad && drafts.every((d) => NUMBER.test(d)) && valueOf(drafts) === null)}
       onDigits={(digits, typing) => change(i, digits, typing)}
       onBlur={commit}
     />
@@ -211,7 +216,7 @@ export function ValueList<S extends string>({
 /** 이름을 쓸 수 없으면 까닭을 돌려준다. */
 function nameProblem(kind: Kind, spec: ValueSpec, name: string, tokens: Token[], self?: string) {
   if (!name) return '이름을 입력해 주세요.'
-  if (!SLUG.test(name)) return '영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.'
+  if (!SLUG.test(name)) return slugMessage(name)
   // 숫자로 시작하는 이름은 숫자 클래스와 같은 글자가 된다(duration-150). 쓰임의 이름을 짓게 한다.
   if (!spec.digitNames && /^\d/.test(name)) return '숫자로 시작할 수 없어요.'
   if (kind.prefix + name === self) return null
@@ -268,7 +273,7 @@ export function ValueInspector<S extends string>({
       return setNameDraft(short)
     }
     // 글자는 맞지만 모양이 틀린 이름(card-, card--big)은 다 적어야 아는 것이다. 말없이 되돌리지 않고 까닭과 함께 칸에 남긴다.
-    if (!SLUG.test(next)) return setNameError(NAME_SHAPE)
+    if (next !== short && !SLUG.test(next)) return setNameError(NAME_SHAPE)
     // 고치지 않은 이름은 검사하지 않는다(예전부터 있던 이름에 오류를 붙이지 않는다).
     if (next === short) return setNameError(null)
     const problem = nameProblem(kind, spec as unknown as ValueSpec, next, tokens, token.name)
@@ -367,6 +372,8 @@ export function NewValueForm<S extends string>({ kind, spec, tokens, onCreate, o
   const [value, setValue] = useState('')
   const [text, setText] = useState('')
   const [error, setError] = useState<{ name?: string; value?: string }>({})
+  // 이름을 직접 고치기 전까지는 고른 값의 이름을 따라간다(효과 추가 창과 같다).
+  const [typed, setTyped] = useState(false)
 
   function submit(e: FormEvent) {
     e.preventDefault()
@@ -381,26 +388,34 @@ export function NewValueForm<S extends string>({ kind, spec, tokens, onCreate, o
 
   const setDraft = (next: string) => {
     setValue(next)
-    setError({ ...error, value: undefined })
+    const filled = spec.nameFor && !typed
+    if (filled) setName(spec.nameFor!(next, tokens))
+    setError({ ...error, value: undefined, ...(filled ? { name: undefined } : {}) })
   }
+
+  const nameField = (
+    <Field label="이름" error={error.name}>
+      <input
+        autoFocus={!spec.valueFirst}
+        className={inputClass}
+        value={name}
+        placeholder={spec.namePlaceholder}
+        onChange={(e) => {
+          setName(e.target.value)
+          setTyped(true)
+          setError({ ...error, name: undefined })
+        }}
+      />
+    </Field>
+  )
 
   return (
     <form onSubmit={submit} className="space-y-fields">
-      <Field label="이름" error={error.name}>
-        <input
-          autoFocus
-          className={inputClass}
-          value={name}
-          placeholder={spec.namePlaceholder}
-          onChange={(e) => {
-            setName(e.target.value)
-            setError({ ...error, name: undefined })
-          }}
-        />
-      </Field>
+      {!spec.valueFirst && nameField}
       <Field label={spec.addTitle ?? spec.valueTitle} plain error={error.value}>
         {spec.addField ? spec.addField(value, setDraft, error.value) : <CellsInput spec={spec} value="" live invalid={!!error.value} onValue={setDraft} />}
       </Field>
+      {spec.valueFirst && nameField}
       <Field label="설명">
         <input className={inputClass} value={text} onChange={(e) => setText(e.target.value)} />
       </Field>

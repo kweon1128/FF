@@ -4,7 +4,7 @@
 import { useContext, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import { Check as CheckIcon, ChevronDown, Folder, Minus, Plus } from 'lucide-react'
 import type { Token } from './lib/api'
-import { KINDS, SLUG, shortName, NAME_SHAPE, typedNameProblem, type Kind } from './lib/catalog'
+import { KINDS, SLUG, slugMessage, shortName, NAME_SHAPE, typedNameProblem, type Kind } from './lib/catalog'
 import { ICON_STROKE } from './lib/icons'
 import { LAYER_GROUPS, LAYER_WORDS, guessLayerGroup, layerNumber, readLayerNote, writeLayerNote, type LayerExample, type LayerGroup, type LayerShape } from './lib/layers'
 import { SAMPLE_BAR, sampleColors, type SampleColors } from './lib/sample'
@@ -406,7 +406,7 @@ const NUMBER = /^-?\d+$/
 /** 이름을 쓸 수 없으면 까닭을 돌려준다. 숫자로 시작하는 이름(--z-index-10)은 숫자 클래스(z-10)와 같은 글자가 되어, 이름을 붙인 뜻이 없어진다. */
 function nameProblem(kind: Kind, name: string, tokens: Token[], self?: string) {
   if (!name) return '이름을 입력해 주세요.'
-  if (!SLUG.test(name)) return '영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.'
+  if (!SLUG.test(name)) return slugMessage(name)
   if (/^\d/.test(name)) return '숫자로 시작할 수 없어요.'
   if (kind.prefix + name === self) return null
   if (tokens.some((t) => t.name === kind.prefix + name)) return '같은 이름이 이미 있어요.'
@@ -467,7 +467,7 @@ export function LayerInspector({
       return setNameDraft(short)
     }
     // 글자는 맞지만 모양이 틀린 이름(card-, card--big)은 다 적어야 아는 것이다. 말없이 되돌리지 않고 까닭과 함께 칸에 남긴다.
-    if (!SLUG.test(next)) return setNameError(NAME_SHAPE)
+    if (next !== short && !SLUG.test(next)) return setNameError(NAME_SHAPE)
     // 고치지 않은 이름은 검사하지 않는다(예전부터 있던 이름에 오류를 붙이지 않는다).
     if (next === short) return setNameError(null)
     const problem = nameProblem(kind, next, tokens, token.name)

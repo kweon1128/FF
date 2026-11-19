@@ -5,7 +5,7 @@ import { ICON_STROKE } from './lib/icons'
 import { useContext, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import { ArrowUpRight } from 'lucide-react'
 import type { Token } from './lib/api'
-import { KINDS, SLUG, SPACE_REF, lengthLabel, shortName, NAME_SHAPE, typedNameProblem, type Kind } from './lib/catalog'
+import { KINDS, SLUG, slugMessage, SPACE_REF, lengthLabel, shortName, NAME_SHAPE, typedNameProblem, type Kind } from './lib/catalog'
 import type { Around } from './lib/roles'
 import { SPACE_USES, SPACE_WORDS, guessSpaceUse, isSpaceListShape, readSpaceNote, writeSpaceNote, type SpaceExample, type SpaceShape, type SpaceUse } from './lib/spacing'
 import { PreviewFontContext, PreviewSpaceContext } from './ColorUses'
@@ -670,7 +670,7 @@ export function SpaceUseInspector({
     // 비웠거나 쓸 수 없는 글자가 든 이름은 적는 중에 알 수 있는 것이다. 그대로 벗어나면 저장된 이름으로 되돌린다(DESIGN.md field-rules).
     if (!next || typedNameProblem(next)) return setNameDraft(short)
     // 글자는 맞지만 모양이 틀린 이름(card-, card--big)은 다 적어야 아는 것이다. 말없이 되돌리지 않고 까닭과 함께 칸에 남긴다.
-    if (!SLUG.test(next)) return setNameError(NAME_SHAPE)
+    if (next !== short && !SLUG.test(next)) return setNameError(NAME_SHAPE)
     if (next === short) return
     // 만들 때와 같은 규칙. 숫자로 시작하는 이름(--spacing-8)은 Tailwind의 숫자 클래스(p-8, top-8)가 그 값을 따라가게 만들어서 의미 간격에 쓸 수 없다.
     if (/^\d/.test(next)) return setNameError('숫자로 시작할 수 없어요.')
@@ -789,7 +789,7 @@ export function NewSpaceUseForm({ tokens, onCreate, onCancel }: { tokens: Token[
     const n = name.trim()
     const next: typeof error = {}
     if (!n) next.name = '이름을 입력해 주세요.'
-    else if (!SLUG.test(n)) next.name = '영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.'
+    else if (!SLUG.test(n)) next.name = slugMessage(n)
     else if (/^\d/.test(n)) next.name = '숫자로 시작할 수 없어요.'
     else if (tokens.some((t) => t.name === KINDS.spaceUse.prefix + n)) next.name = '같은 이름이 이미 있어요.'
     if (!ref) next.ref = '간격을 골라 주세요.'

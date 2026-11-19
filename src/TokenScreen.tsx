@@ -16,6 +16,7 @@ import { ValueList } from './ValueBoard'
 import { specOf } from './valueSpecs'
 import { isBorderKind, resolveThickness } from './lib/borders'
 import { isEffectKind, shadowRefs } from './lib/effects'
+import { colorRefsIn } from './lib/gradient'
 import { isFreeKind, orderKinds } from './lib/order'
 import type { SpaceUse } from './lib/spacing'
 import { resolveLength, type SizeGroup } from './lib/sizes'
@@ -114,6 +115,7 @@ const MISSING: Record<string, { noun: string; lost: (all: Token[], t: Token) => 
   outline: { noun: '테두리', lost: pointsNowhere(resolveThickness) },
   // 그림자의 겹이 가리키는 색상 판의 색이 없어진 경우.
   shadow: { noun: '그림자', lost: (all, t) => shadowRefs(t.value).some((n) => !all.some((x) => x.name === n)) },
+  gradient: { noun: '그라데이션', lost: (all, t) => colorRefsIn(t.value).some((n) => !all.some((x) => x.name === n)) },
 }
 
 /**

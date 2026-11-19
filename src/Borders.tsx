@@ -7,7 +7,7 @@ import { ICON_STROKE } from './lib/icons'
 import { useContext, useState, type FormEvent, type ReactNode } from 'react'
 import { ArrowUpRight } from 'lucide-react'
 import type { Token } from './lib/api'
-import { KINDS, SLUG, lengthLabel, shortName, NAME_SHAPE, typedNameProblem, type Kind } from './lib/catalog'
+import { KINDS, SLUG, slugMessage, lengthLabel, shortName, NAME_SHAPE, typedNameProblem, type Kind } from './lib/catalog'
 import { BORDER_WORDS, isBorderListShape, readBorderNote, resolveThickness, thicknessRefOf, writeBorderNote, type BorderKind, type BorderShape } from './lib/borders'
 import { sampleColors, type SampleColors } from './lib/sample'
 import { NavRows, PanelSection } from './SampleParts'
@@ -221,7 +221,7 @@ function classesOf(kind: Kind, short: string) {
 /** 이름을 쓸 수 없으면 까닭을 돌려준다. 색 이름과 겹치면 border-이름과 outline-이름이 굵기가 아니라 색으로 읽힌다. */
 function nameProblem(kind: Kind, name: string, tokens: Token[], self?: string) {
   if (!name) return '이름을 입력해 주세요.'
-  if (!SLUG.test(name)) return '영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.'
+  if (!SLUG.test(name)) return slugMessage(name)
   // 숫자로 시작하는 이름(--border-width-2)은 숫자 클래스(border-2)가 그 값을 따라가게 만든다. 쓰임의 이름을 짓게 한다.
   if (/^\d/.test(name)) return '숫자로 시작할 수 없어요.'
   if (kind.prefix + name === self) return null
@@ -279,7 +279,7 @@ export function BorderInspector({
       return setNameDraft(short)
     }
     // 글자는 맞지만 모양이 틀린 이름(card-, card--big)은 다 적어야 아는 것이다. 말없이 되돌리지 않고 까닭과 함께 칸에 남긴다.
-    if (!SLUG.test(next)) return setNameError(NAME_SHAPE)
+    if (next !== short && !SLUG.test(next)) return setNameError(NAME_SHAPE)
     // 고치지 않은 이름은 검사하지 않는다(예전부터 있던 이름에 오류를 붙이지 않는다).
     if (next === short) return setNameError(null)
     const problem = nameProblem(kind, next, tokens, token.name)

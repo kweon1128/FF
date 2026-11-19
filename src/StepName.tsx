@@ -1,4 +1,4 @@
-import { SLUG } from './lib/catalog'
+import { SLUG, slugMessage } from './lib/catalog'
 
 /**
  * 한 벌 만들기 창의 견본 줄에서 그 단계의 이름을 고치는 칸.
@@ -27,7 +27,8 @@ export function StepName({ label, value, wide = false, onChange }: { label: stri
 /** 한 벌의 이름들에 문제가 있으면 그 까닭을, 없으면 null을 돌려준다. */
 export function nameProblem(names: string[]) {
   if (names.some((n) => !n)) return '이름을 입력해 주세요.'
-  if (names.some((n) => !SLUG.test(n))) return '영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.'
+  const odd = names.find((n) => !SLUG.test(n))
+  if (odd !== undefined) return slugMessage(odd)
   if (new Set(names).size !== names.length) return '같은 이름이 이미 있어요.'
   return null
 }

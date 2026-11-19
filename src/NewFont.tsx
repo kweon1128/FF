@@ -1,6 +1,6 @@
 import { ICON_STROKE } from './lib/icons'
 import { createContext, useContext, useEffect, useRef, useState, type FormEvent } from 'react'
-import { SLUG } from './lib/catalog'
+import { SLUG, slugMessage } from './lib/catalog'
 import { Check, Minus, Plus, RotateCcw, X } from 'lucide-react'
 import { PreviewSpaceContext } from './ColorUses'
 import { CATALOG, FALLBACKS, commonFonts, fontValue, loadCatalog, loadFont, nameForFont, parseFontValue, inkShift, recordFont, systemFamilies, typeOfFont, weightsOf } from './lib/fonts'
@@ -402,7 +402,7 @@ export function NewFontForm({
     // 이름 칸을 비워 두면 미리 채워 주던 이름을 쓴다. 이름은 꼭 적지 않아도 된다.
     const name = edit ? edit.name : (nameDraft ?? '').trim() || autoName
     if (!edit && name !== autoName) {
-      if (!SLUG.test(name)) return setNameError('영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.')
+      if (!SLUG.test(name)) return setNameError(slugMessage(name))
       // --font-weight-로 시작하면 굵기로 읽힌다.
       if (name === 'weight' || name.startsWith('weight-')) return setNameError('weight로 시작하는 이름은 굵기에 쓰여요.')
       if (existing.has(name)) return setNameError('같은 이름이 이미 있어요.')

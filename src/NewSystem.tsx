@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { createSystem } from './lib/api'
-import { SLUG } from './lib/catalog'
+import { SLUG, slugMessage } from './lib/catalog'
 import { Button, Field, inputClass } from './ui'
 
 /** 새 디자인 시스템의 이름을 받아 만드는 입력 양식. 첫 화면과 확인 창에서 함께 쓴다. */
@@ -19,7 +19,7 @@ export function NewSystemForm({
     e.preventDefault()
     const trimmed = name.trim()
     if (!trimmed) return setError('이름을 입력해 주세요.')
-    if (!SLUG.test(trimmed)) return setError('영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.')
+    if (!SLUG.test(trimmed)) return setError(slugMessage(trimmed))
     setBusy(true)
     try {
       await createSystem(trimmed)

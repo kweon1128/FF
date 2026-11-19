@@ -1,20 +1,20 @@
-// 효과(그림자, 투명도, 흐림): 설명과 예시를 주석에서 읽고 쓰는 것, 그리고 그림자 값을 겹으로 나누어 읽고 쓰는 것.
+// 효과(그림자, 투명도, 흐림, 그라데이션): 설명과 예시를 주석에서 읽고 쓰는 것, 그리고 그림자 값을 겹으로 나누어 읽고 쓰는 것.
 // 효과에는 의미 판을 따로 두지 않는다. 그림자는 개수가 적고 한 값이 한 쓰임에만 쓰여서(떠 있는 것, 창) 재료와 쓰임을 두 층으로 나눌 이유가 약하다.
 // 그래서 효과 판의 값에 쓰임의 이름(float, dialog)을 붙이고, 의미 색·의미 글꼴처럼 설명과 예시를 값 뒤의 주석에 적는다.
 //   --shadow-float: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 16px rgb(0 0 0 / 0.06); /* 그림자(메뉴): 고르는 목록 | 이름 바꾸기, 복제, 삭제 | 알림: 저장했어요 */
 
-export type EffectKind = 'shadow' | 'opacity' | 'blur'
+export type EffectKind = 'shadow' | 'opacity' | 'blur' | 'gradient'
 
 /** 주석 맨 앞에 적는 종류의 이름. 의미 색의 역할, 의미 글꼴의 묶음이 놓이는 자리다. */
-export const EFFECT_TITLES: Record<EffectKind, string> = { shadow: '그림자', opacity: '투명도', blur: '흐림' }
+export const EFFECT_TITLES: Record<EffectKind, string> = { shadow: '그림자', opacity: '투명도', blur: '흐림', gradient: '그라데이션' }
 
-export const isEffectKind = (id: string): id is EffectKind => id === 'shadow' || id === 'opacity' || id === 'blur'
+export const isEffectKind = (id: string): id is EffectKind => id === 'shadow' || id === 'opacity' || id === 'blur' || id === 'gradient'
 
 /**
  * 예시의 모양. 그 효과를 어떤 자리에 놓아 보여 줄지다. 종류마다 고를 수 있는 모양이 다르다.
  * 적어 두지 않은 값은 이름에서 짐작하고(float는 메뉴, dialog는 창, disabled는 비활성), 짐작할 수 없으면 종류의 마지막 모양을 쓴다.
  */
-export type EffectShape = 'menu' | 'dialog' | 'toast' | 'card' | 'well' | 'disabled' | 'drag' | 'scrim' | 'layer' | 'glass' | 'bar'
+export type EffectShape = 'menu' | 'dialog' | 'toast' | 'card' | 'well' | 'disabled' | 'drag' | 'scrim' | 'layer' | 'glass' | 'bar' | 'fill' | 'button'
 
 export const EFFECT_SHAPES: { id: EffectShape; kind: EffectKind; label: string; hint: string }[] = [
   { id: 'menu', kind: 'shadow', label: '메뉴', hint: '떠 있는 목록' },
@@ -28,6 +28,8 @@ export const EFFECT_SHAPES: { id: EffectShape; kind: EffectKind; label: string; 
   { id: 'layer', kind: 'opacity', label: '겹침', hint: '뒤가 비치는 면' },
   { id: 'glass', kind: 'blur', label: '유리', hint: '뒤가 흐려 보이는 면' },
   { id: 'bar', kind: 'blur', label: '상단 바', hint: '내용 위에 떠 있는 반투명 막대' },
+  { id: 'fill', kind: 'gradient', label: '바탕', hint: '넓은 면의 바탕' },
+  { id: 'button', kind: 'gradient', label: '버튼', hint: '채운 버튼' },
 ]
 
 /** 모양마다의 기본 예시 문구. 글자가 없는 모양(배경 가림, 겹침, 유리)은 비어 있다. 메뉴와 끌기는 ", "로 나눠 줄마다 적는다. 상단 바는 막대의 제목과 그 아래 내용의 줄들이다. */
@@ -43,6 +45,8 @@ export const EFFECT_WORDS: Record<EffectShape, string> = {
   layer: '',
   glass: '',
   bar: '설정, 이름, 글꼴, 색상',
+  fill: '제목, 설명',
+  button: '시작하기',
 }
 
 /**
@@ -63,6 +67,9 @@ export const EFFECT_PRESETS: Record<EffectShape, { name: string; value: string; 
   layer: { name: 'layer', value: '0.8', text: '뒤가 비치는 면' },
   glass: { name: 'glass', value: '12px', text: '뒤가 흐려 보이는 면' },
   bar: { name: 'bar', value: '8px', text: '내용 위에 떠 있는 반투명 상단 바' },
+  // 그라데이션은 검정에서 회색으로 흐르는 것으로 시작한다. 색은 만든 뒤에 패널에서 고른다(색상 판의 값을 가리키게 할 수 있다).
+  fill: { name: 'hero', value: 'linear-gradient(135deg, #1a1a1a 0%, #666666 100%)', text: '넓은 면의 바탕' },
+  button: { name: 'button', value: 'linear-gradient(180deg, #333333 0%, #1a1a1a 100%)', text: '채운 버튼의 바탕' },
 }
 
 /** 모양을 적지 않은 값의 모양. */
@@ -82,6 +89,7 @@ export function guessEffectShape(kind: EffectKind, short: string): EffectShape {
     if (has('scrim', 'overlay', 'backdrop', 'dim')) return 'scrim'
     return 'layer'
   }
+  if (kind === 'gradient') return has('button', 'cta', 'action') ? 'button' : 'fill'
   if (has('bar', 'header', 'nav', 'sticky', 'toolbar')) return 'bar'
   return 'glass'
 }

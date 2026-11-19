@@ -3,7 +3,7 @@
 import { useContext, type CSSProperties, type ReactNode } from 'react'
 import { Bell, ChevronRight, LoaderCircle } from 'lucide-react'
 import { ICON_STROKE } from './lib/icons'
-import { KEYFRAMES, keyframesCss } from './lib/keyframes'
+import { KEYFRAMES, keyframesCss, motionName, motionOf } from './lib/keyframes'
 import { ANIMATE_SHAPES, CURVE_PRESETS, DELAY_SHAPES, MOTION_SHAPES, MOTION_TITLES, MOTION_WORDS, curvePresetOf, msOf, parseAnimation, parseCurve, parseSteps, writeAnimation, writeCurve, type Animation, type MotionKind, type MotionShape } from './lib/motion'
 import type { KindExample } from './lib/kindnote'
 import { SAMPLE_BAR, SAMPLE_W } from './lib/sample'
@@ -12,8 +12,8 @@ import { NavRows } from './SampleParts'
 import { CellsInput, type SampleContext, type ValueSpec } from './ValueBoard'
 import { Field, Segmented, UsePicker } from './ui'
 
-// 예시가 쓰는 움직임의 단계. 보여 주는 시스템의 파일에 적힌 것과 이름이 겹치지 않게 앞에 ffkf-를 붙여, FF 화면에 한 번만 넣는다.
-const SAMPLE_KEYFRAMES = keyframesCss(KEYFRAMES.map((k) => k.id), 'ffkf-')
+// 고르는 칸에서 움직임의 이름(slide-in-right)이 들어가는 자리의 너비.
+const MOTION_NAME_W = 'w-picker-name-long'
 
 // 예시의 바탕이 판의 바탕과 같은 색이어도 가장자리가 보이게 하는 옅은 선.
 const EDGE = 'shadow-[inset_0_0_0_var(--border-width-edge)_rgb(0_0_0/0.1)]'
@@ -36,6 +36,8 @@ export function MotionSample({ kind, shape, value, context, words: written = '' 
   // 움직임에 넣는 값. 줄(group)에 마우스를 올리면 클래스가 끝 모습으로 바뀌고, 그 사이를 이 값으로 움직인다.
   const moving: CSSProperties = kind === 'duration' ? { transitionDuration: value } : { transitionDuration: '800ms', transitionTimingFunction: value }
   // 애니메이션은 줄에 마우스를 올린 동안만 돈다(판에서 늘 돌면 눈이 거기로만 간다). 움직임의 이름은 FF 화면에 넣어 둔 단계의 이름으로 바꾼다.
+  // 예시가 쓰는 단계는 보여 주는 시스템의 파일에 적힌 것과 이름이 겹치지 않게 앞에 ffkf-를 붙여 FF 화면에 따로 넣는다(같은 이름의 것은 한 번만 들어간다).
+  const motionWord = value.trim().split(/\s+/)[0]
   const play = { '--play': value.trim().replace(/^\S+/, (name) => `ffkf-${name}`) } as CSSProperties
   const PLAY = 'group-hover:animate-(--play)'
   const center = (body: ReactNode) => <span className="absolute inset-0 flex items-center justify-center">{body}</span>
@@ -52,8 +54,8 @@ export function MotionSample({ kind, shape, value, context, words: written = '' 
   const frame = (height: string, body: ReactNode, background = c.surface) => (
     <span className={`relative isolate block w-full overflow-hidden rounded-card ${height} ${EDGE}`} style={{ ...space, background, color: c.ink, fontFamily: font }}>
       {kind === 'animate' && (
-        <style href="ff-sample-keyframes" precedence="default">
-          {SAMPLE_KEYFRAMES}
+        <style href={`ffkf-${motionWord}`} precedence="default">
+          {keyframesCss([motionWord], 'ffkf-')}
         </style>
       )}
       {body}
@@ -193,10 +195,16 @@ export function MotionSample({ kind, shape, value, context, words: written = '' 
       return frame(
         'h-[96px]',
         center(
-          <span data-sample className={`block space-y-blocks ${SAMPLE_W} ${PLAY}`} style={play}>
-            {bar('w-1/3')}
-            {bar('w-full')}
-            {bar('w-2/3')}
+          // 막대의 바탕은 가로로 두 배 넓은 그라데이션이다. 빛이 지나가는 움직임(shimmer)이 이 바탕을 옆으로 민다. 다른 움직임에서는 고른 색으로 보인다.
+          <span className={`block space-y-blocks ${SAMPLE_W}`}>
+            {['w-1/3', 'w-full', 'w-2/3'].map((width, i) => (
+              <span
+                key={i}
+                {...(i === 1 ? { 'data-sample': true } : {})}
+                className={`block ${SAMPLE_BAR} rounded-small ${width} ${PLAY}`}
+                style={{ ...play, backgroundImage: `linear-gradient(90deg, ${c.filler} 0%, ${c.filler} 35%, ${c.hover} 50%, ${c.filler} 65%, ${c.filler} 100%)`, backgroundSize: '200% 100%' }}
+              />
+            ))}
           </span>,
         ),
       )
@@ -224,6 +232,38 @@ export function MotionSample({ kind, shape, value, context, words: written = '' 
           <span className="absolute inset-x-0 bottom-[16px] flex justify-center">
             <span data-sample className={`flex h-control items-center rounded-control px-bar-x whitespace-nowrap ${TEXT} ${PLAY}`} style={{ ...play, background: c.ink, color: c.surface, boxShadow: shadows.float }}>
               {list[0]}
+            </span>
+          </span>
+        </>,
+      )
+    case 'menu':
+      // 버튼 아래에 뜨는 메뉴. 줄에 마우스를 올리면 이 애니메이션으로 나타난다(커지며 나타남). 문구는 메뉴의 줄들이다.
+      return frame(
+        'h-[160px]',
+        center(
+          <span data-sample className={`block space-y-rows rounded-float p-menu ${SAMPLE_W} ${PLAY}`} style={{ ...play, background: c.surface, boxShadow: [`inset 0 0 0 1px ${c.line}`, shadows.float].filter(Boolean).join(', ') }}>
+            {list.map((text, i) => (
+              <span key={i} className={`flex h-row items-center rounded-row px-row-x whitespace-nowrap ${TEXT}`}>
+                {text}
+              </span>
+            ))}
+          </span>,
+        ),
+      )
+    case 'panel':
+      // 옆에서 들어오는 패널. 줄에 마우스를 올리면 이 애니메이션으로 들어온다. 문구는 패널의 제목과 그 안의 줄들이다.
+      return frame(
+        'h-[160px]',
+        <>
+          {page}
+          <span data-sample className={`absolute inset-y-0 right-0 block w-[112px] p-box ${PLAY}`} style={{ ...play, background: c.surface, boxShadow: `inset 1px 0 0 ${c.line}` }}>
+            <span className={`block whitespace-nowrap ${STRONG}`}>{list[0]}</span>
+            <span className="mt-blocks block space-y-rows">
+              {list.slice(1).map((text, i) => (
+                <span key={i} className={`block whitespace-nowrap ${TEXT}`} style={{ color: c.soft }}>
+                  {text}
+                </span>
+              ))}
             </span>
           </span>
         </>,
@@ -290,17 +330,30 @@ const REPEATS: { id: 'infinite' | 'count'; label: string }[] = [
 ]
 
 /**
- * 애니메이션을 고치는 칸들. 움직임(준비된 것 가운데 하나), 한 번 도는 시간, 이징, 되풀이(계속이거나 정한 횟수).
+ * 애니메이션을 고치는 칸들. 움직임(준비된 것 가운데 하나), 세기(그 움직임을 정하는 숫자 하나. 올라옴의 거리, 깜박임의 가장 옅을 때. 없는 움직임도 있다), 한 번 도는 시간, 이징, 되풀이(계속이거나 정한 횟수).
  * 값을 글자로 통째로 적게 하면 낱말의 차례와 움직임의 이름을 외워야 한다. 이징이 준비된 곡선이 아니면 칸 아래에 적힌 그대로 보여 준다.
  */
 function AnimationFields({ animation: a, onValue }: { animation: Animation; onValue: (value: string) => void }) {
   const set = (next: Partial<Animation>) => onValue(writeAnimation({ ...a, ...next }))
   const curve = curvePresetOf(a.ease)
+  const { motion, strength } = motionOf(a.name)!
+  // 세기는 움직임의 이름 뒤에 붙여 적는다(rise-16). 이름에 들어가는 숫자라 0 이상의 정수만 받는다.
+  const STRENGTH = {
+    cells: [{ label: motion.strength?.label ?? '', unit: motion.strength?.unit ?? '' }],
+    read: (value: string) => (/^\d+$/.test(value) ? [value] : null),
+    write: ([n]: number[]) => (Number.isInteger(n) && n >= 0 ? String(n) : null),
+  }
   return (
     <div className="space-y-fields">
       <Field label="움직임" plain>
-        <UsePicker label="움직임" options={KEYFRAMES} value={a.name} onChange={(name) => set({ name })} />
+        {/* 움직임을 바꾸면 세기는 그 움직임의 기본으로 돌아간다(거리 8px이 진하기 8%가 되지 않게). */}
+        <UsePicker label="움직임" options={KEYFRAMES} value={motion.id} nameWidth={MOTION_NAME_W} onChange={(name) => set({ name })} />
       </Field>
+      {motion.strength && (
+        <Field label={motion.strength.label}>
+          <CellsInput key={motion.id} spec={STRENGTH} value={String(strength)} onValue={(value) => set({ name: motionName(motion, Number(value)) })} />
+        </Field>
+      )}
       <Field label="시간">
         <CellsInput spec={TIME} value={`${a.ms}ms`} onValue={(value) => msOf(value) > 0 && set({ ms: msOf(value) })} />
       </Field>
@@ -395,8 +448,14 @@ export const MOTION_SPECS: Record<MotionKind, ValueSpec<MotionShape>> = {
     },
     // 추가할 때는 움직임만 고른다. 시간과 이징, 되풀이는 그 움직임에 맞는 값으로 채워지고, 만든 뒤에 패널에서 고친다.
     addTitle: '움직임',
-    addField: (draft, setDraft) => <UsePicker label="움직임" options={KEYFRAMES} value={KEYFRAMES.find((k) => k.value === draft)?.id ?? null} onChange={(id) => setDraft(KEYFRAMES.find((k) => k.id === id)!.value)} />,
+    addField: (draft, setDraft) => <UsePicker label="움직임" options={KEYFRAMES} value={KEYFRAMES.find((k) => k.value === draft)?.id ?? null} nameWidth={MOTION_NAME_W} onChange={(id) => setDraft(KEYFRAMES.find((k) => k.id === id)!.value)} />,
+    // 움직임에는 이미 이름이 있다(spin, pulse). 고르면 그 이름이 이름 칸에 채워지고, 같은 움직임을 둘째로 만들 때만 이름을 직접 짓는다(pulse-slow).
+    valueFirst: true,
+    nameFor: (value, tokens) => {
+      const id = motionOf(value.trim().split(/\s+/)[0])?.motion.id ?? ''
+      return tokens.some((t) => t.name === `--animate-${id}`) ? '' : id
+    },
     missing: '움직임을 골라 주세요.',
-    namePlaceholder: 'loading',
+    namePlaceholder: 'spin',
   },
 }

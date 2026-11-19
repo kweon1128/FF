@@ -7,7 +7,7 @@
 
 import type { Kind } from './catalog'
 import type { KindShape } from './kindnote'
-import { KEYFRAMES } from './keyframes'
+import { motionOf } from './keyframes'
 
 export type MotionKind = 'duration' | 'ease' | 'delay' | 'animate'
 
@@ -20,7 +20,7 @@ export const isMotionKind = (kind: Kind) => kind.id === 'duration' || kind.id ==
  * 예시의 모양. 그 움직임으로 무엇이 움직이는지다. 화면에서 실제로 움직이는 것들이다.
  * 시간과 이징은 같은 모양을 쓴다(이동, 바탕, 창, 알림, 접기, 커짐). 지연과 애니메이션은 저마다의 모양이 있다.
  */
-export type MotionShape = 'move' | 'fade' | 'dialog' | 'toast' | 'fold' | 'scale' | 'stagger' | 'hint' | 'spinner' | 'skeleton' | 'dot' | 'enter' | 'field'
+export type MotionShape = 'move' | 'fade' | 'dialog' | 'toast' | 'fold' | 'scale' | 'stagger' | 'hint' | 'spinner' | 'skeleton' | 'dot' | 'enter' | 'menu' | 'panel' | 'field'
 
 export const MOTION_SHAPES: KindShape<MotionShape>[] = [
   { id: 'move', label: '이동', hint: '화면이 그 자리로 미끄러져 감' },
@@ -43,6 +43,8 @@ export const ANIMATE_SHAPES: KindShape<MotionShape>[] = [
   { id: 'skeleton', label: '자리 표시', hint: '불러오는 동안 깜박이는 자리' },
   { id: 'dot', label: '알림 점', hint: '새 소식을 알리는 점' },
   { id: 'enter', label: '알림', hint: '나타나는 알림' },
+  { id: 'menu', label: '메뉴', hint: '뜨는 메뉴' },
+  { id: 'panel', label: '패널', hint: '옆에서 들어오는 패널' },
   { id: 'field', label: '입력칸', hint: '잘못 적어 흔들리는 칸' },
 ]
 
@@ -60,6 +62,8 @@ export const MOTION_WORDS: Record<MotionShape, string> = {
   skeleton: '',
   dot: '알림',
   enter: '저장했어요',
+  menu: '이름 바꾸기, 복제, 삭제',
+  panel: '설정, 이름, 글꼴',
   field: '이름, 값',
 }
 
@@ -117,7 +121,7 @@ export function curvePresetOf(value: string): string | null {
   return CURVE_PRESETS.find((p) => p.value === value.trim() || (n !== null && parseCurve(p.value)?.join() === n.join()))?.id ?? null
 }
 
-/** 애니메이션 값 하나. 움직임(준비된 것의 이름), 한 번 도는 시간, 이징, 되풀이(횟수나 계속). */
+/** 애니메이션 값 하나. 움직임(준비된 것의 이름. 세기가 기본과 다르면 뒤에 숫자가 붙는다: rise-16), 한 번 도는 시간, 이징, 되풀이(횟수나 계속). */
 export type Animation = { name: string; ms: number; ease: string; count: number | 'infinite' }
 
 /** 괄호 밖의 빈칸에서 나눈다(cubic-bezier(0, 0, 1, 1) 안의 빈칸에서는 나누지 않는다). */
@@ -144,7 +148,7 @@ export function parseAnimation(value: string): Animation | null {
   const [name, time, ease, times] = parts
   const ms = msOf(time)
   const count = times === 'infinite' ? 'infinite' : /^\d+$/.test(times) && Number(times) > 0 ? Number(times) : null
-  if (!KEYFRAMES.some((k) => k.id === name) || Number.isNaN(ms) || count === null) return null
+  if (!motionOf(name) || Number.isNaN(ms) || count === null) return null
   return { name, ms, ease, count }
 }
 

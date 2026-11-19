@@ -7,7 +7,7 @@ import { CHECK_STROKE, ICON_STROKE } from './lib/icons'
 import { useContext, useState, type FormEvent, type ReactNode } from 'react'
 import { ArrowUpRight, Check as CheckIcon, Plus, X } from 'lucide-react'
 import type { Token } from './lib/api'
-import { KINDS, SLUG, lengthLabel, shortName, NAME_SHAPE, typedNameProblem, type Kind } from './lib/catalog'
+import { KINDS, SLUG, slugMessage, lengthLabel, shortName, NAME_SHAPE, typedNameProblem, type Kind } from './lib/catalog'
 import {
   RADIUS_GROUPS,
   RADIUS_WORDS,
@@ -437,7 +437,7 @@ export function RadiusInspector({
     // 비웠거나 쓸 수 없는 글자가 든 이름은 적는 중에 알 수 있는 것이다. 그대로 벗어나면 저장된 이름으로 되돌린다(DESIGN.md field-rules).
     if (!next || typedNameProblem(next)) return setNameDraft(short)
     // 글자는 맞지만 모양이 틀린 이름(card-, card--big)은 다 적어야 아는 것이다. 말없이 되돌리지 않고 까닭과 함께 칸에 남긴다.
-    if (!SLUG.test(next)) return setNameError(NAME_SHAPE)
+    if (next !== short && !SLUG.test(next)) return setNameError(NAME_SHAPE)
     if (next === short) return
     // 숫자로 시작하는 이름(--radius-8)은 토대의 이름과 헷갈린다. 쓰임의 이름을 짓게 한다.
     if (/^\d/.test(next)) return setNameError('숫자로 시작할 수 없어요.')
@@ -556,7 +556,7 @@ export function NewRadiusForm({ tokens, onCreate, onCancel }: { tokens: Token[];
     const n = name.trim()
     const next: typeof error = {}
     if (!n) next.name = '이름을 입력해 주세요.'
-    else if (!SLUG.test(n)) next.name = '영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.'
+    else if (!SLUG.test(n)) next.name = slugMessage(n)
     else if (/^\d/.test(n)) next.name = '숫자로 시작할 수 없어요.'
     else if (tokens.some((t) => t.name === kind.prefix + n)) next.name = '같은 이름이 이미 있어요.'
     if (!ref) next.ref = '모서리를 골라 주세요.'

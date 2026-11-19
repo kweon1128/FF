@@ -30,7 +30,7 @@ import {
   THICKNESS_REF,
   lengthLabel,
   PLACEHOLDER_SCREENS,
-  SLUG,
+  SLUG, slugMessage,
   TOKEN_SCREENS,
   TOKEN_SCREEN_IDS,
   groupOf,
@@ -87,6 +87,7 @@ import { LayerInspector, NewLayerForm } from './Layers'
 import { NewValueForm, ValueInspector } from './ValueBoard'
 import { specOf } from './valueSpecs'
 import { followShadowRefs, isEffectKind, shadowRefs } from './lib/effects'
+import { colorRefsIn, followColorRefs } from './lib/gradient'
 import { NewSpaceUseForm, SpaceUseInspector, spaceVars } from './Spacing'
 import { LengthInspector, NewLengthForm, NewSizeForm, SizeInspector, SizeThings, SizeViewSwitch, sizeVars, type SizeView } from './Sizes'
 import { isSizeKind, readSizeNote, type SizeGroup } from './lib/sizes'
@@ -808,6 +809,11 @@ export function App() {
         const value = followShadowRefs(t.value, renames)
         return value === t.value ? t : { ...t, value }
       }
+      // 그라데이션이 가리키는 색도 같다.
+      if (KINDS.gradient.matches(t.name)) {
+        const value = followColorRefs(t.value, renames)
+        return value === t.value ? t : { ...t, value }
+      }
       // 의미 간격은 가리키는 간격의, 의미 크기는 가리키는 크기의, 의미 모서리는 가리키는 모서리의 새 이름을 따라간다.
       const space = (SPACE_REF.exec(t.value) ?? LENGTH_REF.exec(t.value) ?? CORNER_REF.exec(t.value) ?? THICKNESS_REF.exec(t.value))?.[1]
       return space && renames[space] ? { ...t, value: `var(${renames[space]})` } : t
@@ -1041,6 +1047,8 @@ export function App() {
       ...typeUsers(tokens, n)
         .filter((u) => !names.includes(u))
         .map((u) => shortName(STYLE, u)),
+      // 이 색을 가리키는 그라데이션도 함께 센다.
+      ...tokens.filter((t) => !names.includes(t.name) && KINDS.gradient.matches(t.name) && colorRefsIn(t.value).includes(n)).map((t) => shortName(KINDS.gradient, t.name)),
       // 이 색을 가리키는 그림자도 함께 센다.
       ...tokens.filter((t) => !names.includes(t.name) && KINDS.shadow.matches(t.name) && shadowRefs(t.value).includes(n)).map((t) => shortName(KINDS.shadow, t.name)),
       // 이 간격을 가리키는 의미 간격도 함께 센다.
@@ -1214,7 +1222,7 @@ export function App() {
 
   /** 색 목록의 이름을 통째로 바꾼다. 그 목록의 색이 모두 새 이름을 따라간다. 바꿀 수 없으면 이유를 돌려준다. */
   function renameGroup(from: string, to: string): string | null {
-    if (!SLUG.test(to)) return '영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.'
+    if (!SLUG.test(to)) return slugMessage(to)
     if (groupTaken.has(to)) return takenWhy(to)
     const head = `${COLOR.prefix}${from}-`
     // 그 목록의 단계 색만 따라간다. 이름이 같은 말로 시작하는 의미 색(primary-hover)은 목록에 속하지 않는다.
@@ -1817,6 +1825,7 @@ export function App() {
         { id: 'a:shadow', group: '명령', label: '그림자 추가', run: () => setAddingEffect(KINDS.shadow) },
         { id: 'a:opacity', group: '명령', label: '투명도 추가', run: () => setAddingEffect(KINDS.opacity) },
         { id: 'a:blur', group: '명령', label: '흐림 추가', run: () => setAddingEffect(KINDS.blur) },
+        { id: 'a:gradient', group: '명령', label: '그라데이션 추가', run: () => setAddingEffect(KINDS.gradient) },
         { id: 'a:z', group: '명령', label: '겹치는 순서 추가', run: () => setAddingLayer(true) },
         ...[KINDS.duration, KINDS.ease, KINDS.delay, KINDS.animate, KINDS.breakpoint, KINDS.container, KINDS.aspect].map((kind) => ({ id: `a:${kind.id}`, group: '명령', label: kind.addLabel, run: () => setAddingValue(kind) })),
         { id: 'a:sizes', group: '명령', label: '글자 크기 한 벌 만들기', run: () => setMakingSizes(true) },
@@ -2298,6 +2307,7 @@ export function App() {
                 ...tokens.filter((t) => refOf(t.value) === selectedTokens[0].name).map((t) => t.name),
                 ...typeUsers(tokens, selectedTokens[0].name),
                 ...tokens.filter((t) => KINDS.shadow.matches(t.name) && shadowRefs(t.value).includes(selectedTokens[0].name)).map((t) => t.name),
+                ...tokens.filter((t) => KINDS.gradient.matches(t.name) && colorRefsIn(t.value).includes(selectedTokens[0].name)).map((t) => t.name),
                 ...tokens.filter((t) => KINDS.spaceUse.matches(t.name) && SPACE_REF.exec(t.value)?.[1] === selectedTokens[0].name).map((t) => t.name),
               ]}
               onOpenToken={goToken}
@@ -2652,7 +2662,7 @@ function NewNameForm({
     e.preventDefault()
     const trimmed = name.trim()
     if (!trimmed) return setError('이름을 입력해 주세요.')
-    if (!SLUG.test(trimmed)) return setError('영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.')
+    if (!SLUG.test(trimmed)) return setError(slugMessage(trimmed))
     if (existing.has(trimmed)) return setError('같은 이름이 이미 있어요.')
     onCreate(trimmed)
   }

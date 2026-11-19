@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { Copy, CopyPlus, Trash2 } from 'lucide-react'
 import { DynamicIcon, iconNames } from 'lucide-react/dynamic'
 import type { Token } from './lib/api'
-import { KINDS, SLUG, SPACE_REF, lengthLabel, shortName, type Kind } from './lib/catalog'
+import { KINDS, SLUG, slugMessage, SPACE_REF, lengthLabel, shortName, type Kind } from './lib/catalog'
 import { showColor } from './lib/color'
 import { refOf, resolveColor } from './lib/roles'
 import { readType } from './lib/types'
@@ -36,7 +36,7 @@ function NameField({
     const name = draft.trim()
     if (name === value) return setError(null)
     if (!name) return setError('이름을 입력해 주세요.')
-    if (!SLUG.test(name)) return setError('영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.')
+    if (!SLUG.test(name)) return setError(slugMessage(name))
     if (taken.includes(name)) return setError('같은 이름이 이미 있어요.')
     onCommit(name)
   }

@@ -296,7 +296,7 @@ export const SHAPE_WORDS: Record<TypeShape, string> = {
   title: '주문 관리',
   paragraph: '한라봉 선물세트는 오후 2시 전에 주문하면 당일 출고됩니다. 받는 분의 주소와 연락처를 다시 확인해 주세요.',
   caption: '3kg · 12~15과 · 제주 서귀포 · 무료 배송',
-  button: '저장, 취소',
+  button: '취소, 저장',
   field: '받는 분',
   menu: '주문 관리, 상품, 고객',
   'menu-on': '주문 관리',

@@ -1,14 +1,14 @@
 // 의미 색: 색상 판의 색 가운데 실제로 쓰는 색에 쓰임새의 이름을 붙여 모아 둔 판과, 그것을 만들고 고치는 양식.
 // 한 줄에 색 하나. 색, 이름과 가리키는 단계, 역할과 설명, 그 역할로 쓰인 예시를 나란히 보여 준다.
 
-import { SAMPLE_BAR } from './lib/sample'
+import { SAMPLE_BAR, paints, sampleColors } from './lib/sample'
 import { ICON_STROKE } from './lib/icons'
 import { useContext, useState, type FormEvent, type ReactNode } from 'react'
 import { ArrowUpRight } from 'lucide-react'
 import type { Token } from './lib/api'
-import { KINDS, SLUG, groupOf, shortName, NAME_SHAPE, typedNameProblem, type Kind } from './lib/catalog'
+import { KINDS, SLUG, slugMessage, groupOf, shortName, NAME_SHAPE, typedNameProblem, type Kind } from './lib/catalog'
 import { contrast, showColor } from './lib/color'
-import { ROLE_USES, ROLE_WORDS, guessUse, isRoleListShape, readNote, refOf, refTo, resolveColor, roleGroups, surroundings, writeNote, type Around, type RoleShape, type RoleUse } from './lib/roles'
+import { ROLE_USES, ROLE_WORDS, guessUse, isRoleListShape, readNote, refOf, refTo, resolveColor, roleGroups, writeNote, type Around, type RoleShape, type RoleUse } from './lib/roles'
 import { DARK, PreviewFontContext, PreviewSpaceContext, inkOn } from './ColorUses'
 import { CODE_OPEN, CodeRows, FoldSection, ICON_BUTTON, Section, WHERE_OPEN } from './Inspector'
 import { HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
@@ -110,12 +110,12 @@ export function RoleSample({ shape, color, around, words: written = '' }: { shap
         </>,
       )
     case 'on-fill':
-      // 채운 버튼 위의 글자. 버튼은 이 시스템의 글자 색으로 채운다.
+      // 채운 버튼 위의 글자. 버튼은 이 시스템의 주요 색으로 채운다(다른 판의 채운 버튼과 같다).
       return frame(
         around.surface,
         <span className="flex flex-wrap items-center gap-actions">
           {list.map((text) => (
-            <span key={text} data-sample className={`flex h-control items-center rounded-control px-button-x whitespace-nowrap ${STRONG}`} style={{ background: around.ink, color }}>
+            <span key={text} data-sample className={`flex h-control items-center rounded-control px-button-x whitespace-nowrap ${STRONG}`} style={{ background: paints(around).primary, color }}>
               {text}
             </span>
           ))}
@@ -237,7 +237,7 @@ export function RoleList({
   onMove: (name: string, before: string | null) => void
   onMoveGroup: (use: RoleUse, before: RoleUse | null) => void
 }) {
-  const around = surroundings(all)
+  const around = sampleColors(all)
   const groups = roleGroups(items)
   // 줄은 같은 묶음 안에서만 옮겨진다. 접은 판은 한 줄에 세 칸이라 읽는 순서로 자리를 찾는다.
   const useOf = new Map(groups.flatMap((g) => g.items.map((t) => [t.name, g.use] as const)))
@@ -409,7 +409,7 @@ export function NewRoleForm({
     const next: typeof error = {}
     const n = name.trim()
     if (!n) next.name = '이름을 입력해 주세요.'
-    else if (!SLUG.test(n)) next.name = '영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.'
+    else if (!SLUG.test(n)) next.name = slugMessage(n)
     else if (/^\d/.test(n)) next.name = '숫자로 시작할 수 없어요.'
     else if (tokens.some((t) => t.name === ROLE.prefix + n)) next.name = '같은 이름이 이미 있어요.'
     if (!ref) next.ref = '색을 골라 주세요.'
@@ -514,7 +514,7 @@ export function RoleInspector({
     // 비웠거나 쓸 수 없는 글자가 든 이름은 적는 중에 알 수 있는 것이다. 그대로 벗어나면 저장된 이름으로 되돌린다(DESIGN.md field-rules).
     if (!next || typedNameProblem(next)) return setNameDraft(short)
     // 글자는 맞지만 모양이 틀린 이름(card-, card--big)은 다 적어야 아는 것이다. 말없이 되돌리지 않고 까닭과 함께 칸에 남긴다.
-    if (!SLUG.test(next)) return setNameError(NAME_SHAPE)
+    if (next !== short && !SLUG.test(next)) return setNameError(NAME_SHAPE)
     if (next === short) return
     // 숫자로 시작하는 이름은 Tailwind의 숫자 클래스(h-8, opacity-50)와 같은 글자가 된다. 다른 의미 판과 같이 막는다.
     if (/^\d/.test(next)) return setNameError('숫자로 시작할 수 없어요.')

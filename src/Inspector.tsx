@@ -172,6 +172,8 @@ export function classesOf(kind: Kind, short: string): string[] {
       return [`border-${short}`]
     case 'outline':
       return [`outline-${short}`]
+    case 'gradient':
+      return [`bg-${short}`]
     case 'z':
       return [`z-${short}`]
     case 'breakpoint':
@@ -235,6 +237,8 @@ const NUMBER = /^\d*\.?\d+$/
 const SIGNED = /^-?\d*\.?\d+$/
 /** 숫자를 적는 도중의 꼴("-", "0.", "-."). 아직 숫자는 아니지만 틀린 것도 아니라서 적는 중에는 알리지 않는다. */
 const PARTIAL = /^-?\d*\.$|^-$/
+/** 0보다 커야 하는 칸에서 0.875를 적는 도중의 꼴(0, 0.0, .0). */
+const ZEROS = /^0*\.?0*$/
 const digitsOf = (value: string | null | undefined) => (value ?? '').replace(/px$/, '')
 
 /** 오른쪽 편집 패널. 선택한 값이 바뀌면 key로 새로 만들어져 입력 중이던 내용이 초기화된다. */
@@ -336,6 +340,8 @@ export function Inspector({
     // 비운 것은 틀린 값이 아니라 고치는 중이다. 알리지 않고, 저장된 값은 그대로 둔다.
     if (!next) return setValueError(null)
     if (typing && PARTIAL.test(next) && (negative || !next.startsWith('-'))) return setValueError(null)
+    // 0이 될 수 없는 칸에서 0.875를 적으려면 0과 0.0을 거친다. 적는 중에는 알리지 않고, 그대로 벗어나면 되돌린다.
+    if (typing && positive && ZEROS.test(next)) return setValueError(null)
     if (!(negative ? SIGNED : NUMBER).test(next) || (positive && Number(next) <= 0)) return setValueError('숫자를 입력해 주세요.')
     setValueError(null)
     if (!typing && `${next}${unit}` !== token.value) onValue(`${next}${unit}`)
@@ -356,7 +362,7 @@ export function Inspector({
   function changeLine(digits: string, typing = false) {
     setLineDraft(digits)
     setLineError(null)
-    if (digits && (!NUMBER.test(digits) || Number(digits) <= 0)) return setLineError(typing && /^\d*\.$/.test(digits) ? null : '숫자를 입력해 주세요.')
+    if (digits && (!NUMBER.test(digits) || Number(digits) <= 0)) return setLineError(typing && (/^\d*\.$/.test(digits) || ZEROS.test(digits)) ? null : '숫자를 입력해 주세요.')
     // 적는 동안은 저장하지 않는다(값 칸과 같다). 칸을 벗어날 때 저장한다.
     if (typing) return
     if (!digits) return onLine?.(null)
@@ -374,10 +380,13 @@ export function Inspector({
     const badName = !name || (isColor ? !PLAIN.test(name) : !!typedNameProblem(name))
     if (badGroup) setGroupDraft(initialGroup)
     if (badName) setNameDraft(initialName)
-    if (badGroup || badName) return
     // 글자는 맞지만 모양이 틀린 이름(card-, card--big)은 다 적어야 아는 것이다. 말없이 되돌리지 않고 까닭과 함께 칸에 남긴다.
-    if (group && !SLUG.test(group)) return setGroupError(NAME_SHAPE)
-    if (!isColor && !SLUG.test(name)) return setNameError(NAME_SHAPE)
+    // 목록 칸의 모양 오류는 이름 칸이 틀려서 돌아갈 때에도 다시 적는다. 위에서 오류를 지웠으므로, 여기서 적지 않으면 틀린 목록 이름이 오류 없이 칸에 남는다.
+    // 고치지 않은 이름은 모양을 검사하지 않는다.
+    const groupShape = !badGroup && !!group && group !== initialGroup && !SLUG.test(group)
+    if (groupShape) setGroupError(NAME_SHAPE)
+    if (badGroup || badName || groupShape) return
+    if (!isColor && name !== initialName && !SLUG.test(name)) return setNameError(NAME_SHAPE)
     const next = group ? `${group}-${name}` : name
     if (next === short) return
     if (allNames.includes(kind.prefix + next)) return setNameError('같은 이름이 이미 있어요.')

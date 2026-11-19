@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { SLUG, type Kind } from './lib/catalog'
+import { SLUG, slugMessage, type Kind } from './lib/catalog'
 import { EFFECT_PRESETS, EFFECT_SHAPES, writeEffectNote, type EffectKind, type EffectShape } from './lib/effects'
 import { Button, Field, UsePicker, inputClass } from './ui'
 
@@ -33,7 +33,7 @@ export function NewEffectForm({
   function submit(e: FormEvent) {
     e.preventDefault()
     const n = name.trim()
-    const problem = !n ? '이름을 입력해 주세요.' : !SLUG.test(n) ? '영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.' : existing.has(n) ? '같은 이름이 이미 있어요.' : undefined
+    const problem = !n ? '이름을 입력해 주세요.' : !SLUG.test(n) ? slugMessage(n) : existing.has(n) ? '같은 이름이 이미 있어요.' : undefined
     setError(problem)
     if (problem) return
     const preset = EFFECT_PRESETS[shape]

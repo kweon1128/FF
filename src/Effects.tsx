@@ -1,4 +1,4 @@
-// 효과(그림자, 투명도, 흐림) 판의 줄 목록과 예시, 그리고 값을 고치는 패널.
+// 효과(그림자, 투명도, 흐림, 그라데이션) 판의 줄 목록과 예시, 그리고 값을 고치는 패널.
 // 의미 색·의미 글꼴 판과 같은 짜임이다. 한 줄에 값 하나, 왼쪽에 이름·값·설명, 오른쪽에 그 값이 쓰인 모습.
 
 import { SAMPLE_BAR, SAMPLE_W } from './lib/sample'
@@ -8,14 +8,17 @@ import { Plus, X } from 'lucide-react'
 import type { Token } from './lib/api'
 import { SLUG, shortName, NAME_SHAPE, typedNameProblem, type Kind } from './lib/catalog'
 import { EFFECT_WORDS, hexOfLayer, nextLayer, paintShadow, parseShadow, rgbOfHex, splitLayers, readEffectNote, writeEffectNote, writeShadow, type EffectKind, type EffectShape, type ShadowLayer } from './lib/effects'
+import { DIRECTIONS, addStop, paintGradient, parseGradient, writeGradient, type Gradient, type GradientStop } from './lib/gradient'
+import { contrast } from './lib/color'
 import { resolveColor, type Around } from './lib/roles'
+import { CellsInput } from './ValueBoard'
 import { ColorField } from './BoardInspector'
 import { RefPicker } from './Roles'
 import { paints, sampleColors } from './lib/sample'
 import { PreviewFontContext, PreviewSpaceContext } from './ColorUses'
 import { CODE_OPEN, CodeRows, FoldSection, ICON_BUTTON, Section, WHERE_OPEN } from './Inspector'
 import { DetailsFolded, HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
-import { Button, Field, Phrases, Segmented, UnitInput, inputClass, linkRowClass } from './ui'
+import { Button, Field, Phrases, Segmented, UnitInput, UsePicker, inputClass, linkRowClass } from './ui'
 import { useReorder } from './useReorder'
 
 // 예시의 바탕이 판의 바탕과 같은 색이어도 가장자리가 보이게 하는 옅은 선.
@@ -173,6 +176,26 @@ export function EffectSample({ shape, value, around, accent, words: written = ''
           </span>
         </span>,
       )
+    case 'fill':
+    case 'button': {
+      // 그라데이션이 칠해진 면. 바탕은 제목과 설명이 놓인 넓은 면이고, 버튼은 채운 버튼이다.
+      // 그 위의 글자는 이 시스템의 글자 색과 바탕 색 가운데 첫 색과 더 잘 구분되는 쪽으로 적는다(어두운 그라데이션 위에는 밝은 글자).
+      const first = parseGradient(value)?.stops[0].hex
+      const on = first && contrast(first, around.surface) > contrast(first, around.ink) ? around.surface : around.ink
+      const [title, text] = all.split(', ').map((w) => w.trim())
+      if (shape === 'button')
+        return frame(
+          <span data-sample className={`flex h-control items-center rounded-control px-button-x whitespace-nowrap ${STRONG}`} style={{ backgroundImage: value, color: on }}>
+            {title}
+          </span>,
+        )
+      return frame(
+        <span data-sample className="flex h-[96px] w-full max-w-[224px] flex-col justify-end rounded-card p-card" style={{ backgroundImage: value, color: on }}>
+          <span className="block text-base leading-6 font-[650] break-words">{title}</span>
+          {text && <span className="block text-sm leading-5 break-words">{text}</span>}
+        </span>,
+      )
+    }
     case 'bar': {
       // 내용 위에 떠 있는 반투명 상단 바. 그 아래로 지나가는 글이 이 흐림만큼 흐려 보인다. 문구는 막대의 제목과 그 아래 내용의 줄들이다.
       const [title, ...rows] = all
@@ -302,11 +325,11 @@ export function EffectList({
             <span className={`min-w-0 flex-1 space-y-blocks ${plain ? 'hidden' : 'block'}`}>
               {!plain && [{ shape, words }, ...more].map((e, k) => (
                 // 색상 판의 값을 가리키는 그림자는 이 시스템의 그 색으로 바꿔 그린다. 그대로 두면 var()가 FF 자신의 색을 읽는다.
-                <EffectSample key={k} shape={e.shape} value={id === 'shadow' ? paintShadow(t.value, (name) => resolveColor(all, `var(${name})`)) : t.value} around={around} accent={accent} words={e.words} />
+                <EffectSample key={k} shape={e.shape} value={id === 'shadow' ? paintShadow(t.value, (name) => resolveColor(all, `var(${name})`)) : id === 'gradient' ? paintGradient(t.value, (name) => resolveColor(all, `var(${name})`)?.slice(0, 7) ?? null) : t.value} around={around} accent={accent} words={e.words} />
               ))}
             </span>
             {/* 그림자 값은 길어서 이름표에 적지 않는다. */}
-            {isSelected && selected.length === 1 && <SelectionLabel name={short} value={id === 'shadow' ? undefined : shownValue(id, t.value)} />}
+            {isSelected && selected.length === 1 && <SelectionLabel name={short} value={id === 'shadow' || id === 'gradient' ? undefined : shownValue(id, t.value)} />}
           </button>
         )
       })}
@@ -476,6 +499,69 @@ function ShadowFields({ value, tokens, onChange }: { value: string; /** 색상 �
   )
 }
 
+const STOP_AT = {
+  cells: [{ label: '위치', unit: '%' }],
+  read: (value: string) => (/^\d*\.?\d+$/.test(value) ? [value] : null),
+  write: ([n]: number[]) => (n >= 0 && n <= 100 ? String(n) : null),
+}
+
+/**
+ * 그라데이션을 고치는 칸들. 방향과, 색마다 그 색과 위치(0~100%)다. 색은 그림자와 같이 직접 고르거나 색상 판의 값을 가리킨다.
+ * 방향은 여덟 가운데서 고른다. 그 밖의 각도로 적힌 값은 칸 아래에 각도를 그대로 보여 준다. 색은 둘 이상이어야 해서, 둘뿐이면 지울 수 없다.
+ */
+function GradientFields({ value, tokens, onChange }: { value: string; tokens: Token[]; onChange: (value: string) => void }) {
+  const g = parseGradient(value)!
+  // "색상 판"을 골랐지만 아직 색을 고르지 않은 색들. 고르기 전에는 값이 바뀌지 않는다.
+  const [picking, setPicking] = useState<number[]>([])
+  const save = (next: Gradient) => {
+    setPicking([])
+    onChange(writeGradient(next))
+  }
+  const setStop = (i: number, next: Partial<GradientStop>) => save({ ...g, stops: g.stops.map((s, k) => (k === i ? { ...s, ...next } : s)) })
+  const direction = DIRECTIONS.find((d) => Number(d.id) === ((g.angle % 360) + 360) % 360)
+  return (
+    <div className="space-y-settings">
+      <Field label="방향" plain hint={direction ? undefined : `${g.angle}deg`}>
+        <UsePicker label="방향" options={DIRECTIONS} value={direction?.id ?? null} nameWidth="w-picker-name-long" onChange={(id) => save({ ...g, angle: Number(id) })} />
+      </Field>
+      {g.stops.map((s, i) => (
+        <div key={i} data-stop={i}>
+          <div className="mb-label flex h-control items-center justify-between">
+            <p className="type-label">색 {i + 1}</p>
+            {g.stops.length > 2 && (
+              <button type="button" aria-label={`색 ${i + 1} 삭제`} title={`색 ${i + 1} 삭제`} onClick={() => save({ ...g, stops: g.stops.filter((_, k) => k !== i) })} className={ICON_BUTTON}>
+                <X size={16} strokeWidth={ICON_STROKE} />
+              </button>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-field-row">
+            <div className="col-span-2 space-y-blocks">
+              <Segmented
+                label={`색 ${i + 1} 고르는 법`}
+                options={COLOR_FROM}
+                value={s.ref || picking.includes(i) ? 'ref' : 'own'}
+                onChange={(from) => {
+                  if (from === 'ref') return setPicking([...picking, i])
+                  // 가리키던 색을 풀면 지금 보이는 그 색을 직접 적은 색으로 남긴다.
+                  if (!s.ref) return setPicking(picking.filter((k) => k !== i))
+                  setStop(i, { ref: null, hex: resolveColor(tokens, `var(${s.ref})`)?.slice(0, 7) ?? '#000000' })
+                }}
+              />
+              {s.ref || picking.includes(i) ? <RefPicker tokens={tokens} value={s.ref} onChange={(name) => setStop(i, { ref: name })} /> : <ColorField label={`색 ${i + 1}`} value={s.hex} placeholder="" onCommit={(hex) => setStop(i, { ref: null, hex })} />}
+            </div>
+            <Field label="위치">
+              <CellsInput spec={STOP_AT} value={String(s.at)} onValue={(at) => setStop(i, { at: Number(at) })} />
+            </Field>
+          </div>
+        </div>
+      ))}
+      <Button variant="ghost" aria-label="색 추가" onClick={() => save(addStop(g))}>
+        <Plus size={16} strokeWidth={ICON_STROKE} />색 추가
+      </Button>
+    </div>
+  )
+}
+
 const SIDES: { id: 'out' | 'in'; label: string }[] = [
   { id: 'out', label: '바깥' },
   { id: 'in', label: '안쪽' },
@@ -562,6 +648,8 @@ export function EffectInspector({
   const [rawDraft, setRawDraft] = useState(token.value)
   // 겹으로 읽을 수 있는 그림자인지. 읽을 수 없으면(none, var() 등) 글자로 고친다.
   const layered = id === 'shadow' && parseShadow(token.value) !== null
+  // 방향과 색들로 읽을 수 있는 그라데이션인지. 읽을 수 없으면(둥근 그라데이션 등) 글자로 고친다.
+  const graded = id === 'gradient' && parseGradient(token.value) !== null
 
   function commitName() {
     const next = nameDraft.trim()
@@ -569,7 +657,7 @@ export function EffectInspector({
     // 비웠거나 쓸 수 없는 글자가 든 이름은 적는 중에 알 수 있는 것이다. 그대로 벗어나면 저장된 이름으로 되돌린다(DESIGN.md field-rules).
     if (!next || typedNameProblem(next)) return setNameDraft(short)
     // 글자는 맞지만 모양이 틀린 이름(card-, card--big)은 다 적어야 아는 것이다. 말없이 되돌리지 않고 까닭과 함께 칸에 남긴다.
-    if (!SLUG.test(next)) return setNameError(NAME_SHAPE)
+    if (next !== short && !SLUG.test(next)) return setNameError(NAME_SHAPE)
     if (next === short) return
     if (allNames.includes(kind.prefix + next)) return setNameError('같은 이름이 이미 있어요.')
     onRename(kind.prefix + next)
@@ -581,7 +669,7 @@ export function EffectInspector({
   }
 
   // 코드에서 쓰는 클래스. Tailwind가 --shadow-, --opacity-, --blur- 값마다 같은 이름의 클래스를 만든다.
-  const className = `${id}-${short}`
+  const className = id === 'gradient' ? `bg-${short}` : `${id}-${short}`
 
   return (
     <div>
@@ -606,7 +694,9 @@ export function EffectInspector({
       </Section>
 
       <Section title={kind.title}>
-        {layered ? (
+        {graded ? (
+          <GradientFields value={token.value} tokens={tokens} onChange={(value) => onChange({ value })} />
+        ) : layered ? (
           <ShadowFields value={token.value} tokens={tokens} onChange={(value) => onChange({ value })} />
         ) : id === 'opacity' ? (
           <NumberField label="투명도" unit="%" value={token.value} toDigits={(v) => digitsOf(Number(v) * 100)} fromDigits={(d) => String(Math.min(100, Math.max(0, Number(d))) / 100)} onChange={(value) => onChange({ value })} />
@@ -629,7 +719,7 @@ export function EffectInspector({
           />
         )}
         {/* 글자로 적는 값의 기호 검사는 어느 패널이나 같다. 적는 중에 알리고, 그대로 벗어나면 되돌린다. */}
-        {!layered && id !== 'opacity' && !(id === 'blur' && /^\d*\.?\d+px$/.test(token.value)) && /[;{}]/.test(rawDraft) && (
+        {!layered && !graded && id !== 'opacity' && !(id === 'blur' && /^\d*\.?\d+px$/.test(token.value)) && /[;{}]/.test(rawDraft) && (
           <span className="mt-label block type-body text-danger">; {'{ }'} 기호는 쓸 수 없어요.</span>
         )}
       </Section>

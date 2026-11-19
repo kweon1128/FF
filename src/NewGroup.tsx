@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { SLUG } from './lib/catalog'
+import { SLUG, slugMessage } from './lib/catalog'
 import { SCALE_STEPS, grayOf, nearestStep } from './lib/scale'
 import { ColorSwatch } from './ColorPicker'
 import { asHex } from './lib/color'
@@ -52,7 +52,7 @@ export function NewGroupForm({
     const n = name.trim()
     if (group === undefined) {
       if (!n) next.name = '이름을 입력해 주세요.'
-      else if (!SLUG.test(n)) next.name = '영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.'
+      else if (!SLUG.test(n)) next.name = slugMessage(n)
       else if (existing.has(n)) next.name = why?.(n) ?? '같은 이름이 이미 있어요.'
     }
     if (step.trim() && !STEP.test(step.trim())) next.step = '영문 소문자와 숫자만 쓸 수 있어요.'

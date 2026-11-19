@@ -7,7 +7,7 @@ import { useContext, useState, type CSSProperties, type FormEvent } from 'react'
 import { PreviewSpaceContext } from './ColorUses'
 import { ArrowUpRight, X } from 'lucide-react'
 import type { Token } from './lib/api'
-import { KINDS, SLUG, lineName, shortName, NAME_SHAPE, typedNameProblem, trackName, type Kind } from './lib/catalog'
+import { KINDS, SLUG, slugMessage, lineName, shortName, NAME_SHAPE, typedNameProblem, trackName, type Kind } from './lib/catalog'
 import { shownFont } from './lib/fonts'
 import type { Around } from './lib/roles'
 import { SHAPE_WORDS, TYPE_USES, guessTypeUse, isListShape, lookOf, missingForTypes, nextType, readType, readTypeNote, trackOverride, typeGroups, writeType, writeTypeNote, type TypeLook, type TypeParts, type TypeShape, type TypeUse } from './lib/types'
@@ -377,7 +377,7 @@ export function TypeInspector({
     // 비웠거나 쓸 수 없는 글자가 든 이름은 적는 중에 알 수 있는 것이다. 그대로 벗어나면 저장된 이름으로 되돌린다(DESIGN.md field-rules).
     if (!next || typedNameProblem(next)) return setNameDraft(short)
     // 글자는 맞지만 모양이 틀린 이름(card-, card--big)은 다 적어야 아는 것이다. 말없이 되돌리지 않고 까닭과 함께 칸에 남긴다.
-    if (!SLUG.test(next)) return setNameError(NAME_SHAPE)
+    if (next !== short && !SLUG.test(next)) return setNameError(NAME_SHAPE)
     if (next === short) return
     // 숫자로 시작하는 이름은 Tailwind의 숫자 클래스(h-8, opacity-50)와 같은 글자가 된다. 다른 의미 판과 같이 막는다.
     if (/^\d/.test(next)) return setNameError('숫자로 시작할 수 없어요.')
@@ -515,7 +515,7 @@ export function NewTypeForm({ tokens, onCreate, onCancel }: { tokens: Token[]; o
   function submit(e: FormEvent) {
     e.preventDefault()
     const n = name.trim()
-    const problem = !n ? '이름을 입력해 주세요.' : !SLUG.test(n) ? '영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.' : /^\d/.test(n) ? '숫자로 시작할 수 없어요.' : tokens.some((t) => t.name === STYLE.prefix + n) ? '같은 이름이 이미 있어요.' : undefined
+    const problem = !n ? '이름을 입력해 주세요.' : !SLUG.test(n) ? slugMessage(n) : /^\d/.test(n) ? '숫자로 시작할 수 없어요.' : tokens.some((t) => t.name === STYLE.prefix + n) ? '같은 이름이 이미 있어요.' : undefined
     setError(problem)
     if (problem) return
     onCreate(STYLE.prefix + n, writeType({ font, size, weight }, new Set(tokens.map((t) => t.name))), writeTypeNote(shownUse, text))
