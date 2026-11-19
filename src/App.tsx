@@ -101,7 +101,7 @@ import { NewSystemForm } from './NewSystem'
 import { Palette, type PaletteItem } from './Palette'
 import { PasteDialog, type PasteJob } from './PasteDialog'
 import { Shortcuts } from './Shortcuts'
-import { AddColorButtons, DetailsFolded, FoldButton, KindSections, ResetButton } from './TokenScreen'
+import { MissingNotices, AddColorButtons, DetailsFolded, FoldButton, KindSections, ResetButton } from './TokenScreen'
 import { TopBar, type SaveStatus } from './TopBar'
 import { Button, EmptyState, Field, Modal, inputClass } from './ui'
 
@@ -1257,6 +1257,8 @@ export function App() {
       return
     }
     if (selected.length === 0) return
+    // 이름이 곧 길이인 토대 값(간격, 크기, 모서리, 테두리)은 같은 길이를 둘 수 없다. "추가" 창이 막는 것을 복제가 뚫지 않게 한다.
+    if (selectedKinds.some((k) => k && ['space', 'length', 'corner', 'thickness'].includes(k.id))) return notify('같은 길이는 둘 수 없어서 복제하지 않았어요.')
     // 한 목록을 통째로 골랐으면(색이 둘 이상) 목록을 복제한다. 같은 목록에 copy가 끼어들지 않고 "이름-copy"라는 새 목록이 생긴다.
     if (movableGroup && selected.length > 1) {
       const head = `${COLOR.prefix}${movableGroup}-`
@@ -1437,9 +1439,12 @@ export function App() {
     }
     if (screen === 'components') return
     if (clip.type === 'token') {
+      // 이름이 곧 길이인 토대 값(간격, 크기, 모서리, 테두리)에는 값을 입히지 않는다. 8px라는 이름에 16px이 들어가면 이름과 길이가 어긋난다.
+      if (['space', 'length', 'corner', 'thickness'].includes(clip.kind)) return notify('길이는 이름이 곧 값이라 속성을 붙여넣지 않았어요.')
       // 같은 종류의 값에만 입힌다(색은 색에, 간격은 간격에).
       const targets = selected.filter((name) => kindOf(name)?.id === clip.kind)
-      if (targets.length === 0) return
+      // 아무 일도 일어나지 않으면 붙여넣기가 된 것인지 알 수 없다. 까닭을 알린다.
+      if (targets.length === 0) return selected.length > 0 ? notify('복사한 속성과 종류가 달라서 붙여넣지 않았어요.') : undefined
       commit(tokens.map((t) => (targets.includes(t.name) ? { ...t, value: clip.value } : t)))
       return setSelectionId((n) => n + 1)
     }
@@ -1474,7 +1479,7 @@ export function App() {
       if (screen === 'components') {
         if (cells.length) renamePartInPanel('variants', cells.at(-1)!.v)
       } else if (selected.length === 1) renameTokenInPanel(selected[0])
-      else if (selected.length > 1) setBatch(true)
+      else if (stepColorsPicked) setBatch(true)
       return
     }
     if (isTyping(e.target) || dialog) return
@@ -1589,7 +1594,9 @@ export function App() {
       e.preventDefault()
       if (screen === 'canvas') select(tokens.map((t) => t.name))
       else if (isTokenScreen(screen)) {
-        const kinds = TOKEN_SCREENS[screen].kinds
+        // 선택한 값이 있으면 그 값이 있는 판의 값을 모두 선택한다. 왼쪽 메뉴에서 색상을 누른 뒤 글꼴 판의 값을 고르고 Ctrl+A를 눌렀을 때 색이 선택되면 안 된다.
+        const home = selectedTokens[0] ? Object.values(TOKEN_SCREENS).find((s) => s.kinds.some((k) => k.matches(selectedTokens[0].name))) : null
+        const kinds = (home ?? TOKEN_SCREENS[screen]).kinds
         select(tokens.filter((t) => kinds.some((k) => k.matches(t.name))).map((t) => t.name))
       } else if (screen === 'components' && comp) {
         selectCells(
@@ -1604,6 +1611,16 @@ export function App() {
     window.addEventListener('keydown', listen)
     return () => window.removeEventListener('keydown', listen)
   }, [])
+
+  /**
+   * 줄을 끌어 옮긴다. 여러 개를 선택하고 그 가운데 하나를 끌면 선택한 것이 모두 함께 옮겨진다(Ctrl+]/[와 같다). 선택하지 않은 줄을 끌면 그 줄만 옮겨진다.
+   * 선택한 것을 파일에 적힌 차례대로 하나씩 놓일 자리 앞에 넣으므로 서로의 앞뒤는 그대로다. 놓일 자리가 선택한 것 가운데 하나면 잡은 줄만 옮긴다.
+   */
+  const moveTogether = (move: (list: Token[], name: string, before: string | null) => Token[], name: string, before: string | null) => {
+    const many = selected.length > 1 && selected.includes(name) && (before === null || !selected.includes(before))
+    const names = many ? tokens.filter((t) => selected.includes(t.name)).map((t) => t.name) : [name]
+    return names.reduce((list, n) => move(list, n, before), tokens)
+  }
 
   const sectionProps = {
     tokens,
@@ -1625,12 +1642,12 @@ export function App() {
     },
     onReorderGroup: reorderGroup,
     rolesFolded,
-    onMoveRole: (name: string, before: string | null) => commitIfMoved(moveRole(tokens, name, before)),
+    onMoveRole: (name: string, before: string | null) => commitIfMoved(moveTogether(moveRole, name, before)),
     onMoveRoleGroup: (use: RoleUse, before: RoleUse | null) => commitIfMoved(moveRoleGroup(tokens, use, before)),
-    onMoveType: (name: string, before: string | null) => commitIfMoved(moveType(tokens, name, before)),
+    onMoveType: (name: string, before: string | null) => commitIfMoved(moveTogether(moveType, name, before)),
     // 색상 판에서 끌어 옮기는 낱개 색은 예외 색뿐이다(목록 안의 단계는 숫자순으로 저절로 놓인다).
     onMoveInKind: (kind: Kind, name: string, before: string | null) =>
-      commitIfMoved(kind.id === 'color' ? moveException(tokens, name, before) : moveInKind(tokens, kind, name, before)),
+      commitIfMoved(moveTogether(kind.id === 'color' ? moveException : (list, n, b) => moveInKind(list, kind, n, b), name, before)),
     onMoveKind: (kinds: Kind[], kind: Kind, before: Kind | null) => commitIfMoved(moveKind(tokens, kinds, kind, before)),
     onMoveSpaceGroup: (use: SpaceUse, before: SpaceUse | null) => commitIfMoved(moveSpaceGroup(tokens, use, before)),
     onMoveSizeGroup: (kind: Kind, group: SizeGroup, before: SizeGroup | null) => commitIfMoved(moveSizeGroup(tokens, kind, group, before)),
@@ -1690,6 +1707,9 @@ export function App() {
   const selectedKinds = selectedTokens.map((t) => ALL_KINDS.find((k) => k.matches(t.name)) ?? null)
   const commonKind = selectedKinds.every((k) => k === selectedKinds[0]) ? (selectedKinds[0] ?? null) : null
   const ready = !loadError && systems !== null && system !== null
+  // 번호 다시 매기기를 열 수 있는 선택. 색 목록의 단계 색만 둘 이상 골랐을 때다. 번호가 이름인 것은 단계 색(50~950)뿐이다.
+  // 길이가 곧 이름인 값, 쓰임을 적은 의미 값, 단계 이름(xs, sm)에 번호를 매기면 이름이 망가진다.
+  const stepColorsPicked = selectedTokens.length > 1 && selectedTokens.every((t) => COLOR.matches(t.name) && groupOf(shortName(COLOR, t.name)) !== '')
   // 한 색 목록을 통째로(그리고 그것만) 선택했으면 그 목록의 이름. 오른쪽 패널에서 목록 이름을 고칠 수 있다.
   const groupsPicked = new Set(selectedTokens.map((t) => (COLOR.matches(t.name) ? groupOf(shortName(COLOR, t.name)) : null)))
   const onlyGroup = groupsPicked.size === 1 ? [...groupsPicked][0] : null
@@ -1757,7 +1777,7 @@ export function App() {
         { id: 'a:shadow', group: '명령', label: '그림자 추가', run: () => setAddingEffect(KINDS.shadow) },
         { id: 'a:opacity', group: '명령', label: '투명도 추가', run: () => setAddingEffect(KINDS.opacity) },
         { id: 'a:blur', group: '명령', label: '흐림 추가', run: () => setAddingEffect(KINDS.blur) },
-        { id: 'a:z', group: '명령', label: '겹치는 차례 추가', run: () => setAddingLayer(true) },
+        { id: 'a:z', group: '명령', label: '겹치는 순서 추가', run: () => setAddingLayer(true) },
         ...[KINDS.duration, KINDS.ease, KINDS.breakpoint, KINDS.container, KINDS.aspect].map((kind) => ({ id: `a:${kind.id}`, group: '명령', label: kind.addLabel, run: () => setAddingValue(kind) })),
         { id: 'a:sizes', group: '명령', label: '글자 크기 한 벌 만들기', run: () => setMakingSizes(true) },
         { id: 'a:weights', group: '명령', label: '굵기 한 벌 만들기', run: () => setMakingWeights(true) },
@@ -1885,7 +1905,7 @@ export function App() {
                     {id === 'role' && (
                       <div className="mb-header flex justify-end gap-actions-tight">
                         <ResetButton
-                          title="묶음과 그 안의 색을 기본 순서로 돌려놓아요"
+                          title="역할과 그 안의 색을 처음 순서로 돌려놓아요"
                           onReset={rolesSorted ? () => commit(rolesSorted) : undefined}
                         />
                         <FoldButton folded={rolesFolded} title="설명과 예시를 모두 숨기거나 보여요" onToggle={toggleRolesFold} />
@@ -1907,7 +1927,7 @@ export function App() {
                             {/* 의미 크기 판은 보는 방식이 둘이다(종류별, 요소별). "원래대로"는 어느 보기에서나 종류별 보기의 차례(파일의 차례)를 돌려놓는다. */}
                             {id === 'sizeuse' && <SizeViewSwitch value={sizeView} onChange={changeSizeView} />}
                             {/* 요소별 보기는 차례를 다루지 않는다(끌어 옮길 수 없다). 그래서 이 보기에서는 "원래대로"도 꺼 둔다. */}
-                            <ResetButton title="종류와 그 안의 차례를 기본 순서로 돌려놓아요" onReset={next === tokens || (id === 'sizeuse' && sizeView === 'thing') ? undefined : () => commit(next)} />
+                            <ResetButton title="종류와 그 안의 순서를 처음대로 돌려놓아요" onReset={next === tokens || (id === 'sizeuse' && sizeView === 'thing') ? undefined : () => commit(next)} />
                             {FOLDABLE.includes(id) && <FoldButton folded={!!plainBoards[id]} title="설명과 예시를 모두 숨기거나 보여요" onToggle={() => togglePlain(id)} />}
                             {/* 의미 크기는 종류가 셋이지만 추가는 판에 하나다. 종류는 창에서 고른다(다른 의미 판처럼 판마다 추가가 하나). */}
                             {id === 'sizeuse' && (
@@ -1929,6 +1949,7 @@ export function App() {
                     {id === 'sizeuse' && sizeView === 'thing' ? (
                       // 의미 크기 판의 요소별 보기. 종류의 제목 없이 묶음 안에서 요소마다 그 높이와 폭을 함께 보여 준다. 접기는 종류별 보기와 같은 것을 읽는다.
                       <DetailsFolded.Provider value={!!plainBoards[id]}>
+                        <MissingNotices kinds={TOKEN_SCREENS[id].kinds} tokens={tokens} onSelect={sectionProps.onSelect} />
                         <SizeThings tokens={tokens} selected={selected} onSelect={sectionProps.onSelect} onSelectGroup={sectionProps.onSelectGroup} onRename={sectionProps.onRename} />
                       </DetailsFolded.Provider>
                     ) : (
@@ -2253,7 +2274,7 @@ export function App() {
               tokens={selectedTokens}
               group={wholeGroup}
               onRenameGroup={(next) => (wholeGroup ? renameGroup(wholeGroup, next) : null)}
-              onRename={() => setBatch(true)}
+              onRename={stepColorsPicked ? () => setBatch(true) : undefined}
             />
           ) : null}
         </aside>
@@ -2392,7 +2413,7 @@ export function App() {
       )}
 
       {addingLayer && (
-        <Modal title="겹치는 차례 추가" onClose={() => setAddingLayer(false)}>
+        <Modal title="겹치는 순서 추가" onClose={() => setAddingLayer(false)}>
           <NewLayerForm
             tokens={tokens}
             onCancel={() => setAddingLayer(false)}
@@ -2533,7 +2554,7 @@ export function App() {
         </Modal>
       )}
 
-      {batch && selectedTokens.length > 1 && (
+      {batch && stepColorsPicked && (
         <BatchRename picked={selectedTokens} allNames={tokens.map((t) => t.name)} onApply={renameMany} onClose={() => setBatch(false)} />
       )}
       {palette && <Palette items={paletteItems} onClose={() => setPalette(false)} />}

@@ -8,12 +8,12 @@ import { Plus, X } from 'lucide-react'
 import type { Token } from './lib/api'
 import { SLUG, shortName, type Kind } from './lib/catalog'
 import { EFFECT_WORDS, nextLayer, parseShadow, splitLayers, readEffectNote, writeEffectNote, writeShadow, type EffectKind, type EffectShape, type ShadowLayer } from './lib/effects'
-import { surroundings, type Around } from './lib/roles'
-import { sampleColors } from './lib/sample'
+import type { Around } from './lib/roles'
+import { paints, sampleColors } from './lib/sample'
 import { PreviewFontContext, PreviewSpaceContext } from './ColorUses'
 import { CODE_OPEN, CodeRows, FoldSection, ICON_BUTTON, Section, WHERE_OPEN } from './Inspector'
 import { DetailsFolded, HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
-import { Button, Field, Phrases, UnitInput, inputClass } from './ui'
+import { Button, Field, Phrases, UnitInput, inputClass , linkRowClass } from './ui'
 import { useReorder } from './useReorder'
 
 // 예시의 바탕이 판의 바탕과 같은 색이어도 가장자리가 보이게 하는 옅은 선.
@@ -29,7 +29,7 @@ export function EffectSample({ shape, value, around, accent, words: written = ''
   const font = useContext(PreviewFontContext)
   const space = useContext(PreviewSpaceContext)
   const all = written || EFFECT_WORDS[shape]
-  const faint = `color-mix(in oklab, ${around.ink} 16%, ${around.surface})`
+  const faint = paints(around).line
   const bar = (width: string, more = '') => <span className={`block ${SAMPLE_BAR} rounded-small ${width} ${more}`} style={{ background: faint }} />
   const STRONG = 'text-sm leading-5 font-[550]'
   // 그림자는 상자 밖으로 지므로, 잘리지 않게 상자 둘레에 24px을 비워 둔다.
@@ -78,7 +78,7 @@ export function EffectSample({ shape, value, around, accent, words: written = ''
                 <span
                   key={i}
                   className={`flex h-control items-center rounded-control whitespace-nowrap ${i === actions.length - 1 ? 'px-button-x' : 'px-button-ghost-x'} ${STRONG}`}
-                  style={i === actions.length - 1 ? { background: around.ink, color: around.surface } : undefined}
+                  style={i === actions.length - 1 ? { background: paints(around).primary, color: paints(around).onPrimary } : undefined}
                 >
                   {text}
                 </span>
@@ -130,10 +130,10 @@ export function EffectSample({ shape, value, around, accent, words: written = ''
         // 채운 버튼 한 쌍과 테두리 버튼 한 쌍. 쌍끼리는 떨어지지 않게 묶어, 좁은 칸에서는 쌍 단위로 줄이 바뀐다.
         <span className="flex flex-wrap items-center gap-x-columns gap-y-blocks">
           <span className="flex items-center gap-actions">
-            <span className={BUTTON} style={{ background: around.ink, color: around.surface }}>
+            <span className={BUTTON} style={{ background: paints(around).primary, color: paints(around).onPrimary }}>
               {all}
             </span>
-            <span data-sample className={BUTTON} style={{ background: around.ink, color: around.surface, opacity: value }}>
+            <span data-sample className={BUTTON} style={{ background: paints(around).primary, color: paints(around).onPrimary, opacity: value }}>
               {all}
             </span>
           </span>
@@ -224,8 +224,8 @@ export function EffectList({
   // 값이 없으면 빈 상자를 남기지 않는다. 추가는 묶음 제목 줄의 버튼으로 한다.
   if (items.length === 0) return null
   const id = kind.id as EffectKind
-  const around = surroundings(all)
-  const accent = sampleColors(all).selection
+  const around = sampleColors(all)
+  const accent = around.selection
   return (
     <div className="space-y-rows rounded-float border-edge border-hairline bg-canvas p-menu">
       {items.map((t) => {
@@ -245,7 +245,7 @@ export function EffectList({
             className={`group relative flex w-full items-center gap-columns rounded-row px-board-row-x py-board-row-y text-left select-none ${reorder.moving(t.name) ? 'opacity-dragging' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
           >
             {reorder.line(t.name)}
-            <span className="w-row-name shrink-0">
+            <span className={plain ? 'min-w-0 flex-1' : 'w-row-name shrink-0'}>
               <span data-name className="block type-label break-words">
                 {short}
               </span>
@@ -267,7 +267,7 @@ export function EffectList({
               )}
             </span>
             {/* 쓰임이 여럿인 값은 예시도 여럿이다. 위아래로 8px 띄워 쌓는다. */}
-            <span className="block min-w-0 flex-1 space-y-blocks">
+            <span className={`min-w-0 flex-1 space-y-blocks ${plain ? 'hidden' : 'block'}`}>
               {!plain && [{ shape, words }, ...more].map((e, k) => (
                 <EffectSample key={k} shape={e.shape} value={t.value} around={around} accent={accent} words={e.words} />
               ))}
@@ -360,8 +360,8 @@ function ShadowFields({ value, onChange }: { value: string; onChange: (value: st
             {layers.length > 1 && (
               <button
                 type="button"
-                aria-label={`겹 ${i + 1} 지우기`}
-                title="이 겹 지우기"
+                aria-label={`겹 ${i + 1} 삭제`}
+                title="이 겹 삭제"
                 onClick={() => {
                   const keep = (_: unknown, k: number) => k !== i
                   setLayers(layers.filter(keep))
@@ -553,7 +553,7 @@ export function EffectInspector({
               <button
                 type="button"
                 onClick={() => onOpenComponent(u.index)}
-                className="-ml-button-ghost-x flex h-control max-w-full items-center rounded-control px-button-ghost-x type-label outline-selection hover:bg-hover focus-visible:outline-focus"
+                className={linkRowClass}
               >
                 <span className="truncate">{u.name}</span>
                 <span className="ml-row-inner shrink-0 type-body text-ink-faint">{u.where.length}곳</span>

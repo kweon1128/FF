@@ -19,10 +19,10 @@ export const isLayoutKind = (kind: Kind) => kind.id === 'breakpoint' || kind.id 
 export type LayoutShape = 'columns' | 'sidebar' | 'page' | 'dialog' | 'image' | 'video' | 'card'
 
 export const LAYOUT_SHAPES: (KindShape<LayoutShape> & { kind: LayoutKind })[] = [
-  { id: 'columns', kind: 'breakpoint', label: '나란히', hint: '이 폭부터 두 영역이 좌우로 놓임' },
-  { id: 'sidebar', kind: 'breakpoint', label: '옆 메뉴', hint: '이 폭부터 메뉴가 옆에 놓임' },
-  { id: 'page', kind: 'container', label: '페이지', hint: '이 폭까지만 넓어지는 페이지' },
-  { id: 'dialog', kind: 'container', label: '창', hint: '이 폭까지만 넓어지는 창' },
+  { id: 'columns', kind: 'breakpoint', label: '나란히', hint: '이 너비부터 두 영역이 좌우로 놓임' },
+  { id: 'sidebar', kind: 'breakpoint', label: '옆 메뉴', hint: '이 너비부터 메뉴가 옆에 놓임' },
+  { id: 'page', kind: 'container', label: '페이지', hint: '이 너비까지만 넓어지는 페이지' },
+  { id: 'dialog', kind: 'container', label: '창', hint: '이 너비까지만 넓어지는 창' },
   { id: 'image', kind: 'aspect', label: '이미지', hint: '사진이 놓이는 칸' },
   { id: 'video', kind: 'aspect', label: '동영상', hint: '동영상이 놓이는 칸' },
   { id: 'card', kind: 'aspect', label: '카드', hint: '위에 사진이 있는 카드' },

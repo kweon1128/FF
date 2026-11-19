@@ -8,7 +8,7 @@ import { stepValue, suggestLine, suggestTrack } from './lib/tokens'
 import { ColorSwatch } from './ColorPicker'
 import { NewFontForm } from './NewFont'
 import { shownFont } from './lib/fonts'
-import { Button, Chip, Field, Modal, UnitInput, inputClass } from './ui'
+import { Button, Chip, Field, Modal, UnitInput, inputClass , linkRowClass } from './ui'
 
 type Props = {
   token: Token
@@ -583,7 +583,7 @@ export function Inspector({
             onClick={onMakeScale}
           >
             <Rows3 size={16} strokeWidth={ICON_STROKE} />
-            {scaleMissing === 0 ? '단계 다시 생성' : '단계 생성'}
+            {scaleMissing === 0 ? '단계 다시 만들기' : '단계 만들기'}
           </Button>
         )}
       </Section>
@@ -600,7 +600,7 @@ export function Inspector({
                 key={name}
                 type="button"
                 onClick={() => onOpenToken(name)}
-                className="-ml-button-ghost-x flex h-control max-w-full items-center rounded-control px-button-ghost-x type-label outline-selection hover:bg-hover focus-visible:outline-focus"
+                className={linkRowClass}
               >
                 <span className="truncate">{userOf(name).short}</span>
                 <span className="ml-row-inner shrink-0 type-body text-ink-faint">{userOf(name).title}</span>
@@ -611,7 +611,7 @@ export function Inspector({
                 <button
                   type="button"
                   onClick={() => onOpenComponent(u.index)}
-                  className="-ml-button-ghost-x flex h-control max-w-full items-center rounded-control px-button-ghost-x type-label outline-selection hover:bg-hover focus-visible:outline-focus"
+                  className={linkRowClass}
                 >
                   <span className="truncate">{u.name}</span>
                   <span className="ml-row-inner shrink-0 type-body text-ink-faint">{u.where.length}곳</span>
@@ -648,7 +648,8 @@ export function MultiInspector({
   group: string | null
   /** 목록 이름을 바꾼다. 바꿀 수 없으면 이유를 돌려준다. */
   onRenameGroup: (next: string) => string | null
-  onRename: () => void
+  /** 번호 다시 매기기 창을 연다. 색 목록의 단계 색만 선택했을 때에만 넘어온다(번호가 이름인 것은 그 색뿐이다). */
+  onRename?: () => void
 }) {
   const [draft, setDraft] = useState(group ?? '')
   const [error, setError] = useState<string | null>(null)
@@ -691,12 +692,14 @@ export function MultiInspector({
         </div>
       </Section>
 
-      <Section>
-        <Button variant="ghost" className="-ml-button-ghost-x" title="Ctrl+R" onClick={onRename}>
-          <PencilLine size={16} strokeWidth={ICON_STROKE} />
-          번호 다시 매기기
-        </Button>
-      </Section>
+      {onRename && (
+        <Section>
+          <Button variant="ghost" className="-ml-button-ghost-x" title="Ctrl+R" onClick={onRename}>
+            <PencilLine size={16} strokeWidth={ICON_STROKE} />
+            번호 다시 매기기
+          </Button>
+        </Section>
+      )}
     </div>
   )
 }

@@ -25,7 +25,8 @@ function split(name: string) {
 }
 
 /**
- * 여러 값의 번호를 한꺼번에 다시 매기는 창(Ctrl+R).
+ * 색 목록의 단계 색 여러 개의 번호를 한꺼번에 다시 매기는 창(Ctrl+R). 번호가 이름인 것은 단계 색뿐이라 다른 값에는 열리지 않는다.
+ * 까닭(겹치는 이름)이 줄마다 이미 보이므로, 낼 수 없을 때는 주 버튼을 끈다(DESIGN.md dialog).
  * 이름의 앞부분(목록 이름)은 그대로 두고, 시작 번호와 끝 번호 사이를 개수에 맞게 나눠 붙인다.
  * 여러 목록을 함께 골랐으면 목록마다 따로 매긴다.
  */
@@ -55,7 +56,11 @@ export function BatchRename({
 
   const from = Number(start)
   const to = Number(end)
-  const valid = start.trim() !== '' && end.trim() !== '' && Number.isInteger(from) && Number.isInteger(to) && from >= 0 && to >= from
+  const numeric = (s: string, n: number) => s.trim() !== '' && Number.isInteger(n) && n >= 0
+  const valid = numeric(start, from) && numeric(end, to) && to >= from
+  // 칸마다 그 칸의 까닭을 적는다. 시작 번호가 비었는데 끝 번호 칸에 "크게"라고 적지 않는다.
+  const startError = numeric(start, from) ? null : '숫자를 입력해 주세요.'
+  const endError = !numeric(end, to) ? '숫자를 입력해 주세요.' : !startError && to < from ? '시작 번호보다 작을 수 없어요.' : null
 
   const order = new Map<string, number>()
   const rows = parts.map((p) => {
@@ -72,7 +77,7 @@ export function BatchRename({
   const seen = new Map<string, number>()
   for (const r of rows) seen.set(r.full, (seen.get(r.full) ?? 0) + 1)
   const problemOf = (r: (typeof rows)[number]) =>
-    !SLUG.test(r.next) ? '쓸 수 없는 이름' : others.has(r.full) || seen.get(r.full)! > 1 ? '같은 이름이 있음' : null
+    !SLUG.test(r.next) ? '쓸 수 없는 이름이에요.' : others.has(r.full) || seen.get(r.full)! > 1 ? '같은 이름이 이미 있어요.' : null
   const changed = rows.some((r) => r.full !== r.old)
   const ready = valid && changed && rows.every((r) => problemOf(r) === null)
 
@@ -85,10 +90,10 @@ export function BatchRename({
         }}
       >
         <div className="grid grid-cols-2 gap-field-row">
-          <Field label="시작 번호">
+          <Field label="시작 번호" error={startError}>
             <input autoFocus className={inputClass} inputMode="numeric" value={start} onChange={(e) => setStart(e.target.value)} />
           </Field>
-          <Field label="끝 번호" error={valid ? null : '시작 번호보다 크게'}>
+          <Field label="끝 번호" error={endError}>
             <input className={inputClass} inputMode="numeric" value={end} onChange={(e) => setEnd(e.target.value)} />
           </Field>
         </div>

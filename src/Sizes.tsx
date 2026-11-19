@@ -1,18 +1,18 @@
 // 크기 판(토대)의 패널과 추가 창, 의미 크기 판의 내용.
 // 의미 크기 판은 쓰임마다 이름과 가리키는 크기, 설명, 그 크기가 실제로 쓰인 모습을 보여 준다.
 
-import { SAMPLE_BAR, SAMPLE_W } from './lib/sample'
+import { SAMPLE_BAR, SAMPLE_W, paints, sampleColors } from './lib/sample'
 import { CHECK_STROKE, ICON_STROKE } from './lib/icons'
 import { useContext, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import { ArrowUpRight, Check as CheckIcon, ChevronDown, Copy, Folder, Minus, Plus, X } from 'lucide-react'
 import type { Token } from './lib/api'
 import { ALL_KINDS, KINDS, SLUG, lengthLabel, shortName, type Kind } from './lib/catalog'
-import { resolveColor, surroundings, type Around } from './lib/roles'
+import { resolveColor, type Around } from './lib/roles'
 import { SIZE_GROUPS, SIZE_SHAPES, SIZE_WORDS, guessSizeGroup, isSizeKind, isSizeListShape, lengthRefOf, readSizeNote, resolveLength, writeSizeNote, type SizeExample, type SizeGroup, type SizeShape } from './lib/sizes'
 import { PreviewFontContext, PreviewSpaceContext } from './ColorUses'
 import { CODE_OPEN, CodeRows, FoldSection, ICON_BUTTON, Section, WHERE_OPEN } from './Inspector'
 import { DetailsFolded, HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
-import { Button, Field, Phrases, UnitInput, UsePicker, inputClass } from './ui'
+import { Button, Field, Phrases, Segmented, UnitInput, UsePicker, inputClass, linkRowClass } from './ui'
 import { useReorder } from './useReorder'
 import { NavIcon, isNavLabel } from './SampleParts'
 import { orderKinds } from './lib/order'
@@ -97,10 +97,10 @@ export function SizeSample({
   const scale = sampleScale(kind, value, both ? pair : undefined, fit)
   const TEXT = 'text-sm leading-5'
   const SMALL = 'text-xs leading-4'
-  const line = `color-mix(in oklab, ${around.ink} 32%, ${around.surface})`
+  const line = paints(around).line
   const faint = `color-mix(in oklab, ${around.ink} 16%, ${around.surface})`
-  const hover = `color-mix(in oklab, ${around.ink} 8%, ${around.surface})`
-  const soft = `color-mix(in oklab, ${around.ink} 56%, ${around.surface})`
+  const hover = paints(around).hover
+  const soft = paints(around).soft
   const ring = { boxShadow: `inset 0 0 0 1px ${line}` }
   // 재는 것을 채우는 클래스. 재는 방향으로는 재는 상자를 꽉 채운다.
   const F = `relative shrink-0 ${tall ? 'h-full' : wide ? 'w-full' : 'size-full'}`
@@ -178,7 +178,7 @@ export function SizeSample({
               <span
                 key={i}
                 className={`flex flex-1 items-center justify-center rounded-control font-[550] whitespace-nowrap ${list.length > 1 && i < list.length - 1 ? 'px-button-ghost-x' : 'px-button-x'} ${TEXT}`}
-                style={list.length === 1 ? ring : i === list.length - 1 ? { background: around.ink, color: around.surface } : { background: hover }}
+                style={list.length === 1 ? ring : i === list.length - 1 ? { background: paints(around).primary, color: paints(around).onPrimary } : { background: hover }}
               >
                 {text}
               </span>
@@ -368,7 +368,7 @@ export function SizeSample({
                   <span
                     key={i}
                     className={`flex h-control items-center rounded-control px-button-x font-[550] whitespace-nowrap ${TEXT}`}
-                    style={i === actions.length - 1 ? { background: around.ink, color: around.surface } : undefined}
+                    style={i === actions.length - 1 ? { background: paints(around).primary, color: paints(around).onPrimary } : undefined}
                   >
                     {text}
                   </span>
@@ -448,6 +448,9 @@ export function SizeSample({
   }
 }
 
+/** 같은 길이가 이미 있을 때의 문구. 다 적어야 알 수 있는 오류라서 칸을 벗어날 때에만 알린다. */
+const SAME_LENGTH = '같은 길이가 이미 있어요.'
+
 /** 판과 패널에 적는 값. 가리키는 크기의 길이를 적는다(32px). 가리키는 값이 없어졌으면 그 이름 뒤에 "없어짐"을 붙인다(의미 간격과 같다). */
 function shownOf(tokens: Token[], value: string) {
   const ref = lengthRefOf(value)
@@ -504,7 +507,7 @@ export function SizeList({
   const groupDrag = useReorder(groups.map(key), onMoveGroup && ((name, before) => onMoveGroup(bare(name)!, bare(before))), { attr: 'data-size-group', gap: 16 })
   // 값이 없으면 빈 상자를 남기지 않는다. 추가는 판 위의 버튼으로 한다.
   if (items.length === 0) return null
-  const around = surroundings(all)
+  const around = sampleColors(all)
   // 색 칸과 손잡이를 칠할 색. 이 시스템의 선택 색(없으면 주요 색, 그것도 없으면 글자 색)이다.
   const tinted = all.find((t) => t.name === '--color-selection') ?? all.find((t) => t.name === '--color-primary')
   const tint = (tinted && resolveColor(all, tinted.value)) || around.ink
@@ -630,22 +633,7 @@ const SIZE_VIEWS: { id: SizeView; label: string }[] = [
 /** 보는 방식을 바꾸는 전환 버튼. 판 오른쪽 위, "원래대로"의 왼쪽에 둔다. 높이는 옆의 버튼과 같다(칸 24px에 안쪽 여백 4px씩). */
 export function SizeViewSwitch({ value, onChange }: { value: SizeView; onChange: (next: SizeView) => void }) {
   return (
-    <div role="radiogroup" aria-label="보는 방식" className="flex gap-actions-tight rounded-control bg-hover p-menu">
-      {SIZE_VIEWS.map((v) => (
-        <button
-          key={v.id}
-          type="button"
-          role="radio"
-          aria-checked={value === v.id}
-          onClick={() => value !== v.id && onChange(v.id)}
-          className={`h-compact rounded-small px-row-x outline-selection focus-visible:outline-focus ${
-            value === v.id ? 'bg-canvas type-label text-ink shadow-[0_0_0_var(--border-width-edge)_var(--color-hairline)]' : 'type-body text-ink-soft hover:text-ink'
-          }`}
-        >
-          {v.label}
-        </button>
-      ))}
-    </div>
+    <Segmented label="보는 방식" options={SIZE_VIEWS} value={value} fit onChange={onChange} />
   )
 }
 
@@ -658,7 +646,7 @@ const PAIR_FROM: Partial<Record<SizeShape, SizeShape>> = { value: 'input', menu:
 /** 함께 그릴 높이가 요소 전체가 아니라 그 안의 한 부분(메뉴의 줄)의 높이인 모양. */
 const pairsInside = (shape: SizeShape | undefined) => shape === 'menu'
 /** 요소별 보기의 줄 앞에 적는, 그 값이 어느 쪽 길이인지. */
-const DIMENSION: Record<string, string> = { height: '높이', width: '폭', square: '정사각형' }
+const DIMENSION: Record<string, string> = { height: '높이', width: '너비', square: '정사각형' }
 
 type ThingRow = { t: Token; kind: Kind; short: string; group: SizeGroup; text: string; picked?: SizeShape; examples: SizeExample[]; length: string | null; shown: string }
 
@@ -693,7 +681,7 @@ export function SizeThings({
     return [...new Set(list.map((r) => r.group))].flatMap((g) => list.filter((r) => r.group === g))
   })
   if (rows.length === 0) return null
-  const around = surroundings(tokens)
+  const around = sampleColors(tokens)
   // 색 칸과 손잡이를 칠할 색. 이 시스템의 선택 색(없으면 주요 색, 그것도 없으면 글자 색)이다.
   const tinted = tokens.find((t) => t.name === '--color-selection') ?? tokens.find((t) => t.name === '--color-primary')
   const tint = (tinted && resolveColor(tokens, tinted.value)) || around.ink
@@ -809,7 +797,7 @@ function SizeThing({
                 <span data-dimension className="type-caption text-ink-faint">
                   {DIMENSION[r.kind.id]}
                 </span>
-                <span data-name className="min-w-0 type-body break-words">
+                <span data-name className="min-w-0 type-label break-words">
                   {r.short}
                 </span>
                 <span data-points className={`type-code-sm break-words ${r.length ? 'text-ink-faint' : 'text-danger'}`}>
@@ -968,7 +956,7 @@ export function SizeInspector({
               <button
                 type="button"
                 onClick={() => onOpenComponent(u.index)}
-                className="-ml-button-ghost-x flex h-control max-w-full items-center rounded-control px-button-ghost-x type-label outline-selection hover:bg-hover focus-visible:outline-focus"
+                className={linkRowClass}
               >
                 <span className="truncate">{u.name}</span>
                 <span className="ml-row-inner shrink-0 type-body text-ink-faint">{u.where.length}곳</span>
@@ -989,7 +977,7 @@ export function SizeInspector({
 /** 의미 크기의 종류. 추가 창에서 고른다(이름은 진하게, 쓰는 클래스와 그 종류에 드는 것은 옅게). */
 const SIZE_KINDS: { id: 'height' | 'width' | 'square'; label: string; hint: string }[] = [
   { id: 'height', label: '높이', hint: 'h-이름. 입력칸, 줄, 막대' },
-  { id: 'width', label: '폭', hint: 'w-이름. 메뉴, 패널, 창' },
+  { id: 'width', label: '너비', hint: 'w-이름. 메뉴, 패널, 창' },
   { id: 'square', label: '정사각형', hint: 'size-이름. 아이콘, 아이콘 버튼' },
 ]
 
@@ -1100,7 +1088,7 @@ function lengthProblem(kind: Kind, digits: string, tokens: Token[], self?: strin
   if (!digits.trim()) return '길이를 입력해 주세요.'
   if (!DIGITS.test(digits) || !Number.isInteger(Number(digits)) || Number(digits) <= 0) return '0보다 큰 정수를 입력해 주세요.'
   const name = kind.prefix + Number(digits)
-  if (name !== self && tokens.some((t) => t.name === name)) return '같은 길이가 이미 있어요.'
+  if (name !== self && tokens.some((t) => t.name === name)) return SAME_LENGTH
   return null
 }
 
@@ -1147,6 +1135,12 @@ export function LengthInspector({
       return setError(null)
     }
     const problem = lengthProblem(kind, next, tokens, token.name)
+    // 적는 중에 알 수 있는 오류(숫자가 아님)는 적는 중에 이미 보였다. 그대로 벗어나면 저장된 값으로 되돌린다.
+    // 다 적어야 아는 오류(같은 길이)는 까닭과 함께 칸에 남긴다(DESIGN.md field-rules).
+    if (problem && problem !== SAME_LENGTH) {
+      setDigits(saved)
+      return setError(null)
+    }
     setError(problem)
     if (problem || Number(next) === Number(saved)) return
     onChange(kind.prefix + Number(next), `${Number(next)}px`)
@@ -1173,9 +1167,11 @@ export function LengthInspector({
           placeholder={saved}
           onDigits={(next, typing) => {
             setDigits(next)
-            setError(null)
             // 적는 동안은 저장하지 않는다. ↑↓로 올리고 내린 것은 바로 저장한다.
-            if (!typing) commit(next)
+            if (!typing) return commit(next)
+            // 적는 중에 알 수 있는 오류는 바로 알린다. 같은 길이인지는 다 적어야 알 수 있어(24를 적으려면 2를 거친다) 벗어날 때 알린다.
+            const problem = next.trim() ? lengthProblem(kind, next, tokens, token.name) : null
+            setError(problem === SAME_LENGTH ? null : problem)
           }}
           onBlur={() => commit(digits)}
         />
@@ -1190,7 +1186,7 @@ export function LengthInspector({
               key={name}
               type="button"
               onClick={() => onOpenToken(name)}
-              className="-ml-button-ghost-x flex h-control max-w-full items-center rounded-control px-button-ghost-x type-label outline-selection hover:bg-hover focus-visible:outline-focus"
+              className={linkRowClass}
             >
               <span className="truncate">{userOf(name).short}</span>
               <span className="ml-row-inner shrink-0 type-body text-ink-faint">{userOf(name).title}</span>
@@ -1201,7 +1197,7 @@ export function LengthInspector({
               <button
                 type="button"
                 onClick={() => onOpenComponent(u.index)}
-                className="-ml-button-ghost-x flex h-control max-w-full items-center rounded-control px-button-ghost-x type-label outline-selection hover:bg-hover focus-visible:outline-focus"
+                className={linkRowClass}
               >
                 <span className="truncate">{u.name}</span>
                 <span className="ml-row-inner shrink-0 type-body text-ink-faint">{u.where.length}곳</span>

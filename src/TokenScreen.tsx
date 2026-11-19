@@ -1,12 +1,12 @@
 import { ICON_STROKE } from './lib/icons'
 import { createContext, type CSSProperties, type MouseEvent } from 'react'
-import { ChevronsDownUp, ChevronsUpDown, Plus, RotateCcw, Rows3 } from 'lucide-react'
+import { ChevronsDownUp, ChevronsUpDown, Plus, RotateCcw, Rows3, TriangleAlert } from 'lucide-react'
 import type { Token } from './lib/api'
 import { groupOf, lineName, shortName, trackName, type Kind } from './lib/catalog'
 import { isApprox, showColor } from './lib/color'
 import { shownFont } from './lib/fonts'
 import { SCALE_STEPS } from './lib/scale'
-import type { RoleUse } from './lib/roles'
+import { resolveColor, type RoleUse } from './lib/roles'
 import { suggestLine } from './lib/tokens'
 import { EffectList } from './Effects'
 import { RadiusList } from './Radius'
@@ -14,18 +14,18 @@ import { BorderList } from './Borders'
 import { LayerList } from './Layers'
 import { ValueList } from './ValueBoard'
 import { specOf } from './valueSpecs'
-import { isBorderKind } from './lib/borders'
+import { isBorderKind, resolveThickness } from './lib/borders'
 import { isEffectKind } from './lib/effects'
 import { isFreeKind, orderKinds } from './lib/order'
 import type { SpaceUse } from './lib/spacing'
-import type { SizeGroup } from './lib/sizes'
-import type { RadiusGroup } from './lib/radius'
+import { resolveLength, type SizeGroup } from './lib/sizes'
+import { resolveCorner, type RadiusGroup } from './lib/radius'
 import { useReorder } from './useReorder'
-import { SpaceList } from './Spacing'
+import { SpaceList, resolveSpace } from './Spacing'
 import { SizeList } from './Sizes'
 import { RoleList } from './Roles'
 import { TypeList } from './Types'
-import type { TypeUse } from './lib/types'
+import { lookOf, type TypeUse } from './lib/types'
 import { Button, swatchBackground } from './ui'
 
 const SAMPLE = '다람쥐 헌 쳇바퀴에 타고파 Aa 123'
@@ -97,6 +97,43 @@ const OWN_TITLES = ['color', 'role', 'style', 'spaceuse', 'radius', 'z']
 /** Shift, Ctrl, Cmd 중 하나를 누른 채 누르면 여러 개 선택이다. */
 export const isAdditive = (e: MouseEvent) => e.shiftKey || e.ctrlKey || e.metaKey
 
+/**
+ * 의미 값이 가리키던 토대 값이 없어졌는지. 종류마다 찾는 길이 달라서 한곳에 모아 둔다. noun은 알림에 적는 낱말이다("가리키는 값이 없어진 색 2개").
+ * 가리키지 않고 값을 바로 적은 것(var(…)가 아닌 값)은 없어진 것이 아니다. 의미 글꼴은 값 셋 가운데 하나라도 없으면 없어진 것이다.
+ */
+const pointsNowhere = (resolve: (all: Token[], value: string) => string | null) => (all: Token[], t: Token) => t.value.trim().startsWith('var(') && resolve(all, t.value) === null
+const MISSING: Record<string, { noun: string; lost: (all: Token[], t: Token) => boolean }> = {
+  role: { noun: '색', lost: (all, t) => resolveColor(all, t.value) === null },
+  style: { noun: '조합', lost: (all, t) => lookOf(all, t.value, t.name)?.broken ?? true },
+  spaceuse: { noun: '간격', lost: pointsNowhere(resolveSpace) },
+  height: { noun: '크기', lost: pointsNowhere(resolveLength) },
+  width: { noun: '크기', lost: pointsNowhere(resolveLength) },
+  square: { noun: '크기', lost: pointsNowhere(resolveLength) },
+  radius: { noun: '모서리', lost: pointsNowhere(resolveCorner) },
+  border: { noun: '테두리', lost: pointsNowhere(resolveThickness) },
+  outline: { noun: '테두리', lost: pointsNowhere(resolveThickness) },
+}
+
+/**
+ * 가리키는 값이 없어진 의미 값의 수를 판 위에 알린다(DESIGN.md board-head). 줄마다 빨갛게 적혀 있지만 목록이 길면 몇 개인지 한눈에 알 수 없다.
+ * 누르면 그 가운데 첫 값을 선택해, 오른쪽 패널에서 바로 다시 고를 수 있다. 모든 의미 판이 이것 하나를 쓴다.
+ */
+function MissingNotice({ count, noun, onPick }: { count: number; noun: string; onPick: () => void }) {
+  return (
+    <Button variant="danger" data-broken={count} className="mb-heading -ml-button-ghost-x" title="누르면 첫 값을 선택해요. 오른쪽에서 없어진 값을 다시 골라 주세요" onClick={onPick}>
+      <TriangleAlert size={16} strokeWidth={ICON_STROKE} />
+      가리키는 값이 없어진 {noun} {count}개
+    </Button>
+  )
+}
+
+/** 종류들(보통 하나) 가운데 가리키는 값이 없어진 값이 있으면 알림을 그린다. 종류별로 나누지 않는 보기(의미 크기의 요소별)는 그 판의 종류를 모두 넘긴다. */
+export function MissingNotices({ kinds, tokens, onSelect }: { kinds: Kind[]; tokens: Token[]; onSelect: (name: string, additive: boolean) => void }) {
+  const lost = tokens.filter((t) => kinds.some((k) => k.matches(t.name) && MISSING[k.id]?.lost(tokens, t)))
+  const noun = kinds.map((k) => MISSING[k.id]?.noun).find(Boolean)
+  return lost.length > 0 && noun ? <MissingNotice count={lost.length} noun={noun} onPick={() => onSelect(lost[0].name, false)} /> : null
+}
+
 /** 한 화면에 속한 종류들을 차례로 그린다. 전체 보기의 판 안에서도 그대로 쓴다. */
 export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGroup, onRename, onSelectGroup, emptyGroups, pickedGroup, onPickGroup, folded, onReorderGroup, rolesFolded, onMoveRole, onMoveRoleGroup, onMoveType, onMoveTypeGroup, onResetTypes, onMoveInKind, onMoveKind, onMoveSpaceGroup, onMoveSizeGroup, onMoveRadiusGroup, resetOf, detailsFolded, onToggleDetails, onMakeSizes, onMakeWeights, onMakeTypes }: SectionProps & { kinds: Kind[] }) {
   const single = kinds.length === 1
@@ -134,7 +171,9 @@ export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGr
               const canAdd = !['color', 'role', 'height', 'width', 'square', 'border', 'outline'].includes(kind.id) && !kind.legacy
               if (single && !canAdd && !makeSet) return null
               return (
-                <div className="mb-heading flex h-compact items-center justify-between">
+                // 제목 없이 버튼만 있는 줄은 판의 머리 줄이다. 어느 판이나 높이 32px, 오른쪽 정렬, 아래 16px(DESIGN.md board-head).
+                // 제목이 있는 줄은 제목의 높이(24px)에 맞추고 버튼이 위아래로 넘친다.
+                <div className={single && OWN_TITLES.includes(kind.id) ? 'mb-header flex justify-end' : 'mb-heading flex h-compact items-center justify-between'}>
                   {/* 종류의 제목. 누르면 그 종류의 값이 모두 선택되고, 끌면 판 안에서 종류의 차례가 바뀐다.
                       판 안에 묶음 제목이 따로 있는 종류(색, 의미 색, 의미 글꼴, 의미 간격, 의미 모서리)는 판이 그 종류 하나뿐이라 제목을 두지 않는다. */}
                   {single && OWN_TITLES.includes(kind.id) ? (
@@ -153,8 +192,8 @@ export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGr
                   )}
                   <span className="flex gap-actions-tight">
                     {/* "원래대로"는 판마다 하나다. 종류가 하나뿐인 판은 여기에, 여럿인 판은 판 위에 하나만 둔다. */}
-                    {single && isFreeKind(kind) && <ResetButton title="묶음과 그 안의 차례를 기본 순서로 돌려놓아요" onReset={resetOf(kind)} />}
-                    {kind.id === 'style' && <ResetButton title="묶음과 그 안의 조합을 기본 순서로 돌려놓아요" onReset={onResetTypes} />}
+                    {single && isFreeKind(kind) && <ResetButton title="묶음과 그 안의 순서를 처음대로 돌려놓아요" onReset={resetOf(kind)} />}
+                    {kind.id === 'style' && <ResetButton title="묶음과 그 안의 조합을 처음 순서로 돌려놓아요" onReset={onResetTypes} />}
                     {single && onToggleDetails && <FoldButton folded={!!detailsFolded} title="설명과 예시를 모두 숨기거나 보여요" onToggle={onToggleDetails} />}
                     {makeSet && (
                       <Button variant="ghost" onClick={makeSet}>
@@ -171,6 +210,7 @@ export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGr
                 </div>
               )
             })()}
+            <MissingNotices kinds={[kind]} tokens={tokens} onSelect={onSelect} />
             {kind.id === 'color' ? (
               // 색이 하나도 없어도 "예외 색" 목록은 처음부터 있다. 목록은 판 오른쪽 위의 "목록 추가"로 만든다.
               <ColorGroups {...list} onSelectGroup={onSelectGroup} emptyGroups={emptyGroups} pickedGroup={pickedGroup} onPickGroup={onPickGroup} folded={folded} onReorderGroup={onReorderGroup} onAddGroup={onAddGroup} />
@@ -247,7 +287,7 @@ export function AddColorButtons({
 }) {
   return (
     <span className="flex gap-actions-tight">
-      {reset && <ResetButton title="목록과 그 안의 색을 기본 순서로 돌려놓아요" onReset={reset.run} />}
+      {reset && <ResetButton title="목록과 그 안의 색을 처음 순서로 돌려놓아요" onReset={reset.run} />}
       {onToggleFold && <FoldButton folded={!!folded} title="색 아래의 이름과 값 글자를 모두 숨기거나 보여요" onToggle={onToggleFold} />}
       <Button variant="ghost" onClick={onAddGroup}>
         <Plus size={16} strokeWidth={ICON_STROKE} />
@@ -450,7 +490,7 @@ function ColorGroups({
                   {/* 접으면 이름과 값 글자를 숨긴다. 색을 고르면 뜨는 파란 이름표로는 여전히 볼 수 있다. */}
                   {!folded && (
                   <span>
-                    <span data-name className="mt-blocks block type-body break-words text-ink-soft">
+                    <span data-name className="mt-blocks block type-label break-words">
                       {group ? short.slice(group.length + 1) : short}
                     </span>
                     <span
@@ -516,7 +556,7 @@ function RowList({
             {stacked ? (
               // 글꼴 종류는 이름과 글꼴 이름을 한 줄 전체에 쓰고, 견본은 그 아래에 둔다. 글꼴 이름은 좁은 칸에 넣으면 잘린다.
               <>
-                <span data-name className="block type-body text-ink-soft">{short}</span>
+                <span data-name className="block type-label">{short}</span>
                 {/* 다른 줄의 값(14px)보다 작게 12px로 적어 견본 문장이 주인공이 되게 한다. */}
                 <span className="block type-code-sm break-words text-ink-faint">{shown}</span>
                 <span className="mt-blocks block overflow-hidden">
@@ -528,8 +568,9 @@ function RowList({
                 {/* 글자 크기는 값 셋을 한 줄에 적으므로 칸이 넓다. */}
                 <span className={`${kind.id === 'size' ? 'w-[192px]' : 'w-[112px]'} shrink-0`}>
                   {/* 이름과 값은 자르지 않는다(말줄임표를 쓰지 않는다). 칸보다 길면 줄을 바꿔 다 보여 준다. */}
-                  {!bare && <span data-name className="block type-body break-words text-ink-soft">{short}</span>}
-                  <span data-value className={`block type-code break-words ${bare ? 'text-ink-soft' : 'text-ink-faint'}`}>{shown}</span>
+                  {!bare && <span data-name className="block type-label break-words">{short}</span>}
+                  {/* 이름 없이 길이만 적는 줄(8px)은 그 길이가 곧 이름이라 이름의 글자로 적는다. */}
+                  <span data-value className={`block break-words ${bare ? 'type-label' : 'type-code text-ink-faint'}`}>{shown}</span>
                 </span>
                 <span className="min-w-0 flex-1 overflow-hidden">
                   <RowSample kind={kind} value={t.value} line={line} track={track} />

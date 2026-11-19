@@ -26,7 +26,7 @@ import { NavRows } from './SampleParts'
 import { PreviewFontContext, PreviewSpaceContext } from './ColorUses'
 import { CODE_OPEN, CodeRows, FoldSection, ICON_BUTTON, Section, WHERE_OPEN } from './Inspector'
 import { DetailsFolded, HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
-import { Button, Field, Phrases, UsePicker, inputClass } from './ui'
+import { Button, Field, Phrases, UsePicker, inputClass , linkRowClass } from './ui'
 import { useReorder } from './useReorder'
 
 const CORNER = KINDS.corner
@@ -516,7 +516,7 @@ export function RadiusInspector({
               <button
                 type="button"
                 onClick={() => onOpenComponent(u.index)}
-                className="-ml-button-ghost-x flex h-control max-w-full items-center rounded-control px-button-ghost-x type-label outline-selection hover:bg-hover focus-visible:outline-focus"
+                className={linkRowClass}
               >
                 <span className="truncate">{u.name}</span>
                 <span className="ml-row-inner shrink-0 type-body text-ink-faint">{u.where.length}곳</span>

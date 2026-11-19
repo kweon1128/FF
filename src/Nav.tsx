@@ -47,7 +47,7 @@ const SECTIONS: { title?: string; items: Item[] }[] = [
       { id: 'thickness', label: '테두리', icon: Square },
       { id: 'border', label: '의미 테두리', icon: SquareDashed },
       { id: 'effect', label: '효과', icon: Sparkles },
-      { id: 'z', label: '겹치는 차례', icon: Layers },
+      { id: 'z', label: '겹치는 순서', icon: Layers },
       { id: 'layout', label: '화면 크기', icon: Monitor },
       { id: 'motion', label: '움직임', icon: Zap },
     ],
@@ -62,7 +62,7 @@ const SECTIONS: { title?: string; items: Item[] }[] = [
   },
 ]
 
-const ROW = 'flex h-row w-full items-center gap-row-inner rounded-row px-row-x text-left'
+const ROW = 'flex h-row w-full items-center gap-row-inner rounded-row px-row-x text-left outline-selection focus-visible:outline-focus'
 const IDLE = 'type-menu text-ink-soft hover:bg-hover hover:text-ink'
 
 export function Nav({
@@ -142,7 +142,7 @@ export function Nav({
                           type="button"
                           aria-pressed={index === currentComponent}
                           onClick={() => onPickComponent(index)}
-                          className={`${ROW} ${index === currentComponent ? 'bg-selection-soft type-menu-strong text-ink' : IDLE}`}
+                          className={`${ROW} ${index === currentComponent ? 'bg-hover type-menu-strong text-ink' : IDLE}`}
                         >
                           {/* 윗줄의 아이콘 자리(16px)를 비워 이름을 윗줄의 글자에 맞춘다. 들여쓰기를 여백 값으로 따로 두지 않는다. */}
                           <span className="size-icon shrink-0" />

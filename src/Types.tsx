@@ -1,19 +1,19 @@
 // 의미 글꼴: 글꼴 판의 재료 가운데 실제로 쓰는 조합(글꼴 종류 · 글자 크기 · 굵기)에 쓰임새의 이름을 붙여 모아 둔 판과, 그것을 만들고 고치는 양식.
 // 한 줄에 조합 하나. 이름과 가리키는 값, 설명, 그 조합으로 적은 견본을 나란히 보여 준다.
 
-import { SAMPLE_BAR, SAMPLE_W } from './lib/sample'
+import { SAMPLE_BAR, SAMPLE_W, paints, sampleColors } from './lib/sample'
 import { ICON_STROKE } from './lib/icons'
 import { useContext, useState, type CSSProperties, type FormEvent } from 'react'
 import { PreviewSpaceContext } from './ColorUses'
-import { ArrowUpRight, TriangleAlert, X } from 'lucide-react'
+import { ArrowUpRight, X } from 'lucide-react'
 import type { Token } from './lib/api'
 import { KINDS, SLUG, lineName, shortName, trackName, type Kind } from './lib/catalog'
 import { shownFont } from './lib/fonts'
-import { surroundings, type Around } from './lib/roles'
+import type { Around } from './lib/roles'
 import { SHAPE_WORDS, TYPE_USES, guessTypeUse, isListShape, lookOf, missingForTypes, nextType, readType, readTypeNote, trackOverride, typeGroups, writeType, writeTypeNote, type TypeLook, type TypeParts, type TypeShape, type TypeUse } from './lib/types'
 import { CODE_OPEN, CodeRows, FoldSection, ICON_BUTTON, Section, WHERE_OPEN } from './Inspector'
 import { DetailsFolded, HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
-import { Button, Field, Phrases, UsePicker, inputClass } from './ui'
+import { Button, Field, Phrases, UsePicker, inputClass , linkRowClass } from './ui'
 import { useReorder } from './useReorder'
 
 const STYLE = KINDS.style
@@ -66,7 +66,7 @@ function Follows({ label, bound, own, onClear }: { label: string; bound: string;
           {own ?? (bound || '정해지지 않음')}
         </span>
         {own && (
-          <button type="button" aria-label={`직접 정한 ${label} 지우기`} title={`이 조합에만 직접 정해 둔 값이에요. 지우면 글자 크기의 값(${bound || '정해지지 않음'})을 따라요`} onClick={onClear} className={ICON_BUTTON}>
+          <button type="button" aria-label={`직접 정한 ${label} 삭제`} title={`이 조합에만 직접 정해 둔 값이에요. 지우면 글자 크기의 값(${bound || '정해지지 않음'})을 따라요`} onClick={onClear} className={ICON_BUTTON}>
             <X size={16} strokeWidth={ICON_STROKE} />
           </button>
         )}
@@ -91,8 +91,7 @@ export function TypeSample({ shape, look, around, words: written = '' }: { shape
   const all = written || SHAPE_WORDS[shape]
   const list = isListShape(shape) ? all.split(', ').map((w) => w.trim()).filter(Boolean) : [all]
   // 막대, 테두리, 옅은 바탕의 색. 글자 색을 바탕에 옅게 섞는다.
-  const faint = `color-mix(in oklab, ${around.ink} 16%, ${around.surface})`
-  const soft = `color-mix(in oklab, ${around.ink} 8%, ${around.surface})`
+  const { line: faint, hover: soft, primary, onPrimary } = paints(around)
   /** 곁에 놓이는 글의 자리. 높이 8px의 막대이고 폭은 자리마다 다르다. */
   const bar = (width: string, more = '') => <span className={`block ${SAMPLE_BAR} rounded-small ${width} ${more}`} style={{ background: faint }} />
   const words = (text: string, more = '', style?: CSSProperties) => (
@@ -120,8 +119,8 @@ export function TypeSample({ shape, look, around, words: written = '' }: { shape
       case 'button':
         return (
           <span className="flex flex-wrap items-center gap-actions">
-            {/* 첫 버튼은 채우고 나머지는 테두리만 둔다. */}
-            {list.map((text, i) => words(text, 'rounded-control px-button-x py-box whitespace-nowrap', i === 0 ? { background: around.ink, color: around.surface } : { boxShadow: `inset 0 0 0 1px ${faint}` }))}
+            {/* 마지막 버튼을 채우고 나머지는 테두리만 둔다(취소, 추가처럼 끝의 것이 주된 동작이다. 다른 판의 예시와 같다). */}
+            {list.map((text, i) => words(text, 'rounded-control px-button-x py-box whitespace-nowrap', i === list.length - 1 ? { background: primary, color: onPrimary } : { boxShadow: `inset 0 0 0 1px ${faint}` }))}
           </span>
         )
       case 'field':
@@ -184,7 +183,7 @@ export function TypeSample({ shape, look, around, words: written = '' }: { shape
     }
   }
   return (
-    <span className={`block w-full overflow-hidden rounded-card px-section-x py-section-y ${EDGE}`} style={{ ...space, background: around.surface, color: around.ink }}>
+    <span className={`block w-full overflow-hidden rounded-card p-sample ${EDGE}`} style={{ ...space, background: around.surface, color: around.ink }}>
       {scene()}
     </span>
   )
@@ -219,31 +218,17 @@ export function TypeList({
 }) {
   // 판을 접었으면 설명과 예시를 숨기고 이름과 값만 보여 준다.
   const plain = useContext(DetailsFolded)
-  const around = surroundings(all)
+  const around = sampleColors(all)
   const groups = typeGroups(items)
   // 줄은 같은 묶음 안에서만 옮겨진다.
   const useOf = new Map(groups.flatMap((g) => g.items.map((t) => [t.name, g.use] as const)))
   const rows = useReorder(groups.flatMap((g) => g.items.map((t) => t.name)), onMove, { scopeOf: (name) => useOf.get(name) ?? '' })
   const groupDrag = useReorder(groups.map((g) => g.use), (use, before) => onMoveGroup(use as TypeUse, before as TypeUse | null), { attr: 'data-type-group', gap: 24 })
   if (items.length === 0) return null
-  // 가리키는 글꼴 종류, 크기, 굵기 가운데 하나라도 없어진 조합들. 줄마다 빨갛게 적혀 있지만 목록이 길면 몇 개인지 한눈에 알 수 없어서 맨 위에 모아 알린다.
-  const broken = items.filter((t) => lookOf(all, t.value, t.name)?.broken ?? true)
+  // 가리키는 값이 없어진 조합의 수는 판 위에서 알린다. 모든 의미 판이 같은 알림을 쓴다(TokenScreen의 MissingNotice).
 
   return (
     <div>
-      {broken.length > 0 && (
-        // 누르면 그 가운데 첫 조합을 골라, 오른쪽 패널에서 바로 고칠 수 있다.
-        <button
-          type="button"
-          data-broken={broken.length}
-          title="누르면 첫 조합을 골라요. 오른쪽에서 없어진 값을 다시 골라 주세요"
-          onClick={() => onSelect(broken[0].name, false)}
-          className={`mb-blocks flex h-control items-center gap-row-inner rounded-control px-button-x type-body text-danger ${HOVER} ${OUTLINE}`}
-        >
-          <TriangleAlert size={16} strokeWidth={ICON_STROKE} />
-          가리키는 값이 없어진 조합 {broken.length}개
-        </button>
-      )}
       <div className="space-y-groups">
         {groups.map(({ use, items: list }) => {
           return (
@@ -280,7 +265,7 @@ export function TypeList({
                       className={`group relative flex w-full items-center gap-columns rounded-row px-board-row-x py-board-row-y text-left select-none ${rows.moving(t.name) ? 'opacity-dragging' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
                     >
                       {rows.line(t.name)}
-                      <span className="w-row-name shrink-0">
+                      <span className={plain ? 'min-w-0 flex-1' : 'w-row-name shrink-0'}>
                         {/* 이름, 가리키는 값, 설명, 예시는 자르지 않는다(말줄임표를 쓰지 않는다). 칸보다 길면 줄을 바꿔 다 보여 준다. */}
                         <span data-name className="block type-label break-words">
                           {short}
@@ -295,7 +280,7 @@ export function TypeList({
                         )}
                       </span>
                       {/* 쓰임이 여럿인 조합은 예시도 여럿이다. 위아래로 8px 띄워 쌓는다. */}
-                      <span className="min-w-0 flex-1 space-y-blocks">
+                      <span className={`min-w-0 flex-1 space-y-blocks ${plain ? 'hidden' : ''}`}>
                         {!plain && look && [{ shape, words }, ...more].map((e, k) => <TypeSample key={k} shape={e.shape} look={look} around={around} words={e.words} />)}
                       </span>
                       {isSelected && selected.length === 1 && <SelectionLabel name={short} value={look ? figures(look) : undefined} />}
@@ -334,17 +319,13 @@ function PartField({
   const options = tokens.filter((t) => kind.matches(t.name))
   const missing = !options.some((t) => t.name === value)
   return (
-    <Field label={label} error={missing ? '고른 값이 없어졌어요. 다시 골라 주세요.' : null}>
+    <Field label={label} plain error={missing ? '고른 값이 없어졌어요. 다시 골라 주세요.' : null}>
       {/* 고르는 칸 옆에, 고른 값이 글꼴 판의 어디에 있는지 보러 가는 버튼. "쓰이는 곳"의 반대 방향이다. 고른 값이 없어졌으면 갈 곳이 없어 꺼진다. */}
       <span className="flex items-center gap-actions-tight">
-      <select aria-label={label} className={`${inputClass} min-w-0 flex-1 ${missing ? 'border-danger!' : ''}`} value={value} onChange={(e) => onChange(e.target.value)}>
-        {missing && <option value={value}>{shortName(kind, value)} (없어짐)</option>}
-        {options.map((t) => (
-          <option key={t.name} value={t.name}>
-            {shortName(kind, t.name)} · {show(t)}
-          </option>
-        ))}
-      </select>
+        {/* 추가 창과 같은 고르는 칸이다. 브라우저의 select는 이름과 값을 한 모양으로만 적는다. 고른 값이 없어졌으면 칸이 "고르기"로 비고 아래에 까닭이 적힌다. */}
+        <span className="min-w-0 flex-1">
+          <UsePicker label={label} nameWidth="w-[80px]" options={options.map((t) => ({ id: t.name, label: shortName(kind, t.name), hint: show(t) }))} value={missing ? null : value} onChange={onChange} />
+        </span>
         <button type="button" aria-label={`${label} 보러 가기`} title={`글꼴 판에서 ${shortName(kind, value)} 보기`} disabled={missing} onClick={() => onOpen(value)} className={`${ICON_BUTTON} disabled:pointer-events-none disabled:opacity-disabled`}>
           <ArrowUpRight size={16} strokeWidth={ICON_STROKE} />
         </button>
@@ -484,7 +465,7 @@ export function TypeInspector({
                 <button
                   type="button"
                   onClick={() => onOpenComponent(u.index)}
-                  className="-ml-button-ghost-x flex h-control max-w-full items-center rounded-control px-button-ghost-x type-label outline-selection hover:bg-hover focus-visible:outline-focus"
+                  className={linkRowClass}
                 >
                   <span className="truncate">{u.name}</span>
                   <span className="ml-row-inner shrink-0 type-body text-ink-faint">{u.where.length}곳</span>

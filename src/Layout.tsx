@@ -130,11 +130,11 @@ const digits = (n: number) => String(Math.round(n * 1000) / 1000)
 
 /** 폭을 적는 칸. px로 적는다. rem으로 적힌 값(48rem)도 px 칸으로 읽고, 고치면 px로 적힌다. */
 const widthCells = {
-  valueTitle: '폭',
-  cells: [{ label: '폭', unit: 'px', placeholder: '768' }],
+  valueTitle: '너비',
+  cells: [{ label: '너비', unit: 'px', placeholder: '768' }],
   read: (value: string) => (Number.isNaN(pxOf(value)) ? null : [digits(pxOf(value))]),
   write: ([px]: number[]) => (px > 0 ? `${px}px` : null),
-  missing: '폭을 입력해 주세요.',
+  missing: '너비를 입력해 주세요.',
   // Tailwind의 이름(2xl, 3xl)을 쓰므로 숫자로 시작해도 된다.
   digitNames: true,
   scaleNote,
@@ -160,7 +160,7 @@ export const LAYOUT_SPECS: Record<LayoutKind, ValueSpec<LayoutShape>> = {
     classes: (short) => [`max-w-${short}`, `@${short}:`],
     namePlaceholder: 'md',
     // w-이름과 max-w-이름은 의미 크기의 폭(--width-이름)도 읽는다. 같은 이름이 둘 다 있으면 어느 값이 쓰일지 알 수 없다.
-    nameProblem: (name, tokens) => (tokens.some((t) => t.name === `--width-${name}`) ? '같은 이름의 폭(의미 크기)이 있어서 쓸 수 없어요.' : null),
+    nameProblem: (name, tokens) => (tokens.some((t) => t.name === `--width-${name}`) ? '같은 이름의 너비(의미 크기)가 있어서 쓸 수 없어요.' : null),
     ...widthCells,
   },
   aspect: {

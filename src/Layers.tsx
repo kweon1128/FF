@@ -11,7 +11,7 @@ import { SAMPLE_BAR, sampleColors, type SampleColors } from './lib/sample'
 import { PreviewFontContext, PreviewSpaceContext } from './ColorUses'
 import { CODE_OPEN, CodeRows, FoldSection, Section, WHERE_OPEN } from './Inspector'
 import { DetailsFolded, HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
-import { Button, Field, Phrases, UsePicker, inputClass } from './ui'
+import { Button, Field, Phrases, UsePicker, inputClass , linkRowClass } from './ui'
 
 // 예시의 바탕이 판의 바탕과 같은 색이어도 가장자리가 보이게 하는 옅은 선.
 const EDGE = 'shadow-[inset_0_0_0_var(--border-width-edge)_rgb(0_0_0/0.1)]'
@@ -506,11 +506,11 @@ export function LayerInspector({
         {nameError && <span className="mt-label block type-body text-danger">{nameError}</span>}
       </Section>
 
-      <Section title="차례">
+      <Section title="순서">
         <input
           className={`${inputClass} ${valueError ? 'border-danger! focus:border-danger!' : ''}`}
           value={valueDraft}
-          aria-label="차례"
+          aria-label="순서"
           inputMode="numeric"
           onChange={(e) => {
             setValueDraft(e.target.value)
@@ -544,7 +544,7 @@ export function LayerInspector({
               <button
                 type="button"
                 onClick={() => onOpenComponent(u.index)}
-                className="-ml-button-ghost-x flex h-control max-w-full items-center rounded-control px-button-ghost-x type-label outline-selection hover:bg-hover focus-visible:outline-focus"
+                className={linkRowClass}
               >
                 <span className="truncate">{u.name}</span>
                 <span className="ml-row-inner shrink-0 type-body text-ink-faint">{u.where.length}곳</span>
@@ -582,7 +582,7 @@ export function NewLayerForm({ tokens, onCreate, onCancel }: { tokens: Token[]; 
     const next: typeof error = {}
     const problem = nameProblem(kind, n, tokens)
     if (problem) next.name = problem
-    if (!value.trim()) next.value = '차례를 입력해 주세요.'
+    if (!value.trim()) next.value = '순서를 입력해 주세요.'
     else if (!NUMBER.test(value.trim())) next.value = '정수를 입력해 주세요.'
     setError(next)
     if (Object.keys(next).length === 0) onCreate(kind.prefix + n, String(Number(value.trim())), writeLayerNote(shownGroup, text))
@@ -602,7 +602,7 @@ export function NewLayerForm({ tokens, onCreate, onCancel }: { tokens: Token[]; 
           }}
         />
       </Field>
-      <Field label="차례" error={error.value}>
+      <Field label="순서" error={error.value}>
         <input
           className={inputClass}
           value={value}

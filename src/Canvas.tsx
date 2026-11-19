@@ -1120,8 +1120,9 @@ export function Canvas({
         <button
           type="button"
           aria-label="축소"
+          title="축소 (-)"
           onClick={() => zoomBy(1 / 1.25)}
-          className="flex size-icon-button items-center justify-center rounded-control text-ink-soft hover:bg-hover hover:text-ink"
+          className="flex size-icon-button shrink-0 items-center justify-center rounded-control text-ink-soft outline-selection focus-visible:outline-focus hover:bg-hover hover:text-ink"
         >
           <Minus size={16} strokeWidth={ICON_STROKE} />
         </button>
@@ -1129,15 +1130,16 @@ export function Canvas({
           type="button"
           title="100%로 되돌리기"
           onClick={() => zoomBy(1 / view.z)}
-          className="h-control w-[56px] rounded-control text-center type-caption tabular-nums! hover:bg-hover"
+          className="h-control w-[56px] rounded-control text-center type-caption tabular-nums! outline-selection focus-visible:outline-focus hover:bg-hover"
         >
           {Math.round(view.z * 100)}%
         </button>
         <button
           type="button"
           aria-label="확대"
+          title="확대 (+)"
           onClick={() => zoomBy(1.25)}
-          className="flex size-icon-button items-center justify-center rounded-control text-ink-soft hover:bg-hover hover:text-ink"
+          className="flex size-icon-button shrink-0 items-center justify-center rounded-control text-ink-soft outline-selection focus-visible:outline-focus hover:bg-hover hover:text-ink"
         >
           <Plus size={16} strokeWidth={ICON_STROKE} />
         </button>

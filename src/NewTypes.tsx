@@ -13,7 +13,9 @@ import { useUndo } from './lib/useUndo'
 import { TypeScreen, type SlotProps } from './TypeScreen'
 import { styleOf } from './Types'
 import { PreviewSpace } from './ColorUses'
-import { Button } from './ui'
+import { Button, UsePicker } from './ui'
+import { Check as CheckIcon } from 'lucide-react'
+import { CHECK_STROKE } from './lib/icons'
 
 const STYLE = KINDS.style
 const FONT = KINDS.font
@@ -45,8 +47,6 @@ function grouped(rows: Row[]): [label: string, list: Row[]][] {
   made.push(['그 밖', rows.filter((r) => !GROUPED.has(r.key))])
   return made.filter(([, list]) => list.length > 0)
 }
-
-const PICK = 'h-compact min-w-0 rounded-small border-edge border-hairline bg-canvas px-chip-x type-caption text-ink-soft outline-none focus:border-selection disabled:opacity-disabled'
 
 const ScreenContext = createContext<{ rows: Row[]; tokens: Token[]; hot: string | null; setHot: (key: string | null) => void; toggle: (key: string) => void }>({
   rows: [],
@@ -150,19 +150,18 @@ export function NewTypesForm({
 
   const options = (kind: Kind) => tokens.filter((t) => kind.matches(t.name))
   const pick = (r: Row, kind: Kind, part: 'font' | 'size' | 'weight', label: string, width: string, show: (t: Token) => string) => (
-    <select
-      aria-label={`${r.name} ${label}`}
-      className={`${PICK} ${width}`}
-      disabled={!r.on}
-      value={r.parts[part]}
-      onChange={(e) => patch(r.key, { parts: { ...r.parts, [part]: e.target.value } })}
-    >
-      {options(kind).map((t) => (
-        <option key={t.name} value={t.name}>
-          {show(t)}
-        </option>
-      ))}
-    </select>
+    // 다른 곳과 같은 고르는 칸의 작은 것이다. 브라우저의 select는 목록의 모양이 기기마다 다르다.
+    <span className={`${width} shrink-0`}>
+      <UsePicker
+        small
+        label={`${r.name} ${label}`}
+        disabled={!r.on}
+        nameWidth="min-w-0 flex-1"
+        options={options(kind).map((t) => ({ id: t.name, label: show(t), hint: '' }))}
+        value={options(kind).some((t) => t.name === r.parts[part]) ? r.parts[part] : null}
+        onChange={(name) => patch(r.key, { parts: { ...r.parts, [part]: name } })}
+      />
+    </span>
   )
 
   return (
@@ -186,7 +185,7 @@ export function NewTypesForm({
                 onMouseLeave={() => setHot(null)}
                 // 줄의 어디를 눌러도 쓸지 말지가 바뀐다. 이름 칸과 고르는 칸은 그 칸의 일을 한다.
                 // 바탕의 좌우 여백은 그 끝에 놓인 것의 위아래 여백과 같게 한다. 왼쪽 끝은 체크 상자(16px, 위아래 8px)라 8px, 오른쪽 끝은 고르는 칸(24px, 위아래 4px)이라 4px.
-                onClick={(e) => !(e.target as HTMLElement).closest('input, select, label') && patch(r.key, { on: !r.on })}
+                onClick={(e) => !(e.target as HTMLElement).closest('input, button, label') && patch(r.key, { on: !r.on })}
                 className={`flex h-row cursor-pointer items-center gap-row-inner rounded-row pr-menu pl-row-x ${hot === r.key ? 'bg-hover' : ''}`}
               >
                 <label className="flex shrink-0 items-center">
@@ -194,11 +193,8 @@ export function NewTypesForm({
                   <span
                     className={`flex size-checkbox items-center justify-center rounded-small border-edge outline-offset-[1px] outline-selection peer-focus-visible:outline-focus ${r.on ? 'border-ink bg-ink text-on-primary' : 'border-ink-faint bg-canvas'}`}
                   >
-                    {r.on && (
-                      <svg viewBox="0 0 12 12" className="size-[12px]" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M2.5 6.5 5 9l4.5-5.5" />
-                      </svg>
-                    )}
+                    {/* 체크 표시는 다른 체크박스(ui.tsx의 Check)와 같은 아이콘, 같은 굵기다. */}
+                    {r.on && <CheckIcon size={12} strokeWidth={CHECK_STROKE} />}
                   </span>
                 </label>
                 <span className={r.on ? '' : 'opacity-disabled'}>

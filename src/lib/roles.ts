@@ -62,7 +62,7 @@ export const ROLE_SHAPES: { id: RoleShape; label: string; hint: string }[] = [
   { id: 'button', label: '버튼', hint: '이 색으로 채운 버튼' },
   { id: 'on-fill', label: '버튼 글자', hint: '채운 버튼 위의 글자' },
   { id: 'badge', label: '뱃지', hint: '상태를 알리는 작은 표시' },
-  { id: 'outline', label: '선택 표시', hint: '고른 것을 두르는 선과 이름표' },
+  { id: 'outline', label: '선택 표시', hint: '선택한 것을 두르는 선과 이름표' },
   { id: 'guide', label: '안내선', hint: '맞춤 안내선과 간격 숫자' },
   { id: 'note', label: '안내 글자', hint: '상태를 알리는 작은 글자' },
   { id: 'chart', label: '차트', hint: '그래프의 막대' },

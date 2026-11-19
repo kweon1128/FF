@@ -56,7 +56,7 @@ export function NewGroupForm({
       else if (existing.has(n)) next.name = why?.(n) ?? '같은 이름이 이미 있어요.'
     }
     if (step.trim() && !STEP.test(step.trim())) next.step = '영문 소문자와 숫자만 쓸 수 있어요.'
-    if (color.trim() && !typedColor) next.color = '#rrggbb로 적어 주세요.'
+    if (color.trim() && !typedColor) next.color = '#rrggbb처럼 여섯 자리로 적어 주세요.'
     setError(next)
     // 비워 둔 칸은 추천 값으로 만든다.
     if (Object.keys(next).length === 0) onCreate(n, step.trim() || suggestedStep, typedColor ?? suggestedColor, scale && canScale)

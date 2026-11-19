@@ -12,7 +12,7 @@ import { ROLE_USES, ROLE_WORDS, guessUse, isRoleListShape, readNote, refOf, refT
 import { DARK, PreviewFontContext, PreviewSpaceContext, inkOn } from './ColorUses'
 import { CODE_OPEN, CodeRows, FoldSection, ICON_BUTTON, Section, WHERE_OPEN } from './Inspector'
 import { HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
-import { Button, Chip, Field, Phrases, UsePicker, inputClass, swatchBackground } from './ui'
+import { Button, Chip, Field, Phrases, UsePicker, inputClass, swatchBackground , linkRowClass } from './ui'
 import { useReorder } from './useReorder'
 
 const COLOR = KINDS.color
@@ -279,48 +279,53 @@ export function RoleList({
                     onClick={(e) => !rows.justDragged() && onSelect(t.name, isAdditive(e))}
                     onDoubleClick={() => onRename(t.name)}
                     {...rows.grab(t.name)}
-                    className={`relative w-full items-center rounded-row px-board-row-x py-board-row-y text-left select-none ${
-                      folded ? 'flex gap-sample' : 'grid grid-cols-[40px_176px_minmax(0,1fr)_280px] gap-columns'
-                    } ${rows.moving(t.name) ? 'opacity-dragging' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
+                    className={`relative flex w-full items-center rounded-row px-board-row-x py-board-row-y text-left select-none ${folded ? 'gap-sample' : 'gap-columns'} ${
+                      rows.moving(t.name) ? 'opacity-dragging' : ''
+                    } ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
                   >
                     {/* 놓일 자리의 선. 펼친 판은 줄 위(맨 끝이면 마지막 줄 아래)에 가로로, 접은 판은 칸 왼쪽(맨 끝이면 마지막 칸 오른쪽)에 세로로 긋는다. */}
                     {rows.line(t.name)}
-                    <span
-                      className={`block shrink-0 rounded-card ${folded ? 'size-[32px]' : 'size-[40px]'} ${EDGE}`}
-                      style={{ background: swatchBackground(color ?? 'transparent') }}
-                    />
-                    <span className="min-w-0">
-                      <span data-name className="block type-label break-words">
-                        {short}
-                      </span>
-                      {/* 접으면 색과 이름만 남긴다. 가리키는 색과 # 값은 색을 고르면 뜨는 파란 이름표와 오른쪽 패널에서 볼 수 있다. */}
-                      {!folded && (
-                        <>
-                          <span className={`block type-code break-words ${color === null ? 'text-danger' : 'text-ink-faint'}`}>
+                    {folded ? (
+                      // 접으면 색과 이름만 남긴다. 가리키는 색은 색을 고르면 뜨는 파란 이름표와 오른쪽 패널에서 볼 수 있다.
+                      <>
+                        <span className={`block size-[32px] shrink-0 rounded-card ${EDGE}`} style={{ background: swatchBackground(color ?? 'transparent') }} />
+                        <span data-name className="block min-w-0 type-label break-words">
+                          {short}
+                        </span>
+                      </>
+                    ) : (
+                      // 펼친 줄은 다른 의미 판과 같은 짜임이다(DESIGN.md role-row, board-row). 왼쪽에 이름 칸, 오른쪽 남는 너비에 예시.
+                      // 가리키는 색이 없어졌으면 예시를 그리지 않고 이름 칸이 줄 전체를 쓴다.
+                      <>
+                        <span className={color ? 'w-row-name shrink-0' : 'min-w-0 flex-1'}>
+                          {/* 이름 앞의 작은 견본. 판을 훑을 때 이름과 색을 함께 읽게 한다. */}
+                          <span className="flex items-center gap-row-inner">
+                            <span className={`block size-icon shrink-0 rounded-small ${EDGE}`} style={{ background: swatchBackground(color ?? 'transparent', 4) }} />
+                            <span data-name className="min-w-0 type-label break-words">
+                              {short}
+                            </span>
+                          </span>
+                          {/* 가리키는 색은 이름만 적는다(gray-500). 그 색의 # 값은 색상 판과 오른쪽 패널에서 본다. */}
+                          <span className={`block type-code-sm break-words ${color === null ? 'text-danger' : 'text-ink-faint'}`}>
                             {ref}
                             {color === null && ' · 없어짐'}
                           </span>
-                          {/* 가리키는 색의 실제 값. 색상 판에서 보이는 것과 같은 # 값이다. */}
-                          {color && <span className="block type-code break-words text-ink-faint">{color}</span>}
-                        </>
-                      )}
-                    </span>
-                    {!folded && (
-                      <span className="min-w-0 type-body break-words text-ink-soft">
-                        <Phrases text={text} />
-                      </span>
-                    )}
-                    {/* 쓰임이 여럿인 색은 예시도 여럿이다. 위아래로 8px 띄워 쌓는다. */}
-                    {!folded &&
-                      (color ? (
-                        <span className="block space-y-blocks">
-                          {[{ shape, words }, ...more].map((e, k) => (
-                            <RoleSample key={k} shape={e.shape} color={color} around={around} words={e.words} />
-                          ))}
+                          {text && (
+                            <span className="mt-label block type-caption break-words text-ink-faint">
+                              <Phrases text={text} />
+                            </span>
+                          )}
                         </span>
-                      ) : (
-                        <span />
-                      ))}
+                        {/* 쓰임이 여럿인 색은 예시도 여럿이다. 위아래로 8px 띄워 쌓는다. */}
+                        {color && (
+                          <span className="block min-w-0 flex-1 space-y-blocks">
+                            {[{ shape, words }, ...more].map((e, k) => (
+                              <RoleSample key={k} shape={e.shape} color={color} around={around} words={e.words} />
+                            ))}
+                          </span>
+                        )}
+                      </>
+                    )}
                     {isSelected && selected.length === 1 && <SelectionLabel name={short} value={ref} />}
                   </button>
                 )
@@ -590,7 +595,7 @@ export function RoleInspector({
                 <button
                   type="button"
                   onClick={() => onOpenComponent(u.index)}
-                  className="-ml-button-ghost-x flex h-control max-w-full items-center rounded-control px-button-ghost-x type-label outline-selection hover:bg-hover focus-visible:outline-focus"
+                  className={linkRowClass}
                 >
                   <span className="truncate">{u.name}</span>
                   <span className="ml-row-inner shrink-0 type-body text-ink-faint">{u.where.length}곳</span>

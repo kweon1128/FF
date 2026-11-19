@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { Token } from './lib/api'
-import { Button, Check, Modal } from './ui'
+import { Button, Check, Modal, Segmented } from './ui'
 
 /** 붙여넣기 전에 정해야 할 것이 있을 때 넘겨받는 내용. */
 export type PasteJob = {
@@ -15,8 +15,6 @@ export type PasteJob = {
   /** 색을 넣을 목록(색을 선택해 둔 채 붙였을 때). */
   into: string | null
 }
-
-const OPTION = 'h-compact flex-1 rounded-small type-label outline-selection focus-visible:outline-focus'
 
 /**
  * 붙여넣기 창. 이름이 같은 값이 있거나 읽지 못한 값이 있을 때만 뜬다.
@@ -46,22 +44,15 @@ export function PasteDialog({
         {job.conflicts > 0 && (
           <div>
             <p className="mb-label type-label text-ink-faint">이름이 같은 값 {job.conflicts}개</p>
-            <div role="group" aria-label="이름이 같은 값" className="flex gap-actions-tight rounded-control bg-hover p-menu">
-              {[
-                { on: true, label: '덮어쓰기' },
-                { on: false, label: '따로 만들기' },
-              ].map(({ on, label }) => (
-                <button
-                  key={label}
-                  type="button"
-                  aria-pressed={overwrite === on}
-                  onClick={() => setOverwrite(on)}
-                  className={`${OPTION} ${overwrite === on ? 'border-edge border-hairline bg-canvas text-ink' : 'text-ink-soft hover:text-ink'}`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+            <Segmented
+              label="이름이 같은 값"
+              options={[
+                { id: 'over', label: '덮어쓰기' },
+                { id: 'keep', label: '따로 만들기' },
+              ]}
+              value={overwrite ? 'over' : 'keep'}
+              onChange={(next) => setOverwrite(next === 'over')}
+            />
           </div>
         )}
 

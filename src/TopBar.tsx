@@ -35,7 +35,7 @@ export function TopBar({
           aria-haspopup="menu"
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
-          className="flex h-control items-center gap-row-inner rounded-control px-button-ghost-x type-label hover:bg-hover"
+          className="flex h-control items-center gap-row-inner rounded-control px-button-ghost-x type-label outline-selection focus-visible:outline-focus hover:bg-hover"
         >
           <Folder size={16} strokeWidth={ICON_STROKE} />
           {current ?? '디자인 시스템 없음'}
@@ -60,7 +60,8 @@ export function TopBar({
                     setOpen(false)
                     onSelect(name)
                   }}
-                  className="flex h-row w-full items-center justify-between rounded-row px-row-x text-left hover:bg-hover"
+                  // 지금 쓰는 줄은 다른 떠 있는 목록(고르는 칸의 목록)처럼 회색 바탕과 체크로 표시한다.
+                  className={`flex h-row w-full items-center justify-between rounded-row px-row-x text-left outline-selection focus-visible:outline-focus hover:bg-hover ${name === current ? 'bg-hover' : ''}`}
                 >
                   <span className="truncate">{name}</span>
                   {name === current && <Check size={16} strokeWidth={ICON_STROKE} />}
@@ -74,7 +75,7 @@ export function TopBar({
                   setOpen(false)
                   onNew()
                 }}
-                className="flex h-row w-full items-center gap-row-inner rounded-row px-row-x text-left text-ink-soft hover:bg-hover hover:text-ink"
+                className="flex h-row w-full items-center gap-row-inner rounded-row px-row-x text-left text-ink-soft outline-selection focus-visible:outline-focus hover:bg-hover hover:text-ink"
               >
                 <Plus size={16} strokeWidth={ICON_STROKE} />새 디자인 시스템
               </button>

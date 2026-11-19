@@ -9,7 +9,7 @@ import { readKindNote, writeKindNote, type KindExample, type KindShape } from '.
 import { sampleColors, type SampleColors } from './lib/sample'
 import { CODE_OPEN, CodeRows, FoldSection, Section, WHERE_OPEN } from './Inspector'
 import { DetailsFolded, HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
-import { Button, Field, Phrases, UnitInput, inputClass } from './ui'
+import { Button, Field, Phrases, UnitInput, inputClass , linkRowClass } from './ui'
 import { useReorder } from './useReorder'
 
 /** 예시를 그릴 때 넘겨받는 것. 색과 그림자는 보여 주는 디자인 시스템의 것이다. */
@@ -314,7 +314,7 @@ export function ValueInspector<S extends string>({
               <button
                 type="button"
                 onClick={() => onOpenComponent(u.index)}
-                className="-ml-button-ghost-x flex h-control max-w-full items-center rounded-control px-button-ghost-x type-label outline-selection hover:bg-hover focus-visible:outline-focus"
+                className={linkRowClass}
               >
                 <span className="truncate">{u.name}</span>
                 <span className="ml-row-inner shrink-0 type-body text-ink-faint">{u.where.length}곳</span>

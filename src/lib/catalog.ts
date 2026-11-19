@@ -243,11 +243,11 @@ const height: Kind = {
  */
 const width: Kind = {
   id: 'width',
-  title: '폭',
+  title: '너비',
   prefix: '--width-',
   matches: starts('--width-'),
   defaultValue: '',
-  addLabel: '폭 추가',
+  addLabel: '너비 추가',
   valueLabel: '가리키는 크기',
 }
 
@@ -373,7 +373,7 @@ const breakpoint: Kind = {
   matches: starts('--breakpoint-'),
   defaultValue: '',
   addLabel: '브레이크포인트 추가',
-  valueLabel: '폭',
+  valueLabel: '너비',
 }
 
 /**
@@ -383,12 +383,12 @@ const breakpoint: Kind = {
  */
 const container: Kind = {
   id: 'container',
-  title: '컨테이너 폭',
+  title: '컨테이너 너비',
   prefix: '--container-',
   matches: starts('--container-'),
   defaultValue: '',
-  addLabel: '컨테이너 폭 추가',
-  valueLabel: '폭',
+  addLabel: '컨테이너 너비 추가',
+  valueLabel: '너비',
 }
 
 /**
@@ -412,12 +412,12 @@ const aspect: Kind = {
  */
 const z: Kind = {
   id: 'z',
-  title: '겹치는 차례',
+  title: '겹치는 순서',
   prefix: '--z-index-',
   matches: starts('--z-'),
   defaultValue: '',
-  addLabel: '겹치는 차례 추가',
-  valueLabel: '차례 (클수록 위)',
+  addLabel: '겹치는 순서 추가',
+  valueLabel: '순서 (클수록 위)',
 }
 
 /**
@@ -517,7 +517,7 @@ export const TOKEN_SCREENS: Record<TokenScreenId, { title: string; kinds: Kind[]
   sizeuse: { title: '의미 크기', kinds: [height, width, square] },
   corner: { title: '모서리', kinds: [corner] },
   thickness: { title: '테두리', kinds: [thickness] },
-  z: { title: '겹치는 차례', kinds: [z] },
+  z: { title: '겹치는 순서', kinds: [z] },
 }
 
 export const PLACEHOLDER_SCREENS: Record<PlaceholderScreenId, { title: string }> = {

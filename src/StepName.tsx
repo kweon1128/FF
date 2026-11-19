@@ -20,9 +20,9 @@ export function StepName({ label, value, wide = false, onChange }: { label: stri
 
 /** 한 벌의 이름들에 문제가 있으면 그 까닭을, 없으면 null을 돌려준다. */
 export function nameProblem(names: string[]) {
-  if (names.some((n) => !n)) return '이름을 비울 수 없어요.'
-  if (names.some((n) => !SLUG.test(n))) return '이름은 영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.'
-  if (new Set(names).size !== names.length) return '같은 이름이 두 번 있어요.'
+  if (names.some((n) => !n)) return '이름을 입력해 주세요.'
+  if (names.some((n) => !SLUG.test(n))) return '영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.'
+  if (new Set(names).size !== names.length) return '같은 이름이 이미 있어요.'
   return null
 }
 

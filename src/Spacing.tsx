@@ -1,17 +1,17 @@
 // 의미 간격 판의 내용. 쓰임마다 이름과 가리키는 간격, 설명, 예시를 보여 준다.
 
-import { SAMPLE_BAR, SAMPLE_W } from './lib/sample'
+import { SAMPLE_BAR, SAMPLE_W, paints, sampleColors } from './lib/sample'
 import { ICON_STROKE } from './lib/icons'
 import { useContext, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import { ArrowUpRight } from 'lucide-react'
 import type { Token } from './lib/api'
 import { KINDS, SLUG, SPACE_REF, lengthLabel, shortName, type Kind } from './lib/catalog'
-import { surroundings, type Around } from './lib/roles'
+import type { Around } from './lib/roles'
 import { SPACE_USES, SPACE_WORDS, guessSpaceUse, isSpaceListShape, readSpaceNote, writeSpaceNote, type SpaceExample, type SpaceShape, type SpaceUse } from './lib/spacing'
 import { PreviewFontContext, PreviewSpaceContext } from './ColorUses'
 import { CODE_OPEN, CodeRows, FoldSection, ICON_BUTTON, Section, WHERE_OPEN } from './Inspector'
 import { DetailsFolded, HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
-import { Button, Field, Phrases, UsePicker, inputClass } from './ui'
+import { Button, Field, Phrases, UsePicker, inputClass , linkRowClass } from './ui'
 import { useReorder } from './useReorder'
 
 // 예시의 바탕이 판의 바탕과 같은 색이어도 가장자리가 보이게 하는 옅은 선.
@@ -41,7 +41,7 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
   const faint = `color-mix(in oklab, ${around.ink} 16%, ${around.surface})`
   const TEXT = 'text-sm leading-5'
   // 버튼, 입력칸, 면의 테두리. 칠한 자리 위에서도 보이게 예시의 다른 옅은 선보다 진하게 긋는다.
-  const line = `color-mix(in oklab, ${around.ink} 32%, ${around.surface})`
+  const line = paints(around).line
   // 칠하는 자리는 어느 모양에서나 같은 규칙이다: 간격의 방향으로는 값만큼, 그 가로지르는 방향으로는 예시 상자의 끝에서 끝까지 길게 긋는다.
   // 가로 간격(사이, 좌우 여백)은 위에서 아래까지 세로 띠, 세로 간격(글줄 사이, 위아래 여백)은 왼쪽에서 오른쪽까지 가로 띠다.
   // 어떤 것은 길게 어떤 것은 딱 맞게 그으면 같은 판 안에서 표시가 두 가지 말이 되어 어색하다. (띠는 내용이 가운데에 놓여도 상자의 끝에 닿게 아주 길게 긋고, 넘치는 것은 상자가 자른다.)
@@ -54,7 +54,7 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
   )
   const tall = tallOn()
   // 마우스를 올린 바탕. 바탕 없는 버튼과 메뉴 줄은 이 바탕이 있어야 상자가 보인다.
-  const hover = `color-mix(in oklab, ${around.ink} 8%, ${around.surface})`
+  const hover = paints(around).hover
   const wide = (
     <span data-sample className="relative block" style={{ height: value }}>
       <span className="pointer-events-none absolute inset-y-0 -inset-x-[2000px]" style={{ background: MARK }} />
@@ -72,12 +72,12 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
   const chip = (text: string, filled = false) => (
     <span
       className={`flex h-control items-center rounded-control px-button-x font-[550] whitespace-nowrap ${TEXT}`}
-      style={filled ? { background: around.ink, color: around.surface } : { boxShadow: `inset 0 0 0 1px ${line}` }}
+      style={filled ? { background: paints(around).primary, color: paints(around).onPrimary } : { boxShadow: `inset 0 0 0 1px ${line}` }}
     >
       {text}
     </span>
   )
-  const soft = `color-mix(in oklab, ${around.ink} 56%, ${around.surface})`
+  const soft = paints(around).soft
   // 이름표(입력칸 위의 작은 글자)와 입력칸. 입력칸의 값이 없으면 빈 칸이다.
   const tag = (text: string) => <span className={`block font-[550] ${TEXT}`} style={{ color: soft }}>{text}</span>
   const box = (text = '') => (
@@ -516,7 +516,7 @@ export function SpaceList({
   const groupDrag = useReorder(uses, onMoveGroup && ((use, before) => onMoveGroup(use as SpaceUse, before as SpaceUse | null)), { attr: 'data-space-group', gap: 24 })
   // 값이 없으면 빈 상자를 남기지 않는다. 추가는 묶음 제목 줄의 버튼으로 한다.
   if (items.length === 0) return null
-  const around = surroundings(all)
+  const around = sampleColors(all)
   return (
     <div className="space-y-groups">
       {uses.map((use) => {
@@ -595,7 +595,7 @@ function SpaceRows({
                     className={`group relative flex w-full items-center gap-columns rounded-row px-board-row-x py-board-row-y text-left select-none ${reorder.moving(t.name) ? 'opacity-dragging' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
                   >
                     {reorder.line(t.name)}
-                    <span className={examples.length ? 'w-row-name shrink-0' : 'min-w-0 flex-1'}>
+                    <span className={examples.length && !plain ? 'w-row-name shrink-0' : 'min-w-0 flex-1'}>
                       <span data-name className="block type-label break-words">
                         {short}
                       </span>
@@ -671,7 +671,7 @@ export function SpaceUseInspector({
     if (!SLUG.test(next)) return setNameError('영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.')
     if (next === short) return
     // 만들 때와 같은 규칙. 숫자로 시작하는 이름(--spacing-8)은 Tailwind의 숫자 클래스(p-8, top-8)가 그 값을 따라가게 만들어서 의미 간격에 쓸 수 없다.
-    if (/^\d/.test(next)) return setNameError('숫자로 시작하는 이름은 쓸 수 없어요.')
+    if (/^\d/.test(next)) return setNameError('숫자로 시작할 수 없어요.')
     if (tokens.some((t) => t.name === kind.prefix + next)) return setNameError('같은 이름이 이미 있어요.')
     onRename(kind.prefix + next)
   }
@@ -749,7 +749,7 @@ export function SpaceUseInspector({
               <button
                 type="button"
                 onClick={() => onOpenComponent(u.index)}
-                className="-ml-button-ghost-x flex h-control max-w-full items-center rounded-control px-button-ghost-x type-label outline-selection hover:bg-hover focus-visible:outline-focus"
+                className={linkRowClass}
               >
                 <span className="truncate">{u.name}</span>
                 <span className="ml-row-inner shrink-0 type-body text-ink-faint">{u.where.length}곳</span>
@@ -788,7 +788,7 @@ export function NewSpaceUseForm({ tokens, onCreate, onCancel }: { tokens: Token[
     const next: typeof error = {}
     if (!n) next.name = '이름을 입력해 주세요.'
     else if (!SLUG.test(n)) next.name = '영문 소문자, 숫자, 하이픈(-)만 쓸 수 있어요.'
-    else if (/^\d/.test(n)) next.name = '숫자로 시작하는 이름은 쓸 수 없어요.'
+    else if (/^\d/.test(n)) next.name = '숫자로 시작할 수 없어요.'
     else if (tokens.some((t) => t.name === KINDS.spaceUse.prefix + n)) next.name = '같은 이름이 이미 있어요.'
     if (!ref) next.ref = '간격을 골라 주세요.'
     setError(next)

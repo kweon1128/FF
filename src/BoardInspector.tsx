@@ -74,7 +74,7 @@ export function NumberField({
     // 이름표와 숫자를 한 칸 안에 나란히 둔다. 이름표가 길어도 숫자와 겹치지 않는다.
     <label
       title={label}
-      className={`flex h-control min-w-0 items-center gap-row-inner rounded-control border-edge border-hairline px-input-x focus-within:border-selection ${
+      className={`flex h-control min-w-0 items-center gap-row-inner rounded-control border-edge border-hairline px-input-x focus-within:border-selection ${draft.trim() !== '' && !Number.isFinite(Number(draft)) ? 'border-danger! focus-within:border-danger!' : ''} ${
         readOnly ? 'bg-hover' : 'bg-canvas'
       }`}
     >
@@ -138,7 +138,8 @@ function ColorField({ label, value, onCommit }: { label: string; value: string |
       <ColorSwatch label={`${label} 고르기`} value={value} fallback="#ffffff" onChange={onCommit} />
       <input
         aria-label={label}
-        className={monoInputClass}
+        // 색으로 읽히지 않는 값을 적는 동안은 빨갛게 한다. 그대로 벗어나면 저장된 값으로 되돌린다(DESIGN.md field-rules).
+        className={`${monoInputClass} ${draft.trim() !== '' && !HEX6.test(asHex(draft) ?? '') ? 'border-danger! focus:border-danger!' : ''}`}
         value={draft}
         placeholder={MIXED}
         onChange={(e) => setDraft(e.target.value)}

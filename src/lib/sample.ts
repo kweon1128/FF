@@ -59,6 +59,21 @@ export function sampleColors(tokens: Token[]): SampleColors {
   }
 }
 
+/**
+ * 예시를 그리는 부품이 쓰는 색. 판은 예시에 sampleColors(tokens)를 넘기고, 예시는 이것으로 꺼내 쓴다.
+ * 판마다 글자색을 제각각 섞어 쓰면 같은 버튼이 판에 따라 다른 색으로 그려진다. 기본 바탕과 글자만 넘겨받은 곳(패널의 작은 예시)에서는 글자색을 섞어 대신한다.
+ */
+export function paints(around: { surface: string; ink: string } & Partial<SampleColors>) {
+  const mix = (amount: number) => `color-mix(in oklab, ${around.ink} ${amount}%, ${around.surface})`
+  return {
+    line: around.line ?? mix(16),
+    hover: around.hover ?? mix(8),
+    soft: around.soft ?? mix(56),
+    primary: around.primary ?? around.ink,
+    onPrimary: around.onPrimary ?? around.surface,
+  }
+}
+
 // 예시 그림의 치수. 디자인 시스템의 값이 아니라 그림을 그리는 약속이라 판에 올리지 않고 여기 한 곳에서 정한다.
 // 판마다 따로 적으면 한 판에서만 고쳤을 때 판끼리 어긋난다. Tailwind가 클래스를 찾을 수 있게 글자 그대로 적는다.
 /** 예시 속 요소의 기본 폭(폭이 따로 정해지지 않은 입력칸, 목록, 상자). */

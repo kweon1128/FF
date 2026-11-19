@@ -398,7 +398,7 @@ export function NewFontForm({
   function submit(e: FormEvent) {
     e.preventDefault()
     if (!picked) return setError(cands.length > 0 ? '카드를 눌러 글꼴을 정해 주세요.' : '글꼴을 골라 주세요.')
-    if (/[;{}]/.test(value)) return setError('; { } 가 든 이름은 쓸 수 없어요.')
+    if (/[;{}]/.test(value)) return setError('; { } 기호는 쓸 수 없어요.')
     // 이름 칸을 비워 두면 미리 채워 주던 이름을 쓴다. 이름은 꼭 적지 않아도 된다.
     const name = edit ? edit.name : (nameDraft ?? '').trim() || autoName
     if (!edit && name !== autoName) {

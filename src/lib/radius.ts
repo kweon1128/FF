@@ -50,7 +50,7 @@ export type RadiusShape = 'tag' | 'seltag' | 'check' | 'smallbutton' | 'chip' | 
 
 export const RADIUS_SHAPES: { id: RadiusShape; label: string; hint: string }[] = [
   { id: 'tag', label: '이름표', hint: '치수선의 숫자 이름표' },
-  { id: 'seltag', label: '선택 이름표', hint: '고른 것 아래의 이름표' },
+  { id: 'seltag', label: '선택 이름표', hint: '선택한 것 아래의 이름표' },
   { id: 'check', label: '체크박스', hint: '체크 상자' },
   { id: 'smallbutton', label: '작은 버튼', hint: '귀퉁이의 작은 아이콘 버튼' },
   { id: 'chip', label: '칩', hint: '코드나 키를 적은 칩' },

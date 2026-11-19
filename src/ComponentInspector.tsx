@@ -3,14 +3,14 @@ import { useState } from 'react'
 import { Copy, CopyPlus, Trash2 } from 'lucide-react'
 import { DynamicIcon, iconNames } from 'lucide-react/dynamic'
 import type { Token } from './lib/api'
-import { KINDS, SLUG, SPACE_REF, lengthLabel, shortName, type Kind } from './lib/catalog'
+import { KINDS, SLUG, SPACE_REF, shortName, type Kind } from './lib/catalog'
 import { showColor } from './lib/color'
 import { refOf, resolveColor } from './lib/roles'
 import { readType } from './lib/types'
 import { cellLabel, type Cell, type Colors, type Comp, type IconPos, type Size } from './lib/components'
 import { isIconName } from './ComponentScreen'
 import { CODE_OPEN, FoldSection, Section } from './Inspector'
-import { Button, Chip, Field, inputClass, swatchBackground } from './ui'
+import { Button, Chip, Field, Segmented, UsePicker, inputClass, swatchBackground } from './ui'
 
 const ICON_RESULTS = 30
 
@@ -95,16 +95,24 @@ function TokenField({
   }
   const current = [...roles, ...options].find((t) => t.name === value)
   const missing = value !== undefined && !current
-  const plain = (t: Token) => (
-    <option key={t.name} value={t.name}>
-      {/* 토대의 간격은 이름이 곧 길이라 길이만 적는다. */}
-      {kind.id === 'space' && `${shortName(kind, t.name)}px` === t.value ? t.value : `${shortName(kind, t.name)} · ${kind.id === 'color' ? showColor(t.value) : kind.id === 'style' ? specOf(t.value) : t.value}`}
-    </option>
-  )
+  // 목록의 줄들. 맨 위는 고르지 않음("없음"), 그 아래에 의미 값, 그 아래에 토대 값이 온다. 의미 값이 있으면 두 묶음에 제목을 붙인다.
+  // 토대의 간격은 이름이 곧 길이라 길이만 적는다.
+  const bare = (t: Token) => kind.id === 'space' && `${shortName(kind, t.name)}px` === t.value
+  const picks: { id: string; label: string; hint: string; heading?: string }[] = [
+    { id: '', label: empty, hint: '' },
+    ...roles.map((t, i) => ({ id: t.name, label: shortName(roleKind, t.name), hint: pointsAt(t), heading: i === 0 ? (kind.id === 'space' ? '의미 간격' : '의미 색') : undefined })),
+    ...options.map((t, i) => ({
+      id: t.name,
+      label: bare(t) ? t.value : shortName(kind, t.name),
+      hint: bare(t) ? '' : kind.id === 'color' ? showColor(t.value) : kind.id === 'style' ? specOf(t.value) : t.value,
+      heading: i === 0 && roles.length > 0 ? (kind.id === 'space' ? '간격' : '색상') : undefined,
+    })),
+  ]
 
   return (
     <Field
       label={label}
+      plain
       error={missing ? '고른 값이 없어졌어요. 다시 골라 주세요.' : null}
       hint={options.length + roles.length === 0 ? `${kind.title} 값을 먼저 만들어 주세요.` : undefined}
     >
@@ -115,29 +123,10 @@ function TokenField({
             style={{ background: current ? swatchBackground(resolveColor(tokens, current.value) ?? 'transparent') : undefined }}
           />
         )}
-        <select
-          className={`${inputClass} min-w-0 ${missing ? 'border-danger!' : ''}`}
-          value={value ?? ''}
-          disabled={options.length + roles.length === 0 && !missing}
-          onChange={(e) => onChange(e.target.value || undefined)}
-        >
-          <option value="">{empty}</option>
-          {missing && <option value={value}>{kind.matches(value) ? lengthLabel(kind, value) : value.replace(/^--[a-z]+-/, '')} (없어짐)</option>}
-          {roles.length > 0 && (
-            <optgroup label={kind.id === 'space' ? '의미 간격' : '의미 색'}>
-              {roles.map((t) => (
-                <option key={t.name} value={t.name}>
-                  {shortName(roleKind, t.name)} · {pointsAt(t)}
-                </option>
-              ))}
-            </optgroup>
-          )}
-          {roles.length > 0 ? (
-            <optgroup label={kind.id === 'space' ? '간격' : '색상'}>{options.map(plain)}</optgroup>
-          ) : (
-            options.map(plain)
-          )}
-        </select>
+        {/* 다른 패널과 같은 고르는 칸이다. 고른 값이 없어졌으면 칸이 "고르기"로 비고 아래에 까닭이 적힌다. */}
+        <span className="min-w-0 flex-1">
+          <UsePicker label={label} nameWidth="w-cell-long" disabled={options.length + roles.length === 0 && !missing} options={picks} value={missing ? null : (value ?? '')} onChange={(name) => onChange(name || undefined)} />
+        </span>
       </span>
     </Field>
   )
@@ -161,7 +150,7 @@ function IconPicker({ value, onChange }: { value: string | undefined; onChange: 
         <input
           className={inputClass}
           value={query}
-          placeholder="영문으로 검색 (예: arrow, check)"
+          placeholder="영문으로 찾기 (예: arrow, check)"
           onChange={(e) => setQuery(e.target.value)}
         />
       </Field>
@@ -188,7 +177,7 @@ function IconPicker({ value, onChange }: { value: string | undefined; onChange: 
       )}
       {matches.length > ICON_RESULTS && (
         <p className="type-body text-ink-faint">
-          {matches.length}개 중 {ICON_RESULTS}개만 보여요. 검색어를 더 적어 보세요.
+          {matches.length}개 중 {ICON_RESULTS}개만 보여요.
         </p>
       )}
     </div>
@@ -365,28 +354,22 @@ export function ComponentInspector({
             </>
           )}
           <Field label="미리보기 글자">
-            <input className={inputClass} value={comp.label} onChange={(e) => common({ label: e.target.value })} />
+            {/* 적는 동안은 저장하지 않고 칸을 벗어나거나 Enter를 누를 때 저장한다(DESIGN.md field-rules). 밖에서 값이 바뀌면(되돌리기) 칸을 새로 만든다. */}
+            <input
+              key={comp.label}
+              aria-label="미리보기 글자"
+              className={inputClass}
+              defaultValue={comp.label}
+              onBlur={(e) => e.target.value !== comp.label && common({ label: e.target.value })}
+              onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+            />
           </Field>
         </div>
       </Section>
 
       <Section title="아이콘">
         <div className="space-y-fields">
-          <div role="group" aria-label="아이콘 위치" className="flex gap-actions-tight rounded-control bg-hover p-menu">
-            {ICON_POSITIONS.map(({ id, label }) => (
-              <button
-                key={id}
-                type="button"
-                aria-pressed={comp.iconPos === id}
-                onClick={() => common({ iconPos: id })}
-                className={`h-compact flex-1 rounded-small type-label outline-selection focus-visible:outline-focus ${
-                  comp.iconPos === id ? 'border-edge border-hairline bg-canvas text-ink' : 'text-ink-soft hover:text-ink'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <Segmented label="아이콘 위치" options={ICON_POSITIONS} value={comp.iconPos} onChange={(iconPos) => common({ iconPos })} />
           {comp.iconPos !== 'none' && <IconPicker value={comp.icon} onChange={(icon) => common({ icon })} />}
         </div>
       </Section>

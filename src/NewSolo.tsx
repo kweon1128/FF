@@ -40,7 +40,7 @@ export function NewSoloForm({
     if (!n) next.name = '이름을 입력해 주세요.'
     else if (!NAME.test(n)) next.name = '영문 소문자와 숫자만 쓸 수 있어요.'
     else if (existing.has(n)) next.name = why?.(n) ?? '같은 이름이 이미 있어요.'
-    if (color.trim() && !typed) next.color = '#rrggbb로 적어 주세요.'
+    if (color.trim() && !typed) next.color = '#rrggbb처럼 여섯 자리로 적어 주세요.'
     setError(next)
     if (Object.keys(next).length === 0) onCreate(n, typed ?? suggested)
   }
