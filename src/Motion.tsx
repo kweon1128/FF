@@ -431,7 +431,7 @@ function CurveEditor({ value, onValue }: { value: string; onValue: (value: strin
       cy={CURVE_Y(p[i * 2 + 1])}
       r="5"
       aria-label={label}
-      className="cursor-grab fill-canvas stroke-selection active:cursor-grabbing"
+      className="cursor-grab fill-canvas stroke-selection outline-selection focus-visible:outline-focus active:cursor-grabbing"
       strokeWidth="2"
       onPointerDown={(e) => {
         e.currentTarget.setPointerCapture(e.pointerId)
@@ -449,6 +449,23 @@ function CurveEditor({ value, onValue }: { value: string; onValue: (value: strin
         if (made && made !== writeCurve(saved)) onValue(made)
       }}
       onPointerCancel={() => setLive(null)}
+      // 자판으로도 옮긴다. 방향키는 0.01씩, Shift를 누르면 0.1씩이다. 누를 때마다 저장한다(숫자 칸의 ↑↓와 같다).
+      tabIndex={0}
+      role="slider"
+      aria-valuetext={`가로 ${p[i * 2]}, 세로 ${p[i * 2 + 1]}`}
+      onKeyDown={(e) => {
+        const way = ({ ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1] } as Record<string, number[]>)[e.key]
+        if (!way) return
+        e.preventDefault()
+        // 캔버스가 같은 방향키로 고른 값의 순서를 바꾼다. 거기까지 가지 않게 한다.
+        e.stopPropagation()
+        const step = e.shiftKey ? 0.1 : 0.01
+        const next = [...saved]
+        next[i * 2] = Math.round(clamp(saved[i * 2] + way[0] * step, 0, 1) * 100) / 100
+        next[i * 2 + 1] = Math.round(clamp(saved[i * 2 + 1] + way[1] * step, -0.5, 1.5) * 100) / 100
+        const made = writeCurve(next)
+        if (made && made !== writeCurve(saved)) onValue(made)
+      }}
     />
   )
   return (

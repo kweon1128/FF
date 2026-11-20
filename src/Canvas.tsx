@@ -1185,14 +1185,17 @@ export function Canvas({
         ))}
       </div>
 
-      {/* 1px 격자. 캔버스의 1px마다 선을 그어 판과 그 안의 내용 위에 겹친다. 크게 확대했을 때만 보인다. */}
+      {/* 1px 격자. 캔버스의 1px마다 선을 그어 판과 그 안의 내용, 사진과 글 위에 겹친다. 크게 확대했을 때만 보인다.
+          선은 아래의 색과 견주어 그린다(mix-blend-mode: difference). 옅은 검정 선으로 그리면 검은 버튼이나 사진의 어두운 곳에서는 보이지 않아, 그 요소가 격자를 덮은 것처럼 보인다.
+          흰 선을 차이로 섞으면 밝은 곳에서는 어둡게, 어두운 곳에서는 밝게 나와 어떤 색 위에서도 격자가 요소 위에 있는 것이 보인다. */}
       {grid && view.z >= GRID_ZOOM && (
         <div
           data-pixel-grid
           className="pointer-events-none absolute inset-0 z-mark"
           style={{
             backgroundImage:
-              'linear-gradient(to right, rgb(0 0 0 / 0.06) 1px, transparent 1px), linear-gradient(to bottom, rgb(0 0 0 / 0.06) 1px, transparent 1px)',
+              'linear-gradient(to right, rgb(255 255 255 / 0.12) 1px, transparent 1px), linear-gradient(to bottom, rgb(255 255 255 / 0.12) 1px, transparent 1px)',
+            mixBlendMode: 'difference',
             backgroundSize: `${view.z}px ${view.z}px`,
             backgroundPosition: `${view.x}px ${view.y}px`,
           }}

@@ -2,7 +2,7 @@
 // 위에서부터 채도·밝기 면, 스포이드와 색조 막대, (투명도 막대), 색 값 입력칸, 이 디자인 시스템의 색 견본.
 
 import { ICON_STROKE } from './lib/icons'
-import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type PointerEvent } from 'react'
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { Pipette } from 'lucide-react'
 import { ColorUses } from './ColorUses'
@@ -63,6 +63,21 @@ function useDrag(onMove: (x: number, y: number) => void) {
   }
 }
 
+/**
+ * 끌어서 바꾸는 면과 막대를 자판으로도 바꾼다. 방향키는 한 걸음(1), Shift를 누르면 열 걸음이다. 오른쪽과 위가 늘리는 쪽이다.
+ * 창 밖의 방향키 단축키까지 가지 않게 막는다.
+ */
+const arrows = (onStep: (dx: number, dy: number) => void) => (e: ReactKeyboardEvent<HTMLDivElement>) => {
+  const way = ({ ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1] } as Record<string, number[]>)[e.key]
+  if (!way) return
+  e.preventDefault()
+  e.stopPropagation()
+  const step = e.shiftKey ? 10 : 1
+  onStep(way[0] * step, way[1] * step)
+}
+// 자판으로 초점이 왔을 때의 표시. 다른 버튼과 같다.
+const FOCUS = 'outline-selection focus-visible:outline-focus'
+
 // 손잡이: 피그마처럼 두꺼운 흰 고리에 가운데로 그 자리의 색이 보인다. 옅은 그림자로 밝은 색 위에서도 보이게 한다.
 const KNOB =
   'pointer-events-none absolute size-[16px] -translate-x-1/2 -translate-y-1/2 rounded-pill border-[4px] border-white shadow-[0_0_0_0.5px_rgb(0_0_0/0.25),0_1px_3px_rgb(0_0_0/0.35)]'
@@ -120,6 +135,11 @@ function Panel({
     setPos({ left, top: Math.max(GAP, Math.min(anchor.top - 12, window.innerHeight - h - GAP)) })
   }, [anchor])
 
+  // 열리면 색을 고르는 면에 초점을 준다. 바로 방향키로 고를 수 있고, Tab으로 막대와 입력칸, 견본으로 간다.
+  useEffect(() => {
+    box.current?.querySelector<HTMLElement>('[data-color-area]')?.focus({ preventScroll: true })
+  }, [])
+
   // 스포이드: 화면에서 색을 찍는다. 찍는 동안에는 화면을 눌러도 이 창을 닫지 않는다.
   const picking = useRef(false)
   const drop = useRef(() => {})
@@ -150,6 +170,8 @@ function Panel({
       // 확인 창 안에서 열렸을 때 Esc가 확인 창까지 닫지 않게 여기서 멈춘다.
       e.stopImmediatePropagation()
       onClose()
+      // 초점이 창 안에 있었으면 창을 연 견본으로 돌려준다. 그대로 두면 사라진 창에 있던 초점이 화면 맨 위로 간다.
+      if (box.current?.contains(document.activeElement)) opener?.focus()
     }
     window.addEventListener('pointerdown', down, true)
     window.addEventListener('keydown', key, true)
@@ -182,7 +204,12 @@ function Panel({
       <div
         {...area}
         data-color-area
-        className="relative h-[144px] touch-none rounded-card"
+        // 가로가 채도, 세로가 밝기다. 방향키로 1%씩(Shift는 10%씩) 옮긴다.
+        tabIndex={0}
+        role="group"
+        aria-label={`채도 ${Math.round(hsv.s * 100)}%, 밝기 ${Math.round(hsv.v * 100)}%. 방향키로 바꿔요`}
+        onKeyDown={arrows((dx, dy) => pick({ ...hsv, s: clamp01(hsv.s + dx / 100), v: clamp01(hsv.v + dy / 100) }))}
+        className={`relative h-[144px] touch-none rounded-card ${FOCUS}`}
         style={{ background: `linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, hsl(${hsv.h} 100% 50%))` }}
       >
         <span className={KNOB} style={{ left: `${hsv.s * 100}%`, top: `${(1 - hsv.v) * 100}%`, background: rgb }} />
@@ -208,7 +235,9 @@ function Panel({
             aria-valuenow={Math.round(hsv.h)}
             aria-valuemin={0}
             aria-valuemax={360}
-            className="relative h-[12px] touch-none rounded-pill"
+            tabIndex={0}
+            onKeyDown={arrows((dx, dy) => pick({ ...hsv, h: Math.min(360, Math.max(0, hsv.h + dx + dy)) }))}
+            className={`relative h-[12px] touch-none rounded-pill ${FOCUS}`}
             style={{ background: 'linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)' }}
           >
             <span className={`${KNOB} top-1/2`} style={{ left: `${(hsv.h / 360) * 100}%`, background: `hsl(${hsv.h} 100% 50%)` }} />
@@ -221,7 +250,9 @@ function Panel({
               aria-valuenow={Math.round(a * 100)}
               aria-valuemin={0}
               aria-valuemax={100}
-              className="relative h-[12px] touch-none rounded-pill"
+              tabIndex={0}
+              onKeyDown={arrows((dx, dy) => onChange(withAlpha(rgb, clamp01(Math.round(a * 100 + dx + dy) / 100))))}
+              className={`relative h-[12px] touch-none rounded-pill ${FOCUS}`}
               style={{ background: swatchBackground(`linear-gradient(to right, transparent, ${rgb})`, 6) }}
             >
               <span className={`${KNOB} top-1/2`} style={{ left: `${a * 100}%`, background: swatchBackground(value, 6) }} />

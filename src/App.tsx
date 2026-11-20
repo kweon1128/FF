@@ -1597,10 +1597,15 @@ export function App() {
     } else if (mod && !e.altKey && !e.shiftKey && e.code === 'KeyD') {
       e.preventDefault()
       duplicate()
-    } else if (mod && !e.altKey && (e.code === 'BracketRight' || e.code === 'BracketLeft')) {
+    } else if (
+      (mod && !e.altKey && (e.code === 'BracketRight' || e.code === 'BracketLeft')) ||
+      // 값이나 묶음을 고른 채의 그냥 방향키도 같은 일을 한다(↓→는 뒤로, ↑←는 앞으로). 판을 고른 채의 방향키는 캔버스가 판을 옮기는 데 쓰는데, 판과 값은 함께 골라지지 않아 겹치지 않는다.
+      // 패널의 고르는 칸이 이미 받은 방향키(defaultPrevented)는 건드리지 않는다.
+      (!mod && !e.altKey && !e.shiftKey && !e.defaultPrevented && (e.code === 'ArrowDown' || e.code === 'ArrowRight' || e.code === 'ArrowUp' || e.code === 'ArrowLeft'))
+    ) {
       if (screen === 'components' || selected.length === 0) return
       e.preventDefault()
-      const dir = e.code === 'BracketRight' ? 1 : -1
+      const dir = e.code === 'BracketRight' || e.code === 'ArrowDown' || e.code === 'ArrowRight' ? 1 : -1
       // 끌어서 옮길 수 있는 것은 단축키로도 옮긴다. 묶음을 통째로(그리고 그것만) 골랐으면 그 묶음을, 아니면 고른 값을 묶음 안에서 옮긴다.
       // 묶음의 제목을 누르면 그 묶음이 통째로 골라지므로, 제목을 누르고 단축키를 누르면 묶음이 옮겨진다.
       const picked = new Set(selected)
@@ -1751,6 +1756,7 @@ export function App() {
     emptyGroups: keptGroups,
     folded,
     pickedGroup,
+    pickedList: listPicked,
     onPickGroup: (group: string) => {
       setSelectedBoards([])
       select([])
@@ -1832,16 +1838,18 @@ export function App() {
   // 한 색 목록을 통째로(그리고 그것만) 선택했으면 그 목록의 이름. 오른쪽 패널에서 목록 이름을 고칠 수 있다.
   const groupsPicked = new Set(selectedTokens.map((t) => (COLOR.matches(t.name) ? groupOf(shortName(COLOR, t.name)) : null)))
   const onlyGroup = groupsPicked.size === 1 ? [...groupsPicked][0] : null
-  // 색이 둘 이상이면 그 목록의 색을 빠짐없이 고른 것으로 안다. 색이 하나뿐인 목록은 목록 이름을 눌러 선택했을 때만이다(색을 누른 것이면 그 색의 패널이 뜬다).
+  // 목록 이름을 눌러 고른 것만 목록 선택이다. 색을 하나씩 모두 골랐으면 색 여러 개를 고른 것이다(화면의 선도 그렇게 다르다).
   const wholeGroup =
     onlyGroup &&
-    (selectedTokens.length > 1 || listPicked === onlyGroup) &&
+    listPicked === onlyGroup &&
     tokens.filter((t) => COLOR.matches(t.name) && groupOf(shortName(COLOR, t.name)) === onlyGroup).length === selectedTokens.length
       ? onlyGroup
       : null
   // Ctrl+]/[로 통째로 옮길 수 있는 목록. 한 목록의 색을 빠짐없이, 그것만 골랐을 때다.
   const movableGroup =
     onlyGroup !== null &&
+    // 이름이 있는 목록은 이름을 눌러 골랐을 때만이다. 예외 색은 이름으로 고르는 상태가 따로 없어 색을 모두 골랐으면 된다.
+    (onlyGroup === '' || listPicked === onlyGroup) &&
     selectedTokens.length > 0 &&
     tokens.filter((t) => COLOR.matches(t.name) && groupOf(shortName(COLOR, t.name)) === onlyGroup).length === selectedTokens.length
       ? onlyGroup
@@ -2144,7 +2152,8 @@ export function App() {
 
         {/* 보여 줄 것이 없으면(아무것도 선택하지 않았으면) 패널 자체를 없애 가운데를 넓게 쓴다. */}
         <aside
-          className="w-panel shrink-0 overflow-y-auto border-l-divider border-hairline empty:hidden"
+          // 내용의 너비를 패널 너비로 못박는다. 패널이 길어져 스크롤 막대가 생겨도 칸이 좁아지지 않고, 얇은 막대가 오른쪽 여백 위에 놓인다. 그래서 어느 패널이나 칸의 너비가 같다.
+          className="w-panel shrink-0 overflow-x-hidden overflow-y-auto border-l-divider border-hairline [scrollbar-width:thin] *:w-[calc(var(--width-panel)-var(--border-width-divider))] empty:hidden"
           // 입력칸을 눌러 들어가면 적혀 있던 글자를 모두 선택해서 바로 고쳐 쓸 수 있게 한다. 이미 들어가 있는 칸을 다시 누르면 평소처럼 커서가 놓인다.
           onMouseDownCapture={(e) => {
             const input = e.target

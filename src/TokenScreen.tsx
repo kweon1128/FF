@@ -1,5 +1,5 @@
 import { ICON_STROKE } from './lib/icons'
-import { createContext, type CSSProperties, type MouseEvent } from 'react'
+import { createContext, useRef, type CSSProperties, type MouseEvent } from 'react'
 import { ChevronsDownUp, ChevronsUpDown, Plus, RotateCcw, Rows3, TriangleAlert } from 'lucide-react'
 import type { Token } from './lib/api'
 import { groupOf, lineName, shortName, trackName, type Kind } from './lib/catalog'
@@ -49,6 +49,8 @@ export type SectionProps = {
   emptyGroups: string[]
   /** 빈 목록은 색이 없어서 목록 자체를 선택한다. 선택한 빈 목록의 이름(없으면 null). Delete로 지운다. */
   pickedGroup: string | null
+  /** 이름을 눌러 통째로 고른 색 목록(없으면 null). 색을 하나씩 모두 고른 것과는 다르다. 목록 전체에 선 하나를 두른다. */
+  pickedList: string | null
   onPickGroup: (group: string) => void
   /** 색 목록을 끌어서 다른 자리에 놓는다. before는 그 앞에 놓일 목록(맨 끝이면 null). */
   onReorderGroup: (group: string, before: string | null) => void
@@ -142,7 +144,7 @@ export function MissingNotices({ kinds, tokens, onSelect }: { kinds: Kind[]; tok
 }
 
 /** 한 화면에 속한 종류들을 차례로 그린다. 전체 보기의 판 안에서도 그대로 쓴다. */
-export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGroup, onRename, onSelectGroup, emptyGroups, pickedGroup, onPickGroup, folded, onReorderGroup, rolesFolded, onMoveRole, onMoveRoleGroup, onMoveType, onMoveTypeGroup, onResetTypes, onMoveInKind, onMoveKind, onMoveSpaceGroup, onMoveSizeGroup, onMoveRadiusGroup, resetOf, detailsFolded, onToggleDetails, onMakeSizes, onMakeWeights, onMakeTypes }: SectionProps & { kinds: Kind[] }) {
+export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGroup, onRename, onSelectGroup, emptyGroups, pickedGroup, pickedList, onPickGroup, folded, onReorderGroup, rolesFolded, onMoveRole, onMoveRoleGroup, onMoveType, onMoveTypeGroup, onResetTypes, onMoveInKind, onMoveKind, onMoveSpaceGroup, onMoveSizeGroup, onMoveRadiusGroup, resetOf, detailsFolded, onToggleDetails, onMakeSizes, onMakeWeights, onMakeTypes }: SectionProps & { kinds: Kind[] }) {
   const single = kinds.length === 1
   // 값이 있는 종류는 파일에 적힌 차례대로 놓는다(끌어서 바꾼 차례가 파일에 남는다). 값이 없는 종류는 그 뒤에 정해진 차례대로 온다.
   const ordered = orderKinds(tokens, kinds)
@@ -220,7 +222,7 @@ export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGr
             <MissingNotices kinds={[kind]} tokens={tokens} onSelect={onSelect} />
             {kind.id === 'color' ? (
               // 색이 하나도 없어도 "예외 색" 목록은 처음부터 있다. 목록은 판 오른쪽 위의 "목록 추가"로 만든다.
-              <ColorGroups {...list} onSelectGroup={onSelectGroup} emptyGroups={emptyGroups} pickedGroup={pickedGroup} onPickGroup={onPickGroup} folded={folded} onReorderGroup={onReorderGroup} onAddGroup={onAddGroup} />
+              <ColorGroups {...list} onSelectGroup={onSelectGroup} emptyGroups={emptyGroups} pickedGroup={pickedGroup} pickedList={pickedList} onPickGroup={onPickGroup} folded={folded} onReorderGroup={onReorderGroup} onAddGroup={onAddGroup} />
             ) : kind.id === 'role' ? (
               <RoleList {...list} all={tokens} folded={rolesFolded} onSelectGroup={onSelectGroup} onMove={onMoveRole} onMoveGroup={onMoveRoleGroup} />
             ) : kind.id === 'style' ? (
@@ -378,12 +380,13 @@ function ColorGroups({
   onSelectGroup,
   emptyGroups,
   pickedGroup,
+  pickedList,
   onPickGroup,
   folded,
   onReorderGroup,
   onAddGroup,
 }: ListProps &
-  Pick<SectionProps, 'onSelectGroup' | 'emptyGroups' | 'pickedGroup' | 'onPickGroup' | 'folded' | 'onReorderGroup' | 'onAddGroup'>) {
+  Pick<SectionProps, 'onSelectGroup' | 'emptyGroups' | 'pickedGroup' | 'pickedList' | 'onPickGroup' | 'folded' | 'onReorderGroup' | 'onAddGroup'>) {
   const groups = new Map<string, Token[]>()
   for (const t of items) {
     const g = groupOf(shortName(kind, t.name))
@@ -402,6 +405,11 @@ function ColorGroups({
   // 목록 이름을 잡고 위아래로 끌면 목록의 순서가 바뀐다. 색이 있는 목록만 옮길 수 있다(빈 목록은 파일에 자리가 없다).
   const movable = [...groups].filter(([, list]) => list.length > 0).map(([g]) => g)
   const listDrag = useReorder(movable, onReorderGroup, { attr: 'data-color-group', gap: 24 })
+  // 목록 안의 빈 곳을 누른 자리. 끌었는지(판 옮기기) 눌렀는지(목록 고르기)를 가른다.
+  const pressedAt = useRef<{ x: number; y: number } | null>(null)
+  // 이름을 눌러 목록을 통째로 골랐는지. 그때는 색마다 선을 두르지 않고 목록 전체(이름, 색, 그 아래 글자)에 선 하나를 두른다.
+  // 색을 하나씩 모두 고른 것은 목록을 고른 것이 아니다. 색마다 선이 보인다.
+  const isWhole = (group: string, list: Token[]) => !!group && pickedList === group && list.length > 0 && selected.length === list.length && list.every((t) => selected.includes(t.name))
 
   return (
     <div className="space-y-groups">
@@ -424,7 +432,24 @@ function ColorGroups({
         </button>
       )}
       {[...groups].map(([group, list]) => (
-        <div key={group} data-color-group={group} className={`relative ${listDrag.moving(group) ? 'opacity-dragging' : ''}`}>
+        <div
+          key={group}
+          data-color-group={group}
+          data-list-picked={isWhole(group, list) || undefined}
+          className={`relative ${isWhole(group, list) ? SELECTED : ''} ${listDrag.moving(group) ? 'opacity-dragging' : ''}`}
+          // 선은 목록에서 8px 떨어뜨려 두른다. 목록 사이가 24px이라 이웃한 목록에 닿지 않는다.
+          style={isWhole(group, list) ? ({ '--edge': '8px' } as CSSProperties) : undefined}
+          // 목록은 이름뿐 아니라 목록 안의 빈 곳(색 사이의 틈, 이름 옆)을 눌러도 골라진다. 색이나 버튼을 누른 것은 그 버튼의 일이다.
+          // 같은 자리를 잡고 끌면 지금처럼 판이 옮겨진다. 그래서 누른 자리에서 움직이지 않고 뗐을 때만 고른다.
+          onPointerDown={(e) => (pressedAt.current = { x: e.clientX, y: e.clientY })}
+          onClick={(e) => {
+            if ((e.target as HTMLElement).closest('button, input')) return
+            const from = pressedAt.current
+            if (!from || Math.hypot(e.clientX - from.x, e.clientY - from.y) >= 5) return
+            if (list.length === 0) group && onPickGroup(group)
+            else onSelectGroup(list.map((t) => t.name), isAdditive(e), false, group || undefined)
+          }}
+        >
           {/* 끄는 중에 놓일 자리를 알려 주는 선. 이 목록 앞에 놓이면 위에, 맨 끝에 놓이면 마지막 목록 아래에 긋는다. */}
           {listDrag.line(group)}
           {/* 영문 목록 이름은 소문자라 작아 보여서 16px, 한글인 '예외 색'은 다른 제목과 같은 14px. */}
@@ -467,7 +492,8 @@ function ColorGroups({
             {list.map((t, i) => {
               const short = shortName(kind, t.name)
               const isSelected = selected.includes(t.name)
-              const labeled = isSelected && selected.length === 1
+              const whole = isWhole(group, list)
+              const labeled = isSelected && selected.length === 1 && !whole
               // 파일에는 oklch로 적혀 있어도 화면에는 읽기 쉬운 #으로 보여 준다.
               const shown = showColor(t.value)
               // 화면이 낼 수 없는 선명한 색이면 #은 가까운 색일 뿐이라는 표시를 붙인다.
@@ -488,7 +514,7 @@ function ColorGroups({
                   {!group && reorder.line(t.name)}
                   <span className="relative block">
                     <span
-                      className={`block h-[64px] rounded-card shadow-[inset_0_0_0_var(--border-width-edge)_rgb(0_0_0/0.1)] ${isSelected ? SELECTED : ''} group-hover:line-2 group-focus-visible:line-2 ${OUTLINE}`}
+                      className={`block h-[64px] rounded-card shadow-[inset_0_0_0_var(--border-width-edge)_rgb(0_0_0/0.1)] ${isSelected && !whole ? SELECTED : ''} group-hover:line-2 group-focus-visible:line-2 ${OUTLINE}`}
                       // 옅은 선은 색 면의 안쪽에 그린다(바깥으로 삐져나오지 않는다). 테두리가 없으므로 선택 선도 면의 가장자리에 딱 맞춘다.
                       style={{ background: swatchBackground(t.value), '--edge': '0px' } as CSSProperties}
                     />

@@ -3,8 +3,9 @@
 
 import { SAMPLE_BAR, paints, sampleColors } from './lib/sample'
 import { ICON_STROKE } from './lib/icons'
-import { useContext, useState, type FormEvent, type ReactNode } from 'react'
-import { ArrowUpRight } from 'lucide-react'
+import { useContext, useEffect, useRef, useState, type CSSProperties, type FormEvent, type KeyboardEvent, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
+import { ArrowUpRight, ChevronDown } from 'lucide-react'
 import type { Token } from './lib/api'
 import { KINDS, SLUG, slugMessage, groupOf, shortName, type Kind } from './lib/catalog'
 import { contrast, showColor } from './lib/color'
@@ -12,7 +13,7 @@ import { ROLE_NAMES, ROLE_USES, ROLE_WORDS, guessUse, isRoleListShape, readNote,
 import { DARK, PreviewFontContext, PreviewSpaceContext, inkOn } from './ColorUses'
 import { CODE_OPEN, CodeRows, FoldSection, Section, WHERE_OPEN, ICON_BUTTON } from './Inspector'
 import { HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
-import { Button, Chip, Field, Phrases, UsePicker, inputClass, swatchBackground , linkRowClass } from './ui'
+import { Button, Field, Phrases, UsePicker, inputClass, swatchBackground , linkRowClass } from './ui'
 import { nameRules, useField } from './useField'
 import { freeName } from './lib/nearest'
 import { useReorder } from './useReorder'
@@ -282,53 +283,50 @@ export function RoleList({
                     onClick={(e) => !rows.justDragged() && onSelect(t.name, isAdditive(e))}
                     onDoubleClick={() => onRename(t.name)}
                     {...rows.grab(t.name)}
-                    className={`relative flex w-full items-center rounded-row px-board-row-x py-board-row-y text-left select-none ${folded ? 'gap-sample' : 'gap-columns'} ${
-                      rows.moving(t.name) ? 'opacity-dragging' : ''
-                    } ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
+                    className={`relative w-full items-center rounded-row px-board-row-x py-board-row-y text-left select-none ${
+                      folded ? 'flex gap-sample' : 'grid grid-cols-[40px_176px_minmax(0,1fr)_280px] gap-columns'
+                    } ${rows.moving(t.name) ? 'opacity-dragging' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
                   >
+                    {/* 줄은 네 칸이다(DESIGN.md role-row): 40px 색 견본, 이름과 가리키는 색과 # 값(176px), 설명(남는 너비), 예시(280px).
+                        다른 의미 판처럼 설명을 이름 칸 아래로 넣지 않는다. 의미 색은 색 견본이 줄의 주인공이고, 설명이 길어서 따로 칸을 두는 편이 읽기 쉽다. */}
                     {/* 놓일 자리의 선. 펼친 판은 줄 위(맨 끝이면 마지막 줄 아래)에 가로로, 접은 판은 칸 왼쪽(맨 끝이면 마지막 칸 오른쪽)에 세로로 긋는다. */}
                     {rows.line(t.name)}
-                    {folded ? (
-                      // 접으면 색과 이름만 남긴다. 가리키는 색은 색을 고르면 뜨는 파란 이름표와 오른쪽 패널에서 볼 수 있다.
-                      <>
-                        <span className={`block size-[32px] shrink-0 rounded-card ${EDGE}`} style={{ background: swatchBackground(color ?? 'transparent') }} />
-                        <span data-name className="block min-w-0 type-label break-words">
-                          {short}
-                        </span>
-                      </>
-                    ) : (
-                      // 펼친 줄은 다른 의미 판과 같은 짜임이다(DESIGN.md role-row, board-row). 왼쪽에 이름 칸, 오른쪽 남는 너비에 예시.
-                      // 가리키는 색이 없어졌으면 예시를 그리지 않고 이름 칸이 줄 전체를 쓴다.
-                      <>
-                        <span className={color ? 'w-row-name shrink-0' : 'min-w-0 flex-1'}>
-                          {/* 이름 앞의 작은 견본. 판을 훑을 때 이름과 색을 함께 읽게 한다. */}
-                          <span className="flex items-center gap-row-inner">
-                            <span className={`block size-icon shrink-0 rounded-small ${EDGE}`} style={{ background: swatchBackground(color ?? 'transparent', 4) }} />
-                            <span data-name className="min-w-0 type-label break-words">
-                              {short}
-                            </span>
-                          </span>
-                          {/* 가리키는 색은 이름만 적는다(gray-500). 그 색의 # 값은 색상 판과 오른쪽 패널에서 본다. */}
-                          <span className={`block type-code-sm break-words ${color === null ? 'text-danger' : 'text-ink-faint'}`}>
+                    <span
+                      className={`block shrink-0 rounded-card ${folded ? 'size-[32px]' : 'size-[40px]'} ${EDGE}`}
+                      style={{ background: swatchBackground(color ?? 'transparent') }}
+                    />
+                    <span className="min-w-0">
+                      <span data-name className="block type-label break-words">
+                        {short}
+                      </span>
+                      {/* 접으면 색과 이름만 남긴다. 가리키는 색과 # 값은 색을 고르면 뜨는 파란 이름표와 오른쪽 패널에서 볼 수 있다. */}
+                      {!folded && (
+                        <>
+                          <span className={`block type-code break-words ${color === null ? 'text-danger' : 'text-ink-faint'}`}>
                             {ref}
                             {color === null && ' · 없어짐'}
                           </span>
-                          {text && (
-                            <span className="mt-label block type-caption break-words text-ink-faint">
-                              <Phrases text={text} />
-                            </span>
-                          )}
-                        </span>
-                        {/* 쓰임이 여럿인 색은 예시도 여럿이다. 위아래로 8px 띄워 쌓는다. */}
-                        {color && (
-                          <span className="block min-w-0 flex-1 space-y-blocks">
-                            {[{ shape, words }, ...more].map((e, k) => (
-                              <RoleSample key={k} shape={e.shape} color={color} around={around} words={e.words} />
-                            ))}
-                          </span>
-                        )}
-                      </>
+                          {/* 가리키는 색의 실제 값. 색상 판에서 보이는 것과 같은 # 값이다. */}
+                          {color && <span className="block type-code break-words text-ink-faint">{color}</span>}
+                        </>
+                      )}
+                    </span>
+                    {!folded && (
+                      <span className="min-w-0 type-body break-words text-ink-soft">
+                        <Phrases text={text} />
+                      </span>
                     )}
+                    {/* 쓰임이 여럿인 색은 예시도 여럿이다. 위아래로 8px 띄워 쌓는다. */}
+                    {!folded &&
+                      (color ? (
+                        <span className="block space-y-blocks">
+                          {[{ shape, words }, ...more].map((e, k) => (
+                            <RoleSample key={k} shape={e.shape} color={color} around={around} words={e.words} />
+                          ))}
+                        </span>
+                      ) : (
+                        <span />
+                      ))}
                     {isSelected && selected.length === 1 && <SelectionLabel name={short} value={color === null ? `${ref} · 없어짐` : ref} />}
                   </button>
                 )
@@ -354,13 +352,38 @@ export function RefPicker({ tokens, value, onChange }: { tokens: Token[]; value:
   groups.delete('')
   if (solo) groups.set('', solo)
   if (groups.size === 0) return <p className="type-body text-ink-faint">색상 판에 색이 아직 없어요.</p>
+  // 마우스로 고를 수 있는 것은 자판으로도 고른다. Tab은 견본 묶음에 한 번만 서고(고른 색, 없으면 첫 색), 방향키로 견본 사이를 옮긴다. Enter나 스페이스로 고른다.
+  const all = [...groups.values()].flat()
+  const stop = all.find((t) => t.name === value)?.name ?? all[0]?.name
+  function onKeys(e: KeyboardEvent<HTMLDivElement>) {
+    const across = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0
+    const down = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0
+    if (!across && !down) return
+    const buttons = [...e.currentTarget.querySelectorAll<HTMLButtonElement>('button')]
+    const at = buttons.indexOf(document.activeElement as HTMLButtonElement)
+    if (at < 0) return
+    e.preventDefault()
+    // 캔버스가 같은 방향키로 선택한 판을 옮긴다. 거기까지 가지 않게 한다.
+    e.stopPropagation()
+    let next: HTMLButtonElement | undefined
+    if (across) next = buttons[at + across]
+    else {
+      // 위아래는 보이는 자리로 옮긴다. 가장 가까운 윗줄(아랫줄)에서 가로 자리가 가장 가까운 견본이다. 목록마다 색의 수가 달라도 같은 열로 간다.
+      const here = buttons[at].getBoundingClientRect()
+      const rows = buttons.map((b) => ({ b, r: b.getBoundingClientRect() })).filter(({ r }) => (down > 0 ? r.top > here.top + 1 : r.top < here.top - 1))
+      const nearest = Math.min(...rows.map(({ r }) => Math.abs(r.top - here.top)))
+      next = rows.filter(({ r }) => Math.abs(Math.abs(r.top - here.top) - nearest) < 1).sort((p, q) => Math.abs(p.r.left - here.left) - Math.abs(q.r.left - here.left))[0]?.b
+    }
+    next?.focus()
+  }
   return (
-    <div className="max-h-[224px] space-y-blocks overflow-y-auto">
+    <div className="max-h-[224px] space-y-blocks overflow-y-auto" onKeyDown={onKeys}>
       {[...groups].map(([group, list]) => (
         <div key={group}>
           <p className="mb-label type-body text-ink-faint">{group || '예외 색'}</p>
-          {/* 한 줄에 11칸. 50부터 950까지 한 목록이 한 줄에 들어간다. */}
-          <div className="grid grid-cols-11 gap-actions-tight">
+          {/* 한 줄에 11칸. 50부터 950까지 한 목록이 한 줄에 들어간다. 칸은 16px로 고정한다(의미 색 판의 줄에 놓는 견본과 같은 크기).
+              상자의 너비를 11로 나누면 칸이 정수 px가 아니게 되고(패널에서 17.45px), 스크롤 막대가 생길 때마다 칸의 크기가 달라진다. */}
+          <div className="grid grid-cols-[repeat(11,var(--size-icon))] gap-actions-tight">
             {list.map((t) => {
               const short = shortName(COLOR, t.name)
               const picked = t.name === value
@@ -371,9 +394,10 @@ export function RefPicker({ tokens, value, onChange }: { tokens: Token[]; value:
                   title={`${short} · ${showColor(t.value)}`}
                   aria-label={short}
                   aria-pressed={picked}
+                  tabIndex={t.name === stop ? 0 : -1}
                   onClick={() => onChange(t.name)}
                   // 고른 색과 마우스를 올린 색은 안쪽에 선을 둘러 표시한다. 선이 칸 밖으로 나가지 않아 옆 칸과 닿지 않는다.
-                  className={`aspect-square rounded-small outline-selection focus-visible:outline-focus ${
+                  className={`size-icon rounded-small outline-selection focus-visible:outline-focus ${
                     picked
                       ? 'shadow-[inset_0_0_0_2px_var(--color-selection),inset_0_0_0_3px_#fff]'
                       : `${EDGE} hover:shadow-[inset_0_0_0_2px_var(--color-ink),inset_0_0_0_3px_#fff]`
@@ -463,12 +487,9 @@ export function NewRoleForm({
           }}
         />
       </Field>
-      {/* 견본 버튼들이 label 안에 있으면 한 번 누를 때 첫 버튼이 함께 눌린다. 그래서 Field를 쓰지 않는다. */}
-      <div>
-        <p className="mb-label type-label text-ink-faint">
-          가리키는 색{ref && <span className="ml-row-inner type-code text-ink">{refName(ref)}</span>}
-        </p>
-        <RefPicker
+      <Field label="가리키는 색" plain error={error.ref}>
+        <RefField
+          label="가리키는 색"
           tokens={tokens}
           value={ref}
           onChange={(next) => {
@@ -476,8 +497,7 @@ export function NewRoleForm({
             setError({ ...error, ref: undefined })
           }}
         />
-        {error.ref && <span className="mt-label block type-body text-danger">{error.ref}</span>}
-      </div>
+      </Field>
       <div>
         <p className="mb-label type-label text-ink-faint">역할</p>
         <UsePicker label="역할" options={ROLE_USES} value={shownUse} onChange={setUse} />
@@ -562,12 +582,12 @@ export function RoleInspector({
       </Section>
 
       <Section title="가리키는 색">
-        <div className="mb-fields flex items-center gap-field-row">
-          <span className={`block size-swatch-button shrink-0 rounded-control ${EDGE}`} style={{ background: swatchBackground(color ?? 'transparent') }} />
-          <span className="min-w-0">
-            <Chip>{refName(token.value)}</Chip>
-          </span>
-          <span className="min-w-0 flex-1 truncate type-code text-ink-faint">{color ?? <span className="text-danger">없어짐</span>}</span>
+        {/* 다른 의미 판의 "가리키는 ○○"와 같은 짜임이다: 고르는 칸 하나와 그 옆의 보러 가기 버튼. 칸을 누르면 색상 판의 색이 견본으로 뜬다(RefField).
+            견본 목록을 패널에 늘 펼쳐 두지 않는다. 패널이 길어지고, 패널 안에 스크롤 상자가 하나 더 생기며, 다른 의미 판과 짜임이 달라진다. */}
+        <div className="flex items-center gap-actions-tight">
+          <div className="min-w-0 flex-1">
+            <RefField label="가리키는 색" tokens={tokens} value={color ? refOf(token.value) : null} lost={color ? undefined : refName(token.value)} onChange={(name) => onChange({ value: refTo(name) })} />
+          </div>
           {/* 가리키는 색이 색상 판의 어디에 있는지 보러 가는 버튼. "쓰이는 곳"의 반대 방향이다. 가리키는 색이 없어졌으면 갈 곳이 없어 꺼진다. */}
           <button
             type="button"
@@ -580,7 +600,7 @@ export function RoleInspector({
             <ArrowUpRight size={16} strokeWidth={ICON_STROKE} />
           </button>
         </div>
-        <RefPicker tokens={tokens} value={refOf(token.value)} onChange={(name) => onChange({ value: refTo(name) })} />
+        {!color && <p className="mt-label type-body text-danger">고른 값이 없어졌어요. 다시 골라 주세요.</p>}
       </Section>
 
       <Section title="역할">
@@ -620,6 +640,101 @@ export function RoleInspector({
         {/* 의미 색은 글자, 바탕, 테두리에 모두 쓰일 수 있어 셋을 적는다. */}
         <CodeRows uses={[`text-${short}`, `bg-${short}`, `border-${short}`, `var(${token.name})`]} value={token.value} file={file} onCopy={onCopy} />
       </FoldSection>
+    </div>
+  )
+}
+
+/**
+ * 색상 판의 색 하나를 고르는 칸. 의미 색의 "가리키는 색"이 쓴다(패널과 추가 창).
+ * 닫혀 있을 때는 다른 고르는 칸(UsePicker)과 같은 모양이다: 작은 견본, 진하게 적은 이름, 옅게 적은 # 값, 오른쪽 끝의 화살표.
+ * 누르면 그 아래에 색상 판의 색이 목록별 견본으로 뜬다(RefPicker). 색은 이름보다 눈으로 고르는 것이라 줄 목록이 아니라 견본으로 보여 준다.
+ * 뜨는 상자는 고르는 목록과 같은 층과 모양이다. 바깥을 누르거나 Esc를 누르면 닫히고, 색을 누르면 고르고 닫힌다.
+ * lost는 가리키던 색이 없어졌을 때 그 이름이다. 칸에 "이름 · 없어짐"을 빨갛게 적는다(UsePicker와 같다).
+ */
+export function RefField({ label, tokens, value, lost, onChange }: { label: string; tokens: Token[]; value: string | null; lost?: string; onChange: (name: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const anchor = useRef<HTMLButtonElement>(null)
+  const box = useRef<HTMLDivElement>(null)
+  const [place, setPlace] = useState<CSSProperties>({})
+  const picked = tokens.find((t) => t.name === value && COLOR.matches(t.name))
+
+  function toggle() {
+    if (open) return setOpen(false)
+    const r = anchor.current!.getBoundingClientRect()
+    // 칸과 상자 사이 4px, 화면 끝에서 8px. 상자의 높이는 견본 목록(224px까지)과 안쪽 여백이다. 아래에 자리가 모자라면 위에 놓는다.
+    const below = window.innerHeight - r.bottom - 4 - 8
+    const above = r.top - 4 - 8
+    const up = below < 240 && above > below
+    setPlace({ left: Math.max(8, Math.min(r.left, window.innerWidth - r.width - 8)), minWidth: r.width, ...(up ? { bottom: window.innerHeight - r.top + 4 } : { top: r.bottom + 4 }) })
+    setOpen(true)
+  }
+  // 떠 있는 동안 화면이 움직이면 칸과 상자가 어긋나므로 닫는다(상자 안의 스크롤은 그대로 둔다). Esc는 상자만 닫는다(창 안의 칸이면 창까지 닫히지 않게 먼저 받는다).
+  useEffect(() => {
+    if (!open) return
+    // 열리면 고른 견본(없으면 첫 견본)에 초점을 준다. 바로 방향키로 옮겨 다닐 수 있다.
+    box.current?.querySelector<HTMLElement>('button[tabindex="0"]')?.focus()
+    const close = (e: Event) => {
+      if (e.type === 'scroll' && box.current?.contains(e.target as Node)) return
+      setOpen(false)
+    }
+    const esc = (e: globalThis.KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      e.stopImmediatePropagation()
+      e.preventDefault()
+      setOpen(false)
+      // 닫으면 초점을 칸으로 돌려준다. 그대로 두면 사라진 견본에 있던 초점이 화면 맨 위로 간다.
+      anchor.current?.focus()
+    }
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
+    window.addEventListener('keydown', esc, true)
+    return () => {
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('resize', close)
+      window.removeEventListener('keydown', esc, true)
+    }
+  }, [open])
+
+  return (
+    <div className="relative">
+      <button type="button" ref={anchor} aria-label={label} aria-haspopup="dialog" aria-expanded={open} data-ref={value ?? ''} onClick={toggle} className={`${inputClass} flex items-center gap-row-inner text-left`}>
+        {picked ? (
+          <>
+            <span className={`block size-icon shrink-0 rounded-small ${EDGE}`} style={{ background: swatchBackground(picked.value, 4) }} />
+            <span className="max-w-full shrink-0 truncate type-label text-ink">{shortName(COLOR, picked.name)}</span>
+            <span className="min-w-0 flex-1 truncate text-ink-faint">{showColor(picked.value)}</span>
+          </>
+        ) : lost ? (
+          <span className="min-w-0 flex-1 truncate text-danger">{lost} · 없어짐</span>
+        ) : (
+          <span className="min-w-0 flex-1 text-ink-faint">고르기</span>
+        )}
+        <ChevronDown size={16} strokeWidth={ICON_STROKE} className="shrink-0 text-ink-faint" />
+      </button>
+      {open &&
+        createPortal(
+          <>
+            <div
+              className="fixed inset-0 z-listbox-backdrop"
+              onClick={(e) => {
+                e.stopPropagation()
+                setOpen(false)
+              }}
+            />
+            <div ref={box} role="dialog" aria-label={label} style={place} onClick={(e) => e.stopPropagation()} className="fixed z-listbox rounded-float border-edge border-hairline bg-canvas p-menu shadow-float">
+              <RefPicker
+                tokens={tokens}
+                value={value}
+                onChange={(name) => {
+                  setOpen(false)
+                  anchor.current?.focus()
+                  if (name !== value) onChange(name)
+                }}
+              />
+            </div>
+          </>,
+          document.body,
+        )}
     </div>
   )
 }

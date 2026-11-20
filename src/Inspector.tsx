@@ -8,7 +8,7 @@ import { stepValue, suggestLine, suggestTrack } from './lib/tokens'
 import { ColorSwatch } from './ColorPicker'
 import { NewFontForm } from './NewFont'
 import { shownFont } from './lib/fonts'
-import { Button, Chip, Field, Modal, UnitInput, inputClass , linkRowClass } from './ui'
+import { Button, Chip, Modal, UnitInput, inputClass , linkRowClass } from './ui'
 import { nameRules, numberRules, unitProps, useField } from './useField'
 
 type Props = {
@@ -412,34 +412,6 @@ export function Inspector({
           )}
         </span>
         {(unit ? digitsField.error : valueField.error) && <span className="mt-label block type-body text-danger">{unit ? digitsField.error : valueField.error}</span>}
-        {line !== undefined && (
-          <div className="mt-blocks">
-            <Field label="줄 높이" error={lineField.error}>
-              <UnitInput
-                label="줄 높이"
-                {...unitProps(lineField)}
-                unit="px"
-                placeholder={lineHint}
-                fillOnTab={!!lineHint}
-              />
-            </Field>
-          </div>
-        )}
-        {/* 글자 크기에 묶인 글자 사이. 비어 있으면 글꼴이 정한 그대로다. */}
-        {track !== undefined && (
-          <div className="mt-blocks">
-            <Field label="글자 사이" error={trackField.error}>
-              <UnitInput
-                label="글자 사이"
-                {...unitProps(trackField)}
-                unit="em"
-                placeholder={trackHint || '0'}
-                fillOnTab={!!trackHint}
-                negative
-              />
-            </Field>
-          </div>
-        )}
         {isFont && (
           <Button variant="ghost" className="-ml-button-ghost-x" onClick={() => setPickingFont(true)}>
             <Type size={16} strokeWidth={ICON_STROKE} />
@@ -476,6 +448,21 @@ export function Inspector({
           </Button>
         )}
       </Section>
+
+      {/* 글자 크기에 묶인 줄 높이와 글자 사이. 칸 하나에 구역 하나다(시간, 너비, 투명도와 같다). 첫 칸에만 이름표가 없던 것을 맞췄다. */}
+      {line !== undefined && (
+        <Section title="줄 높이">
+          <UnitInput label="줄 높이" {...unitProps(lineField)} unit="px" placeholder={lineHint} fillOnTab={!!lineHint} />
+          {lineField.error && <span className="mt-label block type-body text-danger">{lineField.error}</span>}
+        </Section>
+      )}
+      {/* 비어 있으면 글꼴이 정한 그대로다. */}
+      {track !== undefined && (
+        <Section title="글자 사이">
+          <UnitInput label="글자 사이" {...unitProps(trackField)} unit="em" placeholder={trackHint || '0'} fillOnTab={!!trackHint} negative />
+          {trackField.error && <span className="mt-label block type-body text-danger">{trackField.error}</span>}
+        </Section>
+      )}
 
       {/* 구역의 차례는 어느 패널이나 같다: 이름, 값, 설명, 쓰이는 곳, 코드. 고치는 것은 늘 펼쳐 두고, 보기만 하는 것(쓰이는 곳, 코드)은 접을 수 있다.
           "쓰인 모습" 구역은 두지 않는다. 패널은 값을 고치는 곳이고, 쓰인 모습은 판(의미 색과 의미 글꼴의 예시)과 색 선택 창, 글꼴 추가 창이 보여 준다. */}
