@@ -20,11 +20,10 @@ import { colorRefsIn } from './lib/gradient'
 import { easeRefsIn } from './lib/motion'
 import { isFreeKind, orderKinds } from './lib/order'
 import type { SpaceUse } from './lib/spacing'
-import { resolveLength, type SizeGroup } from './lib/sizes'
+import { resolveLength } from './lib/sizes'
 import { resolveCorner, type RadiusGroup } from './lib/radius'
 import { useReorder } from './useReorder'
 import { SpaceList, resolveSpace } from './Spacing'
-import { SizeList } from './Sizes'
 import { RoleList } from './Roles'
 import { TypeList } from './Types'
 import { lookOf, type TypeUse } from './lib/types'
@@ -70,8 +69,6 @@ export type SectionProps = {
   onMoveKind: (kinds: Kind[], kind: Kind, before: Kind | null) => void
   /** 의미 간격의 묶음을 끌어 다른 자리에 놓는다. */
   onMoveSpaceGroup: (use: SpaceUse, before: SpaceUse | null) => void
-  /** 의미 크기의 묶음을 끌어 같은 종류(높이, 폭, 정사각형) 안의 다른 자리에 놓는다. */
-  onMoveSizeGroup: (kind: Kind, group: SizeGroup, before: SizeGroup | null) => void
   /** 의미 모서리의 묶음을 끌어 다른 자리에 놓는다. */
   onMoveRadiusGroup: (group: RadiusGroup, before: RadiusGroup | null) => void
   /** 그 종류를 기본 순서로 돌려놓는 일. 이미 기본 순서면 undefined(버튼이 꺼진다). */
@@ -142,7 +139,7 @@ export function MissingNotices({ kinds, tokens, onSelect }: { kinds: Kind[]; tok
 }
 
 /** 한 화면에 속한 종류들을 차례로 그린다. 전체 보기의 판 안에서도 그대로 쓴다. */
-export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGroup, onRename, onSelectGroup, emptyGroups, pickedGroup, onPickGroup, folded, onReorderGroup, rolesFolded, onMoveRole, onMoveRoleGroup, onMoveType, onMoveTypeGroup, onResetTypes, onMoveInKind, onMoveKind, onMoveSpaceGroup, onMoveSizeGroup, onMoveRadiusGroup, resetOf, detailsFolded, onToggleDetails, onMakeSizes, onMakeWeights, onMakeTypes }: SectionProps & { kinds: Kind[] }) {
+export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGroup, onRename, onSelectGroup, emptyGroups, pickedGroup, onPickGroup, folded, onReorderGroup, rolesFolded, onMoveRole, onMoveRoleGroup, onMoveType, onMoveTypeGroup, onResetTypes, onMoveInKind, onMoveKind, onMoveSpaceGroup, onMoveRadiusGroup, resetOf, detailsFolded, onToggleDetails, onMakeSizes, onMakeWeights, onMakeTypes }: SectionProps & { kinds: Kind[] }) {
   const single = kinds.length === 1
   // 값이 있는 종류는 파일에 적힌 차례대로 놓는다(끌어서 바꾼 차례가 파일에 남는다). 값이 없는 종류는 그 뒤에 정해진 차례대로 온다.
   const ordered = orderKinds(tokens, kinds)
@@ -231,9 +228,6 @@ export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGr
             ) : kind.id === 'spaceuse' ? (
               // 의미 간격은 묶음마다 한 줄에 하나씩, 그 간격이 쓰인 모습과 함께 보여 준다.
               <SpaceList kind={kind} items={items} all={tokens} selected={selected} onSelect={onSelect} onSelectGroup={onSelectGroup} onRename={onRename} onMove={onMove} onMoveGroup={onMoveSpaceGroup} />
-            ) : kind.id === 'height' || kind.id === 'width' || kind.id === 'square' ? (
-              // 의미 크기(높이, 폭, 정사각형)는 묶음마다 한 줄에 하나씩, 그 크기가 실제로 쓰인 모습과 함께 보여 준다.
-              <SizeList kind={kind} items={items} all={tokens} selected={selected} onSelect={onSelect} onSelectGroup={onSelectGroup} onRename={onRename} onMove={onMove} onMoveGroup={(group, before) => onMoveSizeGroup(kind, group, before)} />
             ) : kind.id === 'z' ? (
               // 겹치는 차례는 묶음마다 한 줄에 하나씩, 그것이 무엇 위에 놓이는지를 보여 주는 예시와 함께 놓는다. 차례는 숫자에서 정해져 끌지 않는다.
               <LayerList kind={kind} items={items} all={tokens} selected={selected} onSelect={onSelect} onSelectGroup={onSelectGroup} onRename={onRename} />

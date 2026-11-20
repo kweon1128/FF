@@ -93,10 +93,10 @@ import { followShadowRefs, isEffectKind, shadowRefs } from './lib/effects'
 import { colorRefsIn, followColorRefs } from './lib/gradient'
 import { easeRefsIn, followEaseRefs } from './lib/motion'
 import { NewSpaceUseForm, SpaceUseInspector, spaceVars } from './Spacing'
-import { LengthInspector, NewLengthForm, NewSizeForm, SizeInspector, SizeThings, SizeViewSwitch, sizeVars, type SizeView } from './Sizes'
-import { SIZE_GROUPS, isSizeKind, readSizeNote, type SizeGroup } from './lib/sizes'
+import { LengthInspector, NewLengthForm, NewSizeForm, SizeInspector, SizeThings, sizeVars } from './Sizes'
+import { SIZE_GROUPS, isSizeKind, readSizeNote } from './lib/sizes'
 import type { SpaceUse } from './lib/spacing'
-import { autoOrder, colorListSlot, newGroupSlot, moveRadiusGroup, radiusGroupOrder, shiftRadii, defaultFreeOrder, defaultKindOrder, isAutoOrdered, isFreeKind, moveException, moveInKind, moveKind, moveSizeGroup, moveSpaceGroup, orderKinds, shiftSizes, shiftSpaceUses, sizeGroupOrder, spaceUseOrder, stepBefore } from './lib/order'
+import { autoOrder, colorListSlot, newGroupSlot, moveRadiusGroup, radiusGroupOrder, shiftRadii, defaultFreeOrder, defaultKindOrder, isAutoOrdered, isFreeKind, moveException, moveInKind, moveKind, moveSpaceGroup, orderKinds, shiftSpaceUses, spaceUseOrder, stepBefore, moveSizeBoardGroup, moveSizeInThing, shiftSizeInThing, sizeBoardGroupOrder } from './lib/order'
 import { SPACE_USES, readSpaceNote } from './lib/spacing'
 import { NewTypesForm } from './NewTypes'
 import { TYPE_USES, readTypeNote, defaultTypeOrder, followTypeRefs, moveType, moveTypeGroup, shiftTypes, syncTypes, typeGroups, typeUsers, withTypeTrack, type TypeUse } from './lib/types'
@@ -270,22 +270,6 @@ export function App() {
       setPlainBoards({})
     }
   }, [system])
-  // 의미 크기 판을 보는 방식(종류별, 요소별). 값이 아니라 보는 방식이라 파일이 아니라 브라우저에 기억한다. 처음은 종류별이다.
-  const [sizeView, setSizeView] = useState<SizeView>(() => {
-    try {
-      return localStorage.getItem('ff.sizeView') === 'thing' ? 'thing' : 'kind'
-    } catch {
-      return 'kind'
-    }
-  })
-  function changeSizeView(next: SizeView) {
-    setSizeView(next)
-    try {
-      localStorage.setItem('ff.sizeView', next)
-    } catch {
-      // 저장소를 못 쓰면 보는 방식을 기억하지 않는다.
-    }
-  }
   function togglePlain(id: string) {
     const next = { ...plainBoards, [id]: !plainBoards[id] }
     setPlainBoards(next)
@@ -1635,15 +1619,10 @@ export function App() {
       // 종류가 여럿인 판에서 한 종류의 값을 통째로 골랐으면 그 종류를 옮긴다.
       const board = TOKEN_SCREEN_IDS.map((id) => TOKEN_SCREENS[id].kinds).find((kinds) => kinds.length > 1 && kinds.some((k) => whole(tokens.filter((t) => k.matches(t.name)))))
       const wholeKind = board?.find((k) => whole(tokens.filter((t) => k.matches(t.name))))
-      // 의미 크기의 묶음(컨트롤, 영역)을 통째로 골랐으면 그 종류 안에서 묶음을 옮긴다. 묶음이 하나뿐인 종류는 옮길 곳이 없으므로 종류를 옮기는 쪽으로 넘긴다.
-      const sizeGroup = [KINDS.height, KINDS.width, KINDS.square]
-        .map((kind) => {
-          const order = sizeGroupOrder(tokens, kind)
-          const items = tokens.filter((t) => kind.matches(t.name))
-          const group = order.find((g) => whole(items.filter((t) => readSizeNote(t.note, shortName(kind, t.name)).group === g)))
-          return group && order.length > 1 ? { kind, group, order } : null
-        })
-        .find((hit) => hit !== null)
+      // 의미 크기의 묶음(컨트롤, 영역)을 통째로 골랐으면 그 묶음을 옮긴다. 판의 묶음은 높이·너비·정사각형에 걸쳐 있다.
+      const sizes = tokens.filter((t) => [KINDS.height, KINDS.width, KINDS.square].some((k) => k.matches(t.name)))
+      const sizeKindOf = (t: Token) => [KINDS.height, KINDS.width, KINDS.square].find((k) => k.matches(t.name))!
+      const sizeGroup = sizeBoardGroupOrder(tokens).find((g) => whole(sizes.filter((t) => readSizeNote(t.note, shortName(sizeKindOf(t), t.name)).group === g)))
       // 의미 모서리의 묶음(컨트롤, 컨테이너, 표시)을 통째로 골랐으면 그 묶음을 옮긴다.
       const radii = tokens.filter((t) => KINDS.radius.matches(t.name))
       const radiusGroup = radiusGroupOrder(tokens).find((g) => whole(radii.filter((t) => readRadiusNote(t.note, shortName(KINDS.radius, t.name)).group === g)))
@@ -1658,8 +1637,8 @@ export function App() {
         const before = stepBefore(spaceUseOrder(tokens), spaceGroup, dir)
         if (before !== undefined) commitIfMoved(moveSpaceGroup(tokens, spaceGroup, before))
       } else if (sizeGroup) {
-        const before = stepBefore(sizeGroup.order, sizeGroup.group, dir)
-        if (before !== undefined) commitIfMoved(moveSizeGroup(tokens, sizeGroup.kind, sizeGroup.group, before))
+        const before = stepBefore(sizeBoardGroupOrder(tokens), sizeGroup, dir)
+        if (before !== undefined) commitIfMoved(moveSizeBoardGroup(tokens, sizeGroup, before))
       } else if (radiusGroup) {
         const before = stepBefore(radiusGroupOrder(tokens), radiusGroup, dir)
         if (before !== undefined) commitIfMoved(moveRadiusGroup(tokens, radiusGroup, before))
@@ -1675,7 +1654,10 @@ export function App() {
       // 의미 간격도 같은 묶음 안에서만 옮긴다.
       else if (selected.every((n) => KINDS.spaceUse.matches(n))) commitIfMoved(shiftSpaceUses(tokens, selected, dir))
       // 의미 크기(높이, 폭, 정사각형)도 같은 묶음 안에서만 옮긴다.
-      else if (commonKind && isSizeKind(commonKind)) commitIfMoved(shiftSizes(tokens, commonKind, selected, dir))
+      // 판에서 한 요소 아래에 함께 놓인 줄들 사이에서다(같은 종류, 같은 묶음, 같은 모양). 하나를 골랐을 때만 옮긴다.
+      else if (commonKind && isSizeKind(commonKind)) {
+        if (selected.length === 1) commitIfMoved(shiftSizeInThing(tokens, commonKind, selected[0], dir))
+      }
       // 의미 모서리도 같은 묶음 안에서만 옮긴다.
       else if (selected.every((n) => KINDS.radius.matches(n))) commitIfMoved(shiftRadii(tokens, selected, dir))
       // 차례가 값의 크기로 정해지는 값(글자 크기, 간격, 색 목록 안의 단계…)은 옮기지 않는다.
@@ -1789,7 +1771,6 @@ export function App() {
       commitIfMoved(moveTogether(kind.id === 'color' ? moveException : (list, n, b) => moveInKind(list, kind, n, b), name, before)),
     onMoveKind: (kinds: Kind[], kind: Kind, before: Kind | null) => commitIfMoved(moveKind(tokens, kinds, kind, before)),
     onMoveSpaceGroup: (use: SpaceUse, before: SpaceUse | null) => commitIfMoved(moveSpaceGroup(tokens, use, before)),
-    onMoveSizeGroup: (kind: Kind, group: SizeGroup, before: SizeGroup | null) => commitIfMoved(moveSizeGroup(tokens, kind, group, before)),
     onMoveRadiusGroup: (group: RadiusGroup, before: RadiusGroup | null) => commitIfMoved(moveRadiusGroup(tokens, group, before)),
     resetOf: (kind: Kind) => {
       const next = defaultFreeOrder(tokens, kind)
@@ -2071,10 +2052,7 @@ export function App() {
                         const next = kinds.filter(isFreeKind).reduce((list, kind) => defaultFreeOrder(list, kind), defaultKindOrder(tokens, kinds))
                         return (
                           <div className="mb-header flex justify-end gap-actions-tight">
-                            {/* 의미 크기 판은 보는 방식이 둘이다(종류별, 요소별). "원래대로"는 어느 보기에서나 종류별 보기의 차례(파일의 차례)를 돌려놓는다. */}
-                            {id === 'sizeuse' && <SizeViewSwitch value={sizeView} onChange={changeSizeView} />}
-                            {/* 요소별 보기는 차례를 다루지 않는다(끌어 옮길 수 없다). 그래서 이 보기에서는 "원래대로"도 꺼 둔다. */}
-                            <ResetButton title="종류와 그 안의 값을 처음 순서로 돌려놓아요" onReset={next === tokens || (id === 'sizeuse' && sizeView === 'thing') ? undefined : () => commit(next)} />
+                            <ResetButton title="종류와 그 안의 값을 처음 순서로 돌려놓아요" onReset={next === tokens ? undefined : () => commit(next)} />
                             {FOLDABLE.includes(id) && <FoldButton folded={!!plainBoards[id]} title="설명과 예시를 모두 숨기거나 보여요" onToggle={() => togglePlain(id)} />}
                             {/* 의미 크기는 종류가 셋이지만 추가는 판에 하나다. 종류는 창에서 고른다(다른 의미 판처럼 판마다 추가가 하나). */}
                             {id === 'sizeuse' && (
@@ -2093,11 +2071,19 @@ export function App() {
                           </div>
                         )
                       })()}
-                    {id === 'sizeuse' && sizeView === 'thing' ? (
-                      // 의미 크기 판의 요소별 보기. 종류의 제목 없이 묶음 안에서 요소마다 그 높이와 폭을 함께 보여 준다. 접기는 종류별 보기와 같은 것을 읽는다.
+                    {id === 'sizeuse' ? (
+                      // 의미 크기 판. 높이·너비·정사각형으로 나누지 않고 묶음 안에서 요소마다 그 높이와 너비를 함께 보여 준다.
                       <DetailsFolded.Provider value={!!plainBoards[id]}>
                         <MissingNotices kinds={TOKEN_SCREENS[id].kinds} tokens={tokens} onSelect={sectionProps.onSelect} />
-                        <SizeThings tokens={tokens} selected={selected} onSelect={sectionProps.onSelect} onSelectGroup={sectionProps.onSelectGroup} onRename={sectionProps.onRename} />
+                        <SizeThings
+                          tokens={tokens}
+                          selected={selected}
+                          onSelect={sectionProps.onSelect}
+                          onSelectGroup={sectionProps.onSelectGroup}
+                          onRename={sectionProps.onRename}
+                          onMove={(kind, name, before) => commitIfMoved(moveSizeInThing(tokens, kind, name, before))}
+                          onMoveGroup={(group, before) => commitIfMoved(moveSizeBoardGroup(tokens, group, before))}
+                        />
                       </DetailsFolded.Provider>
                     ) : (
                       <KindSections kinds={TOKEN_SCREENS[id].kinds} {...sectionProps} {...(FOLDABLE.includes(id) ? { detailsFolded: !!plainBoards[id], onToggleDetails: () => togglePlain(id) } : {})} />

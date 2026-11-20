@@ -222,35 +222,6 @@ export function sizeGroupOrder(tokens: Token[], kind: Kind): SizeGroup[] {
   return [...new Set(tokens.filter((t) => kind.matches(t.name)).map((t) => readSizeNote(t.note, shortName(kind, t.name)).group))]
 }
 
-/** 의미 크기의 묶음 하나를 같은 종류 안에서 통째로 다른 묶음의 앞으로 옮긴다(before가 null이면 맨 뒤로). 같은 묶음의 값들은 파일에서도 한데 모인다. */
-export function moveSizeGroup(tokens: Token[], kind: Kind, group: SizeGroup, before: SizeGroup | null): Token[] {
-  const items = tokens.filter((t) => kind.matches(t.name))
-  const groupOfSize = (t: Token) => readSizeNote(t.note, shortName(kind, t.name)).group
-  const order = sizeGroupOrder(tokens, kind)
-  if (!order.includes(group) || group === before) return tokens
-  const next = order.filter((g) => g !== group)
-  const at = before === null ? next.length : next.indexOf(before)
-  next.splice(at === -1 ? next.length : at, 0, group)
-  return place(tokens, (t) => kind.matches(t.name), next.flatMap((g) => items.filter((t) => groupOfSize(t) === g)))
-}
-
-/** 고른 의미 크기(높이, 폭, 정사각형)를 같은 묶음 안에서 한 칸 뒤(1)나 앞(-1)으로 옮긴다. 파일에서 이웃한 다른 묶음의 값과는 자리를 바꾸지 않는다. */
-export function shiftSizes(tokens: Token[], kind: Kind, names: string[], dir: 1 | -1): Token[] {
-  const items = tokens.filter((t) => kind.matches(t.name))
-  const groupOfSize = (t: Token) => readSizeNote(t.note, shortName(kind, t.name)).group
-  const groups = sizeGroupOrder(tokens, kind).map((g) => items.filter((t) => groupOfSize(t) === g))
-  for (const list of groups) {
-    const picked = list.map((_, i) => i).filter((i) => names.includes(list[i].name))
-    if (dir === 1) picked.reverse()
-    for (const i of picked) {
-      const j = i + dir
-      if (j < 0 || j >= list.length || names.includes(list[j].name)) continue
-      ;[list[i], list[j]] = [list[j], list[i]]
-    }
-  }
-  return place(tokens, (t) => kind.matches(t.name), groups.flat())
-}
-
 /** 의미 모서리의 묶음들이 판에 놓이는 차례. 파일에 처음 나오는 차례대로다. */
 export function radiusGroupOrder(tokens: Token[]): RadiusGroup[] {
   const kind = KINDS.radius
@@ -433,4 +404,69 @@ export function newGroupSlot<G>(tokens: Token[], groupOf: (t: Token) => G | null
     seen.add(g)
   }
   return at
+}
+
+const SIZE_KINDS = [KINDS.height, KINDS.width, KINDS.square]
+
+/**
+ * 의미 크기 판에 묶음(컨트롤, 영역, 그 밖)이 놓이는 순서. 판은 높이·너비·정사각형을 가르지 않고 묶음 한 단계로만 나눈다.
+ * 파일에는 종류마다 묶음의 순서가 따로 있으므로, 종류를 차례로 훑어 묶음이 처음 나오는 순서를 판의 순서로 삼는다.
+ */
+export function sizeBoardGroupOrder(tokens: Token[]): SizeGroup[] {
+  return [...new Set(orderKinds(tokens, SIZE_KINDS).flatMap((kind) => sizeGroupOrder(tokens, kind)))]
+}
+
+/**
+ * 의미 크기 판에서 묶음 하나를 통째로 다른 묶음의 앞으로 옮긴다(before가 null이면 맨 뒤로).
+ * 판의 묶음은 세 종류에 걸쳐 있으므로, 종류마다 그 종류의 묶음을 판의 새 순서대로 다시 놓는다. 그래서 어느 종류에서 보아도 묶음의 순서가 같아진다.
+ */
+export function moveSizeBoardGroup(tokens: Token[], group: SizeGroup, before: SizeGroup | null): Token[] {
+  const order = sizeBoardGroupOrder(tokens)
+  if (!order.includes(group) || group === before) return tokens
+  const next = order.filter((g) => g !== group)
+  const at = before === null ? next.length : next.indexOf(before)
+  next.splice(at === -1 ? next.length : at, 0, group)
+  return SIZE_KINDS.reduce((list, kind) => {
+    const items = list.filter((t) => kind.matches(t.name))
+    const groupOfSize = (t: Token) => readSizeNote(t.note, shortName(kind, t.name)).group
+    const sorted = next.flatMap((g) => items.filter((t) => groupOfSize(t) === g))
+    return sorted.every((t, i) => t === items[i]) ? list : place(list, (t) => kind.matches(t.name), sorted)
+  }, tokens)
+}
+
+/** 같은 요소의 값들: 같은 종류, 같은 묶음, 같은 모양(주석의 "(모양)"). 판에서 한 요소 아래에 함께 놓이는 줄들이다. 모양을 적지 않은 값은 저 혼자다. */
+function thingPeers(tokens: Token[], kind: Kind, name: string): Token[] {
+  const noteOf = (t: Token) => readSizeNote(t.note, shortName(kind, t.name))
+  const me = tokens.find((t) => t.name === name)
+  if (!me || !kind.matches(me.name)) return []
+  const mine = noteOf(me)
+  if (!mine.picked) return [me]
+  return tokens.filter((t) => kind.matches(t.name) && noteOf(t).group === mine.group && noteOf(t).picked === mine.picked)
+}
+
+/**
+ * 의미 크기 하나를 같은 요소의 값들 사이에서 before 앞으로 옮긴다(null이면 그 값들의 맨 뒤).
+ * 그 값들이 파일에서 차지하던 자리들 안에서만 다시 놓는다. 사이에 끼어 있던 다른 요소의 값은 제자리에 있다.
+ */
+export function moveSizeInThing(tokens: Token[], kind: Kind, name: string, before: string | null): Token[] {
+  const peers = thingPeers(tokens, kind, name)
+  const me = peers.find((t) => t.name === name)
+  if (!me || peers.length < 2 || name === before) return tokens
+  const next = peers.filter((t) => t !== me)
+  const at = before === null ? next.length : next.findIndex((t) => t.name === before)
+  if (at === -1) return tokens
+  next.splice(at, 0, me)
+  if (next.every((t, i) => t === peers[i])) return tokens
+  const slots = new Set(peers)
+  let k = 0
+  return tokens.map((t) => (slots.has(t) ? next[k++] : t))
+}
+
+/** 의미 크기 하나를 같은 요소의 값들 사이에서 한 칸 뒤(1)나 앞(-1)으로 옮긴다. 끝에 있으면 그대로다. */
+export function shiftSizeInThing(tokens: Token[], kind: Kind, name: string, dir: 1 | -1): Token[] {
+  const peers = thingPeers(tokens, kind, name)
+  const at = peers.findIndex((t) => t.name === name)
+  const to = at + dir
+  if (at === -1 || to < 0 || to >= peers.length) return tokens
+  return moveSizeInThing(tokens, kind, name, dir === 1 ? (peers[to + 1]?.name ?? null) : peers[to].name)
 }

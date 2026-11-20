@@ -473,174 +473,6 @@ export function sizeVars(tokens: Token[]): CSSProperties {
   return vars as CSSProperties
 }
 
-/**
- * 의미 크기 판에서 한 종류(높이, 폭, 정사각형)의 내용. 묶음(컨트롤, 영역)마다 작은 제목을 두고, 한 줄에 크기 하나.
- * 왼쪽 칸(224px)에 이름, 가리키는 길이, 설명이 있고 오른쪽에 그 크기가 실제로 쓰인 모습이 있다. 예시는 주석에 모양을 적어 둔 값에만 있다.
- * 묶음은 정해진 차례로 놓는다. 종류의 제목(높이, 폭, 정사각형)이 따로 있어서, 묶음의 제목은 그보다 옅고 작게 적는다.
- */
-export function SizeList({
-  kind,
-  items,
-  all,
-  selected,
-  onSelect,
-  onSelectGroup,
-  onRename,
-  onMove,
-  onMoveGroup,
-}: {
-  kind: Kind
-  items: Token[]
-  /** 가리키는 크기의 길이와, 예시의 바탕과 글자 색을 찾을 전체 값 목록. */
-  all: Token[]
-  selected: string[]
-  onSelect: (name: string, additive: boolean) => void
-  onSelectGroup: (names: string[], additive: boolean, focusGroup: boolean) => void
-  onRename: (name: string) => void
-  /** 끌어서 차례를 바꾼다. 의미 크기는 쓰임으로 이름 붙인 값이라 차례를 사람이 정한다. */
-  onMove?: (name: string, before: string | null) => void
-  /** 묶음 제목을 끌어 이 종류 안에서 묶음의 차례를 바꾼다. */
-  onMoveGroup?: (group: SizeGroup, before: SizeGroup | null) => void
-}) {
-  const rows = items.map((t) => ({ t, short: shortName(kind, t.name), ...readSizeNote(t.note, shortName(kind, t.name)) }))
-  // 묶음은 파일에 처음 나오는 차례대로 놓는다. 끌어서 바꾼 차례가 파일에 남는다.
-  const groups = [...new Set(rows.map((r) => r.group))]
-  // 한 판에 종류가 셋이고 종류마다 같은 이름의 묶음이 있어서, 끄는 것을 찾는 이름에 종류를 붙인다(height:control).
-  const key = (group: string) => `${kind.id}:${group}`
-  const bare = (name: string | null) => (name === null ? null : (name.slice(kind.id.length + 1) as SizeGroup))
-  const groupDrag = useReorder(groups.map(key), onMoveGroup && ((name, before) => onMoveGroup(bare(name)!, bare(before))), { attr: 'data-size-group', gap: 16 })
-  // 값이 없으면 빈 상자를 남기지 않는다. 추가는 판 위의 버튼으로 한다.
-  if (items.length === 0) return null
-  const around = sampleColors(all)
-  // 색 칸과 손잡이를 칠할 색. 이 시스템의 선택 색(없으면 주요 색, 그것도 없으면 글자 색)이다.
-  const tinted = all.find((t) => t.name === '--color-selection') ?? all.find((t) => t.name === '--color-primary')
-  const tint = (tinted && resolveColor(all, tinted.value)) || around.ink
-  return (
-    <div className="space-y-settings">
-      {groups.map((id) => {
-        const g = SIZE_GROUPS.find((x) => x.id === id)!
-        const list = rows.filter((r) => r.group === g.id)
-        // 줄을 묶음의 맨 끝에 놓으면, 파일에서도 이 묶음의 마지막 줄 바로 뒤에 놓는다. 파일의 맨 끝으로 보내면 다른 묶음의 값들 뒤로 간다.
-        const moveRow =
-          onMove &&
-          ((name: string, before: string | null) => {
-            if (before !== null) return onMove(name, before)
-            const last = list.filter((r) => r.t.name !== name).at(-1)
-            const after = last ? items.slice(items.indexOf(last.t) + 1).find((t) => t.name !== name) : undefined
-            onMove(name, after?.name ?? null)
-          })
-        return (
-          <div key={g.id} data-size-group={key(g.id)} className={`relative ${groupDrag.moving(key(g.id)) ? 'opacity-dragging' : ''}`}>
-            {groupDrag.line(key(g.id))}
-            {/* 묶음의 제목. 누르면 그 묶음의 값이 모두 선택되고, 끌면 이 종류 안에서 묶음의 차례가 바뀐다(다른 의미 판의 묶음 제목과 같다). */}
-            <button
-              type="button"
-              onClick={(e) => !groupDrag.justDragged() && onSelectGroup(list.map((r) => r.t.name), isAdditive(e), false)}
-              {...groupDrag.grab(key(g.id))}
-              className={`mb-label -ml-chip-x block rounded-small px-chip-x type-label text-ink-faint outline-selection hover:bg-hover focus-visible:outline-focus ${onMoveGroup ? 'cursor-grab active:cursor-grabbing' : ''}`}
-            >
-              {g.label}
-            </button>
-            <SizeRows kind={kind} list={list} all={all} around={around} tint={tint} selected={selected} onSelect={onSelect} onRename={onRename} onMove={moveRow} />
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
-/** 한 묶음의 줄들. 줄을 끌면 같은 묶음 안에서 차례가 바뀐다. 다른 묶음으로는 끌어 옮기지 않고 패널의 "묶음"에서 바꾼다. */
-function SizeRows({
-  kind,
-  list,
-  all,
-  around,
-  tint,
-  selected,
-  onSelect,
-  onRename,
-  onMove,
-}: {
-  kind: Kind
-  list: { t: Token; short: string; text: string; examples: SizeExample[] }[]
-  all: Token[]
-  around: Around
-  tint: string
-  selected: string[]
-  onSelect: (name: string, additive: boolean) => void
-  onRename: (name: string) => void
-  onMove?: (name: string, before: string | null) => void
-}) {
-  // 판을 접었으면 설명과 예시를 숨기고 이름과 값만 보여 준다.
-  const plain = useContext(DetailsFolded)
-  const reorder = useReorder(list.map((r) => r.t.name), onMove)
-  return (
-    <div className="space-y-rows rounded-float border-edge border-hairline bg-canvas p-menu">
-      {list.map(({ t, short, text, examples }) => {
-        const isSelected = selected.includes(t.name)
-        const { length, shown } = shownOf(all, t.value)
-        // 예시는 가리키는 길이가 있고 주석에 모양이 적혀 있을 때만 그린다. 없으면 왼쪽 칸이 줄 전체를 쓴다.
-        const drawn = !plain && length !== null && examples.length > 0
-        const scale = length ? sampleScale(kind, length) : 1
-        return (
-          <button
-            key={t.name}
-            type="button"
-            data-token={t.name}
-            aria-pressed={isSelected}
-            aria-label={`${short} ${shown}`}
-            onClick={(e) => !reorder.justDragged() && onSelect(t.name, isAdditive(e))}
-            onDoubleClick={() => onRename(t.name)}
-            {...reorder.grab(t.name)}
-            className={`group relative flex w-full items-center gap-columns rounded-row px-board-row-x py-board-row-y text-left select-none ${reorder.moving(t.name) ? 'opacity-dragging' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
-          >
-            {reorder.line(t.name)}
-            <span className={drawn ? 'w-row-name shrink-0' : 'min-w-0 flex-1'}>
-              <span data-name className="block type-label break-words">
-                {short}
-              </span>
-              <span data-points className={`block type-code-sm break-words ${length ? 'text-ink-faint' : 'text-danger'}`}>
-                {shown}
-                {/* 예시 칸보다 커서 줄여 그린 것은 몇 분의 일인지 적는다. 적지 않으면 그림의 크기를 그 값으로 읽게 된다. */}
-                {drawn && scale > 1 && ` · 그림은 1/${scale}`}
-              </span>
-              {!plain && text && (
-                <span data-text className="mt-label block type-caption break-words text-ink-faint">
-                  <Phrases text={text} />
-                </span>
-              )}
-            </span>
-            {/* 쓰임이 여럿인 값은 예시도 여럿이다. 위아래로 8px 띄워 쌓는다. */}
-            {drawn && (
-              <span className="block min-w-0 flex-1 space-y-blocks">
-                {examples.map((e, k) => (
-                  <SizeSample key={k} kind={kind} shape={e.shape} value={length} around={around} tint={tint} words={e.words} />
-                ))}
-              </span>
-            )}
-            {isSelected && selected.length === 1 && <SelectionLabel name={short} value={shown} />}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
-
-/** 의미 크기 판을 보는 방식. 종류별(높이 / 폭 / 정사각형 안에 묶음)과 요소별(묶음 안에 요소마다 그 높이와 폭을 함께). */
-export type SizeView = 'kind' | 'thing'
-
-const SIZE_VIEWS: { id: SizeView; label: string }[] = [
-  { id: 'kind', label: '종류별' },
-  { id: 'thing', label: '요소별' },
-]
-
-/** 보는 방식을 바꾸는 전환 버튼. 판 오른쪽 위, "원래대로"의 왼쪽에 둔다. 높이는 옆의 버튼과 같다(칸 24px에 안쪽 여백 4px씩). */
-export function SizeViewSwitch({ value, onChange }: { value: SizeView; onChange: (next: SizeView) => void }) {
-  return (
-    <Segmented label="보는 방식" options={SIZE_VIEWS} value={value} fit onChange={onChange} />
-  )
-}
-
 const SIZE_KINDS_IN_ORDER = [KINDS.height, KINDS.width, KINDS.square]
 /**
  * 제 높이가 없는 요소가 빌려 그리는 높이. 숫자 칸은 입력칸의 높이로 놓이고, 메뉴는 그 안의 줄이 줄의 높이다.
@@ -655,10 +487,12 @@ const DIMENSION: Record<string, string> = { height: '높이', width: '너비', s
 type ThingRow = { t: Token; kind: Kind; short: string; group: SizeGroup; text: string; picked?: SizeShape; examples: SizeExample[]; length: string | null; shown: string }
 
 /**
- * 의미 크기 판의 요소별 보기. 묶음(컨트롤, 영역) 안에서 요소마다 한 덩어리로, 그 요소의 높이와 폭과 정사각형을 함께 보여 준다.
+ * 의미 크기 판. 묶음(컨트롤, 영역) 안에서 요소마다 한 덩어리로, 그 요소의 높이와 폭과 정사각형을 함께 보여 준다.
  * 어떤 요소는 높이와 폭이 함께 있다(작은 입력칸은 높이 24에 폭이 56, 80, 112). 종류별 보기에서는 그것이 높이 묶음과 폭 묶음으로 흩어져서, 그 요소가 실제로 어떤 크기인지 한눈에 보이지 않는다.
  * 요소는 값의 첫 예시의 모양이다(주석의 "(모양)"). 같은 묶음에서 모양이 같은 값들이 종류를 넘어 한 덩어리가 된다. 모양을 적지 않은 값은 저마다 한 덩어리다.
- * 덩어리와 줄의 차례는 종류별 보기의 차례를 따른다(처음 나오는 차례). 이 보기에서는 차례를 바꾸지 않는다. 끌어 옮기기와 "원래대로"는 종류별 보기의 차례를 다룬다.
+ * 판은 이 보기 하나다. 높이·너비·정사각형으로 한 번 더 나누지 않는다(그것은 분류가 아니라 값의 속성이라 줄 앞에 적는다).
+ * 묶음의 제목을 끌면 묶음의 순서가 바뀌고, 줄을 끌면 같은 요소의 같은 쪽 길이(높이끼리, 너비끼리) 사이에서 순서가 바뀐다. 요소의 순서는 그 값들이 파일에 처음 나오는 순서를 따른다.
+ * "원래대로"는 종류와 묶음과 줄을 처음 순서로 돌려놓는다.
  */
 export function SizeThings({
   tokens,
@@ -666,12 +500,18 @@ export function SizeThings({
   onSelect,
   onSelectGroup,
   onRename,
+  onMove,
+  onMoveGroup,
 }: {
   tokens: Token[]
   selected: string[]
   onSelect: (name: string, additive: boolean) => void
   onSelectGroup: (names: string[], additive: boolean, focusGroup: boolean) => void
   onRename: (name: string) => void
+  /** 줄을 끌어 같은 요소의 같은 종류 값들 사이에서 순서를 바꾼다. */
+  onMove?: (kind: Kind, name: string, before: string | null) => void
+  /** 묶음 제목을 끌어 묶음의 순서를 바꾼다. */
+  onMoveGroup?: (group: SizeGroup, before: SizeGroup | null) => void
 }) {
   // 종류별 보기에 놓이는 차례 그대로 늘어놓는다: 종류(파일에 적힌 차례) → 묶음(처음 나오는 차례) → 줄.
   const rows: ThingRow[] = orderKinds(tokens, SIZE_KINDS_IN_ORDER).flatMap((kind) => {
@@ -684,13 +524,14 @@ export function SizeThings({
       })
     return [...new Set(list.map((r) => r.group))].flatMap((g) => list.filter((r) => r.group === g))
   })
+  // 묶음은 파일에 처음 나오는 순서대로 놓는다(위에서 늘어놓은 줄에서 처음 나오는 순서. lib/order.ts의 sizeBoardGroupOrder와 같다). 끌어서 바꾼 순서가 파일에 남는다.
+  const groups = [...new Set(rows.map((r) => r.group))].map((id) => SIZE_GROUPS.find((g) => g.id === id)!)
+  const groupDrag = useReorder(groups.map((g) => g.id), onMoveGroup && ((name, before) => onMoveGroup(name as SizeGroup, before as SizeGroup | null)), { attr: 'data-thing-group', gap: 24 })
   if (rows.length === 0) return null
   const around = sampleColors(tokens)
   // 색 칸과 손잡이를 칠할 색. 이 시스템의 선택 색(없으면 주요 색, 그것도 없으면 글자 색)이다.
   const tinted = tokens.find((t) => t.name === '--color-selection') ?? tokens.find((t) => t.name === '--color-primary')
   const tint = (tinted && resolveColor(tokens, tinted.value)) || around.ink
-  // 묶음은 정해진 차례(컨트롤, 영역)로 놓는다. 종류마다 묶음의 차례가 다를 수 있어서, 이 보기에서는 어느 한 종류의 차례를 따르지 않는다.
-  const groups = SIZE_GROUPS.filter((g) => rows.some((r) => r.group === g.id))
   return (
     <div className="space-y-groups">
       {groups.map((g) => {
@@ -698,18 +539,20 @@ export function SizeThings({
         const keyOf = (r: ThingRow) => r.picked ?? `-${r.t.name}`
         const things = [...new Set(list.map(keyOf))].map((key) => ({ key, rows: list.filter((r) => keyOf(r) === key) }))
         return (
-          <div key={g.id} data-thing-group={g.id}>
-            {/* 묶음의 제목. 누르면 그 묶음의 값이 모두 선택된다. 이 보기에서는 끌어 옮기지 않는다. */}
+          <div key={g.id} data-thing-group={g.id} className={`relative ${groupDrag.moving(g.id) ? 'opacity-dragging' : ''}`}>
+            {groupDrag.line(g.id)}
+            {/* 묶음의 제목. 누르면 그 묶음의 값이 모두 선택되고, 끌면 묶음의 순서가 바뀐다(다른 의미 판의 묶음 제목과 같다). */}
             <button
               type="button"
-              onClick={(e) => onSelectGroup(list.map((r) => r.t.name), isAdditive(e), false)}
-              className="mb-heading -ml-chip-x block rounded-small px-chip-x type-heading outline-selection hover:bg-hover focus-visible:outline-focus"
+              onClick={(e) => !groupDrag.justDragged() && onSelectGroup(list.map((r) => r.t.name), isAdditive(e), false)}
+              {...groupDrag.grab(g.id)}
+              className={`mb-heading -ml-chip-x block rounded-small px-chip-x type-heading outline-selection hover:bg-hover focus-visible:outline-focus ${onMoveGroup ? 'cursor-grab active:cursor-grabbing' : ''}`}
             >
               {g.label}
             </button>
             <div className="space-y-rows rounded-float border-edge border-hairline bg-canvas p-menu">
               {things.map((thing) => (
-                <SizeThing key={thing.key} rows={thing.rows} all={rows} around={around} tint={tint} selected={selected} onSelect={onSelect} onRename={onRename} />
+                <SizeThing key={thing.key} rows={thing.rows} all={rows} around={around} tint={tint} selected={selected} onSelect={onSelect} onRename={onRename} onMove={onMove} />
               ))}
             </div>
           </div>
@@ -733,6 +576,7 @@ function SizeThing({
   selected,
   onSelect,
   onRename,
+  onMove,
 }: {
   rows: ThingRow[]
   /** 판의 모든 값. 제 높이가 없는 요소가 빌려 그릴 높이를 여기서 찾는다. */
@@ -742,9 +586,14 @@ function SizeThing({
   selected: string[]
   onSelect: (name: string, additive: boolean) => void
   onRename: (name: string) => void
+  onMove?: (kind: Kind, name: string, before: string | null) => void
 }) {
   // 판을 접었으면 설명과 예시를 숨기고 이름과 값만 보여 준다.
   const plain = useContext(DetailsFolded)
+  // 줄을 끌면 같은 요소의 같은 쪽 길이(높이끼리, 너비끼리) 사이에서 순서가 바뀐다. 다른 요소나 다른 쪽으로는 옮기지 않는다(요소는 주석의 모양이, 쪽은 이름이 정한다).
+  // 모양을 적지 않은 값은 저 혼자 한 요소라 옮길 곳이 없다.
+  const kindOfRow = (name: string) => rows.find((r) => r.t.name === name)!.kind
+  const reorder = useReorder(rows.map((r) => r.t.name), onMove && rows[0].picked ? (name, before) => onMove(kindOfRow(name), name, before) : undefined, { scopeOf: (name) => kindOfRow(name).id })
   const shape = rows[0].picked
   const heights = rows.filter((r) => r.kind.id === 'height' && r.length !== null)
   const widths = rows.filter((r) => r.kind.id === 'width' && r.length !== null)
@@ -791,10 +640,12 @@ function SizeThing({
             data-token={r.t.name}
             aria-pressed={isSelected}
             aria-label={`${DIMENSION[r.kind.id]} ${r.short} ${r.shown}`}
-            onClick={(e) => onSelect(r.t.name, isAdditive(e))}
+            onClick={(e) => !reorder.justDragged() && onSelect(r.t.name, isAdditive(e))}
             onDoubleClick={() => onRename(r.t.name)}
-            className={`group relative flex w-full items-center gap-columns rounded-row px-board-row-x py-board-row-y text-left select-none ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
+            {...reorder.grab(r.t.name)}
+            className={`group relative flex w-full items-center gap-columns rounded-row px-board-row-x py-board-row-y text-left select-none ${reorder.moving(r.t.name) ? 'opacity-dragging' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
           >
+            {reorder.line(r.t.name)}
             {/* 왼쪽은 이름·길이·설명. 그림이 하나라도 있는 요소는 이 칸의 폭을 정해 두어, 그림들이 같은 자리에서 시작하게 한다. */}
             <span className={any ? 'w-row-name shrink-0' : 'min-w-0 flex-1'}>
               <span className="flex flex-wrap items-baseline gap-x-row-inner">
