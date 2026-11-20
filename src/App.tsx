@@ -66,7 +66,7 @@ import { BatchRename } from './BatchRename'
 import { BoardInspector, ImageInspector, NoteInspector } from './BoardInspector'
 import { Canvas, boardPositions, defaultWidth } from './Canvas'
 import { NewRoleForm, RoleInspector } from './Roles'
-import { defaultRoleOrder, moveRole, moveRoleGroup, roleGroups, shiftRoles, refOf, refTo, surroundings, type RoleUse } from './lib/roles'
+import { ROLE_USES, defaultRoleOrder, moveRole, moveRoleGroup, readNote as readRoleNote, roleGroups, shiftRoles, refOf, refTo, surroundings, type RoleUse } from './lib/roles'
 import { onFilesChanged } from './lib/watch'
 import { SwatchContext } from './ColorPicker'
 import { PreviewFontContext, PreviewSpaceContext } from './ColorUses'
@@ -83,7 +83,7 @@ import { NewWeightsForm } from './NewWeights'
 import { NewTypeForm, TypeInspector } from './Types'
 import { EffectInspector } from './Effects'
 import { NewRadiusForm, RadiusInspector } from './Radius'
-import { readRadiusNote, type RadiusGroup } from './lib/radius'
+import { RADIUS_GROUPS, readRadiusNote, type RadiusGroup } from './lib/radius'
 import { BorderInspector, NewBorderForm } from './Borders'
 import { isBorderKind } from './lib/borders'
 import { LayerInspector, NewLayerForm } from './Layers'
@@ -94,12 +94,12 @@ import { colorRefsIn, followColorRefs } from './lib/gradient'
 import { easeRefsIn, followEaseRefs } from './lib/motion'
 import { NewSpaceUseForm, SpaceUseInspector, spaceVars } from './Spacing'
 import { LengthInspector, NewLengthForm, NewSizeForm, SizeInspector, SizeThings, SizeViewSwitch, sizeVars, type SizeView } from './Sizes'
-import { isSizeKind, readSizeNote, type SizeGroup } from './lib/sizes'
+import { SIZE_GROUPS, isSizeKind, readSizeNote, type SizeGroup } from './lib/sizes'
 import type { SpaceUse } from './lib/spacing'
-import { autoOrder, moveRadiusGroup, radiusGroupOrder, shiftRadii, defaultFreeOrder, defaultKindOrder, isAutoOrdered, isFreeKind, moveException, moveInKind, moveKind, moveSizeGroup, moveSpaceGroup, orderKinds, shiftSizes, shiftSpaceUses, sizeGroupOrder, spaceUseOrder, stepBefore } from './lib/order'
-import { readSpaceNote } from './lib/spacing'
+import { autoOrder, colorListSlot, newGroupSlot, moveRadiusGroup, radiusGroupOrder, shiftRadii, defaultFreeOrder, defaultKindOrder, isAutoOrdered, isFreeKind, moveException, moveInKind, moveKind, moveSizeGroup, moveSpaceGroup, orderKinds, shiftSizes, shiftSpaceUses, sizeGroupOrder, spaceUseOrder, stepBefore } from './lib/order'
+import { SPACE_USES, readSpaceNote } from './lib/spacing'
 import { NewTypesForm } from './NewTypes'
-import { defaultTypeOrder, followTypeRefs, moveType, moveTypeGroup, shiftTypes, syncTypes, typeGroups, typeUsers, withTypeTrack, type TypeUse } from './lib/types'
+import { TYPE_USES, readTypeNote, defaultTypeOrder, followTypeRefs, moveType, moveTypeGroup, shiftTypes, syncTypes, typeGroups, typeUsers, withTypeTrack, type TypeUse } from './lib/types'
 import { nextPreset, nextSize, nextSizeName, nextVariantName, stepUp, type SizeStep } from './lib/presets'
 import { loadFont, loadSystemFonts, parseFontValue } from './lib/fonts'
 import { NewSystemForm } from './NewSystem'
@@ -722,6 +722,17 @@ export function App() {
     select([token.name])
   }
 
+  /**
+   * 묶음이 있는 의미 값(의미 색, 의미 글꼴, 의미 간격, 의미 크기, 의미 모서리)을 추가한다.
+   * 그 묶음이 판에 이미 있으면 늘 놓던 자리(after 뒤)에 놓는다. 아직 없던 묶음이면 맨 뒤가 아니라 정해진 묶음 순서의 제자리에 놓는다(newGroupSlot).
+   */
+  function insertInGroup<G>(token: Token, group: G, groupOf: (t: Token) => G | null, order: readonly G[], after: (t: Token) => boolean) {
+    const at = newGroupSlot(tokens, groupOf, group, order)
+    if (at < 0) return insert(token, after)
+    commit([...tokens.slice(0, at), token, ...tokens.slice(at)])
+    select([token.name])
+  }
+
   function addToken(kind: Kind, group?: string) {
     // 예외 색은 이름을 정해야 하므로 바로 만들지 않고 이름과 색을 묻는다.
     if (kind.id === 'color' && !group) return setAddingSolo(true)
@@ -800,12 +811,13 @@ export function App() {
   /** 새 색 목록을 만든다. 첫 색의 단계와 색은 만드는 창에서 정한다. scale이면 그 색을 기준으로 50~950을 모두 만든다. */
   function addGroup(group: string, step: string, value: string, scale = false) {
     setAddingGroup(false)
-    if (!scale) return insert({ name: `${COLOR.prefix}${group}-${step}`, value: toOklch(value) }, (t) => COLOR.matches(t.name))
-    const colors = makeScale(value, Number(step))
-    const made = SCALE_STEPS.map((s) => ({ name: `${COLOR.prefix}${group}-${s}`, value: toOklch(colors[s]) }))
-    // 빈 채로 남아 있던 목록에 넣는 경우가 아니면 색들의 맨 뒤에 새 목록으로 놓는다.
-    const at = tokens.findLastIndex((t) => COLOR.matches(t.name)) + 1
-    commit([...tokens.slice(0, at || tokens.length), ...made, ...tokens.slice(at || tokens.length)])
+    const colors = scale ? makeScale(value, Number(step)) : null
+    const made = colors
+      ? SCALE_STEPS.map((s) => ({ name: `${COLOR.prefix}${group}-${s}`, value: toOklch(colors[s]) }))
+      : [{ name: `${COLOR.prefix}${group}-${step}`, value: toOklch(value) }]
+    // 맨 끝에 붙이지 않고 색조 순서의 제자리에 끼워 넣는다(회색, 빨강, 주황, 노랑, 초록, 파랑, 보라, 분홍). 놓은 뒤에는 손으로 옮길 수 있다.
+    const at = colorListSlot(tokens, toOklch(value))
+    commit([...tokens.slice(0, at), ...made, ...tokens.slice(at)])
     select(made.map((t) => t.name))
   }
 
@@ -838,7 +850,13 @@ export function App() {
   /** 의미 색을 만든다. ref는 가리키는 색의 변수 이름, note는 주석에 적을 역할과 설명. */
   function addRole(name: string, ref: string, note: string) {
     setAddingRole(false)
-    insert({ name, value: refTo(ref), note }, (t) => ROLE.matches(t.name))
+    insertInGroup(
+      { name, value: refTo(ref), note },
+      readRoleNote(note, name.slice(ROLE.prefix.length)).use,
+      (t) => (ROLE.matches(t.name) ? readRoleNote(t.note, shortName(ROLE, t.name)).use : null),
+      ROLE_USES.map((u) => u.id),
+      (t) => ROLE.matches(t.name),
+    )
   }
 
   /** 글꼴 종류를 만든다. value는 맨 앞 글꼴과 대체 글꼴을 이은 font-family 값. */
@@ -1756,7 +1774,6 @@ export function App() {
     emptyGroups: keptGroups,
     folded,
     pickedGroup,
-    pickedList: listPicked,
     onPickGroup: (group: string) => {
       setSelectedBoards([])
       select([])
@@ -1838,18 +1855,16 @@ export function App() {
   // 한 색 목록을 통째로(그리고 그것만) 선택했으면 그 목록의 이름. 오른쪽 패널에서 목록 이름을 고칠 수 있다.
   const groupsPicked = new Set(selectedTokens.map((t) => (COLOR.matches(t.name) ? groupOf(shortName(COLOR, t.name)) : null)))
   const onlyGroup = groupsPicked.size === 1 ? [...groupsPicked][0] : null
-  // 목록 이름을 눌러 고른 것만 목록 선택이다. 색을 하나씩 모두 골랐으면 색 여러 개를 고른 것이다(화면의 선도 그렇게 다르다).
+  // 색이 둘 이상이면 그 목록의 색을 빠짐없이 고른 것으로 안다. 색이 하나뿐인 목록은 목록 이름을 눌러 선택했을 때만이다(색을 누른 것이면 그 색의 패널이 뜬다).
   const wholeGroup =
     onlyGroup &&
-    listPicked === onlyGroup &&
+    (selectedTokens.length > 1 || listPicked === onlyGroup) &&
     tokens.filter((t) => COLOR.matches(t.name) && groupOf(shortName(COLOR, t.name)) === onlyGroup).length === selectedTokens.length
       ? onlyGroup
       : null
   // Ctrl+]/[로 통째로 옮길 수 있는 목록. 한 목록의 색을 빠짐없이, 그것만 골랐을 때다.
   const movableGroup =
     onlyGroup !== null &&
-    // 이름이 있는 목록은 이름을 눌러 골랐을 때만이다. 예외 색은 이름으로 고르는 상태가 따로 없어 색을 모두 골랐으면 된다.
-    (onlyGroup === '' || listPicked === onlyGroup) &&
     selectedTokens.length > 0 &&
     tokens.filter((t) => COLOR.matches(t.name) && groupOf(shortName(COLOR, t.name)) === onlyGroup).length === selectedTokens.length
       ? onlyGroup
@@ -2467,7 +2482,13 @@ export function App() {
             onCancel={() => setAddingType(false)}
             onCreate={(name, value, note) => {
               setAddingType(false)
-              insert({ name, value, note }, (t) => t.name.startsWith(STYLE.prefix))
+              insertInGroup(
+                { name, value, note },
+                readTypeNote(note, name.slice(STYLE.prefix.length)).use,
+                (t) => (STYLE.matches(t.name) ? readTypeNote(t.note, shortName(STYLE, t.name)).use : null),
+                TYPE_USES.map((u) => u.id),
+                (t) => t.name.startsWith(STYLE.prefix),
+              )
             }}
           />
         </Modal>
@@ -2480,7 +2501,13 @@ export function App() {
             onCancel={() => setAddingSpaceUse(false)}
             onCreate={(name, value, note) => {
               setAddingSpaceUse(false)
-              insert({ name, value, note }, (t) => KINDS.spaceUse.matches(t.name) || KINDS.space.matches(t.name))
+              insertInGroup(
+                { name, value, note },
+                readSpaceNote(note, shortName(KINDS.spaceUse, name)).use,
+                (t) => (KINDS.spaceUse.matches(t.name) ? readSpaceNote(t.note, shortName(KINDS.spaceUse, t.name)).use : null),
+                SPACE_USES.map((u) => u.id),
+                (t) => KINDS.spaceUse.matches(t.name) || KINDS.space.matches(t.name),
+              )
             }}
           />
         </Modal>
@@ -2536,7 +2563,7 @@ export function App() {
               const group = readSizeNote(note, shortName(kind, name)).group
               const inGroup = (t: Token) => kind.matches(t.name) && readSizeNote(t.note, shortName(kind, t.name)).group === group
               const after = tokens.some(inGroup) ? inGroup : tokens.some((t) => kind.matches(t.name)) ? (t: Token) => kind.matches(t.name) : (t: Token) => [KINDS.length, KINDS.height, KINDS.width, KINDS.square].some((k) => k.matches(t.name))
-              insert({ name, value, note }, after)
+              insertInGroup({ name, value, note }, group, (t) => (kind.matches(t.name) ? readSizeNote(t.note, shortName(kind, t.name)).group : null), SIZE_GROUPS.map((g) => g.id), after)
             }}
           />
         </Modal>
@@ -2601,7 +2628,7 @@ export function App() {
               const group = readRadiusNote(note, shortName(kind, name)).group
               const inGroup = (t: Token) => kind.matches(t.name) && readRadiusNote(t.note, shortName(kind, t.name)).group === group
               const after = tokens.some(inGroup) ? inGroup : tokens.some((t) => kind.matches(t.name)) ? (t: Token) => kind.matches(t.name) : (t: Token) => KINDS.corner.matches(t.name)
-              insert({ name, value, note }, after)
+              insertInGroup({ name, value, note }, group, (t) => (kind.matches(t.name) ? readRadiusNote(t.note, shortName(kind, t.name)).group : null), RADIUS_GROUPS.map((g) => g.id), after)
             }}
           />
         </Modal>

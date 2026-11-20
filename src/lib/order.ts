@@ -14,6 +14,7 @@ import { SPACE_USES, readSpaceNote, type SpaceUse } from './spacing'
 import { SIZE_GROUPS, readSizeNote, type SizeGroup } from './sizes'
 import { RADIUS_GROUPS, readRadiusNote, type RadiusGroup } from './radius'
 import { parseShadow } from './effects'
+import { hexToLch, toHex } from './color'
 
 /** 값의 크기순으로 저절로 놓이는 종류. */
 const SCALE_IDS = ['size', 'weight', 'leading', 'tracking', 'space', 'length', 'corner', 'thickness', 'breakpoint', 'container', 'z']
@@ -362,4 +363,74 @@ export function defaultFreeOrder(tokens: Token[], kind: Kind): Token[] {
   const keys = new Map(items.map((t) => [t, key(t)]))
   const sorted = [...items].sort((a, b) => byNumber(keys.get(a)!, keys.get(b)!))
   return sorted.every((t, i) => t === items[i]) ? tokens : place(tokens, (t) => kind.matches(t.name), sorted)
+}
+
+/**
+ * 색을 색조 순서에 놓는 자리값. 회색 계열(색기가 거의 없는 색)이 맨 앞(-1)이고, 그 뒤로 빨강, 주황, 노랑, 초록, 파랑, 보라, 분홍 순서다.
+ * oklch의 색조는 분홍(약 350)과 빨강(약 25)이 0을 사이에 두고 이웃해 있어서, 그 사이(5)에서 끊어 분홍이 맨 뒤로 가게 한다. 어두운 빨강은 색조가 15까지 내려가므로 더 뒤에서 끊으면 빨강이 맨 뒤로 넘어간다.
+ */
+function hueKey(value: string): number {
+  const hex = toHex(value)
+  if (!hex) return -1
+  const { c, h } = hexToLch(hex.slice(0, 7))
+  // hexToLch는 색조를 라디안으로 준다.
+  const deg = (((h * 180) / Math.PI) % 360 + 360) % 360
+  return c < 0.03 ? -1 : (deg - 5 + 360) % 360
+}
+
+/**
+ * 새 색 목록이 놓일 자리(tokens에서의 번호). 색 목록은 손으로 순서를 정하는 종류지만, 새로 만들 때는 맨 끝에 붙이지 않고 색조 순서의 제자리에 끼워 넣는다.
+ * 지금 있는 목록을 차례로 보다가 새 색보다 색조가 뒤인 첫 목록의 앞에 놓는다. 그런 목록이 없으면 이름 있는 목록들의 맨 뒤(예외 색이 뒤에 있으면 그 앞)다.
+ * 목록의 색조는 그 목록에서 색기가 가장 센 색으로 본다(50이나 950은 색기가 약해 색조가 흔들린다). 놓은 뒤에는 다른 목록처럼 손으로 옮길 수 있다.
+ */
+export function colorListSlot(tokens: Token[], value: string): number {
+  const color = KINDS.color
+  const lists: { first: number; last: number; key: number; chroma: number }[] = []
+  const byName = new Map<string, (typeof lists)[number]>()
+  tokens.forEach((t, i) => {
+    if (!color.matches(t.name)) return
+    const name = groupOf(shortName(color, t.name))
+    if (!name) return
+    const hex = toHex(t.value)
+    const chroma = hex ? hexToLch(hex.slice(0, 7)).c : 0
+    const list = byName.get(name)
+    if (!list) {
+      const made = { first: i, last: i, key: hueKey(t.value), chroma }
+      byName.set(name, made)
+      lists.push(made)
+    } else {
+      list.last = i
+      if (chroma > list.chroma) {
+        list.chroma = chroma
+        list.key = hueKey(t.value)
+      }
+    }
+  })
+  const key = hueKey(value)
+  const next = lists.find((l) => l.key > key)
+  if (next) return next.first
+  if (lists.length) return Math.max(...lists.map((l) => l.last)) + 1
+  // 이름 있는 목록이 아직 없다. 예외 색이 있으면 그 앞, 없으면 맨 끝이다.
+  const solo = tokens.findIndex((t) => color.matches(t.name))
+  return solo === -1 ? tokens.length : solo
+}
+
+/**
+ * 아직 판에 없는 묶음의 첫 값이 놓일 자리(tokens에서의 번호). 그 묶음이 이미 있거나 놓을 제자리가 없으면 -1이다(부르는 쪽이 늘 놓던 자리에 놓는다).
+ * 묶음의 순서는 손으로 정하는 것이지만, 새 묶음은 맨 뒤에 붙이지 않고 정해진 묶음 순서(order. 추가 창의 묶음 목록과 같은 순서)의 제자리에 끼워 넣는다.
+ * 판에 놓인 묶음을 차례로 보다가 정해진 순서에서 새 묶음보다 뒤인 첫 묶음의 앞에 놓는다. 판의 묶음 순서는 파일에 처음 나오는 순서이므로 그 묶음의 첫 값 앞이 그 자리다.
+ * groupOf는 그 종류의 값이면 묶음을, 아니면 null을 준다. 놓은 뒤에는 다른 묶음처럼 손으로 옮길 수 있다.
+ */
+export function newGroupSlot<G>(tokens: Token[], groupOf: (t: Token) => G | null, group: G, order: readonly G[]): number {
+  const rank = order.indexOf(group)
+  const seen = new Set<G>()
+  let at = -1
+  for (let i = 0; i < tokens.length; i++) {
+    const g = groupOf(tokens[i])
+    if (g === null) continue
+    if (g === group) return -1
+    if (at === -1 && rank >= 0 && !seen.has(g) && order.indexOf(g) > rank) at = i
+    seen.add(g)
+  }
+  return at
 }
