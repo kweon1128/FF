@@ -89,7 +89,7 @@ export function TopBar({
                 }}
                 className="flex h-row w-full items-center gap-row-inner rounded-row px-row-x text-left text-ink-soft outline-selection focus-visible:outline-focus hover:bg-hover hover:text-ink"
               >
-                <Plus size={16} strokeWidth={ICON_STROKE} />새 디자인 시스템
+                <Plus size={16} strokeWidth={ICON_STROKE} />디자인 시스템 만들기
               </button>
             </div>
           </>

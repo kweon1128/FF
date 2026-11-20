@@ -17,6 +17,7 @@ import { specOf } from './valueSpecs'
 import { isBorderKind, resolveThickness } from './lib/borders'
 import { isEffectKind, shadowRefs } from './lib/effects'
 import { colorRefsIn } from './lib/gradient'
+import { easeRefsIn } from './lib/motion'
 import { isFreeKind, orderKinds } from './lib/order'
 import type { SpaceUse } from './lib/spacing'
 import { resolveLength, type SizeGroup } from './lib/sizes'
@@ -42,8 +43,8 @@ export type SectionProps = {
   onAddGroup: () => void
   /** 항목을 더블클릭하면 그 자리에서 이름을 고친다. */
   onRename: (name: string) => void
-  /** 색 목록의 이름을 누르면 그 목록의 색을 모두 선택한다. rename이면 이어서 목록 이름을 고치러 간다. */
-  onSelectGroup: (names: string[], additive: boolean, rename: boolean) => void
+  /** 색 목록의 이름을 누르면 그 목록의 색을 모두 선택한다. rename이면 이어서 목록 이름을 고치러 간다. list는 색 목록의 이름을 눌렀을 때 그 목록의 이름이다(색이 하나뿐인 목록에서 목록을 고른 것과 색을 고른 것을 가른다). */
+  onSelectGroup: (names: string[], additive: boolean, rename: boolean, list?: string) => void
   /** 색을 모두 지웠지만 남겨 둔 빈 색 목록들. */
   emptyGroups: string[]
   /** 빈 목록은 색이 없어서 목록 자체를 선택한다. 선택한 빈 목록의 이름(없으면 null). Delete로 지운다. */
@@ -115,6 +116,8 @@ const MISSING: Record<string, { noun: string; lost: (all: Token[], t: Token) => 
   outline: { noun: '테두리', lost: pointsNowhere(resolveThickness) },
   // 그림자의 겹이 가리키는 색상 판의 색이 없어진 경우.
   shadow: { noun: '그림자', lost: (all, t) => shadowRefs(t.value).some((n) => !all.some((x) => x.name === n)) },
+  // 애니메이션이 가리키는 이징 판의 값이 없어진 경우.
+  animate: { noun: '애니메이션', lost: (all, t) => easeRefsIn(t.value).some((n) => !all.some((x) => x.name === n)) },
   gradient: { noun: '그라데이션', lost: (all, t) => colorRefsIn(t.value).some((n) => !all.some((x) => x.name === n)) },
 }
 
@@ -436,11 +439,11 @@ function ColorGroups({
               if (listDrag.justDragged()) return
               // 예외 색 목록은 비어 있어도 지울 수 없으므로 선택하지 않는다.
               if (list.length === 0) group && onPickGroup(group)
-              else onSelectGroup(list.map((t) => t.name), isAdditive(e), false)
+              else onSelectGroup(list.map((t) => t.name), isAdditive(e), false, group || undefined)
             }}
             // 이름을 잡고 끌면 목록이 옮겨진다. 색이 없는 목록은 끌 수 없다.
             {...(list.length > 0 ? listDrag.grab(group) : {})}
-            onDoubleClick={() => list.length > 0 && onSelectGroup(list.map((t) => t.name), false, true)}
+            onDoubleClick={() => list.length > 0 && onSelectGroup(list.map((t) => t.name), false, true, group || undefined)}
             className={`rounded-small px-chip-x outline-selection hover:bg-hover focus-visible:outline-focus ${list.length > 0 ? 'cursor-grab active:cursor-grabbing' : ''} ${group ? 'type-title' : 'type-heading'} ${
               list.length === 0 && pickedGroup === group ? 'line-1' : ''
             }`}
@@ -589,7 +592,8 @@ function RowList({
   )
 }
 
-function RowSample({ kind, value, line, track }: { kind: Kind; value: string; line?: string; track?: string }) {
+/** 토대 판의 줄에 그리는 견본. 토대의 길이를 만드는 추가 창(NewLengthForm)도 같은 것을 그린다. */
+export function RowSample({ kind, value, line, track }: { kind: Kind; value: string; line?: string; track?: string }) {
   switch (kind.id) {
     case 'font':
       // 견본 문장도 자르지 않는다. 판보다 길면 줄을 바꾼다. 큰 글자일수록 여러 줄이 되지만 끝이 "…"로 사라지는 것보다 낫다.

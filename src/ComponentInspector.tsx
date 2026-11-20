@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { Copy, CopyPlus, Trash2 } from 'lucide-react'
 import { DynamicIcon, iconNames } from 'lucide-react/dynamic'
 import type { Token } from './lib/api'
-import { KINDS, SLUG, slugMessage, SPACE_REF, lengthLabel, shortName, type Kind } from './lib/catalog'
+import { KINDS, SPACE_REF, lengthLabel, shortName, type Kind } from './lib/catalog'
 import { showColor } from './lib/color'
 import { refOf, resolveColor } from './lib/roles'
 import { readType } from './lib/types'
@@ -11,6 +11,7 @@ import { cellLabel, type Cell, type Colors, type Comp, type IconPos, type Size }
 import { isIconName } from './ComponentScreen'
 import { CODE_OPEN, FoldSection, Section } from './Inspector'
 import { Button, Chip, Field, Segmented, UsePicker, inputClass, swatchBackground } from './ui'
+import { nameRules, useField } from './useField'
 
 const ICON_RESULTS = 30
 
@@ -29,29 +30,17 @@ function NameField({
   taken: string[]
   onCommit: (name: string) => void
 }) {
-  const [draft, setDraft] = useState(value)
-  const [error, setError] = useState<string | null>(null)
-
-  function commit() {
-    const name = draft.trim()
-    if (name === value) return setError(null)
-    if (!name) return setError('이름을 입력해 주세요.')
-    if (!SLUG.test(name)) return setError(slugMessage(name))
-    if (taken.includes(name)) return setError('같은 이름이 이미 있어요.')
-    onCommit(name)
-  }
+  // 다른 이름 칸과 같은 약속을 따른다. 비웠거나 쓸 수 없는 글자가 든 채로 벗어나면 되돌리고, 모양이 틀렸거나 같은 이름이 있으면 까닭과 함께 남긴다(useField).
+  const field = useField(nameRules({ saved: value, done: (name) => (taken.includes(name) ? '같은 이름이 이미 있어요.' : null), save: onCommit }))
 
   return (
-    <Field label={label} error={error}>
+    <Field label={label} error={field.error}>
       <input
         className={inputClass}
         data-rename={rename}
-        value={draft}
-        onChange={(e) => {
-          setDraft(e.target.value)
-          setError(null)
-        }}
-        onBlur={commit}
+        value={field.draft}
+        onChange={(e) => field.type(e.target.value)}
+        onBlur={field.leave}
         onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
       />
     </Field>

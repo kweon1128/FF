@@ -55,3 +55,17 @@ export function parseRatio(value: string): [number, number] | null {
   const h = m[2] === undefined ? 1 : Number(m[2])
   return w > 0 && h > 0 ? [w, h] : null
 }
+
+/**
+ * 추가 창에서 예시를 고르면 이름 칸에 채워지는 이름(DESIGN.md dialog-defaults). 그 예시가 보여 주는 쓰임의 영문 이름이다.
+ * ff-ds가 실제로 쓰는 이름을 따랐고(사이는 actions, 줄은 rows), 쓰는 이름이 없는 예시만 새로 지었다. 그 이름이 이미 있으면 창은 이름 칸을 비워 둔다.
+ */
+export const LAYOUT_NAMES: Record<LayoutShape, string> = {
+  columns: 'columns',
+  sidebar: 'sidebar',
+  page: 'page',
+  dialog: 'dialog',
+  image: 'image',
+  video: 'video',
+  card: 'card',
+}

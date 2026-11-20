@@ -2,6 +2,27 @@
 //   --transition-duration-glide: 300ms; /* 시간(이동): 캔버스가 판으로 미끄러져 가는 시간 | 의미 색 */
 // 종류(모양): 설명 | 문구 | 모양: 문구. 모양을 적지 않은 값은 예시가 없다(의미 간격, 의미 크기, 의미 모서리, 의미 테두리, 겹치는 차례와 같은 규칙이다).
 
+/**
+ * 주석 맨 앞의 묶음 자리에 적힌 이름. "이름(모양): …"의 이름이다. 그런 꼴이 아니면 null.
+ * 괄호가 있는 꼴만 묶음으로 본다. "참고: 임시 값"이나 "TODO: 정하기"처럼 짧은 낱말과 쌍점으로 시작하는 보통 설명을 묶음으로 읽지 않으려는 것이다.
+ * 묶음 이름은 짧아서 여덟 자까지만 본다.
+ */
+export function headOf(note: string): string | null {
+  const m = /^([^:(|,]{1,8})\([^)|]*\)\s*:/.exec(note.trim())
+  return m ? m[1].trim() : null
+}
+
+/**
+ * 주석에 "이름(모양): …"으로 적힌 묶음. 목록에 있는 이름이면 그 묶음이고, 목록에 없는 이름이면 "그 밖"(other)이다. 그런 꼴이 아니면 null(그때는 이름에서 짐작한다).
+ * 읽는 쪽은 제 정규식이 맞지 않을 때만 이것을 묻는다(목록에 있는 묶음은 제 정규식이 읽는다).
+ * 목록에 없는 묶음을 이름에서 짐작한 묶음에 놓으면, 짐작이 틀렸을 때 값이 엉뚱한 자리에 말없이 놓인다. "그 밖"에 모아 두면 눈에 띈다.
+ */
+export function groupFromNote<G extends string>(note: string, groups: { id: G; label: string }[], other: G): G | null {
+  const head = headOf(note)
+  if (head === null) return null
+  return groups.find((g) => g.label === head)?.id ?? other
+}
+
 export type KindShape<S extends string> = { id: S; label: string; hint: string }
 /** 예시 하나. 어떤 요소로 그릴지(모양)와 그 안에 적을 말(문구. 비어 있으면 모양의 기본 문구). */
 export type KindExample<S extends string> = { shape: S; words: string }

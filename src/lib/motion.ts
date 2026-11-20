@@ -33,7 +33,7 @@ export const MOTION_SHAPES: KindShape<MotionShape>[] = [
 
 /** 지연의 모양. 무엇이 얼마 뒤에 움직이기 시작하는지다. */
 export const DELAY_SHAPES: KindShape<MotionShape>[] = [
-  { id: 'stagger', label: '차례', hint: '줄이 하나씩 차례로 또렷해짐' },
+  { id: 'stagger', label: '순서', hint: '줄이 하나씩 순서대로 또렷해짐' },
   { id: 'hint', label: '도움말', hint: '마우스를 올리고 잠깐 뒤에 뜸' },
 ]
 
@@ -104,12 +104,14 @@ export function parseSteps(value: string): { count: number; at: string } | null 
 
 /**
  * "추가"에서 고르는 곡선. 값은 만든 뒤에 패널에서 고친다.
- * 앞의 넷은 매끄러운 곡선(네 숫자)이고, 끊김은 몇 단계로 뚝뚝 끊겨 움직이는 것(steps), 튕김은 끝에서 여러 번 튕기는 것이다(linear. 네 숫자의 곡선으로는 한 번 넘었다 돌아오는 것까지만 된다).
+ * 앞의 여섯은 매끄러운 곡선(네 숫자)이고, 끊김은 몇 단계로 뚝뚝 끊겨 움직이는 것(steps), 튕김은 끝에서 여러 번 튕기는 것이다(linear. 네 숫자의 곡선으로는 한 번 넘었다 돌아오는 것까지만 된다).
  */
 export const CURVE_PRESETS: { id: string; label: string; hint: string; value: string }[] = [
   { id: 'out', label: '감속', hint: '빠르게 출발해 천천히 멈춤', value: 'cubic-bezier(0, 0, 0.58, 1)' },
+  { id: 'out-strong', label: '강한 감속', hint: '아주 빠르게 출발해 길게 멈춤', value: 'cubic-bezier(0.16, 1, 0.3, 1)' },
   { id: 'in', label: '가속', hint: '천천히 출발해 빨라짐', value: 'cubic-bezier(0.42, 0, 1, 1)' },
   { id: 'in-out', label: '가감속', hint: '천천히 출발해 천천히 멈춤', value: 'cubic-bezier(0.42, 0, 0.58, 1)' },
+  { id: 'back', label: '넘었다 돌아옴', hint: '끝을 살짝 넘었다가 돌아옴', value: 'cubic-bezier(0.34, 1.56, 0.64, 1)' },
   { id: 'linear', label: '일정', hint: '처음부터 끝까지 같은 빠르기', value: 'cubic-bezier(0, 0, 1, 1)' },
   { id: 'steps', label: '끊김', hint: '몇 단계로 끊겨 움직임', value: 'steps(4, end)' },
   { id: 'bounce', label: '튕김', hint: '끝에서 여러 번 튕김', value: 'linear(0, 0.063, 0.25 18.2%, 1 36.4%, 0.813, 0.75, 0.813, 1, 0.938, 1, 0.984, 1)' },
@@ -120,6 +122,18 @@ export function curvePresetOf(value: string): string | null {
   const n = parseCurve(value)
   return CURVE_PRESETS.find((p) => p.value === value.trim() || (n !== null && parseCurve(p.value)?.join() === n.join()))?.id ?? null
 }
+
+// 애니메이션의 이징은 곡선을 직접 적거나 이징 판의 값을 가리킨다(var(--ease-glide)). 가리키면 이징 판에서 곡선을 바꿀 때 애니메이션도 따라 바뀐다(그림자가 색상 판의 색을 가리키는 것과 같다).
+const EASE_VAR = /var\(\s*(--ease-[a-z0-9-]+)\s*\)/g
+
+/** 이징이 이징 판의 값을 가리키면 그 값의 이름. */
+export const easeRefOf = (ease: string) => /^var\(\s*(--ease-[a-z0-9-]+)\s*\)$/.exec(ease.trim())?.[1] ?? null
+/** 값 안에서 가리키는 이징 판의 값 이름들. */
+export const easeRefsIn = (value: string) => [...value.matchAll(EASE_VAR)].map((m) => m[1])
+/** 가리키던 이징의 이름이 바뀌면 새 이름을 가리키게 한다. */
+export const followEaseRefs = (value: string, renames: Record<string, string>) => value.replace(EASE_VAR, (all, name: string) => (renames[name] ? `var(${renames[name]})` : all))
+/** 예시를 그릴 때 쓰는 값. 가리키는 이징을 그 시스템의 실제 곡선으로 바꿔 적는다(그대로 그리면 FF 자신의 값을 읽는다). 없어진 이징은 일정한 빠르기로 그린다. */
+export const paintEase = (value: string, curveOf: (name: string) => string | null) => value.replace(EASE_VAR, (_, name: string) => curveOf(name) ?? 'linear')
 
 /** 애니메이션 값 하나. 움직임(준비된 것의 이름. 세기가 기본과 다르면 뒤에 숫자가 붙는다: rise-16), 한 번 도는 시간, 이징, 되풀이(횟수나 계속). */
 export type Animation = { name: string; ms: number; ease: string; count: number | 'infinite' }
@@ -153,3 +167,18 @@ export function parseAnimation(value: string): Animation | null {
 }
 
 export const writeAnimation = (a: Animation) => `${a.name} ${a.ms}ms ${a.ease} ${a.count}`
+
+/**
+ * 추가 창에서 예시를 고르면 이름 칸에 채워지는 이름(DESIGN.md dialog-defaults). 그 예시가 보여 주는 쓰임의 영문 이름이다.
+ * ff-ds가 실제로 쓰는 이름을 따랐고(사이는 actions, 줄은 rows), 쓰는 이름이 없는 예시만 새로 지었다. 그 이름이 이미 있으면 창은 이름 칸을 비워 둔다.
+ */
+export const MOTION_NAMES: Partial<Record<MotionShape, string>> = {
+  move: 'glide',
+  fade: 'fade',
+  dialog: 'dialog',
+  toast: 'toast',
+  fold: 'fold',
+  scale: 'scale',
+  stagger: 'stagger',
+  hint: 'tooltip',
+}

@@ -7,15 +7,18 @@ import { ICON_STROKE } from './lib/icons'
 import { useContext, useState, type FormEvent, type ReactNode } from 'react'
 import { ArrowUpRight } from 'lucide-react'
 import type { Token } from './lib/api'
-import { KINDS, SLUG, slugMessage, lengthLabel, shortName, NAME_SHAPE, typedNameProblem, type Kind } from './lib/catalog'
-import { BORDER_WORDS, isBorderListShape, readBorderNote, resolveThickness, thicknessRefOf, writeBorderNote, type BorderKind, type BorderShape } from './lib/borders'
+import { KINDS, SLUG, slugMessage, lengthLabel, shortName, type Kind } from './lib/catalog'
+import { BORDER_NAMES, BORDER_SHAPES, BORDER_WORDS, isBorderListShape, readBorderNote, resolveThickness, thicknessRefOf, writeBorderNote, type BorderKind, type BorderShape } from './lib/borders'
 import { sampleColors, type SampleColors } from './lib/sample'
 import { NavRows, PanelSection } from './SampleParts'
 import { PreviewFontContext, PreviewSpaceContext } from './ColorUses'
-import { CODE_OPEN, CodeRows, FoldSection, ICON_BUTTON, Section, WHERE_OPEN } from './Inspector'
+import { CODE_OPEN, CodeRows, FoldSection, Section, WHERE_OPEN, ICON_BUTTON } from './Inspector'
 import { DetailsFolded, HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
 import { Button, Field, Phrases, UsePicker, inputClass , linkRowClass } from './ui'
+import { freeName, nearestRef } from './lib/nearest'
+import { nameRules, useField } from './useField'
 import { useReorder } from './useReorder'
+import { WithExample } from './WithExample'
 
 const THICKNESS = KINDS.thickness
 
@@ -74,6 +77,28 @@ export function BorderSample({ shape, value, colors: c, words: written = '' }: {
           {list.map((item, i) => (
             <span key={i} {...(i > 0 ? { 'data-sample': true } : {})} className="block" style={i > 0 ? { borderTop: edge } : undefined}>
               <PanelSection item={item} colors={c} />
+            </span>
+          ))}
+        </span>,
+      )
+    case 'table':
+      // 표의 줄들. 첫 줄은 머리 줄이고, 줄과 줄 사이에만 선이 있다. 문구는 줄마다 적는 말이다.
+      return frame(
+        <span className={`block ${SAMPLE_W}`}>
+          {list.map((text, i) => (
+            <span key={i} {...(i > 0 ? { 'data-sample': true } : {})} className={`flex h-row items-center px-row-x whitespace-nowrap ${i === 0 ? STRONG : TEXT}`} style={i > 0 ? { borderTop: edge } : undefined}>
+              {text}
+            </span>
+          ))}
+        </span>,
+      )
+    case 'tab':
+      // 탭 줄. 고른 탭(첫째) 아래에만 선이 있고, 선은 글자 색이다. 고르지 않은 탭은 글자가 옅다.
+      return frame(
+        <span className="flex items-center gap-columns">
+          {list.map((text, i) => (
+            <span key={i} {...(i === 0 ? { 'data-sample': true } : {})} className={`flex h-control items-center whitespace-nowrap ${i === 0 ? STRONG : TEXT}`} style={i === 0 ? { borderBottom: `${value} solid ${c.ink}` } : { color: c.soft }}>
+              {text}
             </span>
           ))}
         </span>,
@@ -264,29 +289,12 @@ export function BorderInspector({
   const id = kind.id as BorderKind
   const short = shortName(kind, token.name)
   const { text, picked, words, more } = readBorderNote(id, token.note)
-  const [nameDraft, setNameDraft] = useState(short)
-  const [nameError, setNameError] = useState<string | null>(null)
+  // 이름 칸. 쓸 수 없는 글자는 적는 중에 알리고 벗어나면 되돌린다. 모양이 틀린 이름과 이 판의 규칙은 벗어날 때 알리고 칸에 남긴다(useField).
+  const nameField = useField(nameRules({ saved: short, done: (next) => nameProblem(kind, next, tokens, token.name), save: (next) => onRename(kind.prefix + next) }))
   const [textDraft, setTextDraft] = useState(text)
   const options = baseOptions(tokens)
   const { ref, length } = shownOf(tokens, token.value)
   const known = ref !== null && options.some((o) => o.id === ref)
-
-  function commitName() {
-    const next = nameDraft.trim()
-    // 비웠거나 쓸 수 없는 글자가 든 이름은 적는 중에 알 수 있는 것이다. 그대로 벗어나면 저장된 이름으로 되돌린다(DESIGN.md field-rules).
-    if (!next || typedNameProblem(next)) {
-      setNameError(null)
-      return setNameDraft(short)
-    }
-    // 글자는 맞지만 모양이 틀린 이름(card-, card--big)은 다 적어야 아는 것이다. 말없이 되돌리지 않고 까닭과 함께 칸에 남긴다.
-    if (next !== short && !SLUG.test(next)) return setNameError(NAME_SHAPE)
-    // 고치지 않은 이름은 검사하지 않는다(예전부터 있던 이름에 오류를 붙이지 않는다).
-    if (next === short) return setNameError(null)
-    const problem = nameProblem(kind, next, tokens, token.name)
-    setNameError(problem)
-    if (problem) return
-    onRename(kind.prefix + next)
-  }
 
   function commitText() {
     // 같은 주석에 적혀 있는 예시(모양과 문구)는 그대로 둔다.
@@ -302,22 +310,19 @@ export function BorderInspector({
       <Section title="이름">
         <input
           className={inputClass}
-          value={nameDraft}
+          value={nameField.draft}
           aria-label="이름"
           data-rename="token"
-          onChange={(e) => {
-            setNameDraft(e.target.value)
-            setNameError(typedNameProblem(e.target.value))
-          }}
-          onBlur={commitName}
+          onChange={(e) => nameField.type(e.target.value)}
+          onBlur={nameField.leave}
           onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
         />
-        {nameError && <span className="mt-label block type-body text-danger">{nameError}</span>}
+        {nameField.error && <span className="mt-label block type-body text-danger">{nameField.error}</span>}
       </Section>
 
       <Section title="가리키는 테두리">
         {known ? (
-          // 고르는 칸 옆에, 가리키는 굵기가 테두리 판의 어디에 있는지 보러 가는 버튼. "쓰이는 곳"의 반대 방향이다.
+          // 고르는 칸 옆에, 가리키는 값이 그 판의 어디에 있는지 보러 가는 버튼. "쓰이는 곳"의 반대 방향이다.
           <div className="flex items-center gap-actions-tight">
             <div className="min-w-0 flex-1">
               <UsePicker label="가리키는 테두리" options={options} value={ref} nameWidth="w-picker-name-wide" onChange={(next) => onChange({ value: `var(${next})` })} />
@@ -374,6 +379,7 @@ export function BorderInspector({
  * 의미 테두리(테두리 선, 외곽선)를 만드는 양식. 종류, 이름, 가리키는 테두리, 설명을 정한다. 추가는 판 위에 하나이고 종류는 여기서 고른다(의미 크기의 추가와 같다).
  * 두 종류는 묻는 것이 같아서 추가를 나누지 않는다. 효과는 종류마다 묻는 것이 달라 추가가 종류마다 있다.
  * 가리키는 테두리는 고르지 않은 채로 시작한다. 첫 값을 골라 두면 이름만 적고 만들었을 때 엉뚱한 굵기를 가리키는 값이 생긴다.
+ * 예시의 모양을 고르고, 테두리를 고르면 판의 줄과 같은 예시를 창 오른쪽의 영역에 보여 준다(WithExample). 고른 모양은 주석에 적힌다(문구는 적지 않아 모양의 기본 문구로 그려진다).
  */
 /** 의미 테두리의 종류. 추가 창에서 고른다(이름은 진하게, 쓰는 클래스와 그 종류에 드는 것은 옅게). */
 const BORDER_KINDS: { id: BorderKind; label: string; hint: string }[] = [
@@ -387,9 +393,18 @@ export function NewBorderForm({ start, tokens, onCreate, onCancel }: { start?: K
   const kind = KINDS[kindId]
   const options = baseOptions(tokens)
   const [name, setName] = useState('')
-  const [ref, setRef] = useState<string | null>(null)
+  // 창을 열자마자 예시가 보이게, 가리키는 값은 흔히 쓰는 굵기(1px)에 가장 가까운 것을 골라 둔다(DESIGN.md dialog-defaults). 예시를 보며 바꾼다.
+  const [ref, setRef] = useState<string | null>(() => nearestRef(tokens, options.map((o) => o.id), 1))
   const [text, setText] = useState('')
   const [error, setError] = useState<{ name?: string; ref?: string }>({})
+  // 예시의 모양. 종류마다 고를 수 있는 모양이 다르다. 처음에는 그 종류의 첫 모양이고, 종류를 바꿔 고른 모양이 맞지 않게 되면 새 종류의 첫 모양으로 돌아간다.
+  const shapes = BORDER_SHAPES.filter((s) => s.kind === kindId)
+  const [picked, setPicked] = useState<BorderShape | null>(null)
+  const shape = shapes.find((s) => s.id === picked)?.id ?? shapes[0].id
+  // 이름 칸은 비워 두고, 고른 예시에 맞는 이름을 옅은 글자로 추천한다(DESIGN.md dialog-defaults). 추천은 값이 아니다. 비운 채 추가하면 "이름을 입력해 주세요."다.
+  const suggestedName = freeName(tokens, kind.prefix, BORDER_NAMES[shape])
+  // 고른 테두리의 굵기. 판의 줄(BorderList)과 같이 길이로 그린다.
+  const length = ref ? resolveThickness(tokens, `var(${ref})`) : null
 
   function submit(e: FormEvent) {
     e.preventDefault()
@@ -399,7 +414,7 @@ export function NewBorderForm({ start, tokens, onCreate, onCancel }: { start?: K
     if (problem) next.name = problem
     if (!ref) next.ref = '테두리를 골라 주세요.'
     setError(next)
-    if (Object.keys(next).length === 0 && ref) onCreate(kind, kind.prefix + n, `var(${ref})`, writeBorderNote(kindId, text))
+    if (Object.keys(next).length === 0 && ref) onCreate(kind, kind.prefix + n, `var(${ref})`, writeBorderNote(kindId, text, shape))
   }
 
   // 가리킬 굵기가 하나도 없으면 만들 수 없다. 막다른 곳이라 무엇을 먼저 할지 알려 준다.
@@ -414,7 +429,8 @@ export function NewBorderForm({ start, tokens, onCreate, onCancel }: { start?: K
     )
 
   return (
-    <form onSubmit={submit} className="space-y-fields">
+    <form onSubmit={submit}>
+      <WithExample example={length !== null ? <BorderSample shape={shape} value={length} colors={sampleColors(tokens)} /> : null}>
       <Field label="종류" plain>
         <UsePicker
           label="종류"
@@ -433,7 +449,8 @@ export function NewBorderForm({ start, tokens, onCreate, onCancel }: { start?: K
           autoFocus
           className={inputClass}
           value={name}
-          placeholder={kind.id === 'outline' ? 'focus' : 'edge'}
+          // 옅은 글자는 그대로 적으면 만들어지는 이름일 때만 보인다. 이미 있는 이름을 본보기로 보이면, 따라 적었을 때 되는 창과 안 되는 창이 생긴다.
+          placeholder={suggestedName}
           onChange={(e) => {
             setName(e.target.value)
             setError({ ...error, name: undefined })
@@ -452,9 +469,13 @@ export function NewBorderForm({ start, tokens, onCreate, onCancel }: { start?: K
           }}
         />
       </Field>
+      <Field label="예시" plain>
+        <UsePicker label="예시" options={shapes} value={shape} nameWidth="w-picker-name-long" onChange={setPicked} />
+      </Field>
       <Field label="설명">
         <input className={inputClass} value={text} onChange={(e) => setText(e.target.value)} />
       </Field>
+      </WithExample>
       <div className="mt-dialog-actions flex justify-end gap-actions">
         <Button variant="ghost" onClick={onCancel}>
           취소

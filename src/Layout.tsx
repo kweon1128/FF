@@ -5,7 +5,7 @@ import { Image as ImageIcon, Play } from 'lucide-react'
 import { KINDS } from './lib/catalog'
 import { ICON_STROKE } from './lib/icons'
 import type { KindExample } from './lib/kindnote'
-import { LAYOUT_TITLES, LAYOUT_WORDS, layoutShapes, parseRatio, pxOf, type LayoutKind, type LayoutShape } from './lib/screens'
+import { LAYOUT_NAMES, LAYOUT_TITLES, LAYOUT_WORDS, layoutShapes, parseRatio, pxOf, type LayoutKind, type LayoutShape } from './lib/screens'
 import { SAMPLE_W } from './lib/sample'
 import { PreviewFontContext, PreviewSpaceContext } from './ColorUses'
 import { NavRows } from './SampleParts'
@@ -144,6 +144,7 @@ export const LAYOUT_SPECS: Record<LayoutKind, ValueSpec<LayoutShape>> = {
   breakpoint: {
     title: LAYOUT_TITLES.breakpoint,
     shapes: layoutShapes('breakpoint'),
+    shapeNames: LAYOUT_NAMES,
     shown: (value) => value,
     sample: widthSample,
     // 이름이 곧 코드에 적는 앞머리다(md:flex). 그 폭 아래는 max-이름:이다.
@@ -154,6 +155,7 @@ export const LAYOUT_SPECS: Record<LayoutKind, ValueSpec<LayoutShape>> = {
   container: {
     title: LAYOUT_TITLES.container,
     shapes: layoutShapes('container'),
+    shapeNames: LAYOUT_NAMES,
     shown: (value) => value,
     sample: widthSample,
     // 최대 폭으로도, 컨테이너의 폭을 보고 바꾸는 앞머리로도 쓴다(@container 안에서 @md:flex).
@@ -166,6 +168,7 @@ export const LAYOUT_SPECS: Record<LayoutKind, ValueSpec<LayoutShape>> = {
   aspect: {
     title: LAYOUT_TITLES.aspect,
     shapes: layoutShapes('aspect'),
+    shapeNames: LAYOUT_NAMES,
     // "16 / 9"를 16:9로 적는다. 사람이 읽는 것은 그 꼴이다.
     shown: (value) => parseRatio(value)?.join(':') ?? value,
     sample: (e, value, context) => <RatioSample shape={e.shape} value={value} context={context} words={e.words} />,

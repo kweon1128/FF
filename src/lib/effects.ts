@@ -14,15 +14,17 @@ export const isEffectKind = (id: string): id is EffectKind => id === 'shadow' ||
  * 예시의 모양. 그 효과를 어떤 자리에 놓아 보여 줄지다. 종류마다 고를 수 있는 모양이 다르다.
  * 적어 두지 않은 값은 이름에서 짐작하고(float는 메뉴, dialog는 창, disabled는 비활성), 짐작할 수 없으면 종류의 마지막 모양을 쓴다.
  */
-export type EffectShape = 'menu' | 'dialog' | 'toast' | 'card' | 'well' | 'disabled' | 'drag' | 'scrim' | 'layer' | 'glass' | 'bar' | 'fill' | 'button'
+export type EffectShape = 'menu' | 'dialog' | 'toast' | 'card' | 'sticky' | 'well' | 'disabled' | 'hover' | 'drag' | 'scrim' | 'layer' | 'glass' | 'bar' | 'fill' | 'button'
 
 export const EFFECT_SHAPES: { id: EffectShape; kind: EffectKind; label: string; hint: string }[] = [
   { id: 'menu', kind: 'shadow', label: '메뉴', hint: '떠 있는 목록' },
   { id: 'dialog', kind: 'shadow', label: '창', hint: '화면 위에 뜨는 창' },
   { id: 'toast', kind: 'shadow', label: '알림', hint: '잠깐 뜨는 알림' },
   { id: 'card', kind: 'shadow', label: '카드', hint: '살짝 떠 있는 면' },
+  { id: 'sticky', kind: 'shadow', label: '붙는 머리', hint: '스크롤된 내용 위에 붙어 있는 머리' },
   { id: 'well', kind: 'shadow', label: '입력칸', hint: '안으로 들어가 보이는 칸' },
   { id: 'disabled', kind: 'opacity', label: '비활성', hint: '누를 수 없는 버튼' },
+  { id: 'hover', kind: 'opacity', label: '올림', hint: '마우스를 올린 버튼' },
   { id: 'drag', kind: 'opacity', label: '끌기', hint: '끌어 옮기는 중인 줄' },
   { id: 'scrim', kind: 'opacity', label: '배경 가림', hint: '창 뒤의 화면을 가리는 막' },
   { id: 'layer', kind: 'opacity', label: '겹침', hint: '뒤가 비치는 면' },
@@ -38,8 +40,10 @@ export const EFFECT_WORDS: Record<EffectShape, string> = {
   dialog: '삭제할까요?, -, 취소, 삭제',
   toast: '저장했어요',
   card: '카드 제목',
+  sticky: '주문 내역, 첫째, 둘째, 셋째',
   well: '이름',
   disabled: '저장',
+  hover: '저장',
   drag: '첫째, 둘째, 셋째',
   scrim: '',
   layer: '',
@@ -59,6 +63,9 @@ export const EFFECT_PRESETS: Record<EffectShape, { name: string; value: string; 
   dialog: { name: 'dialog', value: '0 2px 4px rgb(0 0 0 / 0.04), 0 8px 32px rgb(0 0 0 / 0.1)', text: '화면 위에 뜨는 창' },
   toast: { name: 'toast', value: '0 2px 4px rgb(0 0 0 / 0.04), 0 8px 24px rgb(0 0 0 / 0.08)', text: '잠깐 떴다 사라지는 알림' },
   card: { name: 'card', value: '0 1px 2px rgb(0 0 0 / 0.04), 0 2px 8px rgb(0 0 0 / 0.04)', text: '살짝 떠 있는 면' },
+  // 붙는 머리는 아래로만 짧게 진다. 내용이 그 밑으로 지나가는 것만 보이면 된다.
+  sticky: { name: 'sticky', value: '0 1px 2px rgb(0 0 0 / 0.04), 0 4px 12px rgb(0 0 0 / 0.06)', text: '스크롤된 내용 위에 붙어 있는 머리' },
+  hover: { name: 'hover', value: '0.8', text: '마우스를 올린 버튼과 그림' },
   // 안쪽 그림자는 한 겹이다. 위쪽 가장자리 안에 짧게 져서 칸이 안으로 들어가 보인다.
   well: { name: 'well', value: 'inset 0 1px 2px rgb(0 0 0 / 0.08)', text: '안으로 들어가 보이는 입력칸' },
   disabled: { name: 'disabled', value: '0.4', text: '누를 수 없는 버튼과 입력칸' },
@@ -81,11 +88,13 @@ export function guessEffectShape(kind: EffectKind, short: string): EffectShape {
     if (has('float', 'menu', 'dropdown', 'popover', 'pop', 'overlay')) return 'menu'
     if (has('dialog', 'modal', 'sheet', 'window')) return 'dialog'
     if (has('toast', 'snackbar', 'notice')) return 'toast'
+    if (has('sticky', 'header', 'topbar', 'navbar')) return 'sticky'
     return 'card'
   }
   if (kind === 'opacity') {
     if (has('disabled', 'muted', 'off', 'inactive')) return 'disabled'
     if (has('dragging', 'drag', 'moving')) return 'drag'
+    if (has('hover', 'hovered', 'over')) return 'hover'
     if (has('scrim', 'overlay', 'backdrop', 'dim')) return 'scrim'
     return 'layer'
   }

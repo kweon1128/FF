@@ -59,8 +59,23 @@ export const BOARD_DEFAULTS: Required<BoardStyle> = {
 /** 판의 자리와 모양. w는 너비를 바꾼 판에만 있다. */
 export type Pos = { x: number; y: number; w?: number } & BoardStyle
 
-/** 캔버스에 붙인 사진 하나. file은 디자인 시스템 폴더의 images/ 안에 있는 파일 이름. */
-export type CanvasImage = { file: string; x: number; y: number; w: number; h: number }
+/** 캔버스에 적은 글 하나의 가장 긴 길이. 서버(server/api.ts의 NOTE_LIMIT)도 같은 길이까지만 받는다. 넘는 글이 하나라도 있으면 캔버스 저장이 통째로 거절된다. */
+export const NOTE_LIMIT = 5000
+
+/** 캔버스에 적은 글의 크기. 작게(12px), 보통(14px), 크게(16px 굵게). FF의 의미 글꼴 caption, body, title이다. */
+export type NoteSize = 'sm' | 'md' | 'lg'
+export const NOTE_SIZES: { id: NoteSize; label: string; type: string; font: number; line: number }[] = [
+  { id: 'sm', label: '작게', type: 'type-caption', font: 12, line: 16 },
+  { id: 'md', label: '보통', type: 'type-body', font: 14, line: 20 },
+  { id: 'lg', label: '크게', type: 'type-title', font: 16, line: 24 },
+]
+
+/**
+ * 캔버스에 놓은 것 하나. 붙인 사진이거나 적은 글이다.
+ * 사진이면 file이 있다(디자인 시스템 폴더의 images/ 안에 있는 파일 이름).
+ * 글이면 text가 있다. size는 글의 크기이고 적지 않으면 보통이다. 글의 w와 h는 마지막으로 적었을 때 잰 크기로, 붙기와 정렬의 계산에 쓴다.
+ */
+export type CanvasImage = { file?: string; text?: string; size?: NoteSize; x: number; y: number; w: number; h: number }
 
 export const getCanvas = (system: string) =>
   request<{ boards: Record<string, Pos>; images: Record<string, CanvasImage>; groups: string[]; rev: string }>(

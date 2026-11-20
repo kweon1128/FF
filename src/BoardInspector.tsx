@@ -12,12 +12,12 @@ import {
   LockOpen,
   type LucideIcon,
 } from 'lucide-react'
-import { BOARD_DEFAULTS, type BoardStyle, type Pos } from './lib/api'
+import { BOARD_DEFAULTS, NOTE_SIZES, type BoardStyle, type NoteSize, type Pos } from './lib/api'
 import { asHex } from './lib/color'
 import { arrange, gapOf, setGap, type Arrange, type Placed } from './lib/arrange'
 import { ColorSwatch } from './ColorPicker'
 import { Section } from './Inspector'
-import { monoInputClass } from './ui'
+import { Segmented, monoInputClass } from './ui'
 
 export const MIN_BOARD_WIDTH = 240
 export const MAX_BOARD_WIDTH = 1600
@@ -34,6 +34,8 @@ const ALIGN: { action: Arrange; label: string; icon: LucideIcon }[] = [
 ]
 
 /** 선택한 판들의 값이 모두 같으면 그 값, 아니면 null. */
+/** 판의 숫자 칸이 받는 꼴. 정수나 소수다. */
+const WHOLE = /^-?\d+(\.\d+)?$/
 const shared = <T,>(values: T[]) => (values.every((v) => v === values[0]) ? values[0] : null)
 
 const HEX6 = /^#[0-9a-f]{6}$/i
@@ -65,8 +67,9 @@ export function NumberField({
   const fixed = readOnly || value === null || !onCommit
 
   function commit() {
-    const next = Number(draft)
-    if (draft.trim() === '' || !Number.isFinite(next) || draft === shown) return setDraft(shown)
+    // 숫자 꼴만 받는다. 적다 만 꼴(5.)이나 1e3, 0x10 같은 것은 값이 아니다. 값이 같으면(016과 16) 저장하지 않는다(DESIGN.md field-rules).
+    const next = Number(draft.trim())
+    if (!WHOLE.test(draft.trim()) || next === Number(shown)) return setDraft(shown)
     onCommit?.(next)
   }
 
@@ -74,7 +77,7 @@ export function NumberField({
     // 이름표와 숫자를 한 칸 안에 나란히 둔다. 이름표가 길어도 숫자와 겹치지 않는다.
     <label
       title={label}
-      className={`flex h-control min-w-0 items-center gap-row-inner rounded-control border-edge border-hairline px-input-x focus-within:border-selection ${draft.trim() !== '' && draft.trim() !== '-' && !Number.isFinite(Number(draft)) ? 'border-danger! focus-within:border-danger!' : ''} ${
+      className={`flex h-control min-w-0 items-center gap-row-inner rounded-control border-edge border-hairline px-input-x focus-within:border-selection ${draft.trim() !== '' && !/^-?\d*\.?\d*$/.test(draft.trim()) ? 'border-danger! focus-within:border-danger!' : ''} ${
         readOnly ? 'bg-hover' : 'bg-canvas'
       }`}
     >
@@ -153,9 +156,12 @@ export function ColorField({ label, value, placeholder = MIXED, onCommit }: { la
 /** 캔버스에 붙인 사진을 선택했을 때의 편집 패널. 너비를 고치면 높이는 비율대로 따라온다. */
 export function ImageInspector({
   picked,
+  mixed = false,
   onMove,
 }: {
   picked: Placed[]
+  /** 사진과 글을 함께 선택했는지. 그때는 제목에 "사진"이라고 세지 않는다(너비는 사진에만 먹는다). */
+  mixed?: boolean
   onMove: (moves: Record<string, Partial<Pos>>) => void
 }) {
   const many = picked.length > 1
@@ -163,7 +169,7 @@ export function ImageInspector({
   return (
     <div>
       <Section>
-        <h2 className="type-heading">{many ? `사진 ${picked.length}개 선택됨` : '사진'}</h2>
+        <h2 className="type-heading">{mixed ? `${picked.length}개 선택됨` : many ? `사진 ${picked.length}개 선택됨` : '사진'}</h2>
       </Section>
       <Section title="위치">
         <div className="grid grid-cols-2 gap-field-row">
@@ -181,6 +187,40 @@ export function ImageInspector({
           />
           <NumberField tag="H" label="높이 (너비에 맞춰 정해져요)" value={shared(picked.map((b) => b.h))} readOnly />
         </div>
+      </Section>
+    </div>
+  )
+}
+
+/** 캔버스에 적은 글을 선택했을 때의 편집 패널. 자리와 글의 크기만 있다. 글의 내용은 캔버스에서 더블클릭해 고친다. */
+export function NoteInspector({
+  picked,
+  size,
+  onMove,
+  onSize,
+}: {
+  picked: Placed[]
+  /** 선택한 글들의 크기. 서로 다르면 null. */
+  size: NoteSize | null
+  onMove: (moves: Record<string, Partial<Pos>>) => void
+  onSize: (size: NoteSize) => void
+}) {
+  const many = picked.length > 1
+  const all = (patch: Partial<Pos>) => onMove(Object.fromEntries(picked.map((b) => [b.id, patch])))
+  return (
+    <div>
+      <Section>
+        <h2 className="type-heading">{many ? `글 ${picked.length}개 선택됨` : '글'}</h2>
+      </Section>
+      <Section title="위치">
+        <div className="grid grid-cols-2 gap-field-row">
+          <NumberField tag="X" label="가로 위치" value={shared(picked.map((b) => b.x))} onCommit={(x) => all({ x })} />
+          <NumberField tag="Y" label="세로 위치" value={shared(picked.map((b) => b.y))} onCommit={(y) => all({ y })} />
+        </div>
+      </Section>
+      <Section title="글자 크기">
+        {/* 크기가 서로 다른 글을 함께 골랐으면 고른 칸이 없다. 하나를 누르면 모두 그 크기가 된다. */}
+        <Segmented label="글자 크기" options={NOTE_SIZES} value={(size ?? '') as NoteSize} onChange={onSize} />
       </Section>
     </div>
   )

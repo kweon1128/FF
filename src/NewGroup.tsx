@@ -37,14 +37,20 @@ export function NewGroupForm({
   // 목록을 만드는 가장 흔한 이유가 단계 한 벌을 만드는 것이라, 함께 만들기가 기본이다.
   const [scale, setScale] = useState(true)
 
-  // #을 빼고 적어도 받는다. 투명한 색(여덟 자리)은 단계의 기준이 될 수 없어 받지 않는다.
-  const typedColor = HEX6.test(asHex(color) ?? '') ? asHex(color) : null
-  // 색을 골랐으면 그 밝기에 맞는 단계를, 아니면 가운데 단계를 추천한다.
-  const suggestedStep = String(typedColor ? nearestStep(typedColor) : DEFAULT_STEP)
+  // 단계와 색을 직접 정했는지. 정하기 전까지는 칸에 추천 값이 채워져 있고, 다른 칸을 정하면 따라 바뀐다(DESIGN.md dialog-defaults).
+  const [stepTouched, setStepTouched] = useState(false)
+  const [colorTouched, setColorTouched] = useState(false)
+  // 직접 정한 색. #을 빼고 적어도 받는다. 투명한 색(여덟 자리)은 단계의 기준이 될 수 없어 받지 않는다.
+  const ownColor = colorTouched && HEX6.test(asHex(color) ?? '') ? asHex(color)! : null
+  // 색을 정했으면 그 밝기에 맞는 단계를, 아니면 가운데 단계를 추천한다.
+  const suggestedStep = String(ownColor ? nearestStep(ownColor) : DEFAULT_STEP)
+  const shownStep = stepTouched ? step : suggestedStep
   // 단계를 적었으면 그 단계 밝기의 회색을 추천한다. 50~950이 아닌 단계면 가운데 밝기의 회색.
-  const suggestedColor = grayOf(Number(step.trim() || suggestedStep)) ?? grayOf(DEFAULT_STEP)!
+  const suggestedColor = grayOf(Number(shownStep.trim() || suggestedStep)) ?? grayOf(DEFAULT_STEP)!
+  const shownColor = colorTouched ? color : suggestedColor
+  const typedColor = HEX6.test(asHex(shownColor) ?? '') ? asHex(shownColor) : null
   // 단계가 50~950 중 하나일 때만 나머지 단계를 함께 만들 수 있다.
-  const canScale = SCALE_STEPS.includes(Number(step.trim() || suggestedStep))
+  const canScale = SCALE_STEPS.includes(Number(shownStep.trim() || suggestedStep))
 
   function submit(e: FormEvent) {
     e.preventDefault()
@@ -55,11 +61,13 @@ export function NewGroupForm({
       else if (!SLUG.test(n)) next.name = slugMessage(n)
       else if (existing.has(n)) next.name = why?.(n) ?? '같은 이름이 이미 있어요.'
     }
-    if (step.trim() && !STEP.test(step.trim())) next.step = '영문 소문자와 숫자만 쓸 수 있어요.'
-    if (color.trim() && !typedColor) next.color = '#rrggbb처럼 여섯 자리로 적어 주세요.'
+    // 채워 둔 값을 지우고 비워 두면 추천 값으로 만들지 않는다. 비어 보이는 칸이 값이 되지 않게 한다.
+    if (!shownStep.trim()) next.step = '단계를 입력해 주세요.'
+    else if (!STEP.test(shownStep.trim())) next.step = '영문 소문자와 숫자만 쓸 수 있어요.'
+    if (!shownColor.trim()) next.color = '색을 입력해 주세요.'
+    else if (!typedColor) next.color = '#rrggbb처럼 여섯 자리로 적어 주세요.'
     setError(next)
-    // 비워 둔 칸은 추천 값으로 만든다.
-    if (Object.keys(next).length === 0) onCreate(n, step.trim() || suggestedStep, typedColor ?? suggestedColor, scale && canScale)
+    if (Object.keys(next).length === 0 && typedColor) onCreate(n, shownStep.trim(), typedColor, scale && canScale)
   }
 
   return (
@@ -70,7 +78,8 @@ export function NewGroupForm({
             autoFocus
             className={inputClass}
             value={name}
-            placeholder="primary"
+            // 옅은 글자는 그대로 적으면 만들어지는 이름일 때만 보인다. 이미 있는 이름을 본보기로 보이면, 따라 적었을 때 되는 창과 안 되는 창이 생긴다.
+            placeholder={existing.has('primary') ? '' : 'primary'}
             onChange={(e) => {
               setName(e.target.value)
               setError({ ...error, name: undefined })
@@ -83,10 +92,11 @@ export function NewGroupForm({
           <input
             autoFocus={group !== undefined}
             className={inputClass}
-            value={step}
+            value={shownStep}
             placeholder={suggestedStep}
             onChange={(e) => {
               setStep(e.target.value)
+              setStepTouched(true)
               setError({ ...error, step: undefined })
             }}
           />
@@ -99,16 +109,18 @@ export function NewGroupForm({
               value={typedColor ?? suggestedColor}
               onChange={(hex) => {
                 setColor(hex)
+                setColorTouched(true)
                 setError({ ...error, color: undefined })
               }}
             />
             <input
               aria-label="색 값"
               className={monoInputClass}
-              value={color}
+              value={shownColor}
               placeholder={suggestedColor}
               onChange={(e) => {
                 setColor(e.target.value)
+                setColorTouched(true)
                 setError({ ...error, color: undefined })
               }}
             />

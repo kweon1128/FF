@@ -5,14 +5,18 @@
 // 묶음과 설명, 예시는 값 뒤의 주석에 적는다(의미 모서리와 같은 방식).
 //   --z-index-dialog: 50; /* 화면 위(창): 화면을 가리는 막과 그 위의 창 | 의미 색 추가, 이름, 취소, 추가 */
 
+import { groupFromNote, headOf } from './kindnote'
+
 /** 묶음. 무엇의 위에 놓이는가다. 판은 이 차례로 묶어 보여 준다. */
-export type LayerGroup = 'app' | 'item'
+export type LayerGroup = 'app' | 'item' | 'other'
 
 export const LAYER_GROUPS: { id: LayerGroup; label: string; hint: string }[] = [
   // 화면 전체를 놓고 서로 견주는 것들. 창이 떠 있어도 그 위에 떠야 하는 것이 있어서 숫자가 크고 사이가 벌어져 있다.
   { id: 'app', label: '화면 위', hint: '창, 알림, 메뉴, 고르는 목록' },
   // 요소 하나나 캔버스 안에서만 견주는 작은 차례. 고른 것의 표시가 그 요소와 이웃보다 위에 오게 한다.
   { id: 'item', label: '요소 위', hint: '선택 표시, 안내선, 도구' },
+  // 목록에 없는 쓰임. 주석에 목록에 없는 묶음이 적힌 값도 여기에 놓인다(kindnote.ts의 groupFromNote).
+  { id: 'other', label: '그 밖', hint: '목록에 없는 쓰임' },
 ]
 
 /** 묶음을 적지 않은 값의 묶음. 이름에서 짐작하고, 짐작할 수 없으면 화면 위다. */
@@ -28,11 +32,15 @@ export const layerNumber = (value: string) => (/^-?\d+$/.test(value.trim()) ? Nu
  * 예시의 모양. 그것이 무엇 위에 놓이는지를 FF 화면의 실제 요소로 보여 준다(창과 그 뒤의 화면, 창 위의 목록, 고른 줄과 그 이름표).
  * 모양을 적지 않은 값은 예시를 그리지 않는다(의미 간격, 의미 크기, 의미 모서리, 의미 테두리와 같은 규칙이다).
  */
-export type LayerShape = 'dialog' | 'toast' | 'popover' | 'listbox' | 'listbackdrop' | 'menu' | 'backdrop' | 'handles' | 'dropline' | 'label' | 'marquee' | 'guide' | 'tools'
+export type LayerShape = 'dialog' | 'toast' | 'sticky' | 'tooltip' | 'drawer' | 'popover' | 'listbox' | 'listbackdrop' | 'menu' | 'backdrop' | 'handles' | 'dropline' | 'label' | 'marquee' | 'guide' | 'tools'
 
 export const LAYER_SHAPES: { id: LayerShape; label: string; hint: string }[] = [
   { id: 'dialog', label: '창', hint: '화면을 가리는 막과 그 위의 창' },
   { id: 'toast', label: '알림', hint: '화면 아래에 잠깐 뜨는 알림' },
+  // 여느 서비스의 화면에 흔한 것들. 아래의 색 고르는 창부터는 FF 같은 편집 도구의 요소다.
+  { id: 'sticky', label: '붙는 머리', hint: '스크롤해도 화면 위에 붙어 있는 머리' },
+  { id: 'tooltip', label: '도움말', hint: '마우스를 올리면 뜨는 도움말' },
+  { id: 'drawer', label: '서랍', hint: '옆에서 나와 화면을 덮는 면' },
   { id: 'popover', label: '색 고르는 창', hint: '창 위에 뜨는 색 고르는 창' },
   { id: 'listbox', label: '목록', hint: '고르는 칸에서 펼쳐지는 목록' },
   { id: 'listbackdrop', label: '목록 바깥 면', hint: '목록이 열린 동안 화면을 덮는 면' },
@@ -46,10 +54,19 @@ export const LAYER_SHAPES: { id: LayerShape; label: string; hint: string }[] = [
   { id: 'tools', label: '확대 도구', hint: '캔버스 오른쪽 아래의 도구' },
 ]
 
+/**
+ * 추가 창에서 묶음마다 처음 골라 두는 예시의 모양. 그 묶음에서 가장 흔한 쓰임이다. 직접 고르기 전까지만 묶음을 따라 바뀐다.
+ * 화면 위는 화면을 가리는 막과 창, 요소 위는 선택한 것 아래의 이름표다.
+ */
+export const LAYER_SHAPE_FOR: Record<LayerGroup, LayerShape> = { app: 'dialog', item: 'label', other: 'dialog' }
+
 /** 모양마다의 기본 예시 문구. 모든 모양이 ", "로 나눠 적는다(창은 제목·이름표·버튼들, 색 선택 창은 창의 제목·이름표·색 값·버튼들, 목록과 목록 바깥 면은 창의 제목·칸의 이름표·줄들, 메뉴와 바깥 면은 버튼의 말과 줄들). */
 export const LAYER_WORDS: Record<LayerShape, string> = {
   dialog: '삭제할까요?, 이름, 취소, 삭제',
   toast: '저장했어요',
+  sticky: '주문 내역',
+  tooltip: '복사, 코드',
+  drawer: '필터, 첫째, 둘째, 셋째',
   popover: '색 추가, 색, #3b82f6, 취소, 추가',
   listbox: '고르기, 종류, 첫째, 둘째, 셋째',
   listbackdrop: '고르기, 종류, 첫째, 둘째, 셋째',
@@ -86,10 +103,11 @@ export function readLayerNote(
   short: string,
 ): { group: LayerGroup; text: string; picked?: LayerShape; words: string; more: LayerExample[]; examples: LayerExample[] } {
   const all = (note ?? '').trim()
-  const m = new RegExp(`^(${GROUP_LABELS})(?:\\((${LABELS})\\))?\\s*:\\s*(.*)$`).exec(all)
-  const group = (m && LAYER_GROUPS.find((g) => g.label === m[1])?.id) || guessLayerGroup(short)
+  const m = new RegExp(`^(${GROUP_LABELS})(?:\\(([^)|]*)\\))?\\s*:\\s*(.*)$`).exec(all)
+  const group = m ? (LAYER_GROUPS.find((g) => g.label === m[1])?.id ?? guessLayerGroup(short)) : (groupFromNote(all, LAYER_GROUPS, 'other') ?? guessLayerGroup(short))
   const picked = m?.[2] ? own(m[2]) : undefined
-  const parts = m ? m[3].split(MARK).map((p) => p.trim()) : [all]
+  // 목록에 없는 묶음의 주석(이름(모양): …)도 " | "로 나눠 읽는다. 통째로 설명으로 읽으면 다시 적을 때 문구의 구분이 사라진다.
+  const parts = m ? m[3].split(MARK).map((p) => p.trim()) : headOf(all) !== null ? all.split(MARK).map((p) => p.trim()) : [all]
   const words = parts[1] ?? ''
   const head = new RegExp(`^(${LABELS})\\s*:\\s*(.*)$`)
   const more = parts.slice(2).flatMap((p): LayerExample[] => {
@@ -111,4 +129,27 @@ export function writeLayerNote(group: LayerGroup, text: string, shape?: LayerSha
   const body = [tidy(text), ...(tidy(words) || rest.length ? [tidy(words)] : []), ...rest].join(WORDS_MARK).trim()
   const head = shape ? `${groupLabel}(${label(shape)})` : groupLabel
   return body ? `${head}: ${body}` : `${head}:`
+}
+
+/**
+ * 추가 창에서 예시를 고르면 이름 칸에 채워지는 이름(DESIGN.md dialog-defaults). 그 예시가 보여 주는 쓰임의 영문 이름이다.
+ * ff-ds가 실제로 쓰는 이름을 따랐고(사이는 actions, 줄은 rows), 쓰는 이름이 없는 예시만 새로 지었다. 그 이름이 이미 있으면 창은 이름 칸을 비워 둔다.
+ */
+export const LAYER_NAMES: Record<LayerShape, string> = {
+  dialog: 'dialog',
+  toast: 'toast',
+  sticky: 'sticky',
+  tooltip: 'tooltip',
+  drawer: 'drawer',
+  popover: 'popover',
+  listbox: 'listbox',
+  listbackdrop: 'listbox-backdrop',
+  menu: 'menu',
+  backdrop: 'menu-backdrop',
+  handles: 'handle',
+  dropline: 'drop-line',
+  label: 'callout',
+  marquee: 'marquee',
+  guide: 'guide',
+  tools: 'tools',
 }

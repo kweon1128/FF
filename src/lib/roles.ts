@@ -7,7 +7,9 @@ import { COLOR_REF, groupOf } from './catalog'
 import { toHex, toOklch } from './color'
 
 /** 색이 맡는 역할. 판에 그리는 예시가 이것에 따라 달라진다. */
-export type RoleUse = 'text' | 'surface' | 'border' | 'fill' | 'status' | 'chart'
+import { groupFromNote, headOf } from './kindnote'
+
+export type RoleUse = 'text' | 'surface' | 'border' | 'fill' | 'status' | 'chart' | 'other'
 
 /**
  * 역할의 묶음들. 앞의 넷은 색이 어디에 칠해지는지로 나눈 것이고, 뒤의 둘은 그것으로 나눌 수 없는 색이다.
@@ -24,6 +26,8 @@ export const ROLE_USES: { id: RoleUse; label: string; hint: string }[] = [
   { id: 'fill', label: '채움', hint: '버튼, 뱃지, 칩, 전환 버튼, 선택' },
   { id: 'status', label: '상태', hint: '성공, 경고, 위험, 정보' },
   { id: 'chart', label: '차트', hint: '그래프의 계열' },
+  // 목록에 없는 쓰임. 주석에 목록에 없는 묶음이 적힌 값도 여기에 놓인다(kindnote.ts의 groupFromNote).
+  { id: 'other', label: '그 밖', hint: '목록에 없는 쓰임' },
 ]
 
 const labelOf = (use: RoleUse) => ROLE_USES.find((u) => u.id === use)!.label
@@ -95,11 +99,12 @@ export function guessRoleShape(short: string, use: RoleUse): RoleShape {
   const parts = short.split('-')
   const has = (...words: string[]) => parts.some((p) => words.includes(p))
   if (parts[0] === 'on') return 'on-fill'
-  if (has('hover', 'active', 'pressed', 'selected', 'row', 'highlight')) return use === 'surface' ? 'row' : ({ text: 'text', border: 'border', fill: 'button', status: 'badge', chart: 'chart', surface: 'row' } as const)[use]
+  if (has('hover', 'active', 'pressed', 'selected', 'row', 'highlight')) return use === 'surface' ? 'row' : ({ text: 'text', border: 'border', fill: 'button', status: 'badge', chart: 'chart', surface: 'row', other: 'button' } as const)[use]
   if (has('divider', 'separator', 'hairline', 'rule')) return 'divider'
   if (has('guide', 'snap', 'ruler')) return 'guide'
   if (has('selection', 'focus', 'ring', 'outline')) return use === 'surface' ? 'row' : 'outline'
-  return ({ text: 'text', surface: 'surface', border: 'border', fill: 'button', status: 'badge', chart: 'chart' } as const)[use]
+  // 그 밖은 채움처럼 그 색으로 채운 버튼이다(무엇에 쓰는 색인지 모를 때 색이 가장 넓게 보인다).
+  return ({ text: 'text', surface: 'surface', border: 'border', fill: 'button', status: 'badge', chart: 'chart', other: 'button' } as const)[use]
 }
 
 /** 예시 하나. 어떤 자리에 칠할지(모양)와 그 안에 적을 말(문구. 비어 있으면 모양의 기본 문구). */
@@ -112,7 +117,9 @@ const WORDS_MARK = ' | '
 const MARK = /\s*\|\s*/
 const MARK_ALL = /\s*\|\s*/g
 const SHAPE_LABELS = ROLE_SHAPES.map((u) => u.label).join('|')
-const NOTE = new RegExp(`^(글자|바탕|테두리|버튼|채움|상태|차트)(?:\\((${SHAPE_LABELS})\\))?\\s*(?::\\s*(.*))?$`)
+// 역할의 이름은 목록에서 만든다(목록에 "그 밖"을 더했는데 여기에 빠져 있어, 저장할 때마다 "그 밖: 그 밖: …"으로 머리가 덧붙었다). "버튼"은 "채움"의 예전 이름이다.
+// 모양 자리는 목록에 없는 이름도 받는다. 역할은 맞는데 모양만 목록에 없는 주석도 역할과 설명, 문구를 읽는다.
+const NOTE = new RegExp(`^(${[...ROLE_USES.map((u) => u.label), '버튼'].join('|')})(?:\\(([^)|]*)\\))?\\s*(?::\\s*(.*))?$`)
 const SHAPE_HEAD = new RegExp(`^(${SHAPE_LABELS})\\s*:\\s*(.*)$`)
 
 /**
@@ -125,11 +132,12 @@ export function readNote(note: string | undefined, short: string): { use: RoleUs
   // "버튼"은 "채움"의 예전 이름이다. 예전에 적어 둔 주석도 그대로 읽는다(다음에 역할이나 설명을 고칠 때 채움으로 적힌다).
   const m = NOTE.exec(all)
   const found = m && ROLE_USES.find((u) => u.label === (m[1] === '버튼' ? '채움' : m[1]))
-  const use = found ? found.id : guessUse(short)
+  const use = found ? found.id : (groupFromNote(all.replace(/^버튼(?=\s*[(:])/, '채움'), ROLE_USES, 'other') ?? guessUse(short))
   const picked = found && m![2] ? ROLE_SHAPES.find((u) => u.label === m![2])?.id : undefined
   const shape = picked ?? guessRoleShape(short, use)
   // 예시는 역할을 적은 주석에서만 읽는다.
-  const parts = found ? (m![3] ?? '').split(MARK).map((p) => p.trim()) : [all]
+  // 목록에 없는 역할의 주석(이름(모양): …)도 " | "로 나눠 읽는다. 통째로 설명으로 읽으면 다시 적을 때 문구의 구분이 사라진다.
+  const parts = found ? (m![3] ?? '').split(MARK).map((p) => p.trim()) : headOf(all) !== null ? all.split(MARK).map((p) => p.trim()) : [all]
   const more = parts.slice(2).map((p): RoleExample => {
     const head = SHAPE_HEAD.exec(p)
     const own = head && ROLE_SHAPES.find((u) => u.label === head[1])
@@ -300,4 +308,18 @@ export function defaultRoleOrder(tokens: Token[]): Token[] {
     })
   }
   return place(tokens, groups)
+}
+
+/**
+ * 의미 색 추가 창에서 역할을 따라 이름 칸에 채워지는 이름(DESIGN.md dialog-defaults). 의미 색은 예시를 고르지 않고 역할을 고르므로 역할마다 하나다.
+ * 그 이름이 이미 있으면 창은 이름 칸을 비워 둔다. "그 밖"은 쓰임을 알 수 없어 이름이 없다.
+ */
+export const ROLE_NAMES: Record<RoleUse, string> = {
+  text: 'text',
+  surface: 'surface',
+  border: 'border',
+  fill: 'primary',
+  status: 'danger',
+  chart: 'chart',
+  other: '',
 }

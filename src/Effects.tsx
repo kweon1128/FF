@@ -6,7 +6,7 @@ import { ICON_STROKE } from './lib/icons'
 import { useContext, useState, type ReactNode } from 'react'
 import { Plus, X } from 'lucide-react'
 import type { Token } from './lib/api'
-import { SLUG, shortName, NAME_SHAPE, typedNameProblem, type Kind } from './lib/catalog'
+import { shortName, type Kind } from './lib/catalog'
 import { EFFECT_WORDS, hexOfLayer, nextLayer, paintShadow, parseShadow, rgbOfHex, splitLayers, readEffectNote, writeEffectNote, writeShadow, type EffectKind, type EffectShape, type ShadowLayer } from './lib/effects'
 import { DIRECTIONS, addStop, paintGradient, parseGradient, writeGradient, type Gradient, type GradientStop } from './lib/gradient'
 import { contrast } from './lib/color'
@@ -19,6 +19,7 @@ import { PreviewFontContext, PreviewSpaceContext } from './ColorUses'
 import { CODE_OPEN, CodeRows, FoldSection, ICON_BUTTON, Section, WHERE_OPEN } from './Inspector'
 import { DetailsFolded, HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
 import { Button, Field, Phrases, Segmented, UnitInput, UsePicker, inputClass, linkRowClass } from './ui'
+import { nameRules, textRules, useField } from './useField'
 import { useReorder } from './useReorder'
 
 // 예시의 바탕이 판의 바탕과 같은 색이어도 가장자리가 보이게 하는 옅은 선.
@@ -111,6 +112,39 @@ export function EffectSample({ shape, value, around, accent, words: written = ''
         </span>,
         true,
       )
+    case 'sticky': {
+      // 스크롤된 내용 위에 붙어 있는 머리. 머리 아래로 그림자가 져서 내용이 그 밑으로 지나가는 것이 보인다. 문구는 머리의 제목과 그 아래 내용의 줄들이다.
+      const [title, ...rows] = all.split(', ').map((w) => w.trim())
+      return frame(
+        <span className={`block ${SAMPLE_W} overflow-hidden rounded-float`} style={{ boxShadow: `inset 0 0 0 1px ${faint}` }}>
+          <span data-sample className={`relative z-[1] flex h-bar items-center px-bar-x whitespace-nowrap ${STRONG}`} style={{ background: around.surface, boxShadow: value }}>
+            {title}
+          </span>
+          <span className="block space-y-rows p-menu">
+            {rows.map((text, i) => (
+              <span key={i} className="flex h-row items-center px-row-x text-sm leading-5 whitespace-nowrap">
+                {text}
+              </span>
+            ))}
+          </span>
+        </span>,
+        true,
+      )
+    }
+    case 'hover': {
+      // 같은 버튼을 평소와 마우스를 올렸을 때로 나란히 놓아, 얼마나 옅어지는지 견주어 본다.
+      const BUTTON = `flex h-control items-center rounded-control px-button-x whitespace-nowrap ${STRONG}`
+      return frame(
+        <span className="flex items-center gap-actions">
+          <span className={BUTTON} style={{ background: paints(around).primary, color: paints(around).onPrimary }}>
+            {all}
+          </span>
+          <span data-sample className={BUTTON} style={{ background: paints(around).primary, color: paints(around).onPrimary, opacity: value }}>
+            {all}
+          </span>
+        </span>,
+      )
+    }
     case 'well':
       // 안쪽 그림자가 지는 입력칸. 칸의 1px 선 안쪽에 그림자가 져서 안으로 들어가 보인다. 문구는 칸에 적힌 말이다.
       return frame(
@@ -411,6 +445,8 @@ function ShadowFields({ value, tokens, onChange }: { value: string; /** 색상 �
   }
   /** 칸을 벗어날 때. 숫자면 저장하고, 비었거나 숫자가 아니면 저장된 값으로 되돌린다. */
   const leave = (i: number, key: keyof LayerDraft) => {
+    // 고치지 않은 칸은 저장하지 않는다. 들어갔다 나오기만 해도 저장하면 손으로 적은 그림자의 표기가 FF의 표기로 다시 적힌다.
+    if (drafts[i][key] === draftOf(layers[i])[key]) return
     if (NUMBER.test(drafts[i][key])) return save(layers, drafts)
     setDrafts(drafts.map((d, k) => (k === i ? { ...d, [key]: draftOf(layers[i])[key] } : d)))
   }
@@ -602,7 +638,8 @@ function NumberField({ label, unit, value, toDigits, fromDigits, onChange }: { l
           setDigits(next)
           if (!typing && NUMBER.test(next)) save(next)
         }}
-        onBlur={() => (NUMBER.test(digits) ? save(digits) : setDigits(toDigits(value)))}
+        // 고치지 않은 칸은 저장하지 않는다. 들어갔다 나오기만 해도 저장하면 파일의 표기(.5, 4.0px)가 FF의 표기로 바뀐다(DESIGN.md field-rules).
+        onBlur={() => (!NUMBER.test(digits) ? setDigits(toDigits(value)) : digits !== toDigits(value) ? save(digits) : undefined)}
       />
       {wrong && <span className="mt-label block type-body text-danger">숫자를 입력해 주세요.</span>}
     </>
@@ -642,26 +679,14 @@ export function EffectInspector({
   const id = kind.id as EffectKind
   const short = shortName(kind, token.name)
   const { text, picked, words, more } = readEffectNote(id, token.note, short)
-  const [nameDraft, setNameDraft] = useState(short)
-  const [nameError, setNameError] = useState<string | null>(null)
+  // 이름 칸. 쓸 수 없는 글자는 적는 중에 알리고 벗어나면 되돌린다. 모양이 틀린 이름과 이 판의 규칙은 벗어날 때 알리고 칸에 남긴다(useField).
+  const nameField = useField(nameRules({ saved: short, done: (next) => (allNames.includes(kind.prefix + next) ? '같은 이름이 이미 있어요.' : null), save: (next) => onRename(kind.prefix + next) }))
   const [textDraft, setTextDraft] = useState(text)
-  const [rawDraft, setRawDraft] = useState(token.value)
+  const rawField = useField(textRules({ saved: token.value, save: (value) => onChange({ value }) }))
   // 겹으로 읽을 수 있는 그림자인지. 읽을 수 없으면(none, var() 등) 글자로 고친다.
   const layered = id === 'shadow' && parseShadow(token.value) !== null
   // 방향과 색들로 읽을 수 있는 그라데이션인지. 읽을 수 없으면(둥근 그라데이션 등) 글자로 고친다.
   const graded = id === 'gradient' && parseGradient(token.value) !== null
-
-  function commitName() {
-    const next = nameDraft.trim()
-    setNameError(null)
-    // 비웠거나 쓸 수 없는 글자가 든 이름은 적는 중에 알 수 있는 것이다. 그대로 벗어나면 저장된 이름으로 되돌린다(DESIGN.md field-rules).
-    if (!next || typedNameProblem(next)) return setNameDraft(short)
-    // 글자는 맞지만 모양이 틀린 이름(card-, card--big)은 다 적어야 아는 것이다. 말없이 되돌리지 않고 까닭과 함께 칸에 남긴다.
-    if (next !== short && !SLUG.test(next)) return setNameError(NAME_SHAPE)
-    if (next === short) return
-    if (allNames.includes(kind.prefix + next)) return setNameError('같은 이름이 이미 있어요.')
-    onRename(kind.prefix + next)
-  }
 
   function commitText() {
     // 같은 주석에 적혀 있는 예시(모양과 문구)는 그대로 둔다.
@@ -680,17 +705,14 @@ export function EffectInspector({
       <Section title="이름">
         <input
           className={inputClass}
-          value={nameDraft}
+          value={nameField.draft}
           aria-label="이름"
           data-rename="token"
-          onChange={(e) => {
-            setNameDraft(e.target.value)
-            setNameError(typedNameProblem(e.target.value))
-          }}
-          onBlur={commitName}
+          onChange={(e) => nameField.type(e.target.value)}
+          onBlur={nameField.leave}
           onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
         />
-        {nameError && <span className="mt-label block type-body text-danger">{nameError}</span>}
+        {nameField.error && <span className="mt-label block type-body text-danger">{nameField.error}</span>}
       </Section>
 
       <Section title={kind.title}>
@@ -706,21 +728,16 @@ export function EffectInspector({
           <input
             aria-label={kind.valueLabel}
             className={inputClass}
-            value={rawDraft}
-            onChange={(e) => setRawDraft(e.target.value)}
-            // 비운 채로 벗어나면 저장된 값으로 돌아간다. 빈 칸으로 남겨 두지 않는다.
-            onBlur={() => {
-              const next = rawDraft.trim()
-              // 파일을 깨뜨리는 기호가 든 값은 적는 중에 알렸다. 그대로 벗어나면 저장된 값으로 되돌린다.
-              if (!next || /[;{}]/.test(next)) return setRawDraft(token.value)
-              if (next !== token.value) onChange({ value: next })
-            }}
+            value={rawField.draft}
+            onChange={(e) => rawField.type(e.target.value)}
+            // 비웠거나 파일을 깨뜨리는 기호가 든 채로 벗어나면 저장된 값으로 돌아간다(useField).
+            onBlur={rawField.leave}
             onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
           />
         )}
         {/* 글자로 적는 값의 기호 검사는 어느 패널이나 같다. 적는 중에 알리고, 그대로 벗어나면 되돌린다. */}
-        {!layered && !graded && id !== 'opacity' && !(id === 'blur' && /^\d*\.?\d+px$/.test(token.value)) && /[;{}]/.test(rawDraft) && (
-          <span className="mt-label block type-body text-danger">; {'{ }'} 기호는 쓸 수 없어요.</span>
+        {!layered && !graded && id !== 'opacity' && !(id === 'blur' && /^\d*\.?\d+px$/.test(token.value)) && rawField.error && (
+          <span className="mt-label block type-body text-danger">{rawField.error}</span>
         )}
       </Section>
 
@@ -751,4 +768,15 @@ export function EffectInspector({
       </FoldSection>
     </div>
   )
+}
+
+/**
+ * 추가 창이 쓰는 값 칸. 패널의 값 구역과 같은 칸이다(그림자는 겹들, 그라데이션은 방향과 색들, 투명도는 %, 흐림은 px).
+ * 추가 창의 값은 쓰임마다의 추천 값에서 시작하므로 언제나 이 칸들로 읽을 수 있다. 읽을 수 없는 값이면 아무것도 그리지 않는다.
+ */
+export function EffectValueFields({ id, value, tokens, onChange }: { id: EffectKind; value: string; tokens: Token[]; onChange: (value: string) => void }) {
+  if (id === 'shadow') return parseShadow(value) ? <ShadowFields value={value} tokens={tokens} onChange={onChange} /> : null
+  if (id === 'gradient') return parseGradient(value) ? <GradientFields value={value} tokens={tokens} onChange={onChange} /> : null
+  if (id === 'opacity') return <NumberField label="투명도" unit="%" value={value} toDigits={(v) => digitsOf(Number(v) * 100)} fromDigits={(d) => String(Math.min(100, Math.max(0, Number(d))) / 100)} onChange={onChange} />
+  return /^\d*\.?\d+px$/.test(value) ? <NumberField label="흐림" unit="px" value={value} toDigits={(v) => v.replace(/px$/, '')} fromDigits={(d) => `${Math.max(0, Number(d))}px`} onChange={onChange} /> : null
 }

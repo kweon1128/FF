@@ -39,7 +39,7 @@ export function resolveThickness(tokens: Token[], value: string): string | null 
  * 예시의 모양. 그 선이 어떤 요소의 어느 자리에 그어지는지다. 종류마다 고를 수 있는 모양이 다르다.
  * 적어 두지 않은 값은 이름에서 짐작한다(divider는 구분선, focus는 초점). 짐작할 수 없으면 종류의 첫 모양을 쓴다.
  */
-export type BorderShape = 'input' | 'button' | 'box' | 'divider' | 'side' | 'focus' | 'mark'
+export type BorderShape = 'input' | 'button' | 'box' | 'divider' | 'side' | 'table' | 'tab' | 'focus' | 'mark'
 
 export const BORDER_SHAPES: { id: BorderShape; kind: BorderKind; label: string; hint: string }[] = [
   { id: 'input', kind: 'border', label: '입력칸', hint: '입력칸의 테두리' },
@@ -47,6 +47,8 @@ export const BORDER_SHAPES: { id: BorderShape; kind: BorderKind; label: string; 
   { id: 'box', kind: 'border', label: '상자', hint: '목록 상자, 카드, 창의 테두리' },
   { id: 'divider', kind: 'border', label: '구분선', hint: '위아래 구역 사이의 선' },
   { id: 'side', kind: 'border', label: '세로 구분선', hint: '좌우 영역 사이의 선' },
+  { id: 'table', kind: 'border', label: '표', hint: '표의 줄과 줄 사이의 선' },
+  { id: 'tab', kind: 'border', label: '탭', hint: '고른 탭 아래의 선' },
   { id: 'focus', kind: 'outline', label: '초점', hint: '자판으로 옮겨 간 버튼의 표시' },
   { id: 'mark', kind: 'outline', label: '표시', hint: '가리키는 글자에 두르는 선' },
 ]
@@ -58,12 +60,14 @@ export const BORDER_WORDS: Record<BorderShape, string> = {
   box: '첫째, 둘째',
   divider: '이름=primary, 설명=주요 버튼',
   side: '홈, 주문, 이름=primary',
+  table: '이름, 첫째, 둘째',
+  tab: '색상, 글꼴, 간격',
   focus: '저장',
   mark: '제목',
 }
 
 /** 문구를 ", "로 나눠 여럿을 늘어놓는 모양. */
-export const isBorderListShape = (shape: BorderShape) => ['box', 'divider', 'side'].includes(shape)
+export const isBorderListShape = (shape: BorderShape) => ['box', 'divider', 'side', 'table', 'tab'].includes(shape)
 
 /** 예시 하나. 어떤 요소로 그릴지(모양)와 그 안에 적을 말(문구. 비어 있으면 모양의 기본 문구). */
 export type BorderExample = { shape: BorderShape; words: string }
@@ -105,4 +109,20 @@ export function writeBorderNote(kind: BorderKind, text: string, shape?: BorderSh
   if (!body && !shape) return ''
   const head = shape ? `${BORDER_TITLES[kind]}(${label(shape)})` : BORDER_TITLES[kind]
   return body ? `${head}: ${body}` : `${head}:`
+}
+
+/**
+ * 추가 창에서 예시를 고르면 이름 칸에 채워지는 이름(DESIGN.md dialog-defaults). 그 예시가 보여 주는 쓰임의 영문 이름이다.
+ * ff-ds가 실제로 쓰는 이름을 따랐고(사이는 actions, 줄은 rows), 쓰는 이름이 없는 예시만 새로 지었다. 그 이름이 이미 있으면 창은 이름 칸을 비워 둔다.
+ */
+export const BORDER_NAMES: Record<BorderShape, string> = {
+  input: 'edge',
+  button: 'button',
+  box: 'box',
+  divider: 'divider',
+  side: 'side',
+  table: 'row-line',
+  tab: 'tab',
+  focus: 'focus',
+  mark: 'mark',
 }

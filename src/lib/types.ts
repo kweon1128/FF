@@ -244,7 +244,9 @@ export function nextType(tokens: Token[]): Token | null {
  * 묶음은 판의 차례를 정하고(제목부터 숫자·코드까지), 줄마다 그리는 예시의 장면을 정한다(제목은 본문이 따르는 제목으로, 컨트롤은 버튼과 이름표로).
  * hint는 그 묶음에 드는 것들. 묶음을 고르는 칸에 함께 적는다.
  */
-export type TypeUse = 'heading' | 'body' | 'support' | 'control' | 'data'
+import { groupFromNote, headOf } from './kindnote'
+
+export type TypeUse = 'heading' | 'body' | 'support' | 'control' | 'data' | 'other'
 
 export const TYPE_USES: { id: TypeUse; label: string; hint: string }[] = [
   { id: 'heading', label: '제목', hint: '화면, 구역, 카드 제목' },
@@ -252,6 +254,8 @@ export const TYPE_USES: { id: TypeUse; label: string; hint: string }[] = [
   { id: 'support', label: '보조', hint: '설명, 분류 표시' },
   { id: 'control', label: '컨트롤', hint: '버튼, 이름표, 메뉴, 탭' },
   { id: 'data', label: '숫자·코드', hint: '금액, 통계, 고정폭' },
+  // 목록에 없는 쓰임. 주석에 목록에 없는 묶음이 적힌 값도 여기에 놓인다(kindnote.ts의 groupFromNote).
+  { id: 'other', label: '그 밖', hint: '목록에 없는 쓰임' },
 ]
 
 const useLabel = (use: TypeUse) => TYPE_USES.find((u) => u.id === use)!.label
@@ -322,7 +326,7 @@ export function guessTypeShape(short: string, use: TypeUse): TypeShape {
   if (has('numeric', 'number', 'num', 'stat', 'price', 'amount', 'data')) return 'number'
   if (has('caption', 'overline', 'eyebrow', 'helper', 'hint', 'footnote', 'meta', 'legal')) return 'caption'
   if (has('display', 'title', 'heading', 'headline', 'subtitle', 'hero', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6')) return 'title'
-  return ({ heading: 'title', body: 'paragraph', support: 'caption', control: 'button', data: 'number' } as const)[use]
+  return ({ heading: 'title', body: 'paragraph', support: 'caption', control: 'button', data: 'number', other: 'paragraph' } as const)[use]
 }
 
 // 묶음 이름 뒤에 반드시 쌍점이 온다. "본문"처럼 묶음 이름과 같은 설명을 묶음으로 잘못 읽어 설명을 잃지 않게 하려는 것이다.
@@ -332,7 +336,7 @@ const WORDS_MARK = ' | '
 // 읽을 때는 세로줄 앞뒤의 빈칸 수를 따지지 않는다. 손으로 적은 주석은 빈칸이 하나 빠지거나 더 들어가기 쉽고, 문구가 빈 예시는 세로줄 둘이 붙어 적힌다.
 const MARK = /\s*\|\s*/
 const MARK_ALL = /\s*\|\s*/g
-const NOTE = new RegExp(`^(${TYPE_USES.map((u) => u.label).join('|')})(?:\\((${TYPE_SHAPES.map((u) => u.label).join('|')})\\))?\\s*:\\s*(.*)$`)
+const NOTE = new RegExp(`^(${TYPE_USES.map((u) => u.label).join('|')})(?:\\(([^)|]*)\\))?\\s*:\\s*(.*)$`)
 
 /** 예시 하나. 어떤 자리에 놓을지(모양)와 그 안에 적을 말(문구. 비어 있으면 모양의 기본 문구). */
 export type TypeExample = { shape: TypeShape; words: string }
@@ -350,11 +354,12 @@ export function readTypeNote(note: string | undefined, short: string): { use: Ty
   const all = (note ?? '').trim()
   const m = NOTE.exec(all.replace(/^조작(?=\s*[(:])/, '컨트롤'))
   const found = m && TYPE_USES.find((u) => u.label === m[1])
-  const use = found ? found.id : guessTypeUse(short)
+  const use = found ? found.id : (groupFromNote(all.replace(/^조작(?=\s*[(:])/, '컨트롤'), TYPE_USES, 'other') ?? guessTypeUse(short))
   const picked = found && m![2] ? TYPE_SHAPES.find((u) => u.label === m![2])?.id : undefined
   const shape = picked ?? guessTypeShape(short, use)
   // 예시 문구는 묶음을 적은 주석에서만 읽는다. 묶음 없이 적힌 예전 설명에 " | "가 들어 있어도 설명으로 둔다.
-  const parts = found ? m![3].split(MARK).map((p) => p.trim()) : [all]
+  // 목록에 없는 묶음의 주석(이름(모양): …)만은 " | "로 나눠 읽는다. 통째로 설명으로 읽으면 다시 적을 때 문구의 구분이 사라진다.
+  const parts = found ? m![3].split(MARK).map((p) => p.trim()) : headOf(all) !== null ? all.split(MARK).map((p) => p.trim()) : [all]
   const more = parts.slice(2).map((p): TypeExample => {
     const head = SHAPE_HEAD.exec(p)
     const own = head && TYPE_SHAPES.find((u) => u.label === head[1])

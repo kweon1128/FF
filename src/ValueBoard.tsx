@@ -4,13 +4,16 @@
 
 import { useContext, useState, type FormEvent, type ReactNode } from 'react'
 import type { Token } from './lib/api'
-import { SLUG, slugMessage, shortName, NAME_SHAPE, typedNameProblem, type Kind } from './lib/catalog'
+import { SLUG, slugMessage, shortName, type Kind } from './lib/catalog'
 import { readKindNote, writeKindNote, type KindExample, type KindShape } from './lib/kindnote'
 import { sampleColors, type SampleColors } from './lib/sample'
 import { CODE_OPEN, CodeRows, FoldSection, Section, WHERE_OPEN } from './Inspector'
 import { DetailsFolded, HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
-import { Button, Field, Phrases, UnitInput, inputClass , linkRowClass } from './ui'
+import { Button, Field, Phrases, UnitInput, UsePicker, inputClass , linkRowClass } from './ui'
+import { NUMBER, PARTIAL, ZEROS, nameRules, textRules, useField } from './useField'
+import { freeName } from './lib/nearest'
 import { useReorder } from './useReorder'
+import { WithExample } from './WithExample'
 
 /** 예시를 그릴 때 넘겨받는 것. 색과 그림자는 보여 주는 디자인 시스템의 것이다. */
 export type SampleContext = { colors: SampleColors; shadows: { float?: string; dialog?: string }; tokens: Token[] }
@@ -37,15 +40,23 @@ export type ValueSpec<S extends string = string> = {
   read: (value: string) => string[] | null
   write: (numbers: number[]) => string | null
   /** 패널에서 숫자 칸만으로 고칠 수 없는 값을 고치는 칸들(애니메이션, 끊기는 곡선). 그 값을 읽을 수 없으면 null을 돌려주고, 그때는 숫자 칸이나 글자로 고친다. */
-  fields?: (value: string, onValue: (value: string) => void) => ReactNode | null
+  fields?: (value: string, onValue: (value: string) => void, tokens: Token[]) => ReactNode | null
+  /** 판의 줄에서 값 아래에 두는 작은 그림(이징의 곡선). 값만 읽어서는 어떤 것인지 알 수 없는 종류에 준다. */
+  mark?: (value: string) => ReactNode
   /** 추가 창에서 값 칸의 이름표. 주지 않으면 valueTitle이다. */
   addTitle?: string
   /** 추가 창에서 값을 고르면 이름 칸에 채울 이름. 값 자체에 이름이 있는 종류에 준다(애니메이션의 spin). 이미 있는 이름이면 빈 글자를 돌려준다. 이름을 직접 고친 뒤에는 채우지 않는다. */
   nameFor?: (value: string, tokens: Token[]) => string
+  /** 추가 창에서 예시를 고르면 이름 칸에 채울 이름(예시의 모양마다 하나). 이름을 직접 고치기 전까지 예시를 따라 바뀐다. nameFor가 있는 종류에는 주지 않는다. */
+  shapeNames?: Partial<Record<S, string>>
   /** 추가 창에서 값 칸을 이름 칸보다 먼저 묻는지. 값을 골라야 이름이 정해지는 종류에 준다. */
   valueFirst?: boolean
+  /** 추가 창으로 만든 값에 붙일 예시의 모양. 값만 보고 무엇이 움직이는지 알 수 있는 종류에 준다(도는 움직임은 로딩 버튼). 주지 않으면 추가 창에서 모양을 고른다. */
+  addShape?: (value: string) => S
   /** 추가 창에서 값을 정하는 칸. 주지 않으면 cells의 숫자 칸이 빈 채로 나온다. draft는 값(아직 정하지 않았으면 빈 글자)이다. */
-  addField?: (draft: string, setDraft: (value: string) => void, error?: string) => ReactNode
+  addField?: (draft: string, setDraft: (value: string) => void, error: string | undefined, tokens: Token[]) => ReactNode
+  /** 추가 창을 열었을 때 골라 두는 값. addField로 고르는 종류(곡선, 움직임)에 준다. 창을 열자마자 예시가 보인다. */
+  addStart?: (tokens: Token[]) => string
   /** 추가 창에서 값을 정하지 않았을 때의 알림. */
   missing: string
   /** 숫자로 시작하는 이름을 받는지. 브레이크포인트와 컨테이너 폭은 Tailwind의 이름(2xl)을 쓰므로 받는다. */
@@ -58,71 +69,64 @@ export type ValueSpec<S extends string = string> = {
   legacy?: (name: string) => boolean
 }
 
-const NUMBER = /^-?\d*\.?\d+$/
 
 /**
  * 값을 이루는 숫자 칸들. 칸이 모두 숫자이고 값으로 적을 수 있을 때만 알린다.
  * live가 아니면 적는 동안은 알리지 않고 칸을 벗어나거나 Enter를 누를 때 알린다(패널. 적는 중인 숫자가 저장되면 줄이 차례대로 튀어 다닌다). ↑↓는 바로 알린다.
  * live면 적을 때마다 알린다(추가 창. 값이 아직 안 되면 빈 글자를 알린다).
  */
-export function CellsInput({ spec, value, onValue, live = false, invalid = false }: { spec: Pick<ValueSpec, 'cells' | 'read' | 'write'>; value: string; onValue: (value: string) => void; live?: boolean; invalid?: boolean }) {
+export function CellsInput({ spec, value, onValue, live = false, invalid = false }: { spec: Pick<ValueSpec, 'cells' | 'read' | 'write'>; value: string; /** filled는 live일 때만 넘어온다. 칸이 모두 적혀 있는지다(값이 안 될 때 빈 칸 때문인지 받을 수 없는 숫자 때문인지 가린다). */ onValue: (value: string, filled?: boolean) => void; live?: boolean; invalid?: boolean }) {
   const blank = spec.cells.map(() => '')
-  const [drafts, setDrafts] = useState(() => spec.read(value) ?? blank)
-  const [bad, setBad] = useState(false)
+  const saved = () => spec.read(value) ?? blank
+  const [drafts, setDrafts] = useState(saved)
   // 밖에서 값이 바뀌면(되돌리기, 파일을 직접 고침) 칸을 그 값으로 다시 채운다. 추가 창에서는 여기서 적은 것이 곧 값이라 다시 채우지 않는다.
   const [seen, setSeen] = useState(value)
   if (!live && value !== seen) {
     setSeen(value)
-    setDrafts(spec.read(value) ?? blank)
-    setBad(false)
+    setDrafts(saved())
   }
   const valueOf = (cells: string[]) => (cells.every((s) => NUMBER.test(s)) ? spec.write(cells.map(Number)) : null)
 
   function change(i: number, digits: string, typing?: boolean) {
     const next = drafts.map((d, k) => (k === i ? digits : d))
     setDrafts(next)
-    setBad(false)
     const made = valueOf(next)
-    if (live) return onValue(made ?? '')
+    if (live) return onValue(made ?? '', next.every((d) => d !== ''))
     if (!typing && made !== null && made !== value) onValue(made)
   }
 
-  /** 칸을 벗어날 때. 모두 비었으면 저장된 값으로 되돌리고, 값이 되면 알리고, 안 되면 빨간 테두리로 알린다. */
+  /**
+   * 칸 묶음을 벗어날 때(useField의 약속과 같다). 칸에서 옆 칸으로 옮겨 가는 동안은 아무것도 하지 않는다. 비율이나 곡선은 칸을 다 고쳐야 값이 된다.
+   * 고치지 않았으면 저장하지 않는다. ease-out이나 0.3s처럼 적힌 값은 칸에 들어갔다 나오기만 해도 다른 표기로 바뀌어 저장되면 안 된다.
+   * 값이 되지 않으면(빈 칸, 숫자가 아님, 범위 밖) 적는 중에 이미 빨갛게 보였다. 저장된 값으로 되돌린다.
+   */
   function commit() {
     if (live) return
-    if (drafts.every((d) => !d)) {
-      setDrafts(spec.read(value) ?? blank)
-      return setBad(false)
-    }
-    const made = valueOf(drafts)
-    if (made === null) {
-      // 숫자가 아닌 칸은 적는 중에 이미 빨갛게 보였다. 그대로 벗어나면 저장된 값으로 되돌린다.
-      // 칸은 모두 숫자인데 값이 되지 않는 것(범위 밖)은 다 적어야 아는 것이라 빨갛게 남긴다.
-      // 칸이 여럿인 값에서 한 칸만 비운 것은 옆 칸으로 옮겨 가며 고치는 중일 수 있다. 다른 칸까지 되돌리지 않는다.
-      // 다만 빈 칸을 빨갛게 해서 아직 저장되지 않았음을 보인다. 표시가 없으면 고친 것이 저장된 줄 알고 떠나게 된다.
-      if (drafts.every((d) => d === '' || NUMBER.test(d))) return setBad(true)
-      setDrafts(spec.read(value) ?? blank)
-      return setBad(false)
-    }
+    const before = saved()
+    const untouched = drafts.every((d, i) => d === before[i] || (NUMBER.test(d) && NUMBER.test(before[i]) && Number(d) === Number(before[i])))
+    const made = untouched ? null : valueOf(drafts)
+    if (made === null) return setDrafts(before)
     if (made !== value) onValue(made)
   }
 
-  const input = (i: number) => (
+  // 숫자가 아닌 칸은 그 칸을, 칸은 모두 숫자인데 값이 되지 않으면(범위 밖) 모든 칸을 적는 중에 빨갛게 한다. "-", "0."처럼 적는 도중의 꼴은 아니다.
+  // 칸이 하나뿐인 값에서는 0.5를 적는 도중의 0도 알리지 않는다(칸이 여럿이면 0이 제 값인 칸이 있어 가릴 수 없다).
+  const unfit = drafts.every((d) => NUMBER.test(d)) && valueOf(drafts) === null && !(drafts.length === 1 && ZEROS.test(drafts[0]))
+  const input = (i: number, onBlur?: () => void) => (
     <UnitInput
       label={spec.cells[i].label}
       digits={drafts[i]}
       unit={spec.cells[i].unit}
       negative={spec.cells[i].negative}
       placeholder={spec.cells[i].placeholder}
-      // 숫자가 아닌 것은 적는 중에 알린다("-", "0."처럼 적는 도중의 꼴은 아니다).
-      invalid={invalid || (!live && drafts[i] !== '' && !NUMBER.test(drafts[i]) && !/^-?\d*\.$|^-$/.test(drafts[i])) || (bad && !NUMBER.test(drafts[i])) || (bad && drafts.every((d) => NUMBER.test(d)) && valueOf(drafts) === null)}
+      invalid={invalid || (drafts[i] !== '' && !NUMBER.test(drafts[i]) && !PARTIAL.test(drafts[i])) || (!live && unfit)}
       onDigits={(digits, typing) => change(i, digits, typing)}
-      onBlur={commit}
+      onBlur={onBlur}
     />
   )
-  if (spec.cells.length === 1) return input(0)
+  if (spec.cells.length === 1) return input(0, commit)
   return (
-    <div className="grid grid-cols-2 gap-field-row">
+    <div className="grid grid-cols-2 gap-field-row" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && commit()}>
       {spec.cells.map((cell, i) => (
         <Field key={i} label={cell.label}>
           {input(i)}
@@ -197,6 +201,7 @@ export function ValueList<S extends string>({
                 {shown}
                 {drawn && spec.scaleNote?.(t.value)}
               </span>
+              {!plain && spec.mark?.(t.value)}
               {!plain && text && (
                 <span data-text className="mt-label block type-caption break-words text-ink-faint">
                   <Phrases text={text} />
@@ -257,36 +262,13 @@ export function ValueInspector<S extends string>({
   const short = shortName(kind, token.name)
   const classed = token.name.startsWith(kind.prefix) && !spec.legacy?.(token.name)
   const { text, picked, words, more } = readKindNote(spec.title, spec.shapes, token.note)
-  const [nameDraft, setNameDraft] = useState(short)
-  const [nameError, setNameError] = useState<string | null>(null)
+  // 이름 칸. 쓸 수 없는 글자는 적는 중에 알리고 벗어나면 되돌린다. 모양이 틀린 이름과 이 판의 규칙은 벗어날 때 알리고 칸에 남긴다(useField).
+  const nameField = useField(nameRules({ saved: short, done: (next) => nameProblem(kind, spec as unknown as ValueSpec, next, tokens, token.name), save: (next) => onRename(kind.prefix + next) }))
   const [textDraft, setTextDraft] = useState(text)
-  const [rawDraft, setRawDraft] = useState(token.value)
+  const rawField = useField(textRules({ saved: token.value, save: (value) => onChange({ value }) }))
   // 숫자 칸으로 읽을 수 있는 값인지. 읽을 수 없으면(clamp(), steps(), 낱말) 글자로 고친다.
-  const custom = spec.fields?.(token.value, (value) => onChange({ value })) ?? null
+  const custom = spec.fields?.(token.value, (value) => onChange({ value }), tokens) ?? null
   const celled = custom !== null || spec.read(token.value) !== null
-
-  function commitName() {
-    const next = nameDraft.trim()
-    // 비웠거나 쓸 수 없는 글자가 든 이름은 적는 중에 알 수 있는 것이다. 그대로 벗어나면 저장된 이름으로 되돌린다(DESIGN.md field-rules).
-    if (!next || typedNameProblem(next)) {
-      setNameError(null)
-      return setNameDraft(short)
-    }
-    // 글자는 맞지만 모양이 틀린 이름(card-, card--big)은 다 적어야 아는 것이다. 말없이 되돌리지 않고 까닭과 함께 칸에 남긴다.
-    if (next !== short && !SLUG.test(next)) return setNameError(NAME_SHAPE)
-    // 고치지 않은 이름은 검사하지 않는다(예전부터 있던 이름에 오류를 붙이지 않는다).
-    if (next === short) return setNameError(null)
-    const problem = nameProblem(kind, spec as unknown as ValueSpec, next, tokens, token.name)
-    setNameError(problem)
-    if (problem) return
-    onRename(kind.prefix + next)
-  }
-
-  function commitRaw() {
-    const next = rawDraft.trim()
-    if (!next || /[;{}]/.test(next)) return setRawDraft(token.value)
-    if (next !== token.value) onChange({ value: next })
-  }
 
   function commitText() {
     // 같은 주석에 적혀 있는 예시(모양과 문구)는 그대로 둔다.
@@ -302,17 +284,14 @@ export function ValueInspector<S extends string>({
       <Section title="이름">
         <input
           className={inputClass}
-          value={nameDraft}
+          value={nameField.draft}
           aria-label="이름"
           data-rename="token"
-          onChange={(e) => {
-            setNameDraft(e.target.value)
-            setNameError(typedNameProblem(e.target.value))
-          }}
-          onBlur={commitName}
+          onChange={(e) => nameField.type(e.target.value)}
+          onBlur={nameField.leave}
           onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
         />
-        {nameError && <span className="mt-label block type-body text-danger">{nameError}</span>}
+        {nameField.error && <span className="mt-label block type-body text-danger">{nameField.error}</span>}
       </Section>
 
       <Section title={spec.valueTitle}>
@@ -324,14 +303,14 @@ export function ValueInspector<S extends string>({
           <input
             aria-label={spec.valueTitle}
             className={inputClass}
-            value={rawDraft}
-            onChange={(e) => setRawDraft(e.target.value)}
-            onBlur={commitRaw}
+            value={rawField.draft}
+            onChange={(e) => rawField.type(e.target.value)}
+            onBlur={rawField.leave}
             onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
           />
         )}
         {/* 글자로 적는 값의 기호 검사는 어느 패널이나 같다. 적는 중에 알리고, 그대로 벗어나면 되돌린다. */}
-        {!celled && /[;{}]/.test(rawDraft) && <span className="mt-label block type-body text-danger">; {'{ }'} 기호는 쓸 수 없어요.</span>}
+        {!celled && rawField.error && <span className="mt-label block type-body text-danger">{rawField.error}</span>}
       </Section>
 
       <Section title="설명">
@@ -366,14 +345,31 @@ export function ValueInspector<S extends string>({
 /**
  * 값을 만드는 양식. 이름, 값, 설명을 정한다. 설명은 비워 두어도 되고 만든 뒤에 패널에서도 고친다.
  * 값은 정하지 않은 채로 시작한다. 미리 채워 두면 이름만 적고 만들었을 때 엉뚱한 값이 말없이 생긴다.
+ * 값이 정해지면 판의 줄과 같은 예시를 창 오른쪽의 영역에 보여 준다(WithExample). 값만 보고 모양이 정해지지 않는 종류는 예시의 모양을 여기서 고르고, 고른 모양은 주석에 적힌다(문구는 적지 않아 모양의 기본 문구로 그려진다).
  */
 export function NewValueForm<S extends string>({ kind, spec, tokens, onCreate, onCancel }: { kind: Kind; spec: ValueSpec<S>; tokens: Token[]; onCreate: (name: string, value: string, note: string) => void; onCancel: () => void }) {
+  // 숫자로 적는 값은 흔히 쓰는 값을 채워 둔다(칸에 들어가면 모두 선택되어 바로 덮어쓴다). 고르는 값(곡선, 움직임)은 고를 만한 기본이 없어 비워 둔다.
+  // 이름은 채우지 않는다. 쓰임을 적는 자리라 만드는 사람만 알고, 채워 두면 그대로 눌러 뜻 없는 이름이 쌓인다(DESIGN.md dialog-defaults).
+  // 고르는 값(곡선, 움직임)은 그 종류가 정한 첫 값을 골라 둔다(addStart). 창을 열자마자 예시가 보인다.
+  const [start] = useState(() => (spec.addStart ? spec.addStart(tokens) : spec.addField || !spec.cells.every((c) => c.placeholder) ? '' : (spec.write(spec.cells.map((c) => Number(c.placeholder))) ?? '')))
+  const [value, setValue] = useState(start)
   const [name, setName] = useState('')
-  const [value, setValue] = useState('')
   const [text, setText] = useState('')
   const [error, setError] = useState<{ name?: string; value?: string }>({})
-  // 이름을 직접 고치기 전까지는 고른 값의 이름을 따라간다(효과 추가 창과 같다).
-  const [typed, setTyped] = useState(false)
+  // 예시의 모양. 처음에는 그 종류의 첫 모양이다. 값만 보고 모양이 정해지는 종류(addShape)는 고르지 않는다.
+  const [picked, setPicked] = useState<S | undefined>(spec.shapes[0]?.id)
+  const shape = spec.addShape ? (value ? spec.addShape(value) : undefined) : picked
+  // 이름 칸은 비워 두고, 고른 예시에 맞는 이름을 옅은 글자로 추천한다(DESIGN.md dialog-defaults). 추천은 값이 아니다. 비운 채 추가하면 "이름을 입력해 주세요."다.
+  // 같은 이름이 없더라도 그 종류의 규칙으로 쓸 수 없는 이름(컨테이너 너비의 page는 같은 이름의 의미 크기가 있으면 안 된다)이면 추천하지 않는다.
+  const suggested = freeName(tokens, kind.prefix, shape ? spec.shapeNames?.[shape] : undefined)
+  // 값에 이름이 있는 종류(애니메이션의 spin)는 고른 값의 이름을 추천한다(nameFor. 그 이름이 이미 있으면 빈 글자다).
+  const suggestedName = spec.nameFor ? (value ? spec.nameFor(value, tokens) : '') : suggested && nameProblem(kind, spec as unknown as ValueSpec, suggested, tokens) === null ? suggested : ''
+  // 판의 줄(ValueList)과 같은 색과 그림자로 그린다.
+  const context: SampleContext = {
+    colors: sampleColors(tokens),
+    shadows: { float: tokens.find((t) => t.name === '--shadow-float')?.value, dialog: tokens.find((t) => t.name === '--shadow-dialog')?.value },
+    tokens,
+  }
 
   function submit(e: FormEvent) {
     e.preventDefault()
@@ -381,28 +377,29 @@ export function NewValueForm<S extends string>({ kind, spec, tokens, onCreate, o
     const next: typeof error = {}
     const problem = nameProblem(kind, spec as unknown as ValueSpec, n, tokens)
     if (problem) next.name = problem
-    if (!value) next.value = spec.missing
+    // 칸은 다 적었는데 값이 되지 않으면(너비 0, 비율 0:9) "입력해 주세요"가 아니라 받을 수 없는 값이라고 알린다.
+    if (!value) next.value = filled ? '쓸 수 없는 값이에요. 숫자를 확인해 주세요.' : spec.missing
     setError(next)
-    if (Object.keys(next).length === 0) onCreate(kind.prefix + n, value, writeKindNote(spec.title, spec.shapes, text))
+    if (Object.keys(next).length === 0) onCreate(kind.prefix + n, value, writeKindNote(spec.title, spec.shapes, text, shape))
   }
 
-  const setDraft = (next: string) => {
+  const [filled, setFilled] = useState(false)
+  const setDraft = (next: string, isFilled = false) => {
     setValue(next)
-    const filled = spec.nameFor && !typed
-    if (filled) setName(spec.nameFor!(next, tokens))
-    setError({ ...error, value: undefined, ...(filled ? { name: undefined } : {}) })
+    setFilled(isFilled)
+    setError({ ...error, value: undefined })
   }
 
   const nameField = (
     <Field label="이름" error={error.name}>
       <input
-        autoFocus={!spec.valueFirst}
+        autoFocus
         className={inputClass}
         value={name}
-        placeholder={spec.namePlaceholder}
+        // 옅은 글자는 그대로 적으면 만들어지는 이름일 때만 보인다. 이미 있는 이름을 본보기로 보이면, 따라 적었을 때 되는 창과 안 되는 창이 생긴다.
+        placeholder={suggestedName}
         onChange={(e) => {
           setName(e.target.value)
-          setTyped(true)
           setError({ ...error, name: undefined })
         }}
       />
@@ -410,15 +407,24 @@ export function NewValueForm<S extends string>({ kind, spec, tokens, onCreate, o
   )
 
   return (
-    <form onSubmit={submit} className="space-y-fields">
+    <form onSubmit={submit}>
+      {/* 예시는 값이 정해져야 그린다. 줄여 그린 그림이면 판의 줄과 같은 말로 몇 분의 일인지 알린다. */}
+      <WithExample example={value && shape ? spec.sample({ shape, words: '' }, value, context) : null} note={(value && spec.scaleNote?.(value).replace(/^ · /, '')) || undefined}>
       {!spec.valueFirst && nameField}
       <Field label={spec.addTitle ?? spec.valueTitle} plain error={error.value}>
-        {spec.addField ? spec.addField(value, setDraft, error.value) : <CellsInput spec={spec} value="" live invalid={!!error.value} onValue={setDraft} />}
+        {spec.addField ? spec.addField(value, setDraft, error.value, tokens) : <CellsInput spec={spec} value={start} live invalid={!!error.value} onValue={setDraft} />}
       </Field>
       {spec.valueFirst && nameField}
+      {/* 예시의 모양. 값만 보고 모양이 정해지는 종류에는 이 칸이 없다. */}
+      {!spec.addShape && (
+        <Field label="예시" plain>
+          <UsePicker label="예시" options={spec.shapes} value={picked ?? null} nameWidth={spec.shapes.some((s) => s.label.length > 3) ? 'w-picker-name-wide' : 'w-picker-name'} onChange={setPicked} />
+        </Field>
+      )}
       <Field label="설명">
         <input className={inputClass} value={text} onChange={(e) => setText(e.target.value)} />
       </Field>
+      </WithExample>
       <div className="mt-dialog-actions flex justify-end gap-actions">
         <Button variant="ghost" onClick={onCancel}>
           취소

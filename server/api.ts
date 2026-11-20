@@ -24,6 +24,8 @@ const IMAGE_ID = /^img-[a-z0-9]+$/
 const IMAGE_FILE = /^[a-z0-9]+\.(png|jpg|webp|gif)$/
 const IMAGE_TYPES: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif' }
 const IMAGE_LIMIT = 20 * 1024 * 1024
+// 캔버스에 적은 글 하나의 가장 긴 길이.
+const NOTE_LIMIT = 5000
 // 글꼴을 불러오는 코드. AI나 사람이 직접 고치는 파일이고, FF는 읽어서 화면에 불러오기만 한다(추천 글꼴을 고르면 한 줄을 덧붙인다).
 const FONTS_FILE = 'fonts.css'
 // 글꼴 파일을 직접 넣는 폴더.
@@ -222,13 +224,23 @@ export function ffApi(): Plugin {
           typeof images === 'object' &&
           Object.entries(images).every(
             ([id, p]: [string, any]) =>
-              IMAGE_ID.test(id) && IMAGE_FILE.test(String(p?.file)) && ['x', 'y', 'w', 'h'].every((key) => Number.isFinite(p[key])),
+              IMAGE_ID.test(id) &&
+              // 붙인 사진(file)이거나 적은 글(text)이다.
+              (p?.file !== undefined ? IMAGE_FILE.test(String(p.file)) : typeof p?.text === 'string' && p.text.length > 0 && p.text.length <= NOTE_LIMIT) &&
+              ['x', 'y', 'w', 'h'].every((key) => Number.isFinite(p[key])),
           )
         if (!valid || !validImages) throw new HttpError(400, '저장할 수 없는 위치 값이에요.')
         const cleanImages = Object.fromEntries(
           Object.entries(images).map(([id, p]: [string, any]) => [
             id,
-            { file: p.file, x: Math.round(p.x), y: Math.round(p.y), w: Math.max(1, Math.round(p.w)), h: Math.max(1, Math.round(p.h)) },
+            {
+              // 글의 크기는 보통이 아닐 때만 적는다.
+              ...(p.file !== undefined ? { file: p.file } : { text: p.text, ...(p.size === 'sm' || p.size === 'lg' ? { size: p.size } : {}) }),
+              x: Math.round(p.x),
+              y: Math.round(p.y),
+              w: Math.max(1, Math.round(p.w)),
+              h: Math.max(1, Math.round(p.h)),
+            },
           ]),
         )
         const clean = Object.fromEntries(

@@ -399,8 +399,9 @@ export function NewFontForm({
     e.preventDefault()
     if (!picked) return setError(cands.length > 0 ? '카드를 눌러 글꼴을 정해 주세요.' : '글꼴을 골라 주세요.')
     if (/[;{}]/.test(value)) return setError('; { } 기호는 쓸 수 없어요.')
-    // 이름 칸을 비워 두면 미리 채워 주던 이름을 쓴다. 이름은 꼭 적지 않아도 된다.
-    const name = edit ? edit.name : (nameDraft ?? '').trim() || autoName
+    // 이름 칸은 비워 두고, 고른 글꼴에 맞는 이름을 옅은 글자로 추천한다. 추천은 값이 아니라서, 비운 채 추가하면 그 이름으로 만들지 않고 알린다(비어 보이는 칸은 값이 되지 않는다. DESIGN.md dialog-defaults).
+    const name = edit ? edit.name : (nameDraft ?? '').trim()
+    if (!edit && !name) return setNameError('이름을 입력해 주세요.')
     if (!edit && name !== autoName) {
       if (!SLUG.test(name)) return setNameError(slugMessage(name))
       // --font-weight-로 시작하면 굵기로 읽힌다.
@@ -477,7 +478,7 @@ export function NewFontForm({
                 aria-label="이름"
                 spellCheck={false}
                 className={`${inputClass} ${nameError ? 'border-danger! focus:border-danger!' : ''}`}
-                value={nameDraft ?? autoName}
+                value={nameDraft ?? ''}
                 placeholder={autoName}
                 onChange={(e) => {
                   setNameDraft(e.target.value.trim())

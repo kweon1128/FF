@@ -26,12 +26,15 @@ export function NewSoloForm({
 }) {
   const [name, setName] = useState('')
   const [color, setColor] = useState('')
+  // 색을 직접 정했는지. 정하기 전까지는 칸에 추천 색이 채워져 있고 이름을 따라 바뀐다(DESIGN.md dialog-defaults).
+  const [touched, setTouched] = useState(false)
   const [error, setError] = useState<{ name?: string; color?: string }>({})
 
-  // #을 빼고 적어도 받는다.
-  const typed = HEX6.test(asHex(color) ?? '') ? asHex(color) : null
-  // 색을 비워 두면 이름에 맞는 색(white면 흰색)을, 모르는 이름이면 가운데 밝기의 회색을 추천한다.
+  // 추천 색. 이름에 맞는 색(white면 흰색)이고, 모르는 이름이면 가운데 밝기의 회색이다.
   const suggested = KNOWN[name.trim()] ?? FALLBACK
+  const shown = touched ? color : suggested
+  // #을 빼고 적어도 받는다.
+  const typed = HEX6.test(asHex(shown) ?? '') ? asHex(shown) : null
 
   function submit(e: FormEvent) {
     e.preventDefault()
@@ -40,9 +43,11 @@ export function NewSoloForm({
     if (!n) next.name = '이름을 입력해 주세요.'
     else if (!NAME.test(n)) next.name = '영문 소문자와 숫자만 쓸 수 있어요.'
     else if (existing.has(n)) next.name = why?.(n) ?? '같은 이름이 이미 있어요.'
-    if (color.trim() && !typed) next.color = '#rrggbb처럼 여섯 자리로 적어 주세요.'
+    // 채워 둔 색을 지우고 비워 두면 추천 색으로 만들지 않는다. 비어 보이는 칸이 값이 되지 않게 한다.
+    if (!shown.trim()) next.color = '색을 입력해 주세요.'
+    else if (!typed) next.color = '#rrggbb처럼 여섯 자리로 적어 주세요.'
     setError(next)
-    if (Object.keys(next).length === 0) onCreate(n, typed ?? suggested)
+    if (Object.keys(next).length === 0 && typed) onCreate(n, typed)
   }
 
   return (
@@ -52,7 +57,8 @@ export function NewSoloForm({
           autoFocus
           className={inputClass}
           value={name}
-          placeholder="white"
+          // 옅은 글자는 그대로 적으면 만들어지는 이름일 때만 보인다. 이미 있는 이름을 본보기로 보이면, 따라 적었을 때 되는 창과 안 되는 창이 생긴다.
+          placeholder={existing.has('white') ? '' : 'white'}
           onChange={(e) => {
             setName(e.target.value)
             setError({ ...error, name: undefined })
@@ -67,16 +73,18 @@ export function NewSoloForm({
             value={typed ?? suggested}
             onChange={(hex) => {
               setColor(hex)
+              setTouched(true)
               setError({ ...error, color: undefined })
             }}
           />
           <input
             aria-label="색 값"
             className={monoInputClass}
-            value={color}
+            value={shown}
             placeholder={suggested}
             onChange={(e) => {
               setColor(e.target.value)
+              setTouched(true)
               setError({ ...error, color: undefined })
             }}
           />

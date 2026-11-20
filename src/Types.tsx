@@ -7,14 +7,16 @@ import { useContext, useState, type CSSProperties, type FormEvent } from 'react'
 import { PreviewSpaceContext } from './ColorUses'
 import { ArrowUpRight, X } from 'lucide-react'
 import type { Token } from './lib/api'
-import { KINDS, SLUG, slugMessage, lineName, shortName, NAME_SHAPE, typedNameProblem, trackName, type Kind } from './lib/catalog'
+import { KINDS, SLUG, slugMessage, lineName, shortName, trackName, type Kind } from './lib/catalog'
 import { shownFont } from './lib/fonts'
 import type { Around } from './lib/roles'
 import { SHAPE_WORDS, TYPE_USES, guessTypeUse, isListShape, lookOf, missingForTypes, nextType, readType, readTypeNote, trackOverride, typeGroups, writeType, writeTypeNote, type TypeLook, type TypeParts, type TypeShape, type TypeUse } from './lib/types'
 import { CODE_OPEN, CodeRows, FoldSection, ICON_BUTTON, Section, WHERE_OPEN } from './Inspector'
 import { DetailsFolded, HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
 import { Button, Field, Phrases, UsePicker, inputClass , linkRowClass } from './ui'
+import { nameRules, useField } from './useField'
 import { useReorder } from './useReorder'
+import { WithExample } from './WithExample'
 
 const STYLE = KINDS.style
 const FONT = KINDS.font
@@ -363,27 +365,22 @@ export function TypeInspector({
   onCopy: (text: string) => void
 }) {
   const short = shortName(STYLE, token.name)
-  const [nameDraft, setNameDraft] = useState(short)
-  const [nameError, setNameError] = useState<string | null>(null)
+  // 이름 칸. 쓸 수 없는 글자는 적는 중에 알리고 벗어나면 되돌린다. 모양이 틀린 이름과 이 판의 규칙은 벗어날 때 알리고 칸에 남긴다(useField).
+  const nameField = useField(nameRules({ saved: short, done: (next) => (/^\d/.test(next) ? '숫자로 시작할 수 없어요.' : names.has(STYLE.prefix + next) ? '같은 이름이 이미 있어요.' : null), save: (next) => onRename(STYLE.prefix + next) }))
   const { use, text, picked, words, more } = readTypeNote(token.note, short)
   const [noteDraft, setNoteDraft] = useState(text)
   const look = lookOf(tokens, token.value, token.name)
   const names = new Set(tokens.map((t) => t.name))
   const get = (name: string) => tokens.find((t) => t.name === name)?.value ?? ''
-
-  function commitName() {
-    const next = nameDraft.trim()
-    setNameError(null)
-    // 비웠거나 쓸 수 없는 글자가 든 이름은 적는 중에 알 수 있는 것이다. 그대로 벗어나면 저장된 이름으로 되돌린다(DESIGN.md field-rules).
-    if (!next || typedNameProblem(next)) return setNameDraft(short)
-    // 글자는 맞지만 모양이 틀린 이름(card-, card--big)은 다 적어야 아는 것이다. 말없이 되돌리지 않고 까닭과 함께 칸에 남긴다.
-    if (next !== short && !SLUG.test(next)) return setNameError(NAME_SHAPE)
-    if (next === short) return
-    // 숫자로 시작하는 이름은 Tailwind의 숫자 클래스(h-8, opacity-50)와 같은 글자가 된다. 다른 의미 판과 같이 막는다.
-    if (/^\d/.test(next)) return setNameError('숫자로 시작할 수 없어요.')
-    if (names.has(STYLE.prefix + next)) return setNameError('같은 이름이 이미 있어요.')
-    onRename(STYLE.prefix + next)
+  // 크기 칸에 적는 글자. 크기와 그 크기에 묶인 줄 높이를 CSS에서 쓰는 꼴로 붙여 적는다(14px/20px).
+  // 글자 사이는 적지 않는다. 크기에 이미 정해져 있는 값이라 여기서 볼 까닭이 없고(글꼴 판에 있다), 닫힌 칸에 들어갈 자리도 없다.
+  const sizeHint = (size: Token) => {
+    const line = get(lineName(size.name))
+    return `${size.value}${line ? `/${line}` : ''}`
   }
+  // 이 조합에 직접 적혀 있는 줄 높이와 글자 사이(예전에 적었거나 파일에서 손으로 고친 것).
+  const ownLine = look?.parts.line
+  const ownTrack = trackOverride(tokens, token.name) ?? undefined
 
   function commitNote() {
     // 주석을 끝내는 기호와 줄바꿈은 파일을 깨뜨리므로 뺀다.
@@ -413,32 +410,30 @@ export function TypeInspector({
       <Section title="이름">
         <input
           className={inputClass}
-          value={nameDraft}
+          value={nameField.draft}
           aria-label="이름"
           data-rename="token"
-          onChange={(e) => {
-            setNameDraft(e.target.value)
-            setNameError(typedNameProblem(e.target.value))
-          }}
-          onBlur={commitName}
+          onChange={(e) => nameField.type(e.target.value)}
+          onBlur={nameField.leave}
           onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
         />
-        {nameError && <span className="mt-label block type-body text-danger">{nameError}</span>}
+        {nameField.error && <span className="mt-label block type-body text-danger">{nameField.error}</span>}
       </Section>
 
       <Section title="조합">
         {look ? (
           <div className="space-y-blocks">
             <PartField label="글꼴 종류" kind={FONT} tokens={tokens} value={look.parts.font} show={(t) => shownFont(t.value)} onChange={(font) => set({ font })} onOpen={onOpenToken} />
-            <PartField label="글자 크기" kind={SIZE} tokens={tokens} value={look.parts.size} show={(t) => t.value} onChange={(size) => set({ size })} onOpen={onOpenToken} />
-            {/* 차례는 글꼴 판과 같다: 크기, 줄 높이, 글자 사이, 그다음 굵기. 줄 높이와 글자 사이는 크기에 딸린 값이라 크기 바로 아래에 둔다. */}
-            {/* 줄 높이와 글자 사이는 고르지 않는다. 고른 글자 크기에 묶인 값을 그대로 따르고, 여기서는 그 값을 보여 주기만 한다.
-                의미 색이 색상 판의 색만 가리키듯, 의미 글꼴도 글꼴 판에 있는 값만 쓴다. 다른 줄 높이가 필요하면 글꼴 판에 크기 단계를 하나 더 만들어 고른다.
-                예전에 직접 적어 둔 값이 있는 조합은 그 값으로 그리되 진하게 적고, 지우는 버튼만 둔다(말없이 사라지지 않게). */}
-            <div className="grid grid-cols-2 gap-field-row">
-              <Follows label="줄 높이" bound={get(lineName(look.parts.size))} own={look.parts.line} onClear={() => set({ line: undefined })} />
-              <Follows label="글자 사이" bound={get(trackName(look.parts.size)) || '0em'} own={trackOverride(tokens, token.name) ?? undefined} onClear={() => onTrack(null)} />
-            </div>
+            {/* 줄 높이와 글자 사이는 고르지 않는다. 고른 글자 크기에 묶인 값을 그대로 따른다. 크기에 딸려 오는 값이라 따로 줄을 두지 않고 크기 칸 안에 함께 적는다(14px/20px).
+                고르는 목록에서도 크기마다 함께 보여서 고르기 전에 견줄 수 있다. 의미 색이 색상 판의 색만 가리키듯, 의미 글꼴도 글꼴 판에 있는 값만 쓴다. 다른 줄 높이가 필요하면 글꼴 판에 크기 단계를 하나 더 만들어 고른다. */}
+            <PartField label="글자 크기" kind={SIZE} tokens={tokens} value={look.parts.size} show={sizeHint} onChange={(size) => set({ size })} onOpen={onOpenToken} />
+            {/* 예전에 직접 적어 둔 값이 있는 조합만은 그 값으로 그려지므로, 그 값을 진하게 적고 지우는 버튼을 둔다(말없이 사라지지 않게). 그런 값이 없으면 이 줄은 없다. */}
+            {(ownLine || ownTrack) && (
+              <div className="grid grid-cols-2 gap-field-row">
+                {ownLine && <Follows label="줄 높이" bound={get(lineName(look.parts.size))} own={ownLine} onClear={() => set({ line: undefined })} />}
+                {ownTrack && <Follows label="글자 사이" bound={get(trackName(look.parts.size)) || '0em'} own={ownTrack} onClear={() => onTrack(null)} />}
+              </div>
+            )}
             <PartField label="굵기" kind={WEIGHT} tokens={tokens} value={look.parts.weight} show={(t) => t.value} onChange={(weight) => set({ weight })} onOpen={onOpenToken} />
           </div>
         ) : (
@@ -493,6 +488,7 @@ export function TypeInspector({
  * 짝지을 재료가 모자라면 양식 대신 무엇부터 만들지 알린다(한 벌 만들기 창의 안내와 같은 글이다).
  * 처음에는 기본 한 벌 가운데 아직 없는 다음 것의 이름과 조합이 채워져 있어서, 그대로 "추가"를 누르면 전처럼 다음 조합이 생긴다.
  * 다른 의미 판(의미 색, 의미 간격)의 추가도 창에서 이름과 가리키는 값을 정한다.
+ * 고른 조합으로 판의 줄과 같은 예시를 창 오른쪽의 영역에 보여 준다(WithExample). 예시의 모양은 판이 짐작하는 그대로다(묶음과 이름에서 짐작한다). 여기서 따로 고르지 않는다.
  */
 export function NewTypeForm({ tokens, onCreate, onCancel }: { tokens: Token[]; onCreate: (name: string, value: string, note: string) => void; onCancel: () => void }) {
   const made = nextType(tokens)
@@ -502,7 +498,8 @@ export function NewTypeForm({ tokens, onCreate, onCancel }: { tokens: Token[]; o
   const sizes = options(SIZE)
   const weights = options(WEIGHT)
   const pick = (list: { id: string }[], want?: string) => (list.some((o) => o.id === want) ? want! : (list[0]?.id ?? ''))
-  const [name, setName] = useState(made ? shortName(STYLE, made.name) : '')
+  // 이름 칸은 비워 두고, 아직 없는 다음 단계의 이름을 옅은 글자로 추천한다(다른 추가 창과 같다).
+  const [name, setName] = useState('')
   const [font, setFont] = useState(pick(fonts, start?.font))
   const [size, setSize] = useState(pick(sizes, start?.size))
   const [weight, setWeight] = useState(pick(weights, start?.weight))
@@ -535,14 +532,20 @@ export function NewTypeForm({ tokens, onCreate, onCancel }: { tokens: Token[]; o
       </div>
     )
 
+  // 예시. 판의 줄(TypeList)이 하는 그대로, 만들어질 값과 주석과 이름에서 조합과 모양을 읽는다.
+  const look = lookOf(tokens, writeType({ font, size, weight }, new Set(tokens.map((t) => t.name))), STYLE.prefix + name.trim())
+  const shape = readTypeNote(writeTypeNote(shownUse, text), name.trim()).shape
+
   return (
-    <form onSubmit={submit} className="space-y-fields">
+    <form onSubmit={submit}>
+      <WithExample example={look && !look.broken ? <TypeSample shape={shape} look={look} around={sampleColors(tokens)} /> : null}>
       <Field label="이름" error={error}>
         <input
           autoFocus
           className={inputClass}
           value={name}
-          placeholder="body"
+          // 옅은 글자는 그대로 적으면 만들어지는 이름일 때만 보인다. 이미 있는 이름을 본보기로 보이면, 따라 적었을 때 되는 창과 안 되는 창이 생긴다.
+          placeholder={made ? shortName(STYLE, made.name) : ''}
           onChange={(e) => {
             setName(e.target.value)
             setError(undefined)
@@ -564,6 +567,7 @@ export function NewTypeForm({ tokens, onCreate, onCancel }: { tokens: Token[]; o
       <Field label="설명">
         <input className={inputClass} value={text} onChange={(e) => setText(e.target.value)} />
       </Field>
+      </WithExample>
       <div className="mt-dialog-actions flex justify-end gap-actions">
         <Button variant="ghost" onClick={onCancel}>
           취소

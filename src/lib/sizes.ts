@@ -11,11 +11,15 @@ import type { Token } from './api'
 import { KINDS, LENGTH_REF, type Kind } from './catalog'
 
 /** 의미 크기의 묶음. 무엇의 크기인지다. 판은 이 차례로 묶어 보여 준다. */
-export type SizeGroup = 'control' | 'frame'
+import { groupFromNote, headOf } from './kindnote'
+
+export type SizeGroup = 'control' | 'frame' | 'other'
 
 export const SIZE_GROUPS: { id: SizeGroup; label: string; hint: string }[] = [
   { id: 'control', label: '컨트롤', hint: '버튼, 입력칸, 아이콘' },
   { id: 'frame', label: '영역', hint: '메뉴, 패널, 창, 막대, 목록' },
+  // 목록에 없는 쓰임. 주석에 목록에 없는 묶음이 적힌 값도 여기에 놓인다(kindnote.ts의 groupFromNote).
+  { id: 'other', label: '그 밖', hint: '목록에 없는 쓰임' },
 ]
 // "견본"(판에서 값을 보여 주는 칸) 묶음은 없앴다. 거기에 드는 값이 없었다. 색 칸, 미리보기 같은 예시의 모양은 그대로 있다.
 /** 예전 파일의 주석에 남아 있을 수 있는, 이제 없는 묶음의 이름. 묶음을 적지 않은 것으로 읽어 이름에서 짐작하고, 그 값을 고치면 지금의 묶음으로 다시 적힌다. */
@@ -82,6 +86,16 @@ export const SIZE_SHAPES: { id: SizeShape; label: string; hint: string }[] = [
   { id: 'dot', label: '점', hint: '둥근 점' },
   { id: 'box', label: '상자', hint: '옅게 칠한 상자' },
 ]
+
+/**
+ * 추가 창에서 종류와 묶음마다 처음 골라 두는 예시의 모양. 그 자리에서 가장 흔한 쓰임이다. 직접 고르기 전까지만 종류와 묶음을 따라 바뀐다.
+ * 높이는 입력칸(컨트롤)과 상단 바(영역), 너비는 고르는 칸의 이름 자리(컨트롤)와 패널·창(영역), 정사각형은 아이콘 버튼(컨트롤)과 상자(영역)다.
+ */
+export const SIZE_SHAPE_FOR: Record<'height' | 'width' | 'square', Record<SizeGroup, SizeShape>> = {
+  height: { control: 'input', frame: 'bar', other: 'input' },
+  width: { control: 'select', frame: 'frame', other: 'frame' },
+  square: { control: 'iconbutton', frame: 'box', other: 'box' },
+}
 
 /** 모양마다의 기본 예시 문구. 여럿을 늘어놓는 모양은 ", "로 나눠 하나씩 놓는다. */
 export const SIZE_WORDS: Record<SizeShape, string> = {
@@ -154,10 +168,12 @@ export function readSizeNote(
   short: string,
 ): { group: SizeGroup; text: string; picked?: SizeShape; words: string; more: SizeExample[]; examples: SizeExample[] } {
   const all = modern((note ?? '').trim())
-  const m = new RegExp(`^(${GROUP_LABELS})(?:\\((${LABELS})\\))?\\s*:\\s*(.*)$`).exec(all)
-  const group = (m && SIZE_GROUPS.find((g) => g.label === m[1])?.id) || guessSizeGroup(short)
+  const m = new RegExp(`^(${GROUP_LABELS})(?:\\(([^)|]*)\\))?\\s*:\\s*(.*)$`).exec(all)
+  // 예전 묶음 이름(견본)으로 적힌 주석은 묶음을 적지 않은 것으로 읽어 이름에서 짐작한다("그 밖"으로 보내지 않는다).
+  const group = m ? (SIZE_GROUPS.find((g) => g.label === m[1])?.id ?? guessSizeGroup(short)) : (groupFromNote(all, SIZE_GROUPS, 'other') ?? guessSizeGroup(short))
   const picked = m?.[2] ? own(m[2]) : undefined
-  const parts = m ? m[3].split(MARK).map((p) => p.trim()) : [all]
+  // 목록에 없는 묶음의 주석(이름(모양): …)도 " | "로 나눠 읽는다. 통째로 설명으로 읽으면 다시 적을 때 문구의 구분이 사라진다.
+  const parts = m ? m[3].split(MARK).map((p) => p.trim()) : headOf(all) !== null ? all.split(MARK).map((p) => p.trim()) : [all]
   const words = parts[1] ?? ''
   const head = new RegExp(`^(${LABELS})\\s*:\\s*(.*)$`)
   const more = parts.slice(2).flatMap((p): SizeExample[] => {
@@ -178,4 +194,42 @@ export function writeSizeNote(group: SizeGroup, text: string, shape?: SizeShape,
   const body = [tidy(text), ...(tidy(words) || rest.length ? [tidy(words)] : []), ...rest].join(WORDS_MARK).trim()
   const head = shape ? `${groupLabel}(${label(shape)})` : groupLabel
   return body ? `${head}: ${body}` : `${head}:`
+}
+
+/**
+ * 추가 창에서 예시를 고르면 이름 칸에 채워지는 이름(DESIGN.md dialog-defaults). 그 예시가 보여 주는 쓰임의 영문 이름이다.
+ * ff-ds가 실제로 쓰는 이름을 따랐고(사이는 actions, 줄은 rows), 쓰는 이름이 없는 예시만 새로 지었다. 그 이름이 이미 있으면 창은 이름 칸을 비워 둔다.
+ */
+export const SIZE_NAMES: Record<SizeShape, string> = {
+  input: 'control',
+  button: 'button',
+  row: 'row',
+  field: 'compact',
+  segment: 'segment',
+  value: 'stepper-value',
+  slider: 'slider',
+  iconbutton: 'icon-button',
+  icon: 'icon',
+  check: 'checkbox',
+  mark: 'check-mark',
+  handle: 'handle',
+  knob: 'knob',
+  bar: 'bar',
+  heading: 'heading',
+  line: 'line',
+  toast: 'toast',
+  card: 'card',
+  list: 'list',
+  menu: 'menu',
+  frame: 'dialog',
+  column: 'column',
+  select: 'picker-name',
+  color: 'swatch',
+  preview: 'preview',
+  picker: 'color-picker',
+  stage: 'stage',
+  placeholder: 'placeholder',
+  badge: 'badge',
+  dot: 'dot',
+  box: 'box',
 }

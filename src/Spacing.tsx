@@ -5,14 +5,17 @@ import { ICON_STROKE } from './lib/icons'
 import { useContext, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import { ArrowUpRight } from 'lucide-react'
 import type { Token } from './lib/api'
-import { KINDS, SLUG, slugMessage, SPACE_REF, lengthLabel, shortName, NAME_SHAPE, typedNameProblem, type Kind } from './lib/catalog'
+import { KINDS, SLUG, slugMessage, SPACE_REF, lengthLabel, shortName, type Kind } from './lib/catalog'
 import type { Around } from './lib/roles'
-import { SPACE_USES, SPACE_WORDS, guessSpaceUse, isSpaceListShape, readSpaceNote, writeSpaceNote, type SpaceExample, type SpaceShape, type SpaceUse } from './lib/spacing'
+import { SPACE_NAMES, SPACE_SHAPES, SPACE_SHAPE_FOR, SPACE_USES, SPACE_WORDS, guessSpaceUse, isSpaceListShape, readSpaceNote, writeSpaceNote, type SpaceExample, type SpaceShape, type SpaceUse } from './lib/spacing'
 import { PreviewFontContext, PreviewSpaceContext } from './ColorUses'
-import { CODE_OPEN, CodeRows, FoldSection, ICON_BUTTON, Section, WHERE_OPEN } from './Inspector'
+import { CODE_OPEN, CodeRows, FoldSection, Section, WHERE_OPEN, ICON_BUTTON } from './Inspector'
 import { DetailsFolded, HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
 import { Button, Field, Phrases, UsePicker, inputClass , linkRowClass } from './ui'
+import { freeName, nearestRef } from './lib/nearest'
+import { nameRules, useField } from './useField'
 import { useReorder } from './useReorder'
+import { WithExample } from './WithExample'
 
 // 예시의 바탕이 판의 바탕과 같은 색이어도 가장자리가 보이게 하는 옅은 선.
 const EDGE = 'shadow-[inset_0_0_0_var(--border-width-edge)_rgb(0_0_0/0.1)]'
@@ -657,26 +660,12 @@ export function SpaceUseInspector({
 }) {
   const short = shortName(kind, token.name)
   const { use, text, picked, words, more } = readSpaceNote(token.note, short)
-  const [nameDraft, setNameDraft] = useState(short)
-  const [nameError, setNameError] = useState<string | null>(null)
+  // 이름 칸. 쓸 수 없는 글자는 적는 중에 알리고 벗어나면 되돌린다. 모양이 틀린 이름과 이 판의 규칙은 벗어날 때 알리고 칸에 남긴다(useField).
+  const nameField = useField(nameRules({ saved: short, done: (next) => (/^\d/.test(next) ? '숫자로 시작할 수 없어요.' : tokens.some((t) => t.name === kind.prefix + next) ? '같은 이름이 이미 있어요.' : null), save: (next) => onRename(kind.prefix + next) }))
   const [textDraft, setTextDraft] = useState(text)
   const options = baseOptions(tokens)
   const ref = spaceRefOf(token.value)
   const length = resolveSpace(tokens, token.value)
-
-  function commitName() {
-    const next = nameDraft.trim()
-    setNameError(null)
-    // 비웠거나 쓸 수 없는 글자가 든 이름은 적는 중에 알 수 있는 것이다. 그대로 벗어나면 저장된 이름으로 되돌린다(DESIGN.md field-rules).
-    if (!next || typedNameProblem(next)) return setNameDraft(short)
-    // 글자는 맞지만 모양이 틀린 이름(card-, card--big)은 다 적어야 아는 것이다. 말없이 되돌리지 않고 까닭과 함께 칸에 남긴다.
-    if (next !== short && !SLUG.test(next)) return setNameError(NAME_SHAPE)
-    if (next === short) return
-    // 만들 때와 같은 규칙. 숫자로 시작하는 이름(--spacing-8)은 Tailwind의 숫자 클래스(p-8, top-8)가 그 값을 따라가게 만들어서 의미 간격에 쓸 수 없다.
-    if (/^\d/.test(next)) return setNameError('숫자로 시작할 수 없어요.')
-    if (tokens.some((t) => t.name === kind.prefix + next)) return setNameError('같은 이름이 이미 있어요.')
-    onRename(kind.prefix + next)
-  }
 
   // 같은 주석에 적혀 있는 예시(모양과 문구)는 그대로 둔다.
   const saveNote = (patch: { use?: SpaceUse; text?: string }) => onChange({ note: writeSpaceNote(patch.use ?? use, patch.text ?? text, picked, words, more) })
@@ -690,22 +679,19 @@ export function SpaceUseInspector({
       <Section title="이름">
         <input
           className={inputClass}
-          value={nameDraft}
+          value={nameField.draft}
           aria-label="이름"
           data-rename="token"
-          onChange={(e) => {
-            setNameDraft(e.target.value)
-            setNameError(typedNameProblem(e.target.value))
-          }}
-          onBlur={commitName}
+          onChange={(e) => nameField.type(e.target.value)}
+          onBlur={nameField.leave}
           onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
         />
-        {nameError && <span className="mt-label block type-body text-danger">{nameError}</span>}
+        {nameField.error && <span className="mt-label block type-body text-danger">{nameField.error}</span>}
       </Section>
 
       <Section title="가리키는 간격">
         {ref && options.some((o) => o.id === ref) ? (
-          // 고르는 칸 옆에, 가리키는 간격이 간격 판의 어디에 있는지 보러 가는 버튼. "쓰이는 곳"의 반대 방향이다(의미 크기 패널과 같다).
+          // 고르는 칸 옆에, 가리키는 값이 그 판의 어디에 있는지 보러 가는 버튼. "쓰이는 곳"의 반대 방향이다.
           <div className="flex items-center gap-actions-tight">
             <div className="min-w-0 flex-1">
               <UsePicker label="가리키는 간격" options={options} value={ref} nameWidth="w-picker-name-wide" onChange={(next) => onChange({ value: `var(${next})` })} />
@@ -773,16 +759,26 @@ export function SpaceUseInspector({
 /**
  * 의미 간격을 만드는 양식. 이름, 가리키는 간격, 묶음, 설명을 정한다. 설명은 비워 두어도 되고 만든 뒤에 패널에서도 고친다.
  * 가리키는 간격은 고르지 않은 채로 시작한다. 첫 값을 골라 두면 이름만 적고 만들었을 때 엉뚱한 간격을 가리키는 값이 생긴다.
+ * 예시의 모양을 고르고, 간격을 고르면 판의 줄과 같은 예시를 창 오른쪽의 영역에 보여 준다(WithExample). 고른 모양은 주석에 적힌다(문구는 적지 않아 모양의 기본 문구로 그려진다).
  */
 export function NewSpaceUseForm({ tokens, onCreate, onCancel }: { tokens: Token[]; onCreate: (name: string, value: string, note: string) => void; onCancel: () => void }) {
   const options = baseOptions(tokens)
   const [name, setName] = useState('')
-  const [ref, setRef] = useState<string | null>(null)
+  // 창을 열자마자 예시가 보이게, 가리키는 값은 흔히 쓰는 간격(8px)에 가장 가까운 것을 골라 둔다(DESIGN.md dialog-defaults). 예시를 보며 바꾼다.
+  const [ref, setRef] = useState<string | null>(() => nearestRef(tokens, options.map((o) => o.id), 8))
   // 묶음은 직접 고르기 전까지 이름에서 짐작한 것을 보여 준다.
   const [use, setUse] = useState<SpaceUse | null>(null)
   const [text, setText] = useState('')
   const [error, setError] = useState<{ name?: string; ref?: string }>({})
-  const shownUse = use ?? guessSpaceUse(name.trim())
+  const baseUse = use ?? guessSpaceUse(name.trim())
+  // 예시의 모양. 직접 고르기 전까지는 묶음에 맞는 모양을 따라간다(묶음이 이름에서 짐작되는 것과 같다).
+  const [picked, setPicked] = useState<SpaceShape | null>(null)
+  const shape = picked ?? SPACE_SHAPE_FOR[baseUse]
+  // 이름 칸은 비워 두고, 고른 예시에 맞는 이름을 옅은 글자로 추천한다(DESIGN.md dialog-defaults). 추천은 값이 아니다. 비운 채 추가하면 "이름을 입력해 주세요."다.
+  const suggestedName = freeName(tokens, KINDS.spaceUse.prefix, SPACE_NAMES[shape])
+  const shownUse = baseUse
+  // 고른 간격의 길이. 판의 줄(SpaceRows)과 같이 길이로 그린다.
+  const length = ref ? resolveSpace(tokens, `var(${ref})`) : null
 
   function submit(e: FormEvent) {
     e.preventDefault()
@@ -794,7 +790,7 @@ export function NewSpaceUseForm({ tokens, onCreate, onCancel }: { tokens: Token[
     else if (tokens.some((t) => t.name === KINDS.spaceUse.prefix + n)) next.name = '같은 이름이 이미 있어요.'
     if (!ref) next.ref = '간격을 골라 주세요.'
     setError(next)
-    if (Object.keys(next).length === 0 && ref) onCreate(KINDS.spaceUse.prefix + n, `var(${ref})`, writeSpaceNote(shownUse, text))
+    if (Object.keys(next).length === 0 && ref) onCreate(KINDS.spaceUse.prefix + n, `var(${ref})`, writeSpaceNote(shownUse, text, shape))
   }
 
   // 가리킬 토대 간격이 하나도 없으면 만들 수 없다. 막다른 곳이라 무엇을 먼저 할지 알려 준다.
@@ -809,13 +805,15 @@ export function NewSpaceUseForm({ tokens, onCreate, onCancel }: { tokens: Token[
     )
 
   return (
-    <form onSubmit={submit} className="space-y-fields">
+    <form onSubmit={submit}>
+      <WithExample example={length !== null ? <SpaceSample shape={shape} value={length} around={sampleColors(tokens)} /> : null}>
       <Field label="이름" error={error.name}>
         <input
           autoFocus
           className={inputClass}
           value={name}
-          placeholder="actions"
+          // 옅은 글자는 그대로 적으면 만들어지는 이름일 때만 보인다. 이미 있는 이름을 본보기로 보이면, 따라 적었을 때 되는 창과 안 되는 창이 생긴다.
+          placeholder={suggestedName}
           onChange={(e) => {
             setName(e.target.value)
             setError({ ...error, name: undefined })
@@ -837,9 +835,14 @@ export function NewSpaceUseForm({ tokens, onCreate, onCancel }: { tokens: Token[
       <Field label="묶음" plain>
         <UsePicker label="묶음" options={SPACE_USES} value={shownUse} nameWidth="w-picker-name" onChange={setUse} />
       </Field>
+      <Field label="예시" plain>
+        {/* 이름이 가장 긴 모양("바탕 없는 버튼 사이")은 긴 이름 자리(112px)보다 길다. 너비를 못 박지 않고 가장 좁을 때의 너비로만 주어, 그 이름도 잘리지 않게 한다. */}
+        <UsePicker label="예시" options={SPACE_SHAPES} value={shape} nameWidth="min-w-(--width-picker-name-long)" onChange={setPicked} />
+      </Field>
       <Field label="설명">
         <input className={inputClass} value={text} onChange={(e) => setText(e.target.value)} />
       </Field>
+      </WithExample>
       <div className="mt-dialog-actions flex justify-end gap-actions">
         <Button variant="ghost" onClick={onCancel}>
           취소

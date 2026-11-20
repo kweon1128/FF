@@ -2,13 +2,14 @@ import { ICON_STROKE } from './lib/icons'
 import { useState, type ReactNode } from 'react'
 import { ChevronDown, ChevronRight, Copy, PencilLine, Pipette, Rows3, Type } from 'lucide-react'
 import type { Token } from './lib/api'
-import { ALL_KINDS, COLOR_REF, SLUG, groupOf, shortName, NAME_SHAPE, typedNameProblem, type Kind } from './lib/catalog'
+import { ALL_KINDS, COLOR_REF, groupOf, shortName, type Kind } from './lib/catalog'
 import { asHex, isApprox, showColor, toHex, toOklch } from './lib/color'
 import { stepValue, suggestLine, suggestTrack } from './lib/tokens'
 import { ColorSwatch } from './ColorPicker'
 import { NewFontForm } from './NewFont'
 import { shownFont } from './lib/fonts'
 import { Button, Chip, Field, Modal, UnitInput, inputClass , linkRowClass } from './ui'
+import { nameRules, numberRules, unitProps, useField } from './useField'
 
 type Props = {
   token: Token
@@ -49,7 +50,6 @@ export const ICON_BUTTON =
   'flex size-icon-button shrink-0 items-center justify-center rounded-control text-ink-soft outline-selection hover:bg-hover hover:text-ink focus-visible:outline-focus'
 
 const HEX6 = /^#[0-9a-f]{6}$/i
-const PLAIN = /^[a-z0-9]+$/
 
 // 글자 크기 규칙: 읽고 고치는 내용(항목 이름, 입력칸, 삭제)은 14px,
 // 그것을 설명하는 것(구역 제목, 이름표, 코드 표시)은 12px.
@@ -233,12 +233,6 @@ function userOf(name: string) {
 
 /** 숫자 하나에 단위가 붙은 값. 단위는 고정해 두고 숫자만 고친다. */
 const UNIT = /^(-?\d*\.?\d+)(px|rem|em|ms|s|%)$/
-const NUMBER = /^\d*\.?\d+$/
-const SIGNED = /^-?\d*\.?\d+$/
-/** 숫자를 적는 도중의 꼴("-", "0.", "-."). 아직 숫자는 아니지만 틀린 것도 아니라서 적는 중에는 알리지 않는다. */
-const PARTIAL = /^-?\d*\.$|^-$/
-/** 0보다 커야 하는 칸에서 0.875를 적는 도중의 꼴(0, 0.0, .0). */
-const ZEROS = /^0*\.?0*$/
 const digitsOf = (value: string | null | undefined) => (value ?? '').replace(/px$/, '')
 
 /** 오른쪽 편집 패널. 선택한 값이 바뀌면 key로 새로 만들어져 입력 중이던 내용이 초기화된다. */
@@ -271,164 +265,74 @@ export function Inspector({
   const initialGroup = isColor ? groupOf(short) : ''
   const initialName = initialGroup ? short.slice(initialGroup.length + 1) : short
 
-  const [groupDraft, setGroupDraft] = useState(initialGroup)
-  const [nameDraft, setNameDraft] = useState(initialName)
-  const [nameError, setNameError] = useState<string | null>(null)
-  const [groupError, setGroupError] = useState<string | null>(null)
-  // 색은 파일에 oklch로 저장하지만, 여기서는 읽고 쓰기 쉬운 #으로 보여 주고 받는다.
-  const [valueDraft, setValueDraft] = useState(kind.id === 'color' ? showColor(token.value) : token.value)
-  const [valueError, setValueError] = useState<string | null>(null)
+  // 이 패널의 입력칸은 모두 useField의 약속을 따른다(DESIGN.md field-rules).
+  const joined = (group: string, name: string) => (group ? `${group}-${name}` : name)
+  /** 목록과 이름을 합친 새 이름을 쓸 수 없으면 까닭을 돌려준다. */
+  function renameProblem(group: string, name: string): string | null {
+    const next = joined(group, name)
+    if (next === short) return null
+    // 글꼴 종류와 굵기는 이름이 같은 앞머리로 시작한다. weight로 시작하면 굵기로 읽힌다(추가 창과 같은 규칙).
+    if (isFont && (next === 'weight' || next.startsWith('weight-'))) return 'weight로 시작하는 이름은 굵기에 쓰여요.'
+    if (allNames.includes(kind.prefix + next)) return '같은 이름이 이미 있어요.'
+    // 색은 이름이 목록 이름이나 의미 색 이름의 앞머리와 겹쳐도 안 된다(만들 때와 같은 규칙).
+    const problem = nameProblem?.(group, name)
+    return problem?.group ?? problem?.name ?? null
+  }
+  // 색의 이름은 목록과 이름으로 이루어진다. 이름 칸에서는 목록을 뺀 이름만 고치고, 목록은 패널에 따로 적지 않는다(맨 위의 제목에 온 이름이 있다). 색 하나를 다른 목록으로 옮기는 일은 패널에서 하지 않는다
+  // (단계 이름이 겹쳐 대개 막히고, 없는 목록 이름을 적으면 색 하나짜리 목록이 생기며, 목록 이름을 바꾸려던 사람이 색 하나만 떼어 내게 된다). 목록 이름은 목록을 통째로 선택했을 때의 "목록 이름" 칸에서 바꾼다.
+  // 색이 하나뿐인 목록도 같다. 목록 이름을 눌러 목록을 선택하면 "목록 이름" 칸이 있는 패널이 뜨고, 색을 누르면 이 패널이 뜬다(App.tsx의 listPicked).
+  const nameField = useField(
+    isColor
+      ? {
+          saved: initialName,
+          // 색의 단계 이름은 하이픈도 쓸 수 없다.
+          typed: (text) => (/^[a-z0-9]*$/.test(text.trim()) ? null : '영문 소문자와 숫자만 쓸 수 있어요.'),
+          done: (name) => renameProblem(initialGroup, name),
+          save: (name) => onRename(kind.prefix + joined(initialGroup, name)),
+        }
+      : nameRules({ saved: initialName, done: (name) => renameProblem('', name), save: (name) => onRename(kind.prefix + name) }),
+  )
+
   // 값이 숫자 하나에 단위가 붙은 것이면(16px, 0.02em, 200ms) 단위를 고정해 두고 숫자만 고친다. 단위는 지금 값의 것을 그대로 쓴다.
   // 그림자나 clamp()처럼 그렇지 않은 값, 단위가 없는 값(굵기, 투명도)은 적힌 그대로 고친다.
   const [unit] = useState(isColor || isFont ? null : (UNIT.exec(token.value)?.[2] ?? null))
-  const [digits, setDigits] = useState(UNIT.exec(token.value)?.[1] ?? '')
-  // 0이나 음수가 될 수 없는 값(글자 크기)과 음수가 되는 값(글자 사이 간격).
-  const positive = kind.id === 'size'
+  // 값 칸을 비우면 지금 저장되어 있는 값이 옅게 보인다. 비운 채로 칸을 떠나면 그 값으로 돌아간다.
+  const savedDigits = UNIT.exec(token.value)?.[1] ?? ''
+  // 0이나 음수가 될 수 없는 값(글자 크기)과 음수가 되는 값(글자 사이).
+  // 28을 적으려면 2를 거치는데, 그 2가 바로 저장되면 줄이 값의 순서대로 맨 위로 튀어 올라가고 그 값을 쓰는 화면이 그사이에 바뀐다. 그래서 적는 동안은 저장하지 않는다. ↑↓는 바로 저장한다.
   const negative = kind.id === 'tracking'
-  // 줄 높이 칸에 적는 숫자(px는 고정).
-  const [lineDraft, setLineDraft] = useState(digitsOf(line))
-  const [lineError, setLineError] = useState<string | null>(null)
-  // 크기를 바꾸면 묶인 줄 높이가 따라 바뀐다. 밖에서 바뀐 값을 칸에 옮긴다(칸에 적는 중인 값과 같으면 그대로 둔다).
-  const [seenLine, setSeenLine] = useState(line)
-  if (line !== seenLine) {
-    setSeenLine(line)
-    if ((line ?? '') !== (lineDraft ? `${lineDraft}px` : '')) {
-      setLineDraft(digitsOf(line))
-      setLineError(null)
-    }
-  }
+  const digitsField = useField(numberRules({ saved: savedDigits, negative, positive: kind.id === 'size', save: (digits) => onValue(`${digits}${unit}`) }))
 
-  // 묶인 글자 사이 칸에 적는 숫자(em은 고정). 크기를 바꾸면 따라 바뀌므로 줄 높이처럼 밖에서 바뀐 값을 칸에 옮긴다.
-  const [trackDraft, setTrackDraft] = useState((track ?? '').replace(/em$/, ''))
-  const [trackError, setTrackError] = useState<string | null>(null)
-  const [seenTrack, setSeenTrack] = useState(track)
-  if (track !== seenTrack) {
-    setSeenTrack(track)
-    if ((track ?? '') !== (trackDraft ? `${trackDraft}em` : '')) {
-      setTrackDraft((track ?? '').replace(/em$/, ''))
-      setTrackError(null)
-    }
-  }
+  // 색은 파일에 oklch로 저장하지만, 여기서는 읽고 쓰기 쉬운 #으로 보여 주고 받는다. #을 빼고 여섯 자리만 적어도 색으로 받는다.
+  // 색으로 읽히는 값(#, rgb, hsl)은 oklch로 바꿔 저장하고, 읽을 수 없는 값은 적은 그대로 둔다.
+  const shownValue = isColor ? showColor(token.value) : token.value
+  const stored = (text: string) => (isColor ? toOklch(asHex(text) ?? text) : text)
+  // #1a2b3c를 적는 동안 #1a2, #1a2b가 잠깐씩 저장되면 그 색을 쓰는 화면이 깜빡이고 되돌리기 단계가 잘게 쌓인다. 색 고르기, ↑↓, 화면에서 색 찍기는 바로 저장한다.
+  const valueField = useField({
+    saved: shownValue,
+    typed: (raw) => {
+      const next = raw.trim()
+      if (/[;{}]/.test(next)) return '; { } 기호는 쓸 수 없어요.'
+      // 색 칸에서 쓰다 만 # 값(#12345)은 저장하지 않는다. 그대로 저장되면 이 색을 가리키는 의미 색이 모두 "없는 색"이 된다.
+      // 이름으로 된 색(white)이나 color-mix(…)처럼 FF가 읽지 못할 뿐인 값은 막지 않는다.
+      if (isColor && /^#?[0-9a-f]*$/i.test(next) && !asHex(next)) return '#rrggbb처럼 여섯 자리로 적어 주세요.'
+      // 다른 색을 가리키는 값을 적으면 이 색이 의미 색으로 바뀌어 색상 판에서 사라진다. 의미 색은 의미 색 판에서 만든다.
+      if (isColor && COLOR_REF.test(next)) return '다른 색을 가리키는 색은 의미 색 판에서 만들어 주세요.'
+      return null
+    },
+    same: (text) => text === shownValue || (text !== '' && stored(text) === token.value),
+    save: (text) => onValue(stored(text)),
+  })
+  const valueDraft = valueField.draft
 
   // 칸이 비어 있을 때 옅게 보여 주는 추천값. 지금 글자 크기에 어울리는 줄 높이와 글자 사이다(한 벌 만들기의 "보통"과 같은 규칙).
-  // 비운 채로 칸을 떠나면 이 값으로 채운다. 빈 칸으로 남겨 두지 않는다. 좁힐 필요가 없는 크기의 글자 사이는 추천값이 없어 0이 보이고 비어 있는 채로 둔다.
+  // 적혀 있던 값을 비우고 칸을 떠나면 이 값으로 채운다. 처음부터 비어 있던 칸은 들어갔다 나와도 그대로 둔다(고치지 않은 칸은 저장하지 않는다).
+  // 좁힐 필요가 없는 크기의 글자 사이는 추천값이 없어 0이 보이고, 비우면 묶인 글자 사이를 지운다.
   const lineHint = digitsOf(suggestLine(token.value))
   const trackHint = (suggestTrack(token.value) ?? '').replace(/em$/, '')
-
-  /** 묶인 글자 사이는 em으로만 받는다(음수가 좁게). 비우면 묶인 글자 사이를 지운다. */
-  function changeTrack(next: string, typing = false) {
-    setTrackDraft(next)
-    setTrackError(null)
-    if (next && !SIGNED.test(next)) return setTrackError(typing && PARTIAL.test(next) ? null : '숫자를 입력해 주세요.')
-    // 적는 동안은 저장하지 않는다(값 칸과 같다). 칸을 벗어날 때 저장한다.
-    if (typing) return
-    if (!next) return onTrack?.(null)
-    if (`${next}em` !== (track ?? '')) onTrack?.(`${next}em`)
-  }
-
-  // 값 칸을 비우면 지금 저장되어 있는 값이 옅게 보인다. 줄 높이나 글자 사이와 달리 값 자체는 다른 데서 계산해 낼 규칙이 없어서, 추천값 대신 마지막으로 저장된 값을 보여 준다.
-  // 비운 채로 칸을 떠나면 그 값으로 돌아간다. 빈 칸으로 남겨 두지 않는다.
-  const savedDigits = UNIT.exec(token.value)?.[1] ?? ''
-
-  /**
-   * 숫자 칸의 값을 바꾼다. 자판으로 적는 동안(typing)은 칸의 글자와 오류 표시만 바꾸고 저장하지 않는다. 칸을 벗어나거나 Enter를 누를 때 저장한다.
-   * 28을 적으려면 2를 거치는데, 그 2가 바로 저장되면 줄이 값의 차례대로 맨 위로 튀어 올라가고 그 값을 쓰는 화면이 그사이에 바뀐다.
-   * FF 자신의 디자인 시스템(ff-ds)을 고칠 때는 FF의 화면이 그 값으로 그려지므로 화면 전체가 흐트러진다. ↑↓로 올리고 내리는 것은 바로 저장한다.
-   */
-  function changeDigits(next: string, typing = false) {
-    setDigits(next)
-    // 비운 것은 틀린 값이 아니라 고치는 중이다. 알리지 않고, 저장된 값은 그대로 둔다.
-    if (!next) return setValueError(null)
-    if (typing && PARTIAL.test(next) && (negative || !next.startsWith('-'))) return setValueError(null)
-    // 0이 될 수 없는 칸에서 0.875를 적으려면 0과 0.0을 거친다. 적는 중에는 알리지 않고, 그대로 벗어나면 되돌린다.
-    if (typing && positive && ZEROS.test(next)) return setValueError(null)
-    if (!(negative ? SIGNED : NUMBER).test(next) || (positive && Number(next) <= 0)) return setValueError('숫자를 입력해 주세요.')
-    setValueError(null)
-    if (!typing && `${next}${unit}` !== token.value) onValue(`${next}${unit}`)
-  }
-
-  /** 칸을 벗어날 때. 비어 있거나 받을 수 없는 값이면 저장된 값으로 되돌리고, 아니면 적어 둔 값을 저장한다. */
-  function commitDigits() {
-    // 적는 도중의 꼴("1.", "-")이나 받을 수 없는 값을 둔 채 벗어나도 되돌린다. 적는 중에 오류가 없었더라도 값이 되지 않으면 남기지 않는다.
-    const unfit = !(negative ? SIGNED : NUMBER).test(digits) || (positive && Number(digits) <= 0)
-    if (!digits || valueError || unfit) {
-      setValueError(null)
-      return savedDigits ? changeDigits(savedDigits) : undefined
-    }
-    changeDigits(digits)
-  }
-
-  /** 줄 높이는 px로만 받는다. 비우면 묶인 줄 높이를 지운다. */
-  function changeLine(digits: string, typing = false) {
-    setLineDraft(digits)
-    setLineError(null)
-    if (digits && (!NUMBER.test(digits) || Number(digits) <= 0)) return setLineError(typing && (/^\d*\.$/.test(digits) || ZEROS.test(digits)) ? null : '숫자를 입력해 주세요.')
-    // 적는 동안은 저장하지 않는다(값 칸과 같다). 칸을 벗어날 때 저장한다.
-    if (typing) return
-    if (!digits) return onLine?.(null)
-    if (`${digits}px` !== (line ?? '')) onLine?.(`${digits}px`)
-  }
-
-  function commitName() {
-    const group = groupDraft.trim()
-    const name = nameDraft.trim()
-    setGroupError(null)
-    setNameError(null)
-    // 비웠거나 쓸 수 없는 글자가 든 이름은 적는 중에 알 수 있는 것이다. 그대로 벗어나면 저장된 이름으로 되돌린다(DESIGN.md field-rules).
-    // 틀린 칸만 되돌린다. 이름 칸이 틀렸다고 고쳐 둔 목록 칸까지 버리지 않는다.
-    const badGroup = !!group && !!typedNameProblem(group)
-    const badName = !name || (isColor ? !PLAIN.test(name) : !!typedNameProblem(name))
-    if (badGroup) setGroupDraft(initialGroup)
-    if (badName) setNameDraft(initialName)
-    // 글자는 맞지만 모양이 틀린 이름(card-, card--big)은 다 적어야 아는 것이다. 말없이 되돌리지 않고 까닭과 함께 칸에 남긴다.
-    // 목록 칸의 모양 오류는 이름 칸이 틀려서 돌아갈 때에도 다시 적는다. 위에서 오류를 지웠으므로, 여기서 적지 않으면 틀린 목록 이름이 오류 없이 칸에 남는다.
-    // 고치지 않은 이름은 모양을 검사하지 않는다.
-    const groupShape = !badGroup && !!group && group !== initialGroup && !SLUG.test(group)
-    if (groupShape) setGroupError(NAME_SHAPE)
-    if (badGroup || badName || groupShape) return
-    if (!isColor && name !== initialName && !SLUG.test(name)) return setNameError(NAME_SHAPE)
-    const next = group ? `${group}-${name}` : name
-    if (next === short) return
-    if (allNames.includes(kind.prefix + next)) return setNameError('같은 이름이 이미 있어요.')
-    // 색은 이름이 목록 이름이나 의미 색 이름의 앞머리와 겹쳐도 안 된다(만들 때와 같은 규칙).
-    const problem = nameProblem?.(group, name)
-    if (problem?.group) return setGroupError(problem.group)
-    if (problem?.name) return setNameError(problem.name)
-    onRename(kind.prefix + next)
-  }
-
-  /**
-   * 값 칸의 값을 바꾼다. save가 false면 칸의 글자와 오류 표시만 바꾸고 저장하지 않는다.
-   * 칸에 적는 동안은 저장하지 않고, 칸을 벗어나거나 Enter를 누를 때 저장한다. #1a2b3c를 적는 동안 #1a2, #1a2b가 잠깐씩 저장되어
-   * 그 색을 쓰는 화면이 깜빡이고 되돌리기 단계가 잘게 쌓이는 것을 막는다. 색 고르기, ↑↓, 화면에서 색 찍기는 바로 저장한다.
-   */
-  function changeValue(raw: string, save = true) {
-    setValueDraft(raw)
-    const next = raw.trim()
-    if (!next) return setValueError(null)
-    if (/[;{}]/.test(next)) return setValueError('; { } 기호는 쓸 수 없어요.')
-    // 색 칸에서 쓰다 만 # 값(#12345)은 저장하지 않는다. 그대로 저장되면 이 색을 가리키는 의미 색이 모두 "없는 색"이 된다.
-    // 이름으로 된 색(white)이나 color-mix(…)처럼 FF가 읽지 못할 뿐인 값은 막지 않는다.
-    if (isColor && /^#?[0-9a-f]*$/i.test(next) && !asHex(next)) return setValueError('#rrggbb처럼 여섯 자리로 적어 주세요.')
-    // 다른 색을 가리키는 값을 적으면 이 색이 의미 색으로 바뀌어 색상 판에서 사라진다. 의미 색은 의미 색 판에서 만든다.
-    if (isColor && COLOR_REF.test(next)) return setValueError('다른 색을 가리키는 색은 의미 색 판에서 만들어 주세요.')
-    setValueError(null)
-    // 색으로 읽히는 값(#, rgb, hsl)은 oklch로 바꿔 저장한다. 읽을 수 없는 값은 적은 그대로 둔다.
-    // #을 빼고 여섯 자리만 적어도 색으로 받는다.
-    const out = isColor ? toOklch(asHex(next) ?? next) : next
-    if (save && out !== token.value) onValue(out)
-  }
-
-  /** 칸에 적어 둔 값을 저장한다. 받을 수 없는 값이거나 비어 있으면 저장된 값으로 되돌린다(틀린 값을 칸에 남겨 두지 않는다). */
-  function commitValue() {
-    const next = valueDraft.trim()
-    if (!next || valueError) return revertValue()
-    changeValue(valueDraft)
-  }
-  function revertValue() {
-    setValueDraft(isColor ? showColor(token.value) : token.value)
-    setValueError(null)
-  }
+  // 줄 높이는 px로, 묶인 글자 사이는 em으로만 받는다(글자 사이는 음수가 좁게). 크기를 바꾸면 따라 바뀌는데, 밖에서 바뀐 값은 useField가 칸에 옮긴다.
+  const lineField = useField(numberRules({ saved: digitsOf(line), positive: true, blank: lineHint, save: (digits) => onLine?.(digits ? `${digits}px` : null) }))
+  const trackField = useField(numberRules({ saved: (track ?? '').replace(/em$/, ''), negative: true, blank: trackHint, save: (digits) => onTrack?.(digits ? `${digits}em` : null) }))
 
   // 견본에 쓸 색. 칸에 적는 중인 값이 색으로 읽히면 그것을 바로 보여 주고, 아니면 저장된 값을 쓴다.
   const liveColor = isColor ? (asHex(valueDraft) ?? toHex(token.value)) : null
@@ -436,15 +340,11 @@ export function Inspector({
   const nameInput = (
     <input
       className={inputClass}
-      value={nameDraft}
+      value={nameField.draft}
       aria-label="이름"
       data-rename="token"
-      onChange={(e) => {
-        setNameDraft(e.target.value)
-        // 쓸 수 없는 글자는 적는 중에 알린다. 색의 단계 이름은 하이픈도 쓸 수 없다.
-        setNameError(isColor ? (/^[a-z0-9]*$/.test(e.target.value.trim()) ? null : '영문 소문자와 숫자만 쓸 수 있어요.') : typedNameProblem(e.target.value))
-      }}
-      onBlur={commitName}
+      onChange={(e) => nameField.type(e.target.value)}
+      onBlur={nameField.leave}
       onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
     />
   )
@@ -456,32 +356,9 @@ export function Inspector({
       </Section>
 
       <Section title="이름">
-        {isColor ? (
-          <div className="space-y-blocks">
-            <Field label="목록" error={groupError}>
-              <input
-                className={inputClass}
-                data-rename="group"
-                value={groupDraft}
-                onChange={(e) => {
-                  setGroupDraft(e.target.value)
-                  // 목록 이름도 쓸 수 없는 글자는 적는 중에 알린다.
-                  setGroupError(typedNameProblem(e.target.value))
-                }}
-                onBlur={commitName}
-                onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-              />
-            </Field>
-            <Field label="이름" error={nameError}>
-              {nameInput}
-            </Field>
-          </div>
-        ) : (
-          <>
-            {nameInput}
-            {nameError && <span className="mt-label block type-body text-danger">{nameError}</span>}
-          </>
-        )}
+        {/* 목록에 든 색도 이름 칸 하나뿐이다. 칸에는 목록을 뺀 이름(500)만 적히고, 어느 목록의 색인지는 패널 맨 위의 제목(blue-500)이 보여 준다. */}
+        {nameInput}
+        {nameField.error && <span className="mt-label block type-body text-danger">{nameField.error}</span>}
       </Section>
 
       <Section title={kind.valueLabel}>
@@ -494,35 +371,32 @@ export function Inspector({
         {unit && (
           <UnitInput
             label={kind.valueLabel}
-            digits={digits}
+            {...unitProps(digitsField)}
             unit={unit}
             placeholder={savedDigits}
             fillOnTab={!!savedDigits}
-            invalid={!!valueError}
             negative={negative}
-            onDigits={changeDigits}
-            onBlur={commitDigits}
           />
         )}
         <span className={isFont || unit ? 'hidden' : 'flex items-center gap-field-row'}>
           {/* 칸에 #을 빼고 적었어도 지금 색에서 시작하도록, 적은 글자가 아니라 읽어 낸 색을 넘긴다. */}
-          {isColor && <ColorSwatch label="색 고르기" value={liveColor ?? valueDraft} alpha preview onChange={changeValue} />}
+          {isColor && <ColorSwatch label="색 고르기" value={liveColor ?? valueDraft} alpha preview onChange={valueField.put} />}
           <input
             aria-label={kind.valueLabel}
-            className={`${inputClass} ${valueError ? 'border-danger! focus:border-danger!' : ''}`}
+            className={`${inputClass} ${valueField.error ? 'border-danger! focus:border-danger!' : ''}`}
             value={valueDraft}
-            onChange={(e) => changeValue(e.target.value, false)}
-            onBlur={commitValue}
+            onChange={(e) => valueField.type(e.target.value)}
+            onBlur={valueField.leave}
             onKeyDown={(e) => {
               // Enter는 칸을 벗어나고, 벗어날 때 저장한다. Esc는 적던 것을 버리고 저장된 값으로 돌아간다(패널이 칸을 벗어나게 한다).
               if (e.key === 'Enter') return e.currentTarget.blur()
-              if (e.key === 'Escape') return revertValue()
+              if (e.key === 'Escape') return valueField.reset()
               // ↑↓로 숫자를 올리고 내린다(Shift는 10배). 16px, 1.5처럼 숫자 하나로 된 값만.
               if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
               const next = stepValue(valueDraft, e.key === 'ArrowUp' ? 1 : -1, e.shiftKey)
               if (next === null) return
               e.preventDefault()
-              changeValue(next)
+              valueField.put(next)
             }}
           />
           {isColor && (
@@ -537,26 +411,16 @@ export function Inspector({
             </button>
           )}
         </span>
-        {valueError && <span className="mt-label block type-body text-danger">{valueError}</span>}
+        {(unit ? digitsField.error : valueField.error) && <span className="mt-label block type-body text-danger">{unit ? digitsField.error : valueField.error}</span>}
         {line !== undefined && (
           <div className="mt-blocks">
-            <Field label="줄 높이" error={lineError}>
+            <Field label="줄 높이" error={lineField.error}>
               <UnitInput
                 label="줄 높이"
-                digits={lineDraft}
+                {...unitProps(lineField)}
                 unit="px"
                 placeholder={lineHint}
                 fillOnTab={!!lineHint}
-                invalid={!!lineError}
-                onDigits={changeLine}
-                // 틀린 값을 둔 채 벗어나면 저장된 값으로 되돌린다(값 칸과 같다).
-                onBlur={() => {
-                  if (lineError || (lineDraft && (!NUMBER.test(lineDraft) || Number(lineDraft) <= 0))) {
-                    setLineDraft(digitsOf(line))
-                    return setLineError(null)
-                  }
-                  changeLine(!lineDraft && lineHint ? lineHint : lineDraft)
-                }}
               />
             </Field>
           </div>
@@ -564,23 +428,14 @@ export function Inspector({
         {/* 글자 크기에 묶인 글자 사이. 비어 있으면 글꼴이 정한 그대로다. */}
         {track !== undefined && (
           <div className="mt-blocks">
-            <Field label="글자 사이" error={trackError}>
+            <Field label="글자 사이" error={trackField.error}>
               <UnitInput
                 label="글자 사이"
-                digits={trackDraft}
+                {...unitProps(trackField)}
                 unit="em"
                 placeholder={trackHint || '0'}
                 fillOnTab={!!trackHint}
-                invalid={!!trackError}
                 negative
-                onDigits={changeTrack}
-                onBlur={() => {
-                  if (trackError || (trackDraft && !SIGNED.test(trackDraft))) {
-                    setTrackDraft((track ?? '').replace(/em$/, ''))
-                    return setTrackError(null)
-                  }
-                  changeTrack(!trackDraft && trackHint ? trackHint : trackDraft)
-                }}
               />
             </Field>
           </div>
@@ -599,7 +454,7 @@ export function Inspector({
               onCancel={() => setPickingFont(false)}
               onCreate={(_, value) => {
                 setPickingFont(false)
-                changeValue(value)
+                valueField.put(value)
               }}
             />
           </Modal>
@@ -685,14 +540,8 @@ export function MultiInspector({
   /** 번호 다시 매기기 창을 연다. 색 목록의 단계 색만 선택했을 때에만 넘어온다(번호가 이름인 것은 그 색뿐이다). */
   onRename?: () => void
 }) {
-  const [draft, setDraft] = useState(group ?? '')
-  const [error, setError] = useState<string | null>(null)
-
-  function commitGroup() {
-    const next = draft.trim()
-    if (next === group) return setError(null)
-    setError(next ? onRenameGroup(next) : '이름을 입력해 주세요.')
-  }
+  // 다른 이름 칸과 같은 약속을 따른다. 비웠거나 쓸 수 없는 글자가 든 채로 벗어나면 되돌리고, 바꿀 수 없는 이름은 까닭과 함께 남긴다(useField).
+  const field = useField(nameRules({ saved: group ?? '', save: onRenameGroup }))
 
   return (
     <div>
@@ -705,16 +554,13 @@ export function MultiInspector({
           <input
             aria-label="목록 이름"
             data-rename="group"
-            className={`${inputClass} ${error ? 'border-danger! focus:border-danger!' : ''}`}
-            value={draft}
-            onChange={(e) => {
-              setDraft(e.target.value)
-              setError(null)
-            }}
-            onBlur={commitGroup}
+            className={`${inputClass} ${field.error ? 'border-danger! focus:border-danger!' : ''}`}
+            value={field.draft}
+            onChange={(e) => field.type(e.target.value)}
+            onBlur={field.leave}
             onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
           />
-          {error && <span className="mt-label block type-body text-danger">{error}</span>}
+          {field.error && <span className="mt-label block type-body text-danger">{field.error}</span>}
         </Section>
       )}
 

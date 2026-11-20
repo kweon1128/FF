@@ -6,14 +6,17 @@ import { ICON_STROKE } from './lib/icons'
 import { useContext, useState, type FormEvent, type ReactNode } from 'react'
 import { ArrowUpRight } from 'lucide-react'
 import type { Token } from './lib/api'
-import { KINDS, SLUG, slugMessage, groupOf, shortName, NAME_SHAPE, typedNameProblem, type Kind } from './lib/catalog'
+import { KINDS, SLUG, slugMessage, groupOf, shortName, type Kind } from './lib/catalog'
 import { contrast, showColor } from './lib/color'
-import { ROLE_USES, ROLE_WORDS, guessUse, isRoleListShape, readNote, refOf, refTo, resolveColor, roleGroups, writeNote, type Around, type RoleShape, type RoleUse } from './lib/roles'
+import { ROLE_NAMES, ROLE_USES, ROLE_WORDS, guessUse, isRoleListShape, readNote, refOf, refTo, resolveColor, roleGroups, writeNote, type Around, type RoleShape, type RoleUse } from './lib/roles'
 import { DARK, PreviewFontContext, PreviewSpaceContext, inkOn } from './ColorUses'
-import { CODE_OPEN, CodeRows, FoldSection, ICON_BUTTON, Section, WHERE_OPEN } from './Inspector'
+import { CODE_OPEN, CodeRows, FoldSection, Section, WHERE_OPEN, ICON_BUTTON } from './Inspector'
 import { HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
 import { Button, Chip, Field, Phrases, UsePicker, inputClass, swatchBackground , linkRowClass } from './ui'
+import { nameRules, useField } from './useField'
+import { freeName } from './lib/nearest'
 import { useReorder } from './useReorder'
+import { WithExample } from './WithExample'
 
 const COLOR = KINDS.color
 const ROLE = KINDS.role
@@ -386,7 +389,10 @@ export function RefPicker({ tokens, value, onChange }: { tokens: Token[]; value:
   )
 }
 
-/** 의미 색을 만드는 양식. 이름, 가리키는 색, 역할, 설명을 정한다. */
+/**
+ * 의미 색을 만드는 양식. 이름, 가리키는 색, 역할, 설명을 정한다.
+ * 색을 고르면 판의 줄과 같은 예시를 창 오른쪽의 영역에 보여 준다(WithExample). 예시의 모양은 판이 짐작하는 그대로다(역할과 이름에서 짐작한다). 여기서 따로 고르지 않는다.
+ */
 export function NewRoleForm({
   tokens,
   onCreate,
@@ -397,12 +403,25 @@ export function NewRoleForm({
   onCancel: () => void
 }) {
   const [name, setName] = useState('')
-  const [ref, setRef] = useState<string | null>(null)
+  // 창을 열자마자 예시가 보이게, 가리키는 색을 골라 둔다. 이 시스템이 주요 색이나 글자 색으로 쓰는 색이고, 그런 의미 색이 없으면 색상 판의 첫 색이다(DESIGN.md dialog-defaults).
+  const [ref, setRef] = useState<string | null>(() => {
+    for (const role of ['--color-primary', '--color-ink', '--color-text']) {
+      const pointed = refOf(tokens.find((t) => t.name === role)?.value ?? '')
+      if (pointed && tokens.some((t) => t.name === pointed)) return pointed
+    }
+    return tokens.find((t) => KINDS.color.matches(t.name))?.name ?? null
+  })
   // 역할을 직접 고르기 전에는 이름에서 짐작한 것을 보여 준다(text-muted라고 적으면 글자).
   const [use, setUse] = useState<RoleUse | null>(null)
   const [text, setText] = useState('')
   const [error, setError] = useState<{ name?: string; ref?: string }>({})
   const shownUse = use ?? guessUse(name.trim())
+  // 의미 색은 예시가 아니라 역할을 고르므로, 이름은 역할을 따라 채워진다(채움이면 primary).
+  // 이름 칸은 비워 두고, 고른 예시에 맞는 이름을 옅은 글자로 추천한다(DESIGN.md dialog-defaults). 추천은 값이 아니다. 비운 채 추가하면 "이름을 입력해 주세요."다.
+  const suggestedName = freeName(tokens, ROLE.prefix, ROLE_NAMES[shownUse])
+  // 예시. 판의 줄(RoleList)이 하는 그대로, 만들어질 주석과 이름에서 모양을 읽고 가리키는 색을 이 시스템의 색으로 푼다.
+  const shape = readNote(writeNote(shownUse, text), name.trim() || suggestedName).shape
+  const color = ref ? resolveColor(tokens, refTo(ref)) : null
 
   function submit(e: FormEvent) {
     e.preventDefault()
@@ -429,13 +448,15 @@ export function NewRoleForm({
     )
 
   return (
-    <form onSubmit={submit} className="space-y-fields">
+    <form onSubmit={submit}>
+      <WithExample example={color ? <RoleSample shape={shape} color={color} around={sampleColors(tokens)} /> : null}>
       <Field label="이름" error={error.name}>
         <input
           autoFocus
           className={inputClass}
           value={name}
-          placeholder="primary"
+          // 옅은 글자는 그대로 적으면 만들어지는 이름일 때만 보인다. 이미 있는 이름을 본보기로 보이면, 따라 적었을 때 되는 창과 안 되는 창이 생긴다.
+          placeholder={suggestedName}
           onChange={(e) => {
             setName(e.target.value)
             setError({ ...error, name: undefined })
@@ -464,6 +485,7 @@ export function NewRoleForm({
       <Field label="설명">
         <input className={inputClass} value={text} onChange={(e) => setText(e.target.value)} />
       </Field>
+      </WithExample>
       <div className="mt-dialog-actions flex justify-end gap-actions">
         <Button variant="ghost" onClick={onCancel}>
           취소
@@ -503,24 +525,10 @@ export function RoleInspector({
 }) {
   const short = shortName(ROLE, token.name)
   const { use, text, picked, words, more } = readNote(token.note, short)
-  const [nameDraft, setNameDraft] = useState(short)
-  const [nameError, setNameError] = useState<string | null>(null)
+  // 이름 칸. 쓸 수 없는 글자는 적는 중에 알리고 벗어나면 되돌린다. 모양이 틀린 이름과 이 판의 규칙은 벗어날 때 알리고 칸에 남긴다(useField).
+  const nameField = useField(nameRules({ saved: short, done: (next) => (/^\d/.test(next) ? '숫자로 시작할 수 없어요.' : tokens.some((t) => t.name === ROLE.prefix + next) ? '같은 이름이 이미 있어요.' : null), save: (next) => onRename(ROLE.prefix + next) }))
   const [textDraft, setTextDraft] = useState(text)
   const color = resolveColor(tokens, token.value)
-
-  function commitName() {
-    const next = nameDraft.trim()
-    setNameError(null)
-    // 비웠거나 쓸 수 없는 글자가 든 이름은 적는 중에 알 수 있는 것이다. 그대로 벗어나면 저장된 이름으로 되돌린다(DESIGN.md field-rules).
-    if (!next || typedNameProblem(next)) return setNameDraft(short)
-    // 글자는 맞지만 모양이 틀린 이름(card-, card--big)은 다 적어야 아는 것이다. 말없이 되돌리지 않고 까닭과 함께 칸에 남긴다.
-    if (next !== short && !SLUG.test(next)) return setNameError(NAME_SHAPE)
-    if (next === short) return
-    // 숫자로 시작하는 이름은 Tailwind의 숫자 클래스(h-8, opacity-50)와 같은 글자가 된다. 다른 의미 판과 같이 막는다.
-    if (/^\d/.test(next)) return setNameError('숫자로 시작할 수 없어요.')
-    if (tokens.some((t) => t.name === ROLE.prefix + next)) return setNameError('같은 이름이 이미 있어요.')
-    onRename(ROLE.prefix + next)
-  }
 
   function commitText() {
     if (textDraft.trim() !== text) saveNote({})
@@ -543,17 +551,14 @@ export function RoleInspector({
       <Section title="이름">
         <input
           className={inputClass}
-          value={nameDraft}
+          value={nameField.draft}
           aria-label="이름"
           data-rename="token"
-          onChange={(e) => {
-            setNameDraft(e.target.value)
-            setNameError(typedNameProblem(e.target.value))
-          }}
-          onBlur={commitName}
+          onChange={(e) => nameField.type(e.target.value)}
+          onBlur={nameField.leave}
           onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
         />
-        {nameError && <span className="mt-label block type-body text-danger">{nameError}</span>}
+        {nameField.error && <span className="mt-label block type-body text-danger">{nameField.error}</span>}
       </Section>
 
       <Section title="가리키는 색">

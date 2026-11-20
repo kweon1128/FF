@@ -4,16 +4,24 @@
 // 의미 간격의 묶음과 설명, 예시는 값 뒤의 주석에 적는다(의미 색, 의미 글꼴과 같은 방식).
 //   --spacing-actions: var(--gutter-8); /* 버튼(사이): 나란한 버튼 사이 | 취소, 추가 */
 
+import { groupFromNote, headOf } from './kindnote'
+
 /** 의미 간격의 묶음. 무엇에 딸린 간격인지다. 판은 이 차례로 묶어 보여 준다. */
-export type SpaceUse = 'button' | 'input' | 'list' | 'board' | 'panel' | 'dialog'
+export type SpaceUse = 'button' | 'input' | 'list' | 'table' | 'card' | 'board' | 'panel' | 'dialog' | 'page' | 'other'
 
 export const SPACE_USES: { id: SpaceUse; label: string; hint: string }[] = [
   { id: 'button', label: '버튼', hint: '버튼의 여백, 버튼 사이' },
   { id: 'input', label: '입력칸', hint: '입력칸, 이름표, 칸 사이' },
   { id: 'list', label: '목록', hint: '메뉴와 목록의 줄' },
+  // 판과 패널은 FF 같은 도구의 화면 부품이다. 여느 서비스의 화면에 흔한 표, 카드, 페이지도 묶음으로 둔다.
+  { id: 'table', label: '표', hint: '표의 칸과 줄' },
+  { id: 'card', label: '카드', hint: '카드의 여백과 그 안' },
   { id: 'board', label: '판', hint: '판의 여백, 묶음, 격자' },
   { id: 'panel', label: '패널', hint: '패널의 구역과 그 안' },
   { id: 'dialog', label: '창', hint: '창과 떠 있는 것의 여백' },
+  { id: 'page', label: '페이지', hint: '구역 사이, 페이지의 좌우 여백' },
+  // 목록에 없는 쓰임. 주석에 목록에 없는 묶음이 적힌 값도 여기에 놓인다(kindnote.ts의 groupFromNote).
+  { id: 'other', label: '그 밖', hint: '목록에 없는 쓰임' },
 ]
 
 /** 묶음을 적지 않은 값의 묶음. 이름에서 짐작하고, 짐작할 수 없으면 판이다. */
@@ -24,6 +32,9 @@ export function guessSpaceUse(short: string): SpaceUse {
   if (has('row', 'rows', 'menu', 'nav', 'list', 'item')) return 'list'
   if (has('section', 'blocks', 'panel', 'sidebar')) return 'panel'
   if (has('dialog', 'modal', 'popover', 'bar', 'toast', 'sheet')) return 'dialog'
+  if (has('table', 'cell', 'td', 'th')) return 'table'
+  if (has('card', 'tile')) return 'card'
+  if (has('page', 'container', 'layout')) return 'page'
   return 'board'
 }
 
@@ -64,6 +75,25 @@ export const SPACE_SHAPES: { id: SpaceShape; label: string; hint: string }[] = [
   { id: 'surfacex', label: '좌우 여백', hint: '패널, 창, 카드의 왼쪽과 오른쪽 여백' },
   { id: 'surfacey', label: '위아래 여백', hint: '패널 구역의 위와 아래 여백' },
 ]
+
+/**
+ * 추가 창에서 묶음마다 처음 골라 두는 예시의 모양. 그 묶음에서 가장 흔한 쓰임이다. 직접 고르기 전까지만 묶음을 따라 바뀐다.
+ * 버튼은 나란한 버튼 사이, 입력칸은 칸의 좌우 여백, 목록은 줄과 줄 사이, 판은 판과 카드의 네 가장자리 여백(상자),
+ * 패널은 위아래로 놓인 칸 사이, 창은 내용과 아래 버튼 줄 사이다.
+ */
+export const SPACE_SHAPE_FOR: Record<SpaceUse, SpaceShape> = {
+  button: 'gap',
+  input: 'input',
+  list: 'rows',
+  // 표는 한 줄 안의 칸과 칸 사이, 카드는 네 가장자리의 여백, 페이지는 제목이 붙은 구역들 사이다.
+  table: 'cols',
+  card: 'surface',
+  board: 'box',
+  panel: 'fields',
+  dialog: 'footer',
+  page: 'groups',
+  other: 'box',
+}
 
 /** 모양마다의 기본 예시 문구. 사이와 글줄 사이은 ", "로 나눠 하나씩 놓는다. */
 export const SPACE_WORDS: Record<SpaceShape, string> = {
@@ -122,10 +152,11 @@ export function readSpaceNote(
   short: string,
 ): { use: SpaceUse; text: string; picked?: SpaceShape; words: string; more: SpaceExample[]; examples: SpaceExample[] } {
   const all = (note ?? '').trim()
-  const m = new RegExp(`^(${USE_LABELS})(?:\\((${LABELS})\\))?\\s*:\\s*(.*)$`).exec(all)
-  const use = (m && SPACE_USES.find((u) => u.label === m[1])?.id) || guessSpaceUse(short)
+  const m = new RegExp(`^(${USE_LABELS})(?:\\(([^)|]*)\\))?\\s*:\\s*(.*)$`).exec(all)
+  const use = m ? (SPACE_USES.find((u) => u.label === m[1])?.id ?? guessSpaceUse(short)) : (groupFromNote(all, SPACE_USES, 'other') ?? guessSpaceUse(short))
   const picked = m?.[2] ? own(m[2]) : undefined
-  const parts = m ? m[3].split(MARK).map((p) => p.trim()) : [all]
+  // 목록에 없는 묶음의 주석(이름(모양): …)도 " | "로 나눠 읽는다. 통째로 설명으로 읽으면 다시 적을 때 문구의 구분이 사라진다.
+  const parts = m ? m[3].split(MARK).map((p) => p.trim()) : headOf(all) !== null ? all.split(MARK).map((p) => p.trim()) : [all]
   const words = parts[1] ?? ''
   const head = new RegExp(`^(${LABELS})\\s*:\\s*(.*)$`)
   const more = parts.slice(2).flatMap((p): SpaceExample[] => {
@@ -146,4 +177,40 @@ export function writeSpaceNote(use: SpaceUse, text: string, shape?: SpaceShape, 
   const body = [tidy(text), ...(tidy(words) || rest.length ? [tidy(words)] : []), ...rest].join(WORDS_MARK).trim()
   const head = shape ? `${useLabel}(${label(shape)})` : useLabel
   return body ? `${head}: ${body}` : `${head}:`
+}
+
+/**
+ * 추가 창에서 예시를 고르면 이름 칸에 채워지는 이름(DESIGN.md dialog-defaults). 그 예시가 보여 주는 쓰임의 영문 이름이다.
+ * ff-ds가 실제로 쓰는 이름을 따랐고(사이는 actions, 줄은 rows), 쓰는 이름이 없는 예시만 새로 지었다. 그 이름이 이미 있으면 창은 이름 칸을 비워 둔다.
+ */
+export const SPACE_NAMES: Record<SpaceShape, string> = {
+  gap: 'actions',
+  icon: 'button-inner',
+  stack: 'stack',
+  label: 'label',
+  rows: 'rows',
+  fields: 'fields',
+  groups: 'groups',
+  button: 'button-x',
+  filled: 'button-filled-x',
+  ghost: 'button-ghost-x',
+  ghosts: 'actions-tight',
+  rowicon: 'row-inner',
+  row: 'row-x',
+  rowy: 'row-y',
+  menu: 'menu',
+  unit: 'input-inner',
+  inputs: 'field-row',
+  chip: 'chip-x',
+  heading: 'heading',
+  cols: 'columns',
+  grid: 'cells',
+  gridy: 'cells-y',
+  box: 'box',
+  footer: 'dialog-actions',
+  bar: 'bar-x',
+  input: 'input-x',
+  surface: 'surface',
+  surfacex: 'section-x',
+  surfacey: 'section-y',
 }

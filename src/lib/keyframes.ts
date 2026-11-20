@@ -42,7 +42,7 @@ export const KEYFRAMES: Keyframes[] = [
   motion({ id: 'pop', hint: '작은 데서 커지며 나타남', strength: { label: '시작 크기', unit: '%', base: 96 }, frames: (n) => [`from { opacity: 0; transform: scale(${n / 100}); }`], value: `pop 150ms ${OUT} 1` }),
   motion({ id: 'slide-in-right', hint: '오른쪽에서 밀려 들어옴', strength: { label: '거리', unit: '%', base: 100 }, frames: (n) => [`from { transform: translateX(${n}%); }`], value: `slide-in-right 300ms ${OUT} 1` }),
   motion({ id: 'slide-in-left', hint: '왼쪽에서 밀려 들어옴', strength: { label: '거리', unit: '%', base: 100 }, frames: (n) => [`from { transform: translateX(-${n}%); }`], value: `slide-in-left 300ms ${OUT} 1` }),
-  motion({ id: 'shake', hint: '좌우로 짧게 흔들림', strength: { label: '폭', unit: 'px', base: 4 }, frames: (n) => [`25% { transform: translateX(-${n}px); }`, `75% { transform: translateX(${n}px); }`], value: 'shake 200ms linear 2' }),
+  motion({ id: 'shake', hint: '좌우로 짧게 흔들림', strength: { label: '거리', unit: 'px', base: 4 }, frames: (n) => [`25% { transform: translateX(-${n}px); }`, `75% { transform: translateX(${n}px); }`], value: 'shake 200ms linear 2' }),
 ]
 
 // 긴 이름을 먼저 견준다(slide-in-right-50이 slide-in의 세기로 읽히지 않게).

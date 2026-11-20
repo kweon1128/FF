@@ -7,7 +7,7 @@
 import { ICON_STROKE } from './lib/icons'
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from 'react'
 import { Lock, Minus, Plus } from 'lucide-react'
-import { BOARD_DEFAULTS, type Pos } from './lib/api'
+import { BOARD_DEFAULTS, NOTE_LIMIT, NOTE_SIZES, type NoteSize, type Pos } from './lib/api'
 import { arrange, type Arrange, type Placed } from './lib/arrange'
 import { TOKEN_SCREEN_IDS } from './lib/catalog'
 import { HANDLE, HANDLE_AT } from './TokenScreen'
@@ -124,8 +124,14 @@ function snapGap(me: Span, others: Span[], tolerance: number) {
 
 type View = { x: number; y: number; z: number }
 type Board = { id: string; title: string; content: ReactNode }
-/** 캔버스에 붙인 사진. 판처럼 선택하고 옮기며, 꼭짓점을 끌어 크기를 바꾼다. */
-type Picture = { id: string; src: string; x: number; y: number; w: number; h: number }
+/**
+ * 캔버스에 놓은 사진이나 글. 판처럼 선택하고 옮긴다. 사진(src)은 꼭짓점을 끌어 크기를 바꾼다.
+ * 글(text)은 크기가 내용에 따라 정해져서 꼭짓점이 없다. w와 h는 마지막으로 적었을 때 잰 크기다.
+ */
+type Picture = { id: string; src?: string; text?: string; size?: NoteSize; x: number; y: number; w: number; h: number }
+/** 적고 있는 글. id가 null이면 새로 적는 글이다. */
+type Writing = { id: string | null; x: number; y: number; text: string; size: NoteSize }
+const noteType = (size?: NoteSize) => NOTE_SIZES.find((s) => s.id === (size ?? 'md'))!.type
 const CORNERS = ['nw', 'ne', 'sw', 'se'] as const
 const MIN_PICTURE = 16
 type Box = { left: number; top: number; right: number; bottom: number }
@@ -228,6 +234,9 @@ export function Canvas({
   onSelectBoards: setSelectedBoards,
   onMove,
   focus,
+  placing,
+  onPlaced,
+  onNote,
 }: {
   viewKey: string
   boards: Board[]
@@ -242,8 +251,25 @@ export function Canvas({
   focus: { id: string | null; token?: string | null; nonce: number }
   /** 움직이거나 고친 판들의 새 값. 적지 않은 값은 그대로 둔다. */
   onMove: (moved: Record<string, Partial<Pos>>) => void
+  /** 글 적기 상태인지(T). 이때 캔버스를 누르면 그 자리에 글 상자가 열린다. */
+  placing: boolean
+  /** 글 상자를 열었다. 글 적기 상태를 끝낸다. */
+  onPlaced: () => void
+  /** 글을 다 적었다. id가 null이면 새 글이다. 내용이 비었으면 새 글은 만들지 않고, 있던 글은 지운다. w와 h는 화면에서 잰 글의 크기다. */
+  onNote: (id: string | null, note: { text: string; x: number; y: number; w: number; h: number }) => void
 }) {
   const root = useRef<HTMLDivElement>(null)
+  // 적고 있는 글. 적는 동안은 저장하지 않고, 글 상자를 벗어나거나 Esc를 누를 때 저장한다.
+  const [writing, setWriting] = useState<Writing | null>(null)
+  const writingBox = useRef<HTMLSpanElement>(null)
+  // 글 적기 상태에서 누른 자리. 손을 뗄 때 그 자리에 글 상자를 연다(누르는 순간 열면 뒤따르는 mousedown이 초점을 가져가 바로 닫힌다).
+  const placeAt = useRef<{ x: number; y: number } | null>(null)
+  function endWriting() {
+    if (!writing) return
+    const box = writingBox.current
+    onNote(writing.id, { text: writing.text, x: writing.x, y: writing.y, w: box?.offsetWidth ?? 1, h: box?.offsetHeight ?? 1 })
+    setWriting(null)
+  }
   const drag = useRef<Drag | null>(null)
   const justDragged = useRef(false)
   const [view, setView] = useState<View>(() => loadView(viewKey))
@@ -584,6 +610,12 @@ export function Canvas({
   }
 
   function onPointerDown(e: PointerEvent<HTMLDivElement>) {
+    // 글 적기 상태에서는 판을 끌거나 영역을 선택하지 않는다. 누른 자리를 기억해 두고, 손을 떼면 거기에 글 상자를 연다. 판 위든 빈 곳이든 같다.
+    if (placing && e.button === 0 && !space && !(e.target as HTMLElement).closest('[data-canvas-tools]')) {
+      const origin = root.current!.getBoundingClientRect()
+      placeAt.current = { x: Math.round((e.clientX - origin.left - view.x) / view.z), y: Math.round((e.clientY - origin.top - view.y) / view.z) }
+      return
+    }
     beginDrag(e)
     if (!drag.current) return
     dragView.current = view
@@ -917,12 +949,20 @@ export function Canvas({
   return (
     <div
       ref={root}
-      className={`relative h-full touch-none overflow-hidden bg-workspace select-none ${panning ? 'cursor-grabbing' : ''}`}
+      className={`relative h-full touch-none overflow-hidden bg-workspace select-none ${panning ? 'cursor-grabbing' : placing ? 'cursor-text' : ''}`}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
       onClickCapture={(e) => {
+        // 글 적기 상태에서 눌렀다 뗀 자리에 글 상자를 연다. 판 안의 버튼 위였어도 그 버튼은 눌리지 않게 여기서(내려가는 길에) 먼저 받는다. 선택은 건드리지 않는다.
+        if (placeAt.current) {
+          e.stopPropagation()
+          e.preventDefault()
+          setWriting({ id: null, ...placeAt.current, text: '', size: 'md' })
+          placeAt.current = null
+          return onPlaced()
+        }
         if (!justDragged.current) return
         justDragged.current = false
         e.stopPropagation()
@@ -1022,6 +1062,35 @@ export function Canvas({
           const pos = posOf(picture.id, -1)
           const w = widthOf(picture.id)
           const isSelected = selectedBoards.includes(picture.id)
+          if (picture.text !== undefined) {
+            // 적은 글. 고치는 중이면 아래의 글 상자가 대신 그려진다. 크기는 내용이 정한다(줄은 적은 대로만 바뀐다).
+            if (writing?.id === picture.id) return null
+            return (
+              <div key={picture.id} className="absolute" style={{ left: pos.x, top: pos.y }}>
+                <div
+                  data-board={picture.id}
+                  data-note
+                  className={`line-inset whitespace-pre text-ink ${noteType(picture.size)} ${measured === picture.id ? 'line-1' : hovered === picture.id && !marquee ? 'line-2' : isSelected ? 'line-1' : ''}`}
+                  style={{ '--edge': '0px', '--line-color': measured === picture.id ? 'var(--color-guide)' : undefined } as CSSProperties}
+                  onPointerOver={() => {
+                    setOver(picture.id)
+                    setHovered(picture.id)
+                  }}
+                  onPointerLeave={() => {
+                    setOver(null)
+                    setHovered(null)
+                  }}
+                  // 더블클릭하면 그 자리에서 글을 고친다.
+                  onDoubleClick={(e) => {
+                    e.stopPropagation()
+                    setWriting({ id: picture.id, x: pos.x, y: pos.y, text: picture.text ?? '', size: picture.size ?? 'md' })
+                  }}
+                >
+                  {picture.text}
+                </div>
+              </div>
+            )
+          }
           return (
             <div key={picture.id} className="absolute" style={{ left: pos.x, top: pos.y, width: w, height: (w * picture.h) / picture.w }}>
               <div
@@ -1052,6 +1121,36 @@ export function Canvas({
             </div>
           )
         })}
+
+        {/* 적고 있는 글. 칸의 크기는 적힌 글자가 차지하는 만큼이다(같은 글자를 보이지 않게 한 번 더 그려 그 크기를 쓴다).
+            Enter는 줄을 바꾸고, Esc를 누르거나 바깥을 누르면 끝난다. 끝날 때 저장한다. */}
+        {writing && (
+          <div className="absolute z-canvas-top" style={{ left: writing.x, top: writing.y }} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+            <span ref={writingBox} className={`line-inset line-1 inline-grid min-w-[8px] text-ink ${noteType(writing.size)}`} style={{ '--edge': '0px' } as CSSProperties}>
+              <span aria-hidden className="invisible col-start-1 row-start-1 whitespace-pre">
+                {writing.text}
+                {'\u200b'}
+              </span>
+              <textarea
+                autoFocus
+                aria-label="글"
+                wrap="off"
+                rows={1}
+                // 서버가 받는 길이까지만 적힌다. 더 긴 글이 저장되려 하면 캔버스 저장이 통째로 거절된다.
+                maxLength={NOTE_LIMIT}
+                className="col-start-1 row-start-1 block size-full resize-none overflow-hidden bg-transparent p-0 whitespace-pre text-ink outline-none select-text"
+                value={writing.text}
+                onChange={(e) => setWriting({ ...writing, text: e.target.value })}
+                onBlur={endWriting}
+                onKeyDown={(e) => {
+                  // 적는 동안의 키는 캔버스가 듣지 않는다(스페이스로 화면 옮기기, 방향키로 판 옮기기).
+                  e.stopPropagation()
+                  if (e.key === 'Escape') e.currentTarget.blur()
+                }}
+              />
+            </span>
+          </div>
+        )}
 
         {/* 붙었을 때의 안내선과 거리 재기. 선택과 헷갈리지 않게 밝은 빨강을 쓴다(피그마와 같다). */}
         {[...guides, ...measures].map((g, i) => (

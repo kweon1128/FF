@@ -10,12 +10,16 @@ import type { Token } from './api'
 import { CORNER_REF, KINDS } from './catalog'
 
 /** 의미 모서리의 묶음. 무엇의 모서리인지다. 판은 이 차례로 묶어 보여 준다. */
-export type RadiusGroup = 'control' | 'surface' | 'mark'
+import { groupFromNote, headOf } from './kindnote'
+
+export type RadiusGroup = 'control' | 'surface' | 'mark' | 'other'
 
 export const RADIUS_GROUPS: { id: RadiusGroup; label: string; hint: string }[] = [
   { id: 'control', label: '컨트롤', hint: '버튼, 입력칸, 줄' },
   { id: 'surface', label: '컨테이너', hint: '카드, 메뉴, 창' },
   { id: 'mark', label: '표시', hint: '이름표, 뱃지, 손잡이' },
+  // 목록에 없는 쓰임. 주석에 목록에 없는 묶음이 적힌 값도 여기에 놓인다(kindnote.ts의 groupFromNote).
+  { id: 'other', label: '그 밖', hint: '목록에 없는 쓰임' },
 ]
 
 /** 의미 모서리가 가리키는 토대 모서리의 변수 이름. 가리키지 않으면 null. */
@@ -65,6 +69,12 @@ export const RADIUS_SHAPES: { id: RadiusShape; label: string; hint: string }[] =
   { id: 'knob', label: '손잡이', hint: '둥근 손잡이, 점' },
 ]
 
+/**
+ * 추가 창에서 묶음마다 처음 골라 두는 예시의 모양. 그 묶음에서 가장 흔한 쓰임이다. 직접 고르기 전까지만 묶음을 따라 바뀐다.
+ * 컨트롤은 버튼, 컨테이너는 카드, 표시는 뱃지다.
+ */
+export const RADIUS_SHAPE_FOR: Record<RadiusGroup, RadiusShape> = { control: 'button', surface: 'card', mark: 'badge', other: 'card' }
+
 /** 모양마다의 기본 예시 문구. 글자가 없는 모양(작은 버튼, 슬라이더, 손잡이)은 비어 있다. 여럿을 늘어놓는 모양은 ", "로 나눠 적는다. */
 export const RADIUS_WORDS: Record<RadiusShape, string> = {
   tag: '24',
@@ -110,10 +120,11 @@ export function readRadiusNote(
   short: string,
 ): { group: RadiusGroup; text: string; picked?: RadiusShape; words: string; more: RadiusExample[]; examples: RadiusExample[] } {
   const all = (note ?? '').trim()
-  const m = new RegExp(`^(${GROUP_LABELS})(?:\\((${LABELS})\\))?\\s*:\\s*(.*)$`).exec(all.replace(/^조작(?=\s*[(:])/, '컨트롤'))
-  const group = (m && RADIUS_GROUPS.find((g) => g.label === m[1])?.id) || guessRadiusGroup(short)
+  const m = new RegExp(`^(${GROUP_LABELS})(?:\\(([^)|]*)\\))?\\s*:\\s*(.*)$`).exec(all.replace(/^조작(?=\s*[(:])/, '컨트롤'))
+  const group = m ? (RADIUS_GROUPS.find((g) => g.label === m[1])?.id ?? guessRadiusGroup(short)) : (groupFromNote(all, RADIUS_GROUPS, 'other') ?? guessRadiusGroup(short))
   const picked = m?.[2] ? own(m[2]) : undefined
-  const parts = m ? m[3].split(MARK).map((p) => p.trim()) : [all]
+  // 목록에 없는 묶음의 주석(이름(모양): …)도 " | "로 나눠 읽는다. 통째로 설명으로 읽으면 다시 적을 때 문구의 구분이 사라진다.
+  const parts = m ? m[3].split(MARK).map((p) => p.trim()) : headOf(all) !== null ? all.split(MARK).map((p) => p.trim()) : [all]
   const words = parts[1] ?? ''
   const head = new RegExp(`^(${LABELS})\\s*:\\s*(.*)$`)
   const more = parts.slice(2).flatMap((p): RadiusExample[] => {
@@ -135,4 +146,25 @@ export function writeRadiusNote(group: RadiusGroup, text: string, shape?: Radius
   const body = [tidy(text), ...(tidy(words) || rest.length ? [tidy(words)] : []), ...rest].join(WORDS_MARK).trim()
   const head = shape ? `${groupLabel}(${label(shape)})` : groupLabel
   return body ? `${head}: ${body}` : `${head}:`
+}
+
+/**
+ * 추가 창에서 예시를 고르면 이름 칸에 채워지는 이름(DESIGN.md dialog-defaults). 그 예시가 보여 주는 쓰임의 영문 이름이다.
+ * ff-ds가 실제로 쓰는 이름을 따랐고(사이는 actions, 줄은 rows), 쓰는 이름이 없는 예시만 새로 지었다. 그 이름이 이미 있으면 창은 이름 칸을 비워 둔다.
+ */
+export const RADIUS_NAMES: Record<RadiusShape, string> = {
+  tag: 'tag',
+  seltag: 'label',
+  check: 'checkbox',
+  smallbutton: 'small',
+  chip: 'chip',
+  button: 'button',
+  input: 'control',
+  row: 'row',
+  card: 'card',
+  menu: 'float',
+  dialog: 'dialog',
+  slider: 'slider',
+  badge: 'badge',
+  knob: 'pill',
 }

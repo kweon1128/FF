@@ -3,6 +3,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type
 import { Plus } from 'lucide-react'
 import {
   ConflictError,
+  NOTE_LIMIT,
+  NOTE_SIZES,
   getCanvas,
   imageUrl,
   getComponents,
@@ -14,6 +16,7 @@ import {
   uploadImage,
   type BoardStyle,
   type CanvasImage,
+  type NoteSize,
   type Pos,
   type Token,
 } from './lib/api'
@@ -60,7 +63,7 @@ import { SCALE_STEPS, grayOf, makeScale } from './lib/scale'
 import { adoptColors, defaultColorOrder, duplicateTokens, kindOf, followLine, followTrack, lineOf, pasteName, pasteTokens, scanCss, shiftTokens, suggestLine, toCss, trackOf, withLine, withTrack } from './lib/tokens'
 import type { Placed } from './lib/arrange'
 import { BatchRename } from './BatchRename'
-import { BoardInspector, ImageInspector } from './BoardInspector'
+import { BoardInspector, ImageInspector, NoteInspector } from './BoardInspector'
 import { Canvas, boardPositions, defaultWidth } from './Canvas'
 import { NewRoleForm, RoleInspector } from './Roles'
 import { defaultRoleOrder, moveRole, moveRoleGroup, roleGroups, shiftRoles, refOf, refTo, surroundings, type RoleUse } from './lib/roles'
@@ -88,6 +91,7 @@ import { NewValueForm, ValueInspector } from './ValueBoard'
 import { specOf } from './valueSpecs'
 import { followShadowRefs, isEffectKind, shadowRefs } from './lib/effects'
 import { colorRefsIn, followColorRefs } from './lib/gradient'
+import { easeRefsIn, followEaseRefs } from './lib/motion'
 import { NewSpaceUseForm, SpaceUseInspector, spaceVars } from './Spacing'
 import { LengthInspector, NewLengthForm, NewSizeForm, SizeInspector, SizeThings, SizeViewSwitch, sizeVars, type SizeView } from './Sizes'
 import { isSizeKind, readSizeNote, type SizeGroup } from './lib/sizes'
@@ -232,6 +236,11 @@ export function App() {
   const [keptGroups, setKeptGroups] = useState<string[]>([])
   // 선택한 빈 색 목록. 빈 목록은 색이 없어서 목록 이름 자체를 선택하고 Delete로 지운다.
   const [pickedGroup, setPickedGroup] = useState<string | null>(null)
+  // 글 적기 상태(T). 이때 캔버스를 누르면 그 자리에 글 상자가 열린다. Esc나 T를 다시 누르면 풀린다.
+  const [placingText, setPlacingText] = useState(false)
+  // 목록 이름을 눌러 선택한 색 목록. 색이 하나뿐인 목록은 선택된 색만 봐서는 목록을 고른 것인지 그 색을 고른 것인지 알 수 없어서 따로 기억한다.
+  // 목록을 고른 것이면 패널에 목록 이름 칸이, 색을 고른 것이면 그 색의 패널이 뜬다. 선택이 바뀌면 지운다.
+  const [listPicked, setListPicked] = useState<string | null>(null)
   // 색상 판을 접었는지. 접으면 모든 색의 이름과 값 글자를 숨긴다. 보는 방식일 뿐이라 파일이 아니라 브라우저에 기억한다.
   const [folded, setFolded] = useState(false)
   useEffect(() => {
@@ -685,6 +694,7 @@ export function App() {
   function select(names: string[]) {
     setSelected(names)
     setPickedGroup(null)
+    setListPicked(null)
     setSelectionId((n) => n + 1)
   }
 
@@ -807,6 +817,11 @@ export function App() {
       // 그림자의 겹이 가리키는 색도 새 이름을 따라간다.
       if (KINDS.shadow.matches(t.name)) {
         const value = followShadowRefs(t.value, renames)
+        return value === t.value ? t : { ...t, value }
+      }
+      // 애니메이션이 가리키는 이징도 새 이름을 따라간다.
+      if (KINDS.animate.matches(t.name)) {
+        const value = followEaseRefs(t.value, renames)
         return value === t.value ? t : { ...t, value }
       }
       // 그라데이션이 가리키는 색도 같다.
@@ -1047,6 +1062,8 @@ export function App() {
       ...typeUsers(tokens, n)
         .filter((u) => !names.includes(u))
         .map((u) => shortName(STYLE, u)),
+      // 이 이징을 가리키는 애니메이션도 함께 센다.
+      ...tokens.filter((t) => !names.includes(t.name) && KINDS.animate.matches(t.name) && easeRefsIn(t.value).includes(n)).map((t) => shortName(KINDS.animate, t.name)),
       // 이 색을 가리키는 그라데이션도 함께 센다.
       ...tokens.filter((t) => !names.includes(t.name) && KINDS.gradient.matches(t.name) && colorRefsIn(t.value).includes(n)).map((t) => shortName(KINDS.gradient, t.name)),
       // 이 색을 가리키는 그림자도 함께 센다.
@@ -1095,6 +1112,11 @@ export function App() {
       for (const key of ['x', 'y', 'w'] as const) if (patch[key] !== undefined) patch[key] = Math.round(patch[key]!)
       const image = images[id]
       if (image) {
+        // 글은 자리만 바뀐다. 크기는 내용과 글자 크기가 정한다.
+        if (image.text !== undefined) {
+          nextImages[id] = { ...image, x: patch.x ?? image.x, y: patch.y ?? image.y }
+          continue
+        }
         // 사진은 자리와 너비만 바뀐다. 높이는 비율대로 따라온다.
         const w = patch.w ?? image.w
         nextImages[id] = { ...image, x: patch.x ?? image.x, y: patch.y ?? image.y, w, h: Math.round((image.h * w) / image.w) }
@@ -1110,6 +1132,8 @@ export function App() {
 
   function changeScreen(id: ScreenId) {
     setScreen(id)
+    // 글 적기 상태는 화면을 옮기면 푼다. 캔버스가 없는 화면에 남으면 보이지 않는 상태가 Esc 한 번을 먹는다.
+    setPlacingText(false)
     setFocusToken(null)
     // 숨겨 둔 판의 메뉴를 누르면 다시 보이게 한다.
     if (isTokenScreen(id) && boards[id]?.hidden) moveBoards({ [id]: { hidden: false } })
@@ -1150,6 +1174,41 @@ export function App() {
     } catch (e) {
       notify(e instanceof Error && e.message ? e.message : '사진을 넣지 못했어요.')
     }
+  }
+
+  /** 캔버스에 적은 글을 저장한다. id가 null이면 새 글이다. 내용이 비었으면 새 글은 만들지 않고, 있던 글은 지운다. */
+  function saveNote(id: string | null, note: { text: string; x: number; y: number; w: number; h: number }) {
+    // 끝의 빈 줄과 빈칸은 버린다. 글 상자가 보이지 않는 빈 줄만큼 커지지 않게 한다.
+    // 붙여 넣은 긴 글도 서버가 받는 길이에서 자른다(칸의 maxLength를 지나쳐 온 것에 대비한다).
+    const text = note.text.replace(/\s+$/, '').slice(0, NOTE_LIMIT)
+    if (id === null) {
+      if (!text) return
+      const made = `img-${Date.now().toString(36)}`
+      record()
+      saveBoards(latest.current.boards, { ...latest.current.images, [made]: { text, x: note.x, y: note.y, w: note.w, h: note.h } })
+      select([])
+      return setSelectedBoards([made])
+    }
+    const old = images[id]
+    if (!old) return
+    if (!text) return removeImages([id])
+    // 고치지 않았으면 저장하지 않는다.
+    if (text === old.text) return
+    record()
+    saveBoards(boards, { ...images, [id]: { ...old, text, w: note.w, h: note.h } })
+  }
+
+  /** 선택한 글들의 글자 크기를 바꾼다. 붙기와 정렬에 쓰는 크기(w, h)는 글자 크기와 줄 높이의 비율대로 맞춘다. */
+  function sizeNotes(ids: string[], size: NoteSize) {
+    const of = (id?: NoteSize) => NOTE_SIZES.find((s) => s.id === (id ?? 'md'))!
+    const next = { ...images }
+    for (const id of ids) {
+      const note = images[id]
+      if (note?.text === undefined || (note.size ?? 'md') === size) continue
+      next[id] = { ...note, size, w: Math.round((note.w * of(size).font) / of(note.size).font), h: Math.round((note.h * of(size).line) / of(note.size).line) }
+    }
+    record()
+    saveBoards(boards, next)
   }
 
   /** 캔버스에서 사진을 뺀다. 파일은 남겨 두어 되돌리기로 살릴 수 있다. */
@@ -1233,6 +1292,8 @@ export function App() {
     )
     if (Object.values(moved).some((name) => tokens.some((t) => t.name === name))) return '같은 이름이 이미 있어요.'
     renameMany(moved)
+    // 색이 하나뿐인 목록을 목록으로 선택해 둔 것이면, 이름을 바꾼 뒤에도 목록을 선택한 채로 둔다(색이 여럿인 목록과 같다).
+    if (listPicked === from) setListPicked(to)
     return null
   }
 
@@ -1502,8 +1563,11 @@ export function App() {
       if (e.shiftKey || dialog) return
       if (screen === 'components') {
         if (cells.length) renamePartInPanel('variants', cells.at(-1)!.v)
-      } else if (selected.length === 1) renameTokenInPanel(selected[0])
-      else if (stepColorsPicked) setBatch(true)
+      } else if (selected.length === 1) {
+        // 색이 하나뿐인 목록을 목록 이름으로 골라 두었으면 떠 있는 것이 목록 패널이다. 그 패널의 목록 이름 칸으로 간다.
+        if (listPicked) askRename('group')
+        else renameTokenInPanel(selected[0])
+      } else if (stepColorsPicked) setBatch(true)
       return
     }
     if (isTyping(e.target) || dialog) return
@@ -1527,6 +1591,7 @@ export function App() {
       if (e.code === 'KeyY' || e.shiftKey) travel(redo, undo)
       else travel(undo, redo)
     } else if (e.code === 'Escape') {
+      if (placingText) return setPlacingText(false)
       if (selected.length || pickedGroup) select([])
       if (cells.length) selectCells([])
     } else if (mod && !e.altKey && !e.shiftKey && e.code === 'KeyD') {
@@ -1599,6 +1664,9 @@ export function App() {
       if (stepSelection(e.shiftKey ? -1 : 1)) e.preventDefault()
     } else if (e.code === 'KeyI' && !mod && !e.altKey && !e.shiftKey) {
       if (screen !== 'components') pickColor()
+    } else if (e.code === 'KeyT' && !mod && !e.altKey && !e.shiftKey) {
+      // T: 글 적기. 캔버스가 보이는 화면에서만 듣는다. 다시 누르면 풀린다.
+      if (screen === 'canvas' || isTokenScreen(screen)) setPlacingText((on) => !on)
     } else if (e.code === 'Delete' || e.code === 'Backspace') {
       // 빈 색 목록을 선택했으면 그 목록을 지운다.
       if (pickedGroup && screen !== 'components') {
@@ -1710,9 +1778,12 @@ export function App() {
       const next = defaultTypeOrder(tokens)
       return next.every((t, i) => t === tokens[i]) ? undefined : () => commit(next)
     })(),
-    onSelectGroup: (names: string[], additive: boolean, rename: boolean) => {
+    onSelectGroup: (names: string[], additive: boolean, rename: boolean, list?: string) => {
       setSelectedBoards([])
       select(additive ? [...selected, ...names.filter((n) => !selected.includes(n))] : names)
+      // 색 목록의 이름을 눌러 그 목록만 선택한 것이면 기억해 둔다(select가 지운 뒤에 적는다).
+      // Shift나 Ctrl을 누른 채 눌렀어도 다른 선택이 없었으면 그 목록만 고른 것이다.
+      if (list && (!additive || selected.length === 0)) setListPicked(list)
       if (rename) askRename('group')
     },
   }
@@ -1761,9 +1832,10 @@ export function App() {
   // 한 색 목록을 통째로(그리고 그것만) 선택했으면 그 목록의 이름. 오른쪽 패널에서 목록 이름을 고칠 수 있다.
   const groupsPicked = new Set(selectedTokens.map((t) => (COLOR.matches(t.name) ? groupOf(shortName(COLOR, t.name)) : null)))
   const onlyGroup = groupsPicked.size === 1 ? [...groupsPicked][0] : null
+  // 색이 둘 이상이면 그 목록의 색을 빠짐없이 고른 것으로 안다. 색이 하나뿐인 목록은 목록 이름을 눌러 선택했을 때만이다(색을 누른 것이면 그 색의 패널이 뜬다).
   const wholeGroup =
     onlyGroup &&
-    selectedTokens.length > 1 &&
+    (selectedTokens.length > 1 || listPicked === onlyGroup) &&
     tokens.filter((t) => COLOR.matches(t.name) && groupOf(shortName(COLOR, t.name)) === onlyGroup).length === selectedTokens.length
       ? onlyGroup
       : null
@@ -1832,7 +1904,7 @@ export function App() {
         { id: 'a:weights', group: '명령', label: '굵기 한 벌 만들기', run: () => setMakingWeights(true) },
         { id: 'a:types', group: '명령', label: '의미 글꼴 한 벌 만들기', run: () => setMakingTypes(true) },
         { id: 'a:comp', group: '명령', label: '컴포넌트 추가', run: () => setAddingComp(true) },
-        { id: 'a:system', group: '명령', label: '새 디자인 시스템', run: () => setCreating(true) },
+        { id: 'a:system', group: '명령', label: '디자인 시스템 만들기', run: () => setCreating(true) },
         ...(systems ?? [])
           .filter((name) => name !== system)
           .map((name) => ({ id: `o:${name}`, group: '명령', label: `${name} 열기`, hint: '디자인 시스템', run: () => void openSystem(name) })),
@@ -1930,7 +2002,10 @@ export function App() {
               viewKey={`ff.view.${system}`}
               focus={{ id: isTokenScreen(screen) ? screen : null, token: focusToken, nonce: focusNonce }}
               positions={boards}
-              images={Object.entries(images).map(([id, image]) => ({ ...image, id, src: imageUrl(system, image.file) }))}
+              images={Object.entries(images).map(([id, image]) => ({ ...image, id, src: image.file ? imageUrl(system, image.file) : undefined }))}
+              placing={placingText}
+              onPlaced={() => setPlacingText(false)}
+              onNote={saveNote}
               selectedItems={selected}
               onSelectItems={select}
               selectedBoards={selectedBoards}
@@ -2132,8 +2207,15 @@ export function App() {
                 })
               }
             />
+          ) : pickedBoards.length > 0 && selectedTokens.length === 0 && pickedBoards.every((b) => images[b.id]?.text !== undefined) ? (
+            <NoteInspector
+              picked={pickedBoards}
+              size={pickedBoards.every((b) => (images[b.id].size ?? 'md') === (images[pickedBoards[0].id].size ?? 'md')) ? (images[pickedBoards[0].id].size ?? 'md') : null}
+              onMove={moveBoards}
+              onSize={(size) => sizeNotes(pickedBoards.map((b) => b.id), size)}
+            />
           ) : pickedBoards.length > 0 && selectedTokens.length === 0 && pickedBoards.every((b) => b.id in images) ? (
-            <ImageInspector picked={pickedBoards} onMove={moveBoards} />
+            <ImageInspector picked={pickedBoards} mixed={pickedBoards.some((b) => images[b.id]?.text !== undefined)} onMove={moveBoards} />
           ) : pickedBoards.length > 0 && selectedTokens.length === 0 ? (
             <BoardInspector
               picked={pickedBoards}
@@ -2141,6 +2223,9 @@ export function App() {
               titles={Object.fromEntries(TOKEN_SCREEN_IDS.map((id) => [id, TOKEN_SCREENS[id].title]))}
               onMove={moveBoards}
             />
+          ) : selectedTokens.length === 1 && wholeGroup ? (
+            // 색이 하나뿐인 목록을 목록 이름으로 선택했다. 색이 여럿인 목록을 통째로 선택했을 때와 같은 패널이다.
+            <MultiInspector key={selectionId} tokens={selectedTokens} group={wholeGroup} onRenameGroup={(next) => renameGroup(wholeGroup, next)} />
           ) : selectedTokens.length === 1 && commonKind?.id === 'role' ? (
             <RoleInspector
               key={selectionId}
@@ -2334,7 +2419,7 @@ export function App() {
       </div>
 
       {creating && (
-        <Modal title="새 디자인 시스템" onClose={() => setCreating(false)}>
+        <Modal title="디자인 시스템 만들기" onClose={() => setCreating(false)}>
           <NewSystemForm
             onCancel={() => setCreating(false)}
             onCreated={(name) => {
@@ -2517,6 +2602,7 @@ export function App() {
         <Modal title={addingEffect.addLabel} onClose={() => setAddingEffect(null)}>
           <NewEffectForm
             kind={addingEffect}
+            tokens={tokens}
             existing={new Set(tokens.filter((t) => addingEffect.matches(t.name)).map((t) => shortName(addingEffect, t.name)))}
             onCancel={() => setAddingEffect(null)}
             onCreate={(name, value, note) => {
@@ -2575,7 +2661,7 @@ export function App() {
       )}
 
       {addingFirst !== null && (
-        <Modal title={`${addingFirst}의 첫 색`} onClose={() => setAddingFirst(null)}>
+        <Modal title={`${addingFirst} 목록에 색 추가`} onClose={() => setAddingFirst(null)}>
           <NewGroupForm
             existing={groupTaken}
             why={takenWhy}

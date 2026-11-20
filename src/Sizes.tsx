@@ -4,18 +4,22 @@
 import { SAMPLE_BAR, SAMPLE_W, paints, sampleColors } from './lib/sample'
 import { CHECK_STROKE, ICON_STROKE } from './lib/icons'
 import { useContext, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { ArrowUpRight, Check as CheckIcon, ChevronDown, Copy, Folder, Minus, Plus, X } from 'lucide-react'
 import type { Token } from './lib/api'
-import { ALL_KINDS, KINDS, SLUG, slugMessage, lengthLabel, shortName, NAME_SHAPE, typedNameProblem, type Kind } from './lib/catalog'
+import { ALL_KINDS, KINDS, SLUG, slugMessage, lengthLabel, shortName, type Kind } from './lib/catalog'
 import { resolveColor, type Around } from './lib/roles'
-import { SIZE_GROUPS, SIZE_SHAPES, SIZE_WORDS, guessSizeGroup, isSizeKind, isSizeListShape, lengthRefOf, readSizeNote, resolveLength, writeSizeNote, type SizeExample, type SizeGroup, type SizeShape } from './lib/sizes'
+import { SIZE_GROUPS, SIZE_SHAPES, SIZE_NAMES, SIZE_SHAPE_FOR, SIZE_WORDS, guessSizeGroup, isSizeKind, isSizeListShape, lengthRefOf, readSizeNote, resolveLength, writeSizeNote, type SizeExample, type SizeGroup, type SizeShape } from './lib/sizes'
 import { PreviewFontContext, PreviewSpaceContext } from './ColorUses'
-import { CODE_OPEN, CodeRows, FoldSection, ICON_BUTTON, Section, WHERE_OPEN } from './Inspector'
-import { DetailsFolded, HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
+import { CODE_OPEN, CodeRows, FoldSection, Section, WHERE_OPEN, ICON_BUTTON } from './Inspector'
+import { DetailsFolded, HOVER, OUTLINE, RowSample, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
 import { Button, Field, Phrases, Segmented, UnitInput, UsePicker, inputClass, linkRowClass } from './ui'
+import { freeName, nearestRef } from './lib/nearest'
+import { nameRules, numberRules, unitProps, useField } from './useField'
 import { useReorder } from './useReorder'
 import { NavIcon, isNavLabel } from './SampleParts'
 import { orderKinds } from './lib/order'
+import { WithExample } from './WithExample'
 
 const LENGTH = KINDS.length
 
@@ -329,8 +333,8 @@ export function SizeSample({
                   {text}
                 </span>
               ) : (
-                <span className={`flex h-row items-center gap-row-inner overflow-hidden rounded-row px-row-x whitespace-nowrap ${TEXT}`} style={text.startsWith('새 ') ? { color: soft } : undefined}>
-                  {text.startsWith('새 ') && <Plus size={16} strokeWidth={ICON_STROKE} className="shrink-0" />}
+                <span className={`flex h-row items-center gap-row-inner overflow-hidden rounded-row px-row-x whitespace-nowrap ${TEXT}`} style={(text.startsWith('새 ') || text.endsWith(' 만들기')) ? { color: soft } : undefined}>
+                  {(text.startsWith('새 ') || text.endsWith(' 만들기')) && <Plus size={16} strokeWidth={ICON_STROKE} className="shrink-0" />}
                   <span className="min-w-0 flex-1">{text}</span>
                   {i === 0 && <CheckIcon size={16} strokeWidth={ICON_STROKE} className="shrink-0" />}
                 </span>
@@ -866,26 +870,12 @@ export function SizeInspector({
 }) {
   const short = shortName(kind, token.name)
   const { group, text, picked, words, more } = readSizeNote(token.note, short)
-  const [nameDraft, setNameDraft] = useState(short)
-  const [nameError, setNameError] = useState<string | null>(null)
+  // 이름 칸. 쓸 수 없는 글자는 적는 중에 알리고 벗어나면 되돌린다. 모양이 틀린 이름과 이 판의 규칙은 벗어날 때 알리고 칸에 남긴다(useField).
+  const nameField = useField(nameRules({ saved: short, done: (next) => (/^\d/.test(next) ? '숫자로 시작할 수 없어요.' : tokens.some((t) => t.name === kind.prefix + next) ? '같은 이름이 이미 있어요.' : null), save: (next) => onRename(kind.prefix + next) }))
   const [textDraft, setTextDraft] = useState(text)
   const options = baseOptions(tokens)
   const { ref, length } = shownOf(tokens, token.value)
   const known = ref !== null && options.some((o) => o.id === ref)
-
-  function commitName() {
-    const next = nameDraft.trim()
-    setNameError(null)
-    // 비웠거나 쓸 수 없는 글자가 든 이름은 적는 중에 알 수 있는 것이다. 그대로 벗어나면 저장된 이름으로 되돌린다(DESIGN.md field-rules).
-    if (!next || typedNameProblem(next)) return setNameDraft(short)
-    // 글자는 맞지만 모양이 틀린 이름(card-, card--big)은 다 적어야 아는 것이다. 말없이 되돌리지 않고 까닭과 함께 칸에 남긴다.
-    if (next !== short && !SLUG.test(next)) return setNameError(NAME_SHAPE)
-    if (next === short) return
-    // 숫자로 시작하는 이름은 Tailwind의 숫자 클래스(h-8, opacity-50)와 같은 글자가 된다. 다른 의미 판과 같이 막는다.
-    if (/^\d/.test(next)) return setNameError('숫자로 시작할 수 없어요.')
-    if (tokens.some((t) => t.name === kind.prefix + next)) return setNameError('같은 이름이 이미 있어요.')
-    onRename(kind.prefix + next)
-  }
 
   // 같은 주석에 적혀 있는 예시(모양과 문구)는 그대로 둔다.
   const saveNote = (patch: { group?: SizeGroup; text?: string }) => onChange({ note: writeSizeNote(patch.group ?? group, patch.text ?? text, picked, words, more) })
@@ -899,22 +889,19 @@ export function SizeInspector({
       <Section title="이름">
         <input
           className={inputClass}
-          value={nameDraft}
+          value={nameField.draft}
           aria-label="이름"
           data-rename="token"
-          onChange={(e) => {
-            setNameDraft(e.target.value)
-            setNameError(typedNameProblem(e.target.value))
-          }}
-          onBlur={commitName}
+          onChange={(e) => nameField.type(e.target.value)}
+          onBlur={nameField.leave}
           onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
         />
-        {nameError && <span className="mt-label block type-body text-danger">{nameError}</span>}
+        {nameField.error && <span className="mt-label block type-body text-danger">{nameField.error}</span>}
       </Section>
 
       <Section title="가리키는 크기">
         {known ? (
-          // 고르는 칸 옆에, 가리키는 크기가 크기 판의 어디에 있는지 보러 가는 버튼. "쓰이는 곳"의 반대 방향이다.
+          // 고르는 칸 옆에, 가리키는 값이 그 판의 어디에 있는지 보러 가는 버튼. "쓰이는 곳"의 반대 방향이다.
           <div className="flex items-center gap-actions-tight">
             <div className="min-w-0 flex-1">
               <UsePicker label="가리키는 크기" options={options} value={ref} nameWidth="w-picker-name-wide" onChange={(next) => onChange({ value: `var(${next})` })} />
@@ -978,6 +965,9 @@ export function SizeInspector({
   )
 }
 
+/** 추가 창의 예시 영역에 너비의 그림이 들어가는 가장 큰 길이(px). 영역의 안쪽 너비가 290px쯤이고 예시 상자의 좌우 여백이 12px씩이다. 이보다 넓은 너비는 판에서보다 더 줄여 그리고, 몇 분의 일인지 그림 아래에 적는다. */
+const ADD_FIT = 264
+
 /** 의미 크기의 종류. 추가 창에서 고른다(이름은 진하게, 쓰는 클래스와 그 종류에 드는 것은 옅게). */
 const SIZE_KINDS: { id: 'height' | 'width' | 'square'; label: string; hint: string }[] = [
   { id: 'height', label: '높이', hint: 'h-이름. 입력칸, 줄, 막대' },
@@ -989,18 +979,34 @@ const SIZE_KINDS: { id: 'height' | 'width' | 'square'; label: string; hint: stri
  * 의미 크기를 만드는 양식. 종류(높이, 폭, 정사각형), 이름, 가리키는 크기, 묶음, 설명을 정한다. 설명은 비워 두어도 되고 만든 뒤에 패널에서도 고친다.
  * 가리키는 크기는 고르지 않은 채로 시작한다. 첫 값을 골라 두면 이름만 적고 만들었을 때 엉뚱한 크기를 가리키는 값이 생긴다.
  * "추가"는 판에 하나뿐이고 종류는 여기서 고른다(효과의 추가가 쓰임을 창 안에서 고르는 것과 같다). start는 처음에 골라 둘 종류다.
+ * 예시의 모양을 고르고, 크기를 고르면 판의 줄과 같은 예시를 창 오른쪽의 영역에 보여 준다(WithExample). 고른 모양은 주석에 적힌다(문구는 적지 않아 모양의 기본 문구로 그려진다).
  */
 export function NewSizeForm({ start, tokens, onCreate, onCancel }: { start?: Kind; tokens: Token[]; onCreate: (kind: Kind, name: string, value: string, note: string) => void; onCancel: () => void }) {
   const options = baseOptions(tokens)
   const [kindId, setKindId] = useState<'height' | 'width' | 'square'>(start && isSizeKind(start) ? (start.id as 'height' | 'width' | 'square') : 'height')
   const kind = KINDS[kindId]
   const [name, setName] = useState('')
-  const [ref, setRef] = useState<string | null>(null)
+  // 창을 열자마자 예시가 보이게, 가리키는 값은 흔히 쓰는 크기(32px)에 가장 가까운 것을 골라 둔다(DESIGN.md dialog-defaults). 예시를 보며 바꾼다.
+  const [ref, setRef] = useState<string | null>(() => nearestRef(tokens, options.map((o) => o.id), 32))
   // 묶음은 직접 고르기 전까지 이름에서 짐작한 것을 보여 준다.
   const [group, setGroup] = useState<SizeGroup | null>(null)
   const [text, setText] = useState('')
   const [error, setError] = useState<{ name?: string; ref?: string }>({})
-  const shownGroup = group ?? guessSizeGroup(name.trim())
+  const baseGroup = group ?? guessSizeGroup(name.trim())
+  // 예시의 모양. 직접 고르기 전까지는 종류와 묶음에 맞는 모양을 따라간다.
+  const [picked, setPicked] = useState<SizeShape | null>(null)
+  const shape = picked ?? SIZE_SHAPE_FOR[kindId][baseGroup]
+  // 이름 칸은 비워 두고, 고른 예시에 맞는 이름을 옅은 글자로 추천한다(DESIGN.md dialog-defaults). 추천은 값이 아니다. 비운 채 추가하면 "이름을 입력해 주세요."다.
+  const suggestedName = freeName(tokens, kind.prefix, SIZE_NAMES[shape])
+  const shownGroup = baseGroup
+  // 고른 크기의 길이와, 판의 줄(SizeList)과 같은 색.
+  const length = ref ? resolveLength(tokens, `var(${ref})`) : null
+  // 너비는 예시 영역에 들어가게 줄여 그린다. 줄여 그렸으면 판의 줄과 같은 말로 알린다.
+  const fit = kindId === 'width' ? ADD_FIT : undefined
+  const scale = length !== null ? sampleScale(kind, length, undefined, fit) : 1
+  const around = sampleColors(tokens)
+  const tinted = tokens.find((t) => t.name === '--color-selection') ?? tokens.find((t) => t.name === '--color-primary')
+  const tint = (tinted && resolveColor(tokens, tinted.value)) || around.ink
 
   function submit(e: FormEvent) {
     e.preventDefault()
@@ -1012,7 +1018,7 @@ export function NewSizeForm({ start, tokens, onCreate, onCancel }: { start?: Kin
     else if (tokens.some((t) => t.name === kind.prefix + n)) next.name = '같은 이름이 이미 있어요.'
     if (!ref) next.ref = '크기를 골라 주세요.'
     setError(next)
-    if (Object.keys(next).length === 0 && ref) onCreate(kind, kind.prefix + n, `var(${ref})`, writeSizeNote(shownGroup, text))
+    if (Object.keys(next).length === 0 && ref) onCreate(kind, kind.prefix + n, `var(${ref})`, writeSizeNote(shownGroup, text, shape))
   }
 
   // 가리킬 크기가 하나도 없으면 만들 수 없다. 막다른 곳이라 무엇을 먼저 할지 알려 준다.
@@ -1027,7 +1033,8 @@ export function NewSizeForm({ start, tokens, onCreate, onCancel }: { start?: Kin
     )
 
   return (
-    <form onSubmit={submit} className="space-y-fields">
+    <form onSubmit={submit}>
+      <WithExample example={length !== null ? <SizeSample kind={kind} shape={shape} value={length} fit={fit} around={around} tint={tint} /> : null} note={scale > 1 ? `그림은 1/${scale}` : undefined}>
       <Field label="종류" plain>
         <UsePicker
           label="종류"
@@ -1046,7 +1053,8 @@ export function NewSizeForm({ start, tokens, onCreate, onCancel }: { start?: Kin
           autoFocus
           className={inputClass}
           value={name}
-          placeholder={kind.id === 'height' ? 'control' : kind.id === 'width' ? 'panel' : 'icon'}
+          // 옅은 글자는 그대로 적으면 만들어지는 이름일 때만 보인다. 이미 있는 이름을 본보기로 보이면, 따라 적었을 때 되는 창과 안 되는 창이 생긴다.
+          placeholder={suggestedName}
           onChange={(e) => {
             setName(e.target.value)
             setError({ ...error, name: undefined })
@@ -1068,9 +1076,13 @@ export function NewSizeForm({ start, tokens, onCreate, onCancel }: { start?: Kin
       <Field label="묶음" plain>
         <UsePicker label="묶음" options={SIZE_GROUPS} value={shownGroup} onChange={setGroup} />
       </Field>
+      <Field label="예시" plain>
+        <UsePicker label="예시" options={SIZE_SHAPES} value={shape} nameWidth="w-picker-name-long" onChange={setPicked} />
+      </Field>
       <Field label="설명">
         <input className={inputClass} value={text} onChange={(e) => setText(e.target.value)} />
       </Field>
+      </WithExample>
       <div className="mt-dialog-actions flex justify-end gap-actions">
         <Button variant="ghost" onClick={onCancel}>
           취소
@@ -1130,26 +1142,17 @@ export function LengthInspector({
   onCopy: (text: string) => void
 }) {
   const saved = String(parseFloat(token.value))
-  const [digits, setDigits] = useState(saved)
-  const [error, setError] = useState<string | null>(null)
-
-  function commit(next: string) {
-    // 비운 채로 떠나면 저장된 값으로 돌아간다. 빈 칸으로 남겨 두지 않는다.
-    if (!next.trim()) {
-      setDigits(saved)
-      return setError(null)
-    }
-    const problem = lengthProblem(kind, next, tokens, token.name)
-    // 적는 중에 알 수 있는 오류(숫자가 아님)는 적는 중에 이미 보였다. 그대로 벗어나면 저장된 값으로 되돌린다.
-    // 다 적어야 아는 오류(같은 길이)는 까닭과 함께 칸에 남긴다(DESIGN.md field-rules).
-    if (problem && problem !== SAME_LENGTH) {
-      setDigits(saved)
-      return setError(null)
-    }
-    setError(problem)
-    if (problem || Number(next) === Number(saved)) return
-    onChange(kind.prefix + Number(next), `${Number(next)}px`)
-  }
+  // 숫자가 아니거나 0 이하인 것은 적는 중에 알리고 벗어나면 되돌린다. 같은 길이인지는 다 적어야 알 수 있어(24를 적으려면 2를 거친다) 벗어날 때 알리고 칸에 남긴다(useField).
+  const field = useField(
+    numberRules({
+      saved,
+      positive: true,
+      integer: true,
+      message: '0보다 큰 정수를 입력해 주세요.',
+      done: (next) => lengthProblem(kind, next, tokens, token.name),
+      save: (next) => onChange(kind.prefix + next, `${next}px`),
+    }),
+  )
 
   const userOf = (name: string) => {
     const user = ALL_KINDS.find((k) => k.matches(name))
@@ -1166,21 +1169,11 @@ export function LengthInspector({
       <Section title="길이">
         <UnitInput
           label="길이"
-          digits={digits}
+          {...unitProps(field)}
           unit="px"
-          invalid={error !== null}
           placeholder={saved}
-          onDigits={(next, typing) => {
-            setDigits(next)
-            // 적는 동안은 저장하지 않는다. ↑↓로 올리고 내린 것은 바로 저장한다.
-            if (!typing) return commit(next)
-            // 적는 중에 알 수 있는 오류는 바로 알린다. 같은 길이인지는 다 적어야 알 수 있어(24를 적으려면 2를 거친다) 벗어날 때 알린다.
-            const problem = next.trim() ? lengthProblem(kind, next, tokens, token.name) : null
-            setError(problem === SAME_LENGTH ? null : problem)
-          }}
-          onBlur={() => commit(digits)}
         />
-        {error && <span className="mt-label block type-body text-danger">{error}</span>}
+        {field.error && <span className="mt-label block type-body text-danger">{field.error}</span>}
       </Section>
 
       <FoldSection title="쓰이는 곳" storageKey={WHERE_OPEN} startOpen note={count > 0 ? String(count) : '없음'} empty={count === 0}>
@@ -1220,9 +1213,81 @@ export function LengthInspector({
   )
 }
 
-/** 토대의 길이(크기, 간격, 모서리, 테두리)를 만드는 양식. 길이(px)만 받는다. 이름은 그 숫자다(--length-32, --gutter-8, --corner-6, --thickness-1). */
+/**
+ * 토대의 길이(크기, 간격, 모서리, 테두리)를 만드는 양식. 길이(px)만 받는다. 이름은 그 숫자다(--length-32, --gutter-8, --corner-6, --thickness-1).
+ * 0보다 큰 정수를 적으면 판의 줄과 같은 견본을 창 오른쪽의 영역에 보여 준다(WithExample. 크기는 치수선, 간격은 띠, 모서리는 둥근 모서리 하나, 테두리는 선 하나).
+ */
+/** 긴 길이를 화면에 대어 볼 때의 모양. 크기는 선·너비·높이, 간격은 위아래·좌우 가운데서 고른다. */
+type LengthView = 'line' | 'wide' | 'tall' | 'gapy' | 'gapx'
+const LENGTH_VIEWS: { id: LengthView; label: string }[] = [
+  { id: 'line', label: '선' },
+  { id: 'wide', label: '너비' },
+  { id: 'tall', label: '높이' },
+]
+const SPACE_VIEWS: { id: LengthView; label: string }[] = [
+  { id: 'gapy', label: '위아래' },
+  { id: 'gapx', label: '좌우' },
+]
+
+/**
+ * 화면 위에 실제 크기로 그린 길이. 추가 창의 "누르고 있는 동안 화면에 대어 보기"가 띄운다. 누를 수 없고(누르고 있는 버튼이 계속 듣는다), 모든 것 위에 놓인다.
+ * 화면보다 긴 길이는 시작하는 쪽(왼쪽, 위)부터 보이고 끝에서 잘린다. 그때는 화면의 크기와 함께 그렇다고 적는다.
+ * 선은 판의 치수선과 같은 안내 색이고, 면은 FF의 면(흰 바탕과 1px 선)이다. 간격은 두 면 사이에 안내 색을 옅게 칠한 띠로 그린다(판의 간격 예시와 같다).
+ */
+function LengthOnScreen({ px, view }: { px: number; view: LengthView }) {
+  const across = view === 'line' || view === 'wide' || view === 'gapx'
+  const over = across ? px > window.innerWidth : px > window.innerHeight
+  const face = 'shrink-0 rounded-float border-edge border-hairline bg-canvas'
+  const band = { background: 'color-mix(in oklab, var(--color-guide) 30%, transparent)' }
+  const tag = <span className="rounded-tag bg-guide px-[4px] type-caption-strong whitespace-nowrap text-on-selection tabular-nums!">{px}</span>
+  return (
+    <div data-length-on-screen className="pointer-events-none fixed inset-0 z-listbox flex overflow-hidden bg-canvas/90" style={{ justifyContent: 'safe center', alignItems: 'safe center' }}>
+      <p className="absolute inset-x-0 top-[16px] text-center type-caption text-ink-faint">
+        {px}px{over && ` · 화면(${across ? window.innerWidth : window.innerHeight}px)보다 길어서 끝이 잘려요`}
+      </p>
+      {view === 'line' && <RowSample kind={KINDS.length} value={`${px}px`} />}
+      {view === 'wide' && (
+        <div className={`flex items-center justify-center ${face}`} style={{ width: px, height: 320 }}>
+          {tag}
+        </div>
+      )}
+      {view === 'tall' && (
+        <div className={`flex items-center justify-center ${face}`} style={{ width: 320, height: px }}>
+          {tag}
+        </div>
+      )}
+      {view === 'gapy' && (
+        <div className="flex shrink-0 flex-col">
+          <div className={face} style={{ width: 320, height: 64 }} />
+          <div className="flex items-center justify-center" style={{ ...band, height: px }}>
+            {tag}
+          </div>
+          <div className={face} style={{ width: 320, height: 64 }} />
+        </div>
+      )}
+      {view === 'gapx' && (
+        <div className="flex shrink-0">
+          <div className={face} style={{ width: 64, height: 240 }} />
+          <div className="flex items-center justify-center" style={{ ...band, width: px }}>
+            {tag}
+          </div>
+          <div className={face} style={{ width: 64, height: 240 }} />
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function NewLengthForm({ kind, tokens, onCreate, onCancel }: { kind: Kind; tokens: Token[]; onCreate: (name: string, value: string) => void; onCancel: () => void }) {
-  const [digits, setDigits] = useState('')
+  // 창을 열자마자 예시가 보이게, 아직 없는 길이를 채워 둔다. 그 종류가 흔히 밟는 걸음(간격 4, 크기 8, 모서리 2, 테두리 1)의 배수 가운데 아직 없는 가장 작은 값이다.
+  // 이미 있는 길이를 채워 두면 그대로 추가했을 때 "같은 길이가 이미 있어요."가 된다. 가장 큰 길이의 다음으로 잡지 않는 것은 9999px(알약 모서리) 같은 값이 섞여 있기 때문이다.
+  const [digits, setDigits] = useState(() => {
+    const have = new Set(tokens.filter((t) => kind.matches(t.name)).map((t) => parseFloat(t.value)))
+    const step = kind.id === 'space' ? 4 : kind.id === 'corner' ? 2 : kind.id === 'thickness' ? 1 : 8
+    let next = step
+    while (have.has(next)) next += step
+    return String(next)
+  })
   const [error, setError] = useState<string>()
 
   function submit(e: FormEvent) {
@@ -1232,9 +1297,61 @@ export function NewLengthForm({ kind, tokens, onCreate, onCancel }: { kind: Kind
     if (problem) return
     onCreate(kind.prefix + Number(digits), `${Number(digits)}px`)
   }
+  // 예시로 그릴 길이. 적은 것이 0보다 큰 정수일 때만 있다.
+  const px = DIGITS.test(digits) && Number.isInteger(Number(digits)) && Number(digits) > 0 ? Number(digits) : null
+  // 예시 영역에 실제 크기로 들어가지 않는 길이는 그리지 않고 그렇다고 알린다. 줄여 그리지 않는다.
+  // 줄인 그림은 실제 크기가 아니라서 길이의 감을 주지 못하고, 끝에서 자른 그림은 2000과 3000이 똑같이 보인다. 보여 줄 수 없으면 보여 줄 수 없다고 말하는 편이 낫다.
+  // 길이가 그대로 그림의 크기가 되는 종류만 해당한다. 크기는 선의 너비(들어갈 자리 256px), 간격은 띠의 높이(200px)다. 모서리와 테두리는 정해진 상자 안에 그려져 넘치지 않는다.
+  // 테두리도 굵기가 그대로 선의 높이라 큰 값은 넘친다(모서리만 정해진 상자 안에 그려진다).
+  const room = kind.id === 'length' ? 256 : kind.id === 'corner' ? Infinity : 200
+  // 화면에 대어 보는 것은 크기와 간격에만 둔다. 화면에 대어 볼 만큼 굵은 테두리는 없다.
+  const canHold = kind.id === 'length' || kind.id === 'space'
+  const tooBig = px !== null && px > room
+  // 예시 영역에 못 그리는 긴 길이는 버튼을 누르고 있는 동안만 화면 위에 실제 크기로 대어 본다(자동으로 띄우지 않는다. 1440을 적으려면 1, 14, 144를 거치는데 그때마다 선이 화면으로 튀어나온다).
+  // 무엇으로 볼지도 고른다. 같은 720px라도 선 하나로 볼 때와 그 너비의 면으로 볼 때의 감이 다르다.
+  const views = kind.id === 'space' ? SPACE_VIEWS : LENGTH_VIEWS
+  const [view, setView] = useState<LengthView>(views[0].id)
+  const [holding, setHolding] = useState(false)
+  const example =
+    px === null ? null : tooBig ? (
+      <div data-example-note className="flex flex-col items-center gap-fields">
+        <p className="text-center type-body text-ink-faint">
+          예시로 그리기에는 너무 큰 길이예요.
+          <br />
+          값은 적은 그대로 만들어져요.
+        </p>
+        {canHold && <Segmented label="볼 모양" options={views} value={view} fit onChange={setView} />}
+        {canHold && <Button
+          // 누르고 있는 동안만 보인다. 손을 떼거나 초점이 떠나면 닫힌다. 자판으로는 스페이스나 Enter를 누르고 있는 동안이다.
+          onPointerDown={(e) => {
+            e.currentTarget.setPointerCapture(e.pointerId)
+            setHolding(true)
+          }}
+          onPointerUp={() => setHolding(false)}
+          onPointerCancel={() => setHolding(false)}
+          onKeyDown={(e) => {
+            if (e.key !== ' ' && e.key !== 'Enter') return
+            // Enter가 창을 내지 않게 한다.
+            e.preventDefault()
+            setHolding(true)
+          }}
+          onKeyUp={() => setHolding(false)}
+          onBlur={() => setHolding(false)}
+        >
+          누르고 있는 동안 화면에 대어 보기
+        </Button>}
+        {holding && createPortal(<LengthOnScreen px={px} view={view} />, document.body)}
+      </div>
+    ) : (
+      // 예시는 좌우 가운데에 둔다. 판의 줄에서는 여러 길이를 견주려고 왼쪽 끝을 맞추지만, 여기서는 하나만 보여서 왼쪽에 붙이면 오른쪽만 비어 덜 만든 것처럼 보인다.
+      <span className="flex justify-center overflow-hidden">
+        <RowSample kind={kind} value={`${px}px`} />
+      </span>
+    )
 
   return (
-    <form onSubmit={submit} className="space-y-fields">
+    <form onSubmit={submit}>
+      <WithExample example={example}>
       <Field label="길이" error={error}>
         <UnitInput
           label="길이"
@@ -1250,6 +1367,7 @@ export function NewLengthForm({ kind, tokens, onCreate, onCancel }: { kind: Kind
           }}
         />
       </Field>
+      </WithExample>
       <div className="mt-dialog-actions flex justify-end gap-actions">
         <Button variant="ghost" onClick={onCancel}>
           취소

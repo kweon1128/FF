@@ -4,14 +4,17 @@
 import { useContext, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import { Check as CheckIcon, ChevronDown, Folder, Minus, Plus } from 'lucide-react'
 import type { Token } from './lib/api'
-import { KINDS, SLUG, slugMessage, shortName, NAME_SHAPE, typedNameProblem, type Kind } from './lib/catalog'
+import { KINDS, SLUG, slugMessage, shortName, type Kind } from './lib/catalog'
 import { ICON_STROKE } from './lib/icons'
-import { LAYER_GROUPS, LAYER_WORDS, guessLayerGroup, layerNumber, readLayerNote, writeLayerNote, type LayerExample, type LayerGroup, type LayerShape } from './lib/layers'
+import { LAYER_GROUPS, LAYER_SHAPES, LAYER_NAMES, LAYER_SHAPE_FOR, LAYER_WORDS, guessLayerGroup, layerNumber, readLayerNote, writeLayerNote, type LayerExample, type LayerGroup, type LayerShape } from './lib/layers'
 import { SAMPLE_BAR, sampleColors, type SampleColors } from './lib/sample'
 import { PreviewFontContext, PreviewSpaceContext } from './ColorUses'
 import { CODE_OPEN, CodeRows, FoldSection, Section, WHERE_OPEN } from './Inspector'
 import { DetailsFolded, HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
 import { Button, Field, Phrases, UsePicker, inputClass , linkRowClass } from './ui'
+import { nameRules, numberRules, useField } from './useField'
+import { freeName } from './lib/nearest'
+import { WithExample } from './WithExample'
 
 // 예시의 바탕이 판의 바탕과 같은 색이어도 가장자리가 보이게 하는 옅은 선.
 const EDGE = 'shadow-[inset_0_0_0_var(--border-width-edge)_rgb(0_0_0/0.1)]'
@@ -130,8 +133,8 @@ export function LayerSample({ shape, value, colors: c, shadows, words: written =
         </span>
         <span {...(catcher ? {} : { 'data-sample': true })} className="absolute top-[42px] left-[12px] block w-[200px] space-y-rows rounded-float p-menu" style={{ ...lifted(shadows.float), zIndex: catcher && z !== undefined ? z + 1 : z }}>
           {items.map((text, i) => (
-            <span key={i} className={`flex h-row items-center gap-row-inner rounded-row px-row-x whitespace-nowrap ${TEXT}`} style={text.startsWith('새 ') ? { color: c.soft } : undefined}>
-              {text.startsWith('새 ') && <Plus size={16} strokeWidth={ICON_STROKE} className="shrink-0" />}
+            <span key={i} className={`flex h-row items-center gap-row-inner rounded-row px-row-x whitespace-nowrap ${TEXT}`} style={(text.startsWith('새 ') || text.endsWith(' 만들기')) ? { color: c.soft } : undefined}>
+              {(text.startsWith('새 ') || text.endsWith(' 만들기')) && <Plus size={16} strokeWidth={ICON_STROKE} className="shrink-0" />}
               <span className="min-w-0 flex-1">{text}</span>
               {text === current && <CheckIcon size={16} strokeWidth={ICON_STROKE} className="shrink-0" />}
             </span>
@@ -218,6 +221,54 @@ export function LayerSample({ shape, value, colors: c, shadows, words: written =
         </>,
       )
     }
+    case 'sticky':
+      // 스크롤해도 화면 위에 붙어 있는 머리. 내용이 그 아래로 지나간다. 문구는 머리의 제목이다.
+      return frame(
+        'h-[128px]',
+        <>
+          {page}
+          <span data-sample className={`absolute inset-x-0 top-0 flex h-bar items-center px-bar-x whitespace-nowrap ${STRONG}`} style={{ zIndex: z, background: c.surface, boxShadow: [`inset 0 -1px 0 ${c.line}`, shadows.float].filter(Boolean).join(', ') }}>
+            {list[0]}
+          </span>
+        </>,
+      )
+    case 'tooltip':
+      // 버튼에 마우스를 올리면 그 위에 뜨는 도움말. 문구는 도움말의 말, 버튼의 말이다.
+      return frame(
+        'h-[128px]',
+        <>
+          {page}
+          <span className="absolute inset-0 flex items-end justify-center pb-[24px]">
+            <span className="relative block">
+              <span className={`flex h-control items-center rounded-control px-button-x whitespace-nowrap ${STRONG}`} style={{ background: c.surface, ...ring }}>
+                {list[1] ?? ''}
+              </span>
+              <span data-sample className={`absolute bottom-full left-1/2 mb-[6px] flex h-compact -translate-x-1/2 items-center rounded-small px-chip-x whitespace-nowrap ${SMALL}`} style={{ zIndex: z, background: c.ink, color: c.surface }}>
+                {list[0]}
+              </span>
+            </span>
+          </span>
+        </>,
+      )
+    case 'drawer':
+      // 옆에서 나와 화면을 덮는 서랍. 화면을 가리는 막 위에 놓인다. 문구는 서랍의 제목과 그 안의 줄들이다.
+      return frame(
+        'h-[200px]',
+        <>
+          {page}
+          <span className="absolute inset-0 block" style={{ background: `color-mix(in oklab, ${c.scrim} 40%, transparent)` }} />
+          <span data-sample className="absolute inset-y-0 right-0 block w-[160px] p-box" style={{ zIndex: z, ...lifted(shadows.dialog) }}>
+            <span className={`mb-blocks block whitespace-nowrap ${STRONG}`}>{list[0]}</span>
+            <span className="block space-y-rows">
+              {list.slice(1).map((text, i) => (
+                <span key={i} className={`flex h-row items-center whitespace-nowrap ${TEXT}`}>
+                  {text}
+                </span>
+              ))}
+            </span>
+          </span>
+        </>,
+      )
     case 'menu':
       return menu(false)
     case 'backdrop':
@@ -446,49 +497,10 @@ export function LayerInspector({
   // 예전 방식의 이름(--z-10)인지. Tailwind가 읽지 않는 앞머리라 클래스가 없다.
   const classed = token.name.startsWith(kind.prefix)
   const { group, text, picked, words, more } = readLayerNote(token.note, short)
-  const [nameDraft, setNameDraft] = useState(short)
-  const [nameError, setNameError] = useState<string | null>(null)
-  const [valueDraft, setValueDraft] = useState(token.value)
-  const [valueError, setValueError] = useState<string | null>(null)
+  // 이름 칸. 쓸 수 없는 글자는 적는 중에 알리고 벗어나면 되돌린다. 모양이 틀린 이름과 이 판의 규칙은 벗어날 때 알리고 칸에 남긴다(useField).
+  const nameField = useField(nameRules({ saved: short, done: (next) => nameProblem(kind, next, tokens, token.name), save: (next) => onRename(kind.prefix + next) }))
+  const valueField = useField(numberRules({ saved: token.value, negative: true, integer: true, message: '정수를 입력해 주세요.', save: (value) => onChange({ value }) }))
   const [textDraft, setTextDraft] = useState(text)
-  // 밖에서 값이 바뀌면(되돌리기, 파일을 직접 고침) 칸을 그 값으로 다시 채운다.
-  const [seen, setSeen] = useState(token.value)
-  if (token.value !== seen) {
-    setSeen(token.value)
-    setValueDraft(token.value)
-    setValueError(null)
-  }
-
-  function commitName() {
-    const next = nameDraft.trim()
-    // 비웠거나 쓸 수 없는 글자가 든 이름은 적는 중에 알 수 있는 것이다. 그대로 벗어나면 저장된 이름으로 되돌린다(DESIGN.md field-rules).
-    if (!next || typedNameProblem(next)) {
-      setNameError(null)
-      return setNameDraft(short)
-    }
-    // 글자는 맞지만 모양이 틀린 이름(card-, card--big)은 다 적어야 아는 것이다. 말없이 되돌리지 않고 까닭과 함께 칸에 남긴다.
-    if (next !== short && !SLUG.test(next)) return setNameError(NAME_SHAPE)
-    // 고치지 않은 이름은 검사하지 않는다(예전부터 있던 이름에 오류를 붙이지 않는다).
-    if (next === short) return setNameError(null)
-    const problem = nameProblem(kind, next, tokens, token.name)
-    setNameError(problem)
-    if (problem) return
-    onRename(kind.prefix + next)
-  }
-
-  /** 칸을 벗어날 때. 비어 있으면 저장된 값으로 되돌리고, 정수가 아니면 알리고 저장하지 않는다. */
-  function commitValue(raw = valueDraft) {
-    const next = raw.trim()
-    // 비웠거나 정수가 아닌 값은 적는 중에 알 수 있는 것이다. 그대로 벗어나면 저장된 값으로 되돌린다(DESIGN.md field-rules).
-    if (!next || !NUMBER.test(next)) {
-      setValueDraft(token.value)
-      return setValueError(null)
-    }
-    setValueError(null)
-    const value = String(Number(next))
-    setValueDraft(value)
-    if (value !== token.value) onChange({ value })
-  }
 
   // 같은 주석에 적혀 있는 예시(모양과 문구)는 그대로 둔다.
   const saveNote = (patch: { group?: LayerGroup; text?: string }) => onChange({ note: writeLayerNote(patch.group ?? group, patch.text ?? text, picked, words, more) })
@@ -502,43 +514,35 @@ export function LayerInspector({
       <Section title="이름">
         <input
           className={inputClass}
-          value={nameDraft}
+          value={nameField.draft}
           aria-label="이름"
           data-rename="token"
-          onChange={(e) => {
-            setNameDraft(e.target.value)
-            setNameError(typedNameProblem(e.target.value))
-          }}
-          onBlur={commitName}
+          onChange={(e) => nameField.type(e.target.value)}
+          onBlur={nameField.leave}
           onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
         />
-        {nameError && <span className="mt-label block type-body text-danger">{nameError}</span>}
+        {nameField.error && <span className="mt-label block type-body text-danger">{nameField.error}</span>}
       </Section>
 
       <Section title="순서">
         <input
-          className={`${inputClass} ${valueError ? 'border-danger! focus:border-danger!' : ''}`}
-          value={valueDraft}
+          className={`${inputClass} ${valueField.error ? 'border-danger! focus:border-danger!' : ''}`}
+          value={valueField.draft}
           aria-label="순서"
           inputMode="numeric"
-          onChange={(e) => {
-            setValueDraft(e.target.value)
-            // 정수가 아닌 것은 적는 중에 알린다. "-"만 적힌 것은 적는 도중이라 알리지 않는다.
-            const typed = e.target.value.trim()
-            setValueError(typed && typed !== '-' && !NUMBER.test(typed) ? '정수를 입력해 주세요.' : null)
-          }}
-          onBlur={() => commitValue()}
+          onChange={(e) => valueField.type(e.target.value)}
+          onBlur={valueField.leave}
           onKeyDown={(e) => {
             if (e.key === 'Enter') return e.currentTarget.blur()
             // 다른 숫자 칸처럼 ↑↓로 1씩(Shift는 10씩) 올리고 내린다. 바로 저장한다.
             if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
-            const from = NUMBER.test(valueDraft.trim()) ? Number(valueDraft) : Number(token.value)
+            const from = NUMBER.test(valueField.draft.trim()) ? Number(valueField.draft) : Number(token.value)
             if (!Number.isFinite(from)) return
             e.preventDefault()
-            commitValue(String(from + (e.key === 'ArrowUp' ? 1 : -1) * (e.shiftKey ? 10 : 1)))
+            valueField.put(String(from + (e.key === 'ArrowUp' ? 1 : -1) * (e.shiftKey ? 10 : 1)))
           }}
         />
-        {valueError && <span className="mt-label block type-body text-danger">{valueError}</span>}
+        {valueField.error && <span className="mt-label block type-body text-danger">{valueField.error}</span>}
       </Section>
 
       <Section title="묶음">
@@ -584,16 +588,30 @@ export function LayerInspector({
 /**
  * 겹치는 차례를 만드는 양식. 이름, 차례(숫자), 묶음, 설명을 정한다. 설명은 비워 두어도 되고 만든 뒤에 패널에서도 고친다.
  * 차례는 비운 채로 시작한다. 무엇보다 위여야 하는지는 사람이 정하는 것이라, 숫자를 미리 채워 두면 이름만 적고 만들었을 때 엉뚱한 차례가 생긴다.
+ * 예시의 모양을 고르고, 순서를 적으면 판의 줄과 같은 예시를 창 오른쪽의 영역에 보여 준다(WithExample). 고른 모양은 주석에 적힌다(문구는 적지 않아 모양의 기본 문구로 그려진다).
  */
 export function NewLayerForm({ tokens, onCreate, onCancel }: { tokens: Token[]; onCreate: (name: string, value: string, note: string) => void; onCancel: () => void }) {
   const kind = KINDS.z
   const [name, setName] = useState('')
-  const [value, setValue] = useState('')
+  // 순서는 지금 가장 위에 놓인 것보다 10 높은 값을 채워 둔다. 새로 만드는 것은 대개 맨 위에 놓인다(DESIGN.md dialog-defaults).
+  const [value, setValue] = useState(() =>
+    String(Math.max(0, ...tokens.filter((t) => kind.matches(t.name)).map((t) => Number(t.value)).filter((n) => Number.isFinite(n))) + 10),
+  )
   // 묶음은 직접 고르기 전까지 이름에서 짐작한 것을 보여 준다.
   const [group, setGroup] = useState<LayerGroup | null>(null)
   const [text, setText] = useState('')
   const [error, setError] = useState<{ name?: string; value?: string }>({})
-  const shownGroup = group ?? guessLayerGroup(name.trim())
+  const baseGroup = group ?? guessLayerGroup(name.trim())
+  // 예시의 모양. 직접 고르기 전까지는 묶음에 맞는 모양을 따라간다.
+  const [picked, setPicked] = useState<LayerShape | null>(null)
+  const shape = picked ?? LAYER_SHAPE_FOR[baseGroup]
+  // 이름 칸은 비워 두고, 고른 예시에 맞는 이름을 옅은 글자로 추천한다(DESIGN.md dialog-defaults). 추천은 값이 아니다. 비운 채 추가하면 "이름을 입력해 주세요."다.
+  const suggestedName = freeName(tokens, kind.prefix, LAYER_NAMES[shape])
+  const shownGroup = baseGroup
+  // 적은 순서가 정수일 때만 예시를 그린다. 만들 때 적히는 값과 같은 꼴로 넘긴다.
+  const drawn = NUMBER.test(value.trim()) ? String(Number(value.trim())) : null
+  // 판의 줄(LayerList)과 같은 그림자.
+  const shadows: LayerShadows = { float: tokens.find((t) => t.name === '--shadow-float')?.value, dialog: tokens.find((t) => t.name === '--shadow-dialog')?.value }
 
   function submit(e: FormEvent) {
     e.preventDefault()
@@ -604,17 +622,19 @@ export function NewLayerForm({ tokens, onCreate, onCancel }: { tokens: Token[]; 
     if (!value.trim()) next.value = '순서를 입력해 주세요.'
     else if (!NUMBER.test(value.trim())) next.value = '정수를 입력해 주세요.'
     setError(next)
-    if (Object.keys(next).length === 0) onCreate(kind.prefix + n, String(Number(value.trim())), writeLayerNote(shownGroup, text))
+    if (Object.keys(next).length === 0) onCreate(kind.prefix + n, String(Number(value.trim())), writeLayerNote(shownGroup, text, shape))
   }
 
   return (
-    <form onSubmit={submit} className="space-y-fields">
+    <form onSubmit={submit}>
+      <WithExample example={drawn !== null ? <LayerSample shape={shape} value={drawn} colors={sampleColors(tokens)} shadows={shadows} /> : null}>
       <Field label="이름" error={error.name}>
         <input
           autoFocus
           className={inputClass}
           value={name}
-          placeholder="dialog"
+          // 옅은 글자는 그대로 적으면 만들어지는 이름일 때만 보인다. 이미 있는 이름을 본보기로 보이면, 따라 적었을 때 되는 창과 안 되는 창이 생긴다.
+          placeholder={suggestedName}
           onChange={(e) => {
             setName(e.target.value)
             setError({ ...error, name: undefined })
@@ -636,9 +656,13 @@ export function NewLayerForm({ tokens, onCreate, onCancel }: { tokens: Token[]; 
       <Field label="묶음" plain>
         <UsePicker label="묶음" options={LAYER_GROUPS} value={shownGroup} nameWidth="w-picker-name-wide" onChange={setGroup} />
       </Field>
+      <Field label="예시" plain>
+        <UsePicker label="예시" options={LAYER_SHAPES} value={shape} nameWidth="w-picker-name-long" onChange={setPicked} />
+      </Field>
       <Field label="설명">
         <input className={inputClass} value={text} onChange={(e) => setText(e.target.value)} />
       </Field>
+      </WithExample>
       <div className="mt-dialog-actions flex justify-end gap-actions">
         <Button variant="ghost" onClick={onCancel}>
           취소

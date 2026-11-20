@@ -2,7 +2,7 @@
 
 import { CHECK_STROKE, ICON_STROKE } from './lib/icons'
 import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from 'react'
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { Fragment, createContext, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Check as CheckIcon, ChevronDown } from 'lucide-react'
 import { stepValue } from './lib/tokens'
@@ -334,6 +334,12 @@ const DIALOG_WIDTHS = {
   'size-set': 'w-dialog-size-set',
 }
 
+/**
+ * 창 안의 내용이 창을 넓혀 달라고 알리는 길. 예시를 오른쪽에 따로 두는 추가 창(WithExample)이 쓴다.
+ * 창을 여는 쪽(App)이 창마다 너비를 적지 않아도, 예시가 있는 양식이면 저절로 넓어진다.
+ */
+export const WideDialog = createContext<(wide: boolean) => void>(() => {})
+
 export function Modal({
   title,
   size,
@@ -362,6 +368,8 @@ export function Modal({
   // 창이 열릴 때 커서를 둘 입력칸이 없으면(삭제 확인, 붙여넣기, 한 벌 만들기) 주 버튼에 초점을 준다.
   // Enter로 바로 끝낼 수 있고, Tab이 창 뒤의 화면을 먼저 돌지 않는다. 주 버튼이 없거나 꺼져 있으면 창 자체에 준다.
   const box = useRef<HTMLDivElement>(null)
+  // 안의 양식이 예시를 오른쪽에 두면 창을 그만큼 넓힌다(w-dialog-example 720px).
+  const [wide, setWide] = useState(false)
   useEffect(() => {
     const el = box.current
     if (!el || el.contains(document.activeElement)) return
@@ -379,10 +387,10 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={`${size ? DIALOG_WIDTHS[size] : 'w-dialog'} ${tall ? 'flex h-[calc(100vh-48px)] flex-col' : 'max-h-[calc(100vh-48px)] overflow-y-auto'} max-w-[calc(100vw-48px)] rounded-float border-edge border-hairline bg-canvas p-dialog shadow-dialog outline-none`}
+        className={`${size ? DIALOG_WIDTHS[size] : wide ? 'w-dialog-example' : 'w-dialog'} ${tall ? 'flex h-[calc(100vh-48px)] flex-col' : 'max-h-[calc(100vh-48px)] overflow-y-auto'} max-w-[calc(100vw-48px)] rounded-float border-edge border-hairline bg-canvas p-dialog shadow-dialog outline-none`}
       >
         <h2 className="mb-header shrink-0 type-title">{title}</h2>
-        {tall ? <div className="min-h-0 flex-1">{children}</div> : children}
+        <WideDialog.Provider value={setWide}>{tall ? <div className="min-h-0 flex-1">{children}</div> : children}</WideDialog.Provider>
       </div>
     </div>
   )
@@ -437,16 +445,39 @@ export function UsePicker<T extends string>({
     const below = window.innerHeight - r.bottom - 4 - 8
     const above = r.top - 4 - 8
     const need = options.length * 36 + options.filter((u) => u.heading).length * 24 + 6
-    const up = below < need && above > below
+    // 목록은 늘 칸 아래에 편다. 눈이 칸에서 아래로 내려가며 읽기 때문에, 긴 목록이라고 위로 펴면 어디서 나온 목록인지 놓친다.
+    // 길면 여덟 줄 반까지만 보이고 그 안에서 스크롤한다. 마지막 줄이 반쯤 걸려 보여서 아래에 더 있다는 것이 드러난다.
+    // 아래에 네 줄도 들어가지 않을 때만(화면 맨 아래의 칸) 위로 편다.
+    const limit = 8.5 * 36 + 5
+    const up = below < Math.min(need, 4 * 36 + 6) && above > below
     // 작은 칸의 목록은 칸보다 넓게 편다. 화면 오른쪽 끝을 넘지 않게 왼쪽으로 당긴다.
     // 좁은 칸(두 칸이 나란한 패널의 칸)의 목록도 이름과 덧글이 한 줄에 들어갈 만큼은 넓게 편다.
     const width = Math.max(r.width, small ? 200 : 240)
-    setPlace({ left: Math.max(8, Math.min(r.left, window.innerWidth - width - 8)), width, maxHeight: up ? above : below, ...(up ? { bottom: window.innerHeight - r.top + 4 } : { top: r.bottom + 4 }) })
+    // 목록의 너비는 적어도 칸의 너비이고, 덧글이 길면 그것이 한 줄에 들어갈 만큼 넓어진다(max-content). 덧글이 한두 글자 때문에 줄을 바꾸면 줄마다 높이가 달라져 훑어 읽기 어렵다.
+    // 화면 너비를 넘을 만큼 긴 덧글만 줄을 바꾼다. 스크롤 막대의 자리는 늘 비워 둔다(막대가 생기면서 내용이 좁아져 줄이 바뀌지 않게).
+    setPlace({
+      left: Math.max(8, Math.min(r.left, window.innerWidth - width - 8)),
+      minWidth: width,
+      width: 'max-content',
+      maxWidth: window.innerWidth - 16,
+      scrollbarGutter: 'stable',
+      maxHeight: Math.min(up ? above : below, limit),
+      ...(up ? { bottom: window.innerHeight - r.top + 4 } : { top: r.bottom + 4 }),
+    })
     setOpen(true)
   }
   // 목록이 떠 있는 동안 화면이 움직이면(창을 스크롤하거나 크기를 바꾸면) 칸과 목록이 어긋나므로 닫는다. 목록 안을 스크롤하는 것은 그대로 둔다.
   useEffect(() => {
     if (!open) return
+    // 넓어진 목록이 화면 오른쪽을 넘으면 넘은 만큼 왼쪽으로 당긴다(너비는 그려 봐야 알 수 있다).
+    const over = (list.current?.getBoundingClientRect().right ?? 0) - (window.innerWidth - 8)
+    if (over > 0) setPlace((p) => ({ ...p, left: Math.max(8, Number(p.left) - over) }))
+    // 고른 줄이 스크롤 밖에 있으면 목록의 가운데에 오게 맞춘다. 긴 목록을 열었을 때 지금 고른 것이 바로 보인다.
+    const box = list.current
+    const picked = box?.querySelector<HTMLElement>('[aria-selected="true"]')
+    if (box && picked && (picked.offsetTop < box.scrollTop || picked.offsetTop + picked.offsetHeight > box.scrollTop + box.clientHeight)) {
+      box.scrollTop = picked.offsetTop - (box.clientHeight - picked.offsetHeight) / 2
+    }
     const close = (e: Event) => {
       if (e.type === 'scroll' && list.current?.contains(e.target as Node)) return
       setOpen(false)
