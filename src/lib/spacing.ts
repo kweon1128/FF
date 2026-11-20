@@ -1,30 +1,29 @@
-// 의미 간격: 묶음과 설명과 예시를 주석에서 읽고 쓰는 것.
+// 의미 간격: 분류와 설명과 예시를 주석에서 읽고 쓰는 것.
 // 간격에는 토대(길이 그 자체: --gutter-8: 8px)와 의미(쓰임 이름: --spacing-actions: var(--gutter-8))가 있다.
 // 한 값을 여러 쓰임이 나눠 쓰므로, 쓰임마다 이름을 두어야 쓰임 하나만 따로 바꿀 수 있다.
-// 의미 간격의 묶음과 설명, 예시는 값 뒤의 주석에 적는다(의미 색, 의미 글꼴과 같은 방식).
+// 의미 간격의 분류와 설명, 예시는 값 뒤의 주석에 적는다(의미 색, 의미 글꼴과 같은 방식).
 //   --spacing-actions: var(--gutter-8); /* 버튼(사이): 나란한 버튼 사이 | 취소, 추가 */
 
+import { partGroups, type Part } from './parts'
 import { groupFromNote, headOf } from './kindnote'
 
-/** 의미 간격의 묶음. 무엇에 딸린 간격인지다. 판은 이 차례로 묶어 보여 준다. */
-export type SpaceUse = 'button' | 'input' | 'list' | 'table' | 'card' | 'board' | 'panel' | 'dialog' | 'page' | 'other'
+/** 의미 간격의 분류. 무엇에 딸린 간격인지다. 판은 이 차례로 묶어 보여 준다. */
+export type SpaceUse = Part
 
-export const SPACE_USES: { id: SpaceUse; label: string; hint: string }[] = [
-  { id: 'button', label: '버튼', hint: '버튼의 여백, 버튼 사이' },
-  { id: 'input', label: '입력칸', hint: '입력칸, 이름표, 칸 사이' },
-  { id: 'list', label: '목록', hint: '메뉴와 목록의 줄' },
-  // 판과 패널은 FF 같은 도구의 화면 부품이다. 여느 서비스의 화면에 흔한 표, 카드, 페이지도 묶음으로 둔다.
-  { id: 'table', label: '표', hint: '표의 칸과 줄' },
-  { id: 'card', label: '카드', hint: '카드의 여백과 그 안' },
-  { id: 'board', label: '판', hint: '판의 여백, 묶음, 격자' },
-  { id: 'panel', label: '패널', hint: '패널의 구역과 그 안' },
-  { id: 'dialog', label: '창', hint: '창과 떠 있는 것의 여백' },
-  { id: 'page', label: '페이지', hint: '구역 사이, 페이지의 좌우 여백' },
-  // 목록에 없는 쓰임. 주석에 목록에 없는 묶음이 적힌 값도 여기에 놓인다(kindnote.ts의 groupFromNote).
-  { id: 'other', label: '그 밖', hint: '목록에 없는 쓰임' },
-]
+export const SPACE_USES = partGroups({
+  button: '버튼의 여백, 버튼 사이',
+  input: '입력칸, 이름표, 칸 사이',
+  list: '메뉴와 목록의 줄',
+  table: '표의 칸과 줄',
+  card: '카드의 여백과 그 안',
+  board: '판의 여백, 분류, 격자',
+  panel: '패널의 구역과 그 안',
+  dialog: '창과 떠 있는 것의 여백',
+  page: '구역 사이, 페이지의 좌우 여백',
+  other: '목록에 없는 쓰임',
+})
 
-/** 묶음을 적지 않은 값의 묶음. 이름에서 짐작하고, 짐작할 수 없으면 판이다. */
+/** 분류를 적지 않은 값의 분류. 이름에서 짐작하고, 짐작할 수 없으면 판이다. */
 export function guessSpaceUse(short: string): SpaceUse {
   const has = (...words: string[]) => short.split('-').some((p) => words.includes(p))
   if (has('button', 'actions', 'btn')) return 'button'
@@ -51,7 +50,7 @@ export const SPACE_SHAPES: { id: SpaceShape; label: string; hint: string }[] = [
   { id: 'label', label: '이름표', hint: '이름표와 그 아래 입력칸 사이' },
   { id: 'rows', label: '줄', hint: '목록의 줄과 줄 사이' },
   { id: 'fields', label: '칸', hint: '이름표가 붙은 입력칸들 사이' },
-  { id: 'groups', label: '묶음', hint: '제목이 붙은 묶음들 사이' },
+  { id: 'groups', label: '분류', hint: '제목이 붙은 분류들 사이' },
   { id: 'button', label: '버튼', hint: '테두리 버튼의 왼쪽과 오른쪽 여백' },
   { id: 'filled', label: '채운 버튼', hint: '채운 버튼의 왼쪽과 오른쪽 여백' },
   { id: 'ghost', label: '바탕 없는 버튼', hint: '바탕 없는 버튼의 왼쪽과 오른쪽 여백' },
@@ -77,7 +76,7 @@ export const SPACE_SHAPES: { id: SpaceShape; label: string; hint: string }[] = [
 ]
 
 /**
- * 추가 창에서 묶음마다 처음 골라 두는 예시의 모양. 그 묶음에서 가장 흔한 쓰임이다. 직접 고르기 전까지만 묶음을 따라 바뀐다.
+ * 추가 창에서 분류마다 처음 골라 두는 예시의 모양. 그 분류에서 가장 흔한 쓰임이다. 직접 고르기 전까지만 분류를 따라 바뀐다.
  * 버튼은 나란한 버튼 사이, 입력칸은 칸의 좌우 여백, 목록은 줄과 줄 사이, 판은 판과 카드의 네 가장자리 여백(상자),
  * 패널은 위아래로 놓인 칸 사이, 창은 내용과 아래 버튼 줄 사이다.
  */
@@ -138,13 +137,15 @@ const WORDS_MARK = ' | '
 // 읽을 때는 세로줄 앞뒤의 빈칸 수를 따지지 않는다(다른 판의 주석과 같다).
 const MARK = /\s*\|\s*/
 const MARK_ALL = /\s*\|\s*/g
-const LABELS = SPACE_SHAPES.map((s) => s.label).join('|')
+/** 예전 이름으로 적힌 모양을 지금의 이름으로 읽는다. 모양 "묶음"은 "분류"로 이름이 바뀌었다. 읽을 때만 고쳐 읽고, 그 값을 고쳐 저장하면 지금의 이름으로 적힌다. */
+const OLD_SHAPE_LABELS: Record<string, string> = { 묶음: '분류' }
+const LABELS = [...SPACE_SHAPES.map((s) => s.label), ...Object.keys(OLD_SHAPE_LABELS)].join('|')
 const USE_LABELS = SPACE_USES.map((u) => u.label).join('|')
-const own = (label: string) => SPACE_SHAPES.find((s) => s.label === label)?.id
+const own = (label: string) => SPACE_SHAPES.find((s) => s.label === (OLD_SHAPE_LABELS[label] ?? label))?.id
 
 /**
- * 주석에서 묶음과 설명과 예시들을 읽는다. "버튼(사이): 나란한 버튼 사이 | 취소, 추가 | 버튼: 추가"처럼 묶음 이름으로 시작하지 않으면 주석 전체가 설명이다.
- * use는 묶음(적혀 있지 않으면 이름에서 짐작한 것). picked는 주석에 직접 적혀 있던 첫 예시의 모양이다.
+ * 주석에서 분류와 설명과 예시들을 읽는다. "버튼(사이): 나란한 버튼 사이 | 취소, 추가 | 버튼: 추가"처럼 분류 이름으로 시작하지 않으면 주석 전체가 설명이다.
+ * use는 분류(적혀 있지 않으면 이름에서 짐작한 것). picked는 주석에 직접 적혀 있던 첫 예시의 모양이다.
  * examples는 판에 그릴 예시들이다. 모양도 문구도 적지 않은 값은 예시가 없다(짐작으로 그리지 않는다. 간격은 이름만으로 그림을 정할 수 없다).
  */
 export function readSpaceNote(
@@ -155,7 +156,7 @@ export function readSpaceNote(
   const m = new RegExp(`^(${USE_LABELS})(?:\\(([^)|]*)\\))?\\s*:\\s*(.*)$`).exec(all)
   const use = m ? (SPACE_USES.find((u) => u.label === m[1])?.id ?? guessSpaceUse(short)) : (groupFromNote(all, SPACE_USES, 'other') ?? guessSpaceUse(short))
   const picked = m?.[2] ? own(m[2]) : undefined
-  // 목록에 없는 묶음의 주석(이름(모양): …)도 " | "로 나눠 읽는다. 통째로 설명으로 읽으면 다시 적을 때 문구의 구분이 사라진다.
+  // 목록에 없는 분류의 주석(이름(모양): …)도 " | "로 나눠 읽는다. 통째로 설명으로 읽으면 다시 적을 때 문구의 구분이 사라진다.
   const parts = m ? m[3].split(MARK).map((p) => p.trim()) : headOf(all) !== null ? all.split(MARK).map((p) => p.trim()) : [all]
   const words = parts[1] ?? ''
   const head = new RegExp(`^(${LABELS})\\s*:\\s*(.*)$`)
@@ -168,7 +169,7 @@ export function readSpaceNote(
   return { use, text: parts[0], ...(picked ? { picked } : {}), words, more, examples }
 }
 
-/** 주석에 적을 글자. 묶음은 언제나 적고, 첫 예시의 모양은 직접 고른 것만 적는다. */
+/** 주석에 적을 글자. 분류는 언제나 적고, 첫 예시의 모양은 직접 고른 것만 적는다. */
 export function writeSpaceNote(use: SpaceUse, text: string, shape?: SpaceShape, words = '', more: SpaceExample[] = []) {
   const tidy = (s: string) => s.replace(/\*\//g, '').replace(/\s+/g, ' ').trim().replace(MARK_ALL, ' / ')
   const label = (id: SpaceShape) => SPACE_SHAPES.find((s) => s.id === id)!.label

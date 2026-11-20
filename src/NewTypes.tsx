@@ -29,9 +29,9 @@ const WEIGHT = KINDS.weight
 type Row = { key: string; on: boolean; name: string; note: string; parts: TypeParts; track?: string }
 
 /**
- * 목록의 묶음과 순서. 같은 식구끼리 묶고 이름표를 붙이며, 묶음 안에서는 큰 것부터 놓는다.
+ * 목록의 분류와 순서. 같은 식구끼리 묶고 이름표를 붙이며, 분류 안에서는 큰 것부터 놓는다.
  * 화면 예시에 나오는 차례를 따르지 않는다. 그러면 title-lg와 title-md 사이에 본문이 끼는 식으로 식구가 흩어진다. 화면과의 짝은 마우스를 올리면 이어지는 표시가 맡는다.
- * 어느 묶음에도 없는 것은 맨 아래 "그 밖"에 모인다.
+ * 어느 분류에도 없는 것은 맨 아래 "그 밖"에 모인다.
  */
 const GROUPS: [label: string, keys: string[]][] = [
   ['제목', ['display-xl', 'display-lg', 'display', 'title-lg', 'title-md', 'title-sm']],
@@ -41,7 +41,7 @@ const GROUPS: [label: string, keys: string[]][] = [
   ['숫자·코드', ['numeric', 'code']],
 ]
 const GROUPED = new Set(GROUPS.flatMap(([, keys]) => keys))
-/** 줄들을 묶음으로 나눈다. 빈 묶음은 빼고, 묶음 안의 순서는 GROUPS에 적힌 대로다. */
+/** 줄들을 분류로 나눈다. 빈 분류는 빼고, 분류 안의 순서는 GROUPS에 적힌 대로다. */
 function grouped(rows: Row[]): [label: string, list: Row[]][] {
   const made = GROUPS.map(([label, keys]): [string, Row[]] => [label, keys.flatMap((key) => rows.filter((r) => r.key === key))])
   made.push(['그 밖', rows.filter((r) => !GROUPED.has(r.key))])
@@ -173,7 +173,7 @@ export function NewTypesForm({
           <div data-list className="w-[676px] shrink-0 overflow-y-auto [scrollbar-gutter:stable]">
             {grouped(rows).map(([label, list]) => (
             <div key={label} data-group={label} className="first:[&>p]:pt-0">
-              {/* 묶음의 이름표. 글꼴 종류 추가 창의 목록과 같은 모양이다. */}
+              {/* 분류의 이름표. 글꼴 종류 추가 창의 목록과 같은 모양이다. */}
               <p className="px-row-x pt-blocks pb-label type-caption-strong text-ink-faint">{label}</p>
               {/* 마우스를 올린 줄의 바탕이 서로 닿지 않게 줄 사이를 4px 띄운다. */}
               <div className="space-y-rows">

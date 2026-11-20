@@ -27,7 +27,7 @@ export function useUndo<T>(state: T, restore: (state: T) => void) {
     // 되돌리거나 다시 실행해서 바뀐 것은 이미 now에 반영되어 있어서 여기에 걸리지 않는다.
     if (key === now.current) return
     const at = Date.now()
-    // 앞의 변화에서 시간이 지났으면 새 묶음이다. 바뀌기 전의 상태를 기억한다.
+    // 앞의 변화에서 시간이 지났으면 새 분류다. 바뀌기 전의 상태를 기억한다.
     if (at - changedAt.current > GROUP) {
       past.current.push(now.current)
       if (past.current.length > LIMIT) past.current.shift()
@@ -53,7 +53,7 @@ export function useUndo<T>(state: T, restore: (state: T) => void) {
       if (next === undefined) return
       to.push(now.current)
       now.current = next
-      // 다음 변화는 새 묶음으로 시작한다.
+      // 다음 변화는 새 분류로 시작한다.
       changedAt.current = 0
       // 적는 중이던 칸에서 손을 뗀다. 칸은 적는 중인 글자를 따로 들고 있어서, 그대로 두면 되돌린 값 대신 적던 글자가 보인다.
       ;(document.activeElement as HTMLElement | null)?.blur?.()

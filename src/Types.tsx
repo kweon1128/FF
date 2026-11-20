@@ -82,7 +82,7 @@ const figures = (look: TypeLook) => [[look.size, look.line, look.track].filter(B
 
 /**
  * 그 조합이 실제로 쓰인 모습. 의미 색 판이 색을 그 역할로 쓰인 모습으로 보여 주듯, 의미 글꼴도 그 글자가 놓이는 자리에 놓아 보여 준다.
- * 어떤 자리인지는 줄마다 정한 예시의 모양(shape)을 따른다. 묶음으로 정하지 않는다. 한 묶음에도 쓰임이 여럿이라, 묶음으로 정하면 메뉴 글자가 버튼으로 그려진다.
+ * 어떤 자리인지는 줄마다 정한 예시의 모양(shape)을 따른다. 분류로 정하지 않는다. 한 분류에도 쓰임이 여럿이라, 분류로 정하면 메뉴 글자가 버튼으로 그려진다.
  * 읽을 수 있는 글자는 그 조합으로 적은 것뿐이다. 곁에 놓이는 것(제목 아래의 본문, 입력칸에 적힌 값, 숫자 위의 이름표, 고르지 않은 메뉴 줄)은 글자가 아니라 옅은 회색 막대로 그려 자리만 알려 준다.
  * 바탕과 글자 색은 이 디자인 시스템의 것(around)이다. 이 안은 사용자의 글꼴을 보여 주는 미리보기라, FF 도구의 글자 규칙을 따르지 않는다. 큰 글자도 자르지 않고 줄을 바꿔 다 보여 준다.
  */
@@ -192,8 +192,8 @@ export function TypeSample({ shape, look, around, words: written = '' }: { shape
 }
 
 /**
- * 의미 글꼴 판의 내용. 묶음(제목, 본문, 보조, 컨트롤, 숫자·코드)별로 묶어 보여 준다. 의미 색 판과 같은 짜임이다.
- * 묶음의 순서와 묶음 안의 순서는 파일에 적힌 순서이고, 끌어서 바꾸면 파일의 순서가 바뀐다.
+ * 의미 글꼴 판의 내용. 분류(제목, 본문, 보조, 컨트롤, 숫자·코드)별로 묶어 보여 준다. 의미 색 판과 같은 짜임이다.
+ * 분류의 순서와 분류 안의 순서는 파일에 적힌 순서이고, 끌어서 바꾸면 파일의 순서가 바뀐다.
  * 줄마다 왼쪽에 이름, 가리키는 값, 설명이 있고 오른쪽에 그 조합이 쓰인 장면이 있다.
  */
 export function TypeList({
@@ -211,10 +211,10 @@ export function TypeList({
   all: Token[]
   selected: string[]
   onSelect: (name: string, additive: boolean) => void
-  /** 묶음 제목을 누르면 그 묶음의 조합을 모두 선택한다. */
+  /** 분류 제목을 누르면 그 분류의 조합을 모두 선택한다. */
   onSelectGroup: (names: string[], additive: boolean, rename: boolean) => void
   onRename: (name: string) => void
-  /** 조합을 같은 묶음 안의 다른 자리로 옮긴다. before는 그 앞에 놓일 조합(묶음의 맨 끝이면 null). */
+  /** 조합을 같은 분류 안의 다른 자리로 옮긴다. before는 그 앞에 놓일 조합(분류의 맨 끝이면 null). */
   onMove: (name: string, before: string | null) => void
   onMoveGroup: (use: TypeUse, before: TypeUse | null) => void
 }) {
@@ -222,7 +222,7 @@ export function TypeList({
   const plain = useContext(DetailsFolded)
   const around = sampleColors(all)
   const groups = typeGroups(items)
-  // 줄은 같은 묶음 안에서만 옮겨진다.
+  // 줄은 같은 분류 안에서만 옮겨진다.
   const useOf = new Map(groups.flatMap((g) => g.items.map((t) => [t.name, g.use] as const)))
   const rows = useReorder(groups.flatMap((g) => g.items.map((t) => t.name)), onMove, { scopeOf: (name) => useOf.get(name) ?? '' })
   const groupDrag = useReorder(groups.map((g) => g.use), (use, before) => onMoveGroup(use as TypeUse, before as TypeUse | null), { attr: 'data-type-group', gap: 24 })
@@ -236,7 +236,7 @@ export function TypeList({
           return (
             <div key={use} data-type-group={use} className={`relative ${groupDrag.moving(use) ? 'opacity-dragging' : ''}`}>
               {groupDrag.line(use)}
-              {/* 묶음 제목을 누르면 그 묶음의 조합이 모두 선택되고, 잡고 위아래로 끌면 묶음이 통째로 옮겨진다. */}
+              {/* 분류 제목을 누르면 그 분류의 조합이 모두 선택되고, 잡고 위아래로 끌면 분류가 통째로 옮겨진다. */}
               <div className="mb-heading -ml-chip-x flex">
                 <button
                   type="button"
@@ -389,7 +389,7 @@ export function TypeInspector({
   }
 
   /**
-   * 묶음과 설명을 주석에 적어 저장한다. 같은 주석에 적혀 있는 예시(모양과 문구)는 그대로 둔다.
+   * 분류와 설명을 주석에 적어 저장한다. 같은 주석에 적혀 있는 예시(모양과 문구)는 그대로 둔다.
    * 예시는 패널에서 고치지 않는다. 그 조합이 화면 어디에 어떤 말로 쓰였는지는 페이지를 만든 AI가 알고, AI가 파일의 주석에 적는다(파일 맨 위의 안내 참고).
    */
   function saveNote(patch: { use?: TypeUse; text?: string }) {
@@ -441,9 +441,9 @@ export function TypeInspector({
         )}
       </Section>
 
-      {/* 묶음은 판에서 이 조합이 놓이는 자리와 예시의 장면을 정한다. 의미 색 패널의 "역할"과 같은 자리다. */}
-      <Section title="묶음">
-        <UsePicker label="묶음" options={TYPE_USES} value={use} nameWidth="w-picker-name-wide" onChange={(next) => saveNote({ use: next })} />
+      {/* 분류는 판에서 이 조합이 놓이는 자리와 예시의 장면을 정한다. 의미 색 패널의 "역할"과 같은 자리다. */}
+      <Section title="분류">
+        <UsePicker label="분류" options={TYPE_USES} value={use} nameWidth="w-picker-name-wide" onChange={(next) => saveNote({ use: next })} />
       </Section>
 
       <Section title="설명">
@@ -484,11 +484,11 @@ export function TypeInspector({
 }
 
 /**
- * 의미 글꼴을 만드는 양식. 이름, 조합(글꼴 종류 · 글자 크기 · 굵기), 묶음, 설명을 정한다. 설명은 비워 두어도 되고 만든 뒤에 패널에서도 고친다.
+ * 의미 글꼴을 만드는 양식. 이름, 조합(글꼴 종류 · 글자 크기 · 굵기), 분류, 설명을 정한다. 설명은 비워 두어도 되고 만든 뒤에 패널에서도 고친다.
  * 짝지을 재료가 모자라면 양식 대신 무엇부터 만들지 알린다(한 벌 만들기 창의 안내와 같은 글이다).
  * 처음에는 기본 한 벌 가운데 아직 없는 다음 것의 이름과 조합이 채워져 있어서, 그대로 "추가"를 누르면 전처럼 다음 조합이 생긴다.
  * 다른 의미 판(의미 색, 의미 간격)의 추가도 창에서 이름과 가리키는 값을 정한다.
- * 고른 조합으로 판의 줄과 같은 예시를 창 오른쪽의 영역에 보여 준다(WithExample). 예시의 모양은 판이 짐작하는 그대로다(묶음과 이름에서 짐작한다). 여기서 따로 고르지 않는다.
+ * 고른 조합으로 판의 줄과 같은 예시를 창 오른쪽의 영역에 보여 준다(WithExample). 예시의 모양은 판이 짐작하는 그대로다(분류와 이름에서 짐작한다). 여기서 따로 고르지 않는다.
  */
 export function NewTypeForm({ tokens, onCreate, onCancel }: { tokens: Token[]; onCreate: (name: string, value: string, note: string) => void; onCancel: () => void }) {
   const made = nextType(tokens)
@@ -503,7 +503,7 @@ export function NewTypeForm({ tokens, onCreate, onCancel }: { tokens: Token[]; o
   const [font, setFont] = useState(pick(fonts, start?.font))
   const [size, setSize] = useState(pick(sizes, start?.size))
   const [weight, setWeight] = useState(pick(weights, start?.weight))
-  // 묶음은 직접 고르기 전까지 이름에서 짐작한 것을 보여 준다.
+  // 분류는 직접 고르기 전까지 이름에서 짐작한 것을 보여 준다.
   const [use, setUse] = useState<TypeUse | null>(null)
   const [text, setText] = useState('')
   const [error, setError] = useState<string>()
@@ -561,8 +561,8 @@ export function NewTypeForm({ tokens, onCreate, onCancel }: { tokens: Token[]; o
       <Field label="굵기" plain>
         <UsePicker label="굵기" options={weights} value={weight} nameWidth="w-cell" onChange={setWeight} />
       </Field>
-      <Field label="묶음" plain>
-        <UsePicker label="묶음" options={TYPE_USES} value={shownUse} nameWidth="w-picker-name-wide" onChange={setUse} />
+      <Field label="분류" plain>
+        <UsePicker label="분류" options={TYPE_USES} value={shownUse} nameWidth="w-picker-name-wide" onChange={setUse} />
       </Field>
       <Field label="설명">
         <input className={inputClass} value={text} onChange={(e) => setText(e.target.value)} />

@@ -148,7 +148,7 @@ export function SpaceSample({ shape, value, around, words: written = '' }: { sha
         </span>,
       )
     case 'groups':
-      // 제목이 붙은 묶음들. 묶음과 묶음 사이가 간격이다.
+      // 제목이 붙은 분류들. 분류와 분류 사이가 간격이다.
       return frame(
         <span className="block">
           {list.map((text, i) => (
@@ -485,7 +485,7 @@ export function resolveSpace(tokens: Token[], value: string): string | null {
 }
 
 /**
- * 의미 간격 판의 내용. 묶음(버튼, 입력칸, 목록, 판, 패널, 창)마다 제목을 두고, 한 줄에 쓰임 하나.
+ * 의미 간격 판의 내용. 분류(버튼, 입력칸, 목록, 판, 패널, 창)마다 제목을 두고, 한 줄에 쓰임 하나.
  * 왼쪽 칸(224px)에 이름, 가리키는 간격과 그 길이, 설명이 있고 오른쪽에 그 간격이 쓰인 모습이 있다.
  * 예시는 주석에 모양을 적어 둔 값에만 있다.
  */
@@ -510,14 +510,14 @@ export function SpaceList({
   onSelect: (name: string, additive: boolean) => void
   onSelectGroup: (names: string[], additive: boolean, focusGroup: boolean) => void
   onRename: (name: string) => void
-  /** 묶음 제목을 끌어 묶음의 차례를 바꾼다. */
+  /** 분류 제목을 끌어 분류의 차례를 바꾼다. */
   onMoveGroup?: (use: SpaceUse, before: SpaceUse | null) => void
 }) {
   const rows = items.map((t) => ({ t, short: shortName(kind, t.name), ...readSpaceNote(t.note, shortName(kind, t.name)) }))
-  // 묶음은 파일에 처음 나오는 차례대로 놓는다. 끌어서 바꾼 차례가 파일에 남는다.
+  // 분류는 파일에 처음 나오는 차례대로 놓는다. 끌어서 바꾼 차례가 파일에 남는다.
   const uses = [...new Set(rows.map((r) => r.use))]
   const groupDrag = useReorder(uses, onMoveGroup && ((use, before) => onMoveGroup(use as SpaceUse, before as SpaceUse | null)), { attr: 'data-space-group', gap: 24 })
-  // 값이 없으면 빈 상자를 남기지 않는다. 추가는 묶음 제목 줄의 버튼으로 한다.
+  // 값이 없으면 빈 상자를 남기지 않는다. 추가는 분류 제목 줄의 버튼으로 한다.
   if (items.length === 0) return null
   const around = sampleColors(all)
   return (
@@ -525,7 +525,7 @@ export function SpaceList({
       {uses.map((use) => {
         const u = SPACE_USES.find((x) => x.id === use)!
         const list = rows.filter((r) => r.use === u.id)
-        // 줄을 묶음의 맨 끝에 놓으면, 파일에서도 이 묶음의 마지막 줄 바로 뒤에 놓는다. 파일의 맨 끝으로 보내면 묶음의 차례가 흐트러진다.
+        // 줄을 분류의 맨 끝에 놓으면, 파일에서도 이 분류의 마지막 줄 바로 뒤에 놓는다. 파일의 맨 끝으로 보내면 분류의 차례가 흐트러진다.
         const moveRow =
           onMove &&
           ((name: string, before: string | null) => {
@@ -554,8 +554,8 @@ export function SpaceList({
 }
 
 /**
- * 한 묶음의 줄들. 줄을 끌면 같은 묶음 안에서 차례가 바뀐다.
- * 다른 묶음으로는 끌어 옮기지 않는다. 묶음은 그 간격이 무엇에 딸렸는지라서 패널의 "묶음"에서 바꾼다.
+ * 한 분류의 줄들. 줄을 끌면 같은 분류 안에서 차례가 바뀐다.
+ * 다른 분류로는 끌어 옮기지 않는다. 분류는 그 간격이 무엇에 딸렸는지라서 패널의 "분류"에서 바꾼다.
  */
 function SpaceRows({
   list,
@@ -629,7 +629,7 @@ function SpaceRows({
 const baseOptions = (tokens: Token[]) => tokens.filter((t) => SPACE.matches(t.name)).map((t) => ({ id: t.name, label: t.value, hint: t.name.startsWith(SPACE.prefix) ? '' : shortName(SPACE, t.name) }))
 
 /**
- * 의미 간격 하나를 고치는 패널. 구역의 차례는 다른 패널과 같다: 이름, 값(가리키는 간격), 묶음, 설명, 쓰이는 곳, 코드.
+ * 의미 간격 하나를 고치는 패널. 구역의 차례는 다른 패널과 같다: 이름, 값(가리키는 간격), 분류, 설명, 쓰이는 곳, 코드.
  * 예시는 여기서 고치지 않는다. 그 간격이 화면 어디에 쓰였는지는 페이지를 만든 AI가 파일의 주석에 적는다(파일 맨 위의 안내 참고).
  */
 export function SpaceUseInspector({
@@ -654,7 +654,7 @@ export function SpaceUseInspector({
   uses: { index: number; name: string; where: string[] }[]
   onOpenComponent: (index: number) => void
   onRename: (next: string) => void
-  /** 값(가리키는 간격)이나 주석(묶음, 설명, 예시)을 바꾼다. */
+  /** 값(가리키는 간격)이나 주석(분류, 설명, 예시)을 바꾼다. */
   onChange: (patch: { value?: string; note?: string }) => void
   onCopy: (text: string) => void
 }) {
@@ -715,8 +715,8 @@ export function SpaceUseInspector({
         )}
       </Section>
 
-      <Section title="묶음">
-        <UsePicker label="묶음" options={SPACE_USES} value={use} nameWidth="w-picker-name" onChange={(next) => saveNote({ use: next })} />
+      <Section title="분류">
+        <UsePicker label="분류" options={SPACE_USES} value={use} nameWidth="w-picker-name" onChange={(next) => saveNote({ use: next })} />
       </Section>
 
       <Section title="설명">
@@ -757,7 +757,7 @@ export function SpaceUseInspector({
 }
 
 /**
- * 의미 간격을 만드는 양식. 이름, 가리키는 간격, 묶음, 설명을 정한다. 설명은 비워 두어도 되고 만든 뒤에 패널에서도 고친다.
+ * 의미 간격을 만드는 양식. 이름, 가리키는 간격, 분류, 설명을 정한다. 설명은 비워 두어도 되고 만든 뒤에 패널에서도 고친다.
  * 가리키는 간격은 고르지 않은 채로 시작한다. 첫 값을 골라 두면 이름만 적고 만들었을 때 엉뚱한 간격을 가리키는 값이 생긴다.
  * 예시의 모양을 고르고, 간격을 고르면 판의 줄과 같은 예시를 창 오른쪽의 영역에 보여 준다(WithExample). 고른 모양은 주석에 적힌다(문구는 적지 않아 모양의 기본 문구로 그려진다).
  */
@@ -766,12 +766,12 @@ export function NewSpaceUseForm({ tokens, onCreate, onCancel }: { tokens: Token[
   const [name, setName] = useState('')
   // 창을 열자마자 예시가 보이게, 가리키는 값은 흔히 쓰는 간격(8px)에 가장 가까운 것을 골라 둔다(DESIGN.md dialog-defaults). 예시를 보며 바꾼다.
   const [ref, setRef] = useState<string | null>(() => nearestRef(tokens, options.map((o) => o.id), 8))
-  // 묶음은 직접 고르기 전까지 이름에서 짐작한 것을 보여 준다.
+  // 분류는 직접 고르기 전까지 이름에서 짐작한 것을 보여 준다.
   const [use, setUse] = useState<SpaceUse | null>(null)
   const [text, setText] = useState('')
   const [error, setError] = useState<{ name?: string; ref?: string }>({})
   const baseUse = use ?? guessSpaceUse(name.trim())
-  // 예시의 모양. 직접 고르기 전까지는 묶음에 맞는 모양을 따라간다(묶음이 이름에서 짐작되는 것과 같다).
+  // 예시의 모양. 직접 고르기 전까지는 분류에 맞는 모양을 따라간다(분류가 이름에서 짐작되는 것과 같다).
   const [picked, setPicked] = useState<SpaceShape | null>(null)
   const shape = picked ?? SPACE_SHAPE_FOR[baseUse]
   // 이름 칸은 비워 두고, 고른 예시에 맞는 이름을 옅은 글자로 추천한다(DESIGN.md dialog-defaults). 추천은 값이 아니다. 비운 채 추가하면 "이름을 입력해 주세요."다.
@@ -832,8 +832,8 @@ export function NewSpaceUseForm({ tokens, onCreate, onCancel }: { tokens: Token[
           }}
         />
       </Field>
-      <Field label="묶음" plain>
-        <UsePicker label="묶음" options={SPACE_USES} value={shownUse} nameWidth="w-picker-name" onChange={setUse} />
+      <Field label="분류" plain>
+        <UsePicker label="분류" options={SPACE_USES} value={shownUse} nameWidth="w-picker-name" onChange={setUse} />
       </Field>
       <Field label="예시" plain>
         {/* 이름이 가장 긴 모양("바탕 없는 버튼 사이")은 긴 이름 자리(112px)보다 길다. 너비를 못 박지 않고 가장 좁을 때의 너비로만 주어, 그 이름도 잘리지 않게 한다. */}

@@ -84,7 +84,7 @@ function TokenField({
   }
   const current = [...roles, ...options].find((t) => t.name === value)
   const missing = value !== undefined && !current
-  // 목록의 줄들. 맨 위는 고르지 않음("없음"), 그 아래에 의미 값, 그 아래에 토대 값이 온다. 의미 값이 있으면 두 묶음에 제목을 붙인다.
+  // 목록의 줄들. 맨 위는 고르지 않음("없음"), 그 아래에 의미 값, 그 아래에 토대 값이 온다. 의미 값이 있으면 두 분류에 제목을 붙인다.
   // 토대의 간격은 이름이 곧 길이라 길이만 적는다.
   const bare = (t: Token) => kind.id === 'space' && `${shortName(kind, t.name)}px` === t.value
   const picks: { id: string; label: string; hint: string; heading?: string }[] = [

@@ -4,27 +4,41 @@
 // 숫자 클래스(h-8, size-32)가 그 값을 따라가서, 값을 바꿨을 때 숫자로 적은 자리가 말없이 함께 바뀐다.
 // 의미 크기는 세 종류다. 높이(--height-이름 → h-이름), 폭(--width-이름 → w-이름), 정사각형(--size-이름 → size-이름).
 // 최소와 최대는 종류를 따로 두지 않는다. 높이는 min-h-이름·max-h-이름이 같은 이름을 읽고, 폭은 max-w-(--width-이름)처럼 변수를 가리켜 쓴다.
-// 묶음과 설명, 예시는 값 뒤의 주석에 적는다(의미 간격과 같은 방식).
-//   --height-control: var(--length-32); /* 컨트롤(입력칸): 입력칸, 버튼의 높이 | 이름 | 버튼: 취소, 추가 */
+// 분류와 설명, 예시는 값 뒤의 주석에 적는다(의미 간격과 같은 방식).
+//   --height-control: var(--length-32); /* 입력칸(입력칸): 입력칸, 버튼의 높이 | 이름 | 버튼: 취소, 추가 */
 
 import type { Token } from './api'
 import { KINDS, LENGTH_REF, type Kind } from './catalog'
 
-/** 의미 크기의 묶음. 무엇의 크기인지다. 판은 이 차례로 묶어 보여 준다. */
+/** 의미 크기의 분류. 무엇의 크기인지다. 판은 이 차례로 묶어 보여 준다. */
 import { groupFromNote, headOf } from './kindnote'
+import { partGroups, type Part } from './parts'
 
-export type SizeGroup = 'control' | 'frame' | 'other'
+/**
+ * 분류는 의미 간격과 같은 목록이다. 그 크기가 어느 컴포넌트의 것인지로 나눈다.
+ * 같은 이름의 분류에서 그 컴포넌트의 간격(의미 간격 판)과 크기(의미 크기 판)를 찾게 하려는 것이다.
+ * 예전에는 컨트롤과 영역 둘로만 나눴는데, 둘로는 너무 커서 판이 그 안에서 "요소"(입력칸, 메뉴, 창)로 한 번 더 묶어야 했다. 그 요소가 곧 컴포넌트라서 분류로 올렸다.
+ */
+export type SizeGroup = Part
 
-export const SIZE_GROUPS: { id: SizeGroup; label: string; hint: string }[] = [
-  { id: 'control', label: '컨트롤', hint: '버튼, 입력칸, 아이콘' },
-  { id: 'frame', label: '영역', hint: '메뉴, 패널, 창, 막대, 목록' },
-  // 목록에 없는 쓰임. 주석에 목록에 없는 묶음이 적힌 값도 여기에 놓인다(kindnote.ts의 groupFromNote).
-  { id: 'other', label: '그 밖', hint: '목록에 없는 쓰임' },
-]
-// "견본"(판에서 값을 보여 주는 칸) 묶음은 없앴다. 거기에 드는 값이 없었다. 색 칸, 미리보기 같은 예시의 모양은 그대로 있다.
-/** 예전 파일의 주석에 남아 있을 수 있는, 이제 없는 묶음의 이름. 묶음을 적지 않은 것으로 읽어 이름에서 짐작하고, 그 값을 고치면 지금의 묶음으로 다시 적힌다. */
-const OLD_GROUP_LABELS = ['견본']
-// "그림"(예시 그림 속에서만 쓰는 크기) 묶음은 두지 않는다. 예시는 실제로 쓰는 것을 옮겨 그리는 것이라, 그림만을 위한 크기는 디자인의 규칙이 아니다.
+export const SIZE_GROUPS = partGroups({
+  button: '버튼, 아이콘 버튼',
+  input: '입력칸, 고르는 칸, 체크 상자',
+  list: '메뉴와 목록의 줄과 너비',
+  table: '표의 줄과 칸',
+  card: '카드의 너비와 높이',
+  board: '판의 줄과 열',
+  panel: '패널의 너비',
+  dialog: '창과 떠 있는 것, 상단 바',
+  page: '본문의 너비',
+  other: '목록에 없는 쓰임',
+})
+/**
+ * 예전 파일의 주석에 남아 있을 수 있는, 이제 없는 분류의 이름(컨트롤, 영역, 견본). 분류를 적지 않은 것으로 읽어 예시의 모양과 이름에서 짐작하고("그 밖"으로 보내지 않는다),
+ * 그 값을 고치면 지금의 분류로 다시 적힌다.
+ */
+const OLD_GROUP_LABELS = ['컨트롤', '영역', '견본']
+// "그림"(예시 그림 속에서만 쓰는 크기) 분류는 두지 않는다. 예시는 실제로 쓰는 것을 옮겨 그리는 것이라, 그림만을 위한 크기는 디자인의 규칙이 아니다.
 // 그림 속의 막대나 작게 그린 버튼의 길이는 그리는 코드에 직접 적는다.
 
 /** 높이, 폭, 정사각형인지. 세 종류는 판과 패널, 추가 창을 함께 쓴다. */
@@ -39,11 +53,24 @@ export function resolveLength(tokens: Token[], value: string): string | null {
   return ref ? (tokens.find((t) => t.name === ref && KINDS.length.matches(t.name))?.value ?? null) : null
 }
 
-/** 묶음을 적지 않은 값의 묶음. 이름에서 짐작하고, 짐작할 수 없으면 컨트롤이다. */
-export function guessSizeGroup(short: string): SizeGroup {
+/**
+ * 분류를 적지 않은 값(과 예전 분류 이름으로 적힌 값)의 분류. 예시의 모양이 적혀 있으면 그 모양이 드는 분류이고, 없으면 이름에서 짐작한다. 짐작할 수 없으면 그 밖이다.
+ * 패널, 페이지, 왼쪽 메뉴는 "창" 모양으로 그리지만 창이 아니라서 이름을 먼저 본다.
+ */
+export function guessSizeGroup(short: string, shape?: SizeShape): SizeGroup {
   const has = (...words: string[]) => short.split('-').some((p) => words.includes(p))
-  if (has('bar', 'line', 'nav', 'panel', 'page', 'dialog', 'menu', 'list', 'column', 'side', 'card', 'toast', 'heading', 'preview', 'picker', 'stage')) return 'frame'
-  return 'control'
+  if (has('panel', 'sidebar', 'inspector')) return 'panel'
+  if (has('page', 'content', 'container')) return 'page'
+  if (has('nav')) return 'list'
+  if (shape) return SHAPE_GROUP[shape]
+  if (has('button', 'btn')) return 'button'
+  if (has('input', 'control', 'field', 'cell', 'picker', 'checkbox', 'check', 'swatch', 'compact', 'stepper', 'select', 'slider')) return 'input'
+  if (has('row', 'menu', 'list', 'item')) return 'list'
+  if (has('table', 'th', 'td')) return 'table'
+  if (has('card')) return 'card'
+  if (has('board', 'column', 'heading', 'preview', 'stage')) return 'board'
+  if (has('dialog', 'modal', 'popover', 'toast', 'bar')) return 'dialog'
+  return 'other'
 }
 
 /** 예시의 모양. 그 크기가 무엇의 크기인지다. 실제 화면의 조각으로 그린다. */
@@ -87,14 +114,25 @@ export const SIZE_SHAPES: { id: SizeShape; label: string; hint: string }[] = [
   { id: 'box', label: '상자', hint: '옅게 칠한 상자' },
 ]
 
+/** 예시의 모양이 드는 분류. 분류를 적지 않은 값의 분류를 짐작할 때 쓴다(guessSizeGroup). */
+const SHAPE_GROUP: Record<SizeShape, SizeGroup> = {
+  input: 'input', field: 'input', value: 'input', slider: 'input', check: 'input', mark: 'input', select: 'input', color: 'input', line: 'input',
+  button: 'button', segment: 'button', iconbutton: 'button',
+  row: 'list', list: 'list', menu: 'list',
+  card: 'card',
+  heading: 'board', column: 'board', preview: 'board', stage: 'board',
+  bar: 'dialog', toast: 'dialog', frame: 'dialog', picker: 'dialog',
+  icon: 'other', handle: 'other', knob: 'other', placeholder: 'other', badge: 'other', dot: 'other', box: 'other',
+}
+
 /**
- * 추가 창에서 종류와 묶음마다 처음 골라 두는 예시의 모양. 그 자리에서 가장 흔한 쓰임이다. 직접 고르기 전까지만 종류와 묶음을 따라 바뀐다.
- * 높이는 입력칸(컨트롤)과 상단 바(영역), 너비는 고르는 칸의 이름 자리(컨트롤)와 패널·창(영역), 정사각형은 아이콘 버튼(컨트롤)과 상자(영역)다.
+ * 추가 창에서 종류와 분류마다 처음 골라 두는 예시의 모양. 그 자리에서 가장 흔한 쓰임이다. 직접 고르기 전까지만 종류와 분류를 따라 바뀐다.
+ * 입력칸이면 높이는 입력칸, 너비는 고르는 칸의 이름 자리, 정사각형은 체크박스처럼 그 분류에서 그 길이를 가장 흔히 정하는 것을 골랐다.
  */
 export const SIZE_SHAPE_FOR: Record<'height' | 'width' | 'square', Record<SizeGroup, SizeShape>> = {
-  height: { control: 'input', frame: 'bar', other: 'input' },
-  width: { control: 'select', frame: 'frame', other: 'frame' },
-  square: { control: 'iconbutton', frame: 'box', other: 'box' },
+  height: { button: 'button', input: 'input', list: 'row', table: 'row', card: 'card', board: 'heading', panel: 'bar', dialog: 'bar', page: 'bar', other: 'input' },
+  width: { button: 'button', input: 'select', list: 'menu', table: 'column', card: 'card', board: 'column', panel: 'frame', dialog: 'frame', page: 'frame', other: 'frame' },
+  square: { button: 'iconbutton', input: 'check', list: 'icon', table: 'box', card: 'box', board: 'color', panel: 'box', dialog: 'box', page: 'box', other: 'icon' },
 }
 
 /** 모양마다의 기본 예시 문구. 여럿을 늘어놓는 모양은 ", "로 나눠 하나씩 놓는다. */
@@ -148,7 +186,7 @@ const LABELS = SIZE_SHAPES.map((s) => s.label)
 const GROUP_LABELS = [...SIZE_GROUPS.map((g) => g.label), ...OLD_GROUP_LABELS].join('|')
 const own = (label: string) => SIZE_SHAPES.find((s) => s.label === label)?.id
 /**
- * 예전 이름으로 적힌 주석을 지금의 이름으로 읽는다. 묶음 "조작"은 "컨트롤", 묶음 "틀"은 "영역", 모양 "틀"은 "창"으로 이름이 바뀌었다.
+ * 예전 이름으로 적힌 주석을 지금의 이름으로 읽는다. 분류 "조작"은 "컨트롤", 분류 "틀"은 "영역", 모양 "틀"은 "창"으로 이름이 바뀌었다.
  * 읽을 때만 고쳐 읽고, 그 값을 고쳐 저장하면 지금의 이름으로 적힌다.
  */
 const modern = (note: string) =>
@@ -159,8 +197,8 @@ const modern = (note: string) =>
     .replace(/\|\s*틀\s*:/g, '| 창:')
 
 /**
- * 주석에서 묶음과 설명과 예시들을 읽는다. "컨트롤(입력칸): 입력칸, 버튼의 높이 | 이름 | 버튼: 취소, 추가"처럼 묶음 이름으로 시작하지 않으면 주석 전체가 설명이다.
- * group은 묶음(적혀 있지 않으면 이름에서 짐작한 것). picked는 주석에 직접 적혀 있던 첫 예시의 모양이다.
+ * 주석에서 분류와 설명과 예시들을 읽는다. "컨트롤(입력칸): 입력칸, 버튼의 높이 | 이름 | 버튼: 취소, 추가"처럼 분류 이름으로 시작하지 않으면 주석 전체가 설명이다.
+ * group은 분류(적혀 있지 않으면 이름에서 짐작한 것). picked는 주석에 직접 적혀 있던 첫 예시의 모양이다.
  * examples는 판에 그릴 예시들이다. 모양을 적지 않은 값은 예시가 없다(의미 간격과 같다. 크기도 이름만으로는 무엇의 크기인지 그림을 정할 수 없다).
  */
 export function readSizeNote(
@@ -169,10 +207,10 @@ export function readSizeNote(
 ): { group: SizeGroup; text: string; picked?: SizeShape; words: string; more: SizeExample[]; examples: SizeExample[] } {
   const all = modern((note ?? '').trim())
   const m = new RegExp(`^(${GROUP_LABELS})(?:\\(([^)|]*)\\))?\\s*:\\s*(.*)$`).exec(all)
-  // 예전 묶음 이름(견본)으로 적힌 주석은 묶음을 적지 않은 것으로 읽어 이름에서 짐작한다("그 밖"으로 보내지 않는다).
-  const group = m ? (SIZE_GROUPS.find((g) => g.label === m[1])?.id ?? guessSizeGroup(short)) : (groupFromNote(all, SIZE_GROUPS, 'other') ?? guessSizeGroup(short))
   const picked = m?.[2] ? own(m[2]) : undefined
-  // 목록에 없는 묶음의 주석(이름(모양): …)도 " | "로 나눠 읽는다. 통째로 설명으로 읽으면 다시 적을 때 문구의 구분이 사라진다.
+  // 예전 분류 이름(컨트롤, 영역, 견본)으로 적힌 주석은 분류를 적지 않은 것으로 읽어 모양과 이름에서 짐작한다("그 밖"으로 보내지 않는다).
+  const group = m ? (SIZE_GROUPS.find((g) => g.label === m[1])?.id ?? guessSizeGroup(short, picked)) : (groupFromNote(all, SIZE_GROUPS, 'other') ?? guessSizeGroup(short))
+  // 목록에 없는 분류의 주석(이름(모양): …)도 " | "로 나눠 읽는다. 통째로 설명으로 읽으면 다시 적을 때 문구의 구분이 사라진다.
   const parts = m ? m[3].split(MARK).map((p) => p.trim()) : headOf(all) !== null ? all.split(MARK).map((p) => p.trim()) : [all]
   const words = parts[1] ?? ''
   const head = new RegExp(`^(${LABELS})\\s*:\\s*(.*)$`)
@@ -185,7 +223,7 @@ export function readSizeNote(
   return { group, text: parts[0], ...(picked ? { picked } : {}), words, more, examples }
 }
 
-/** 주석에 적을 글자. 묶음은 언제나 적고, 첫 예시의 모양은 주석에 적혀 있던 것만 적는다. */
+/** 주석에 적을 글자. 분류는 언제나 적고, 첫 예시의 모양은 주석에 적혀 있던 것만 적는다. */
 export function writeSizeNote(group: SizeGroup, text: string, shape?: SizeShape, words = '', more: SizeExample[] = []) {
   const tidy = (s: string) => s.replace(/\*\//g, '').replace(/\s+/g, ' ').trim().replace(MARK_ALL, ' / ')
   const label = (id: SizeShape) => SIZE_SHAPES.find((s) => s.id === id)!.label
@@ -232,4 +270,13 @@ export const SIZE_NAMES: Record<SizeShape, string> = {
   badge: 'badge',
   dot: 'dot',
   box: 'box',
+}
+
+const SIZE_KIND_LIST = [KINDS.height, KINDS.width, KINDS.square]
+/** 그 값이 의미 크기면 그 종류(높이, 너비, 정사각형), 아니면 undefined. */
+export const sizeKindOf = (t: Token) => SIZE_KIND_LIST.find((k) => k.matches(t.name))
+/** 그 값이 의미 크기면 그 분류, 아니면 null. */
+export function sizeGroupOfToken(t: Token): SizeGroup | null {
+  const kind = sizeKindOf(t)
+  return kind ? readSizeNote(t.note, t.name.slice(kind.prefix.length)).group : null
 }

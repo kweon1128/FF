@@ -14,7 +14,7 @@ import { BorderList } from './Borders'
 import { LayerList } from './Layers'
 import { ValueList } from './ValueBoard'
 import { specOf } from './valueSpecs'
-import { isBorderKind, resolveThickness } from './lib/borders'
+import { isBorderKind, resolveThickness, type BorderGroup } from './lib/borders'
 import { isEffectKind, shadowRefs } from './lib/effects'
 import { colorRefsIn } from './lib/gradient'
 import { easeRefsIn } from './lib/motion'
@@ -55,25 +55,26 @@ export type SectionProps = {
   folded: boolean
   /** 의미 색 판을 접었는지. 접으면 설명과 예시를 숨기고 색과 이름만 보여 준다. */
   rolesFolded: boolean
-  /** 의미 색을 끌어서 같은 묶음 안의 다른 자리에 놓는다. before는 그 앞에 놓일 색(묶음의 맨 끝이면 null). */
+  /** 의미 색을 끌어서 같은 분류 안의 다른 자리에 놓는다. before는 그 앞에 놓일 색(분류의 맨 끝이면 null). */
   onMoveRole: (name: string, before: string | null) => void
-  /** 의미 색의 역할 묶음을 끌어서 다른 자리에 놓는다. */
+  /** 의미 색의 역할 분류를 끌어서 다른 자리에 놓는다. */
   onMoveRoleGroup: (use: RoleUse, before: RoleUse | null) => void
-  /** 의미 글꼴을 끌어서 같은 묶음 안의 다른 자리에 놓는다. before는 그 앞에 놓일 조합(묶음의 맨 끝이면 null). */
+  /** 의미 글꼴을 끌어서 같은 분류 안의 다른 자리에 놓는다. before는 그 앞에 놓일 조합(분류의 맨 끝이면 null). */
   onMoveType: (name: string, before: string | null) => void
-  /** 의미 글꼴의 묶음을 끌어서 다른 자리에 놓는다. */
+  /** 의미 글꼴의 분류를 끌어서 다른 자리에 놓는다. */
   onMoveTypeGroup: (use: TypeUse, before: TypeUse | null) => void
   /** 손으로 차례를 바꾸는 종류(효과, 글꼴 종류, 비율, 흐름)에서 값을 끌어 다른 자리에 놓는다. before는 그 앞에 놓일 값(맨 끝이면 null). */
   onMoveInKind: (kind: Kind, name: string, before: string | null) => void
   /** 판 안의 종류(글꼴 종류, 글자 크기…)를 끌어 다른 자리에 놓는다. kinds는 그 판의 종류들, before는 그 앞에 놓일 종류(맨 끝이면 null). */
   onMoveKind: (kinds: Kind[], kind: Kind, before: Kind | null) => void
-  /** 의미 간격의 묶음을 끌어 다른 자리에 놓는다. */
+  /** 의미 간격의 분류를 끌어 다른 자리에 놓는다. */
   onMoveSpaceGroup: (use: SpaceUse, before: SpaceUse | null) => void
-  /** 의미 모서리의 묶음을 끌어 다른 자리에 놓는다. */
+  /** 의미 모서리의 분류를 끌어 다른 자리에 놓는다. */
   onMoveRadiusGroup: (group: RadiusGroup, before: RadiusGroup | null) => void
+  onMoveBorderGroup: (kind: Kind, group: BorderGroup, before: BorderGroup | null) => void
   /** 그 종류를 기본 순서로 돌려놓는 일. 이미 기본 순서면 undefined(버튼이 꺼진다). */
   resetOf: (kind: Kind) => (() => void) | undefined
-  /** 의미 글꼴 판의 묶음과 조합을 기본 순서로 돌려놓는다. 이미 기본 순서면 없다. */
+  /** 의미 글꼴 판의 분류와 조합을 기본 순서로 돌려놓는다. 이미 기본 순서면 없다. */
   onResetTypes?: () => void
   /** 이 판을 접었는지. 접으면 설명과 예시를 숨기고 이름과 값만 보여 준다(의미 글꼴, 의미 간격, 효과, 의미 모서리, 의미 테두리 판). */
   detailsFolded?: boolean
@@ -90,7 +91,7 @@ export type SectionProps = {
 /** 판을 접었는지(설명과 예시를 숨기는지). 판 안의 목록들이 읽는다. 의미 글꼴, 의미 간격, 효과, 의미 모서리 판에서 쓴다. */
 export const DetailsFolded = createContext(false)
 
-/** 판 안에 묶음 제목이 따로 있는 종류. 그 종류 하나로 된 판에서는 종류의 제목을 두지 않는다. */
+/** 판 안에 분류 제목이 따로 있는 종류. 그 종류 하나로 된 판에서는 종류의 제목을 두지 않는다. */
 const OWN_TITLES = ['color', 'role', 'style', 'spaceuse', 'radius', 'z']
 
 /** Shift, Ctrl, Cmd 중 하나를 누른 채 누르면 여러 개 선택이다. */
@@ -139,7 +140,7 @@ export function MissingNotices({ kinds, tokens, onSelect }: { kinds: Kind[]; tok
 }
 
 /** 한 화면에 속한 종류들을 차례로 그린다. 전체 보기의 판 안에서도 그대로 쓴다. */
-export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGroup, onRename, onSelectGroup, emptyGroups, pickedGroup, onPickGroup, folded, onReorderGroup, rolesFolded, onMoveRole, onMoveRoleGroup, onMoveType, onMoveTypeGroup, onResetTypes, onMoveInKind, onMoveKind, onMoveSpaceGroup, onMoveRadiusGroup, resetOf, detailsFolded, onToggleDetails, onMakeSizes, onMakeWeights, onMakeTypes }: SectionProps & { kinds: Kind[] }) {
+export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGroup, onRename, onSelectGroup, emptyGroups, pickedGroup, onPickGroup, folded, onReorderGroup, rolesFolded, onMoveRole, onMoveRoleGroup, onMoveType, onMoveTypeGroup, onResetTypes, onMoveInKind, onMoveKind, onMoveSpaceGroup, onMoveRadiusGroup, onMoveBorderGroup, resetOf, detailsFolded, onToggleDetails, onMakeSizes, onMakeWeights, onMakeTypes }: SectionProps & { kinds: Kind[] }) {
   const single = kinds.length === 1
   // 값이 있는 종류는 파일에 적힌 차례대로 놓는다(끌어서 바꾼 차례가 파일에 남는다). 값이 없는 종류는 그 뒤에 정해진 차례대로 온다.
   const ordered = orderKinds(tokens, kinds)
@@ -166,20 +167,20 @@ export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGr
           <section key={kind.id} data-kind={kind.id} className={`relative ${kindDrag.moving(kind.id) ? 'opacity-dragging' : ''}`}>
             {canMove && kindDrag.line(kind.id)}
             {(() => {
-              // 묶음의 제목 줄. 왼쪽에 제목, 오른쪽에 버튼. 값을 추가하는 것은 목록 끝의 점선 상자가 아니라 여기의 "추가" 버튼이다.
-              // 점선 상자는 늘 한 줄의 자리를 차지하고, 값이 없는 묶음에서도 빈 상자가 남는다.
+              // 분류의 제목 줄. 왼쪽에 제목, 오른쪽에 버튼. 값을 추가하는 것은 목록 끝의 점선 상자가 아니라 여기의 "추가" 버튼이다.
+              // 점선 상자는 늘 한 줄의 자리를 차지하고, 값이 없는 분류에서도 빈 상자가 남는다.
               // 글자 크기와 굵기는 낱개보다 한 벌로 정하는 것이라 "한 벌 만들기"를 함께 둔다.
               // 색은 목록마다, 의미 색은 판 위에 추가 버튼이 따로 있다. 이제 쓰지 않는 종류에는 추가가 없다.
               const makeSet = kind.id === 'size' ? onMakeSizes : kind.id === 'weight' ? onMakeWeights : kind.id === 'style' ? onMakeTypes : undefined
               // 의미 크기(높이, 폭, 정사각형)와 의미 테두리(테두리 선, 외곽선)의 추가도 판 위에 하나만 있고, 종류는 창에서 고른다.
-              const canAdd = !['color', 'role', 'height', 'width', 'square', 'border', 'outline'].includes(kind.id) && !kind.legacy
+              const canAdd = !['color', 'role', 'height', 'width', 'square'].includes(kind.id) && !kind.legacy
               if (single && !canAdd && !makeSet) return null
               return (
                 // 제목 없이 버튼만 있는 줄은 판의 머리 줄이다. 어느 판이나 높이 32px, 오른쪽 정렬, 아래 16px(DESIGN.md board-head).
                 // 제목이 있는 줄은 제목의 높이(24px)에 맞추고 버튼이 위아래로 넘친다.
                 <div className={single && OWN_TITLES.includes(kind.id) ? 'mb-header flex justify-end' : 'mb-heading flex h-compact items-center justify-between'}>
                   {/* 종류의 제목. 누르면 그 종류의 값이 모두 선택되고, 끌면 판 안에서 종류의 차례가 바뀐다.
-                      판 안에 묶음 제목이 따로 있는 종류(색, 의미 색, 의미 글꼴, 의미 간격, 의미 모서리)는 판이 그 종류 하나뿐이라 제목을 두지 않는다. */}
+                      판 안에 분류 제목이 따로 있는 종류(색, 의미 색, 의미 글꼴, 의미 간격, 의미 모서리)는 판이 그 종류 하나뿐이라 제목을 두지 않는다. */}
                   {single && OWN_TITLES.includes(kind.id) ? (
                     <span />
                   ) : (
@@ -196,8 +197,8 @@ export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGr
                   )}
                   <span className="flex gap-actions-tight">
                     {/* "원래대로"는 판마다 하나다. 종류가 하나뿐인 판은 여기에, 여럿인 판은 판 위에 하나만 둔다. */}
-                    {single && isFreeKind(kind) && <ResetButton title="묶음과 그 안의 값을 처음 순서로 돌려놓아요" onReset={resetOf(kind)} />}
-                    {kind.id === 'style' && <ResetButton title="묶음과 그 안의 조합을 처음 순서로 돌려놓아요" onReset={onResetTypes} />}
+                    {single && isFreeKind(kind) && <ResetButton title="분류와 그 안의 값을 처음 순서로 돌려놓아요" onReset={resetOf(kind)} />}
+                    {kind.id === 'style' && <ResetButton title="분류와 그 안의 조합을 처음 순서로 돌려놓아요" onReset={onResetTypes} />}
                     {single && onToggleDetails && <FoldButton folded={!!detailsFolded} title="설명과 예시를 모두 숨기거나 보여요" onToggle={onToggleDetails} />}
                     {makeSet && (
                       <Button variant="ghost" onClick={makeSet}>
@@ -226,16 +227,16 @@ export function KindSections({ kinds, tokens, selected, onSelect, onAdd, onAddGr
               // 효과(그림자, 투명도, 흐림)는 의미 판처럼 한 줄에 하나씩, 쓰인 모습과 함께 보여 준다.
               <EffectList kind={kind} items={items} all={tokens} selected={selected} onSelect={onSelect} onRename={onRename} onMove={onMove} />
             ) : kind.id === 'spaceuse' ? (
-              // 의미 간격은 묶음마다 한 줄에 하나씩, 그 간격이 쓰인 모습과 함께 보여 준다.
+              // 의미 간격은 분류마다 한 줄에 하나씩, 그 간격이 쓰인 모습과 함께 보여 준다.
               <SpaceList kind={kind} items={items} all={tokens} selected={selected} onSelect={onSelect} onSelectGroup={onSelectGroup} onRename={onRename} onMove={onMove} onMoveGroup={onMoveSpaceGroup} />
             ) : kind.id === 'z' ? (
-              // 겹치는 차례는 묶음마다 한 줄에 하나씩, 그것이 무엇 위에 놓이는지를 보여 주는 예시와 함께 놓는다. 차례는 숫자에서 정해져 끌지 않는다.
+              // 겹치는 차례는 분류마다 한 줄에 하나씩, 그것이 무엇 위에 놓이는지를 보여 주는 예시와 함께 놓는다. 차례는 숫자에서 정해져 끌지 않는다.
               <LayerList kind={kind} items={items} all={tokens} selected={selected} onSelect={onSelect} onSelectGroup={onSelectGroup} onRename={onRename} />
             ) : isBorderKind(kind) ? (
               // 의미 테두리(테두리 선, 외곽선)는 효과처럼 한 줄에 하나씩, 그 선이 그어진 모습과 함께 보여 준다.
-              <BorderList kind={kind} items={items} all={tokens} selected={selected} onSelect={onSelect} onRename={onRename} onMove={onMove} />
+              <BorderList kind={kind} items={items} all={tokens} selected={selected} onSelect={onSelect} onSelectGroup={onSelectGroup} onRename={onRename} onMove={onMove} onMoveGroup={onMoveBorderGroup} />
             ) : kind.id === 'radius' ? (
-              // 의미 모서리는 묶음마다 한 줄에 하나씩, 그 둥글기가 실제로 쓰인 모습과 함께 보여 준다.
+              // 의미 모서리는 분류마다 한 줄에 하나씩, 그 둥글기가 실제로 쓰인 모습과 함께 보여 준다.
               <RadiusList kind={kind} items={items} all={tokens} selected={selected} onSelect={onSelect} onSelectGroup={onSelectGroup} onRename={onRename} onMove={onMove} onMoveGroup={onMoveRadiusGroup} />
             ) : specOf(kind) ? (
               // 움직임(시간, 이징)과 화면 크기(브레이크포인트, 컨테이너 폭, 비율)는 효과처럼 한 줄에 하나씩, 그 값이 제 일을 하는 모습과 함께 보여 준다.
@@ -526,7 +527,7 @@ function RowList({
   // 값이 긴 종류는 이름·값과 견본을 위아래로 쌓는다.
   const stacked = kind.id === 'font'
   const reorder = useReorder(items.map((t) => t.name), onMove)
-  // 값이 없으면 빈 상자를 남기지 않는다. 추가는 묶음 제목 줄의 버튼으로 한다.
+  // 값이 없으면 빈 상자를 남기지 않는다. 추가는 분류 제목 줄의 버튼으로 한다.
   if (items.length === 0) return null
   return (
     <div className="space-y-rows rounded-float border-edge border-hairline bg-canvas p-menu">

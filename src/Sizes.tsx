@@ -9,7 +9,7 @@ import { ArrowUpRight, Check as CheckIcon, ChevronDown, Copy, Folder, Minus, Plu
 import type { Token } from './lib/api'
 import { ALL_KINDS, KINDS, SLUG, slugMessage, lengthLabel, shortName, type Kind } from './lib/catalog'
 import { resolveColor, type Around } from './lib/roles'
-import { SIZE_GROUPS, SIZE_SHAPES, SIZE_NAMES, SIZE_SHAPE_FOR, SIZE_WORDS, guessSizeGroup, isSizeKind, isSizeListShape, lengthRefOf, readSizeNote, resolveLength, writeSizeNote, type SizeExample, type SizeGroup, type SizeShape } from './lib/sizes'
+import { SIZE_GROUPS, SIZE_SHAPES, SIZE_NAMES, SIZE_SHAPE_FOR, SIZE_WORDS, guessSizeGroup, isSizeKind, sizeKindOf, isSizeListShape, lengthRefOf, readSizeNote, resolveLength, writeSizeNote, type SizeExample, type SizeGroup, type SizeShape } from './lib/sizes'
 import { PreviewFontContext, PreviewSpaceContext } from './ColorUses'
 import { CODE_OPEN, CodeRows, FoldSection, Section, WHERE_OPEN, ICON_BUTTON } from './Inspector'
 import { DetailsFolded, HOVER, OUTLINE, RowSample, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
@@ -18,7 +18,6 @@ import { freeName, nearestRef } from './lib/nearest'
 import { nameRules, numberRules, unitProps, useField } from './useField'
 import { useReorder } from './useReorder'
 import { NavIcon, isNavLabel } from './SampleParts'
-import { orderKinds } from './lib/order'
 import { WithExample } from './WithExample'
 
 const LENGTH = KINDS.length
@@ -42,15 +41,14 @@ const tagWidth = (text: string) => 8 + 7 * text.length
 const LIMIT = { height: 200, width: 520, square: 200 }
 
 /**
- * 그 크기를 몇 분의 일로 줄여 그리는지. 줄이지 않으면 1. pair는 폭과 함께 그리는 높이다. 둘 가운데 더 많이 줄여야 하는 쪽을 따른다.
+ * 그 크기를 몇 분의 일로 줄여 그리는지. 줄이지 않으면 1.
  * fit은 예시 칸이 좁은 판(화면 크기 판)에서 그림이 들어가야 하는 폭이다. 주면 그 폭에 맞추고, 16분의 1까지 줄인다.
  */
-export function sampleScale(kind: Kind, value: string, pair?: string, fit?: number): number {
+export function sampleScale(kind: Kind, value: string, fit?: number): number {
   const px = parseFloat(value)
   const limit = fit ?? LIMIT[kind.id as keyof typeof LIMIT] ?? 200
   const steps = fit === undefined ? [1, 2, 4, 8] : [1, 2, 4, 8, 16]
-  const own = steps.find((n) => px / n <= limit) ?? steps[steps.length - 1]
-  return pair === undefined ? own : Math.max(own, sampleScale(KINDS.height, pair))
+  return steps.find((n) => px / n <= limit) ?? steps[steps.length - 1]
 }
 
 /**
@@ -63,7 +61,6 @@ export function SizeSample({
   kind,
   shape,
   value,
-  pair,
   fit,
   custom,
   around,
@@ -73,7 +70,6 @@ export function SizeSample({
   kind: Kind
   shape: SizeShape
   value: string
-  pair?: string
   /** 그림이 들어가야 하는 폭(px). 예시 칸이 좁은 판에서 준다. */
   fit?: number
   /** 재는 요소를 밖에서 그린다(화면 크기 판의 브레이크포인트와 페이지). fill은 재는 상자를 채우는 클래스이고, scale은 그림을 몇 분의 일로 줄였는지다(글자를 제 크기로 되돌릴 때 쓴다). 치수선과 예시 상자는 여기 것을 그대로 쓴다. */
@@ -91,14 +87,9 @@ export function SizeSample({
         .map((w) => w.trim())
         .filter(Boolean)
     : [all]
-  // pair는 폭과 함께 그릴 높이다(요소별 보기에서 높이와 폭이 함께 있는 요소). 있으면 정사각형처럼 폭과 높이를 모두 정해 그리고, 두 치수선을 함께 긋는다(높이는 왼쪽, 폭은 위).
-  // 메뉴는 예외다. 함께 그릴 높이가 메뉴 전체가 아니라 그 안의 줄 하나의 높이라서, 메뉴의 폭은 그대로 재고 첫 줄 옆에 높이의 선을 하나 더 긋는다.
-  const inner = kind.id === 'width' && pair !== undefined && pairsInside(shape)
-  const both = kind.id === 'width' && pair !== undefined && !inner
-  const high = (both && pair) || value
   const tall = kind.id === 'height'
-  const wide = kind.id === 'width' && !both
-  const scale = sampleScale(kind, value, both ? pair : undefined, fit)
+  const wide = kind.id === 'width'
+  const scale = sampleScale(kind, value, fit)
   const TEXT = 'text-sm leading-5'
   const SMALL = 'text-xs leading-4'
   const line = paints(around).line
@@ -110,7 +101,7 @@ export function SizeSample({
   const F = `relative shrink-0 ${tall ? 'h-full' : wide ? 'w-full' : 'size-full'}`
   // 재지 않는 방향의 크기. 높이를 재는 그림은 폭을, 폭을 재는 그림은 높이를 그 요소의 평소 크기로 둔다.
   const other = (w: string, h: string) => (tall ? w : wide ? h : '')
-  const dims: CSSProperties = tall ? { height: value } : wide ? { width: value } : { width: value, height: high }
+  const dims: CSSProperties = tall ? { height: value } : wide ? { width: value } : { width: value, height: value }
   // 치수선의 굵기(1px), 요소와의 거리(8px), 끝의 가로대 길이(7px). 줄여 그리는 그림에서도 화면에는 같은 굵기로 보이도록 줄인 만큼 키운다.
   const thick = scale
   const away = 8 * scale + thick
@@ -118,8 +109,6 @@ export function SizeSample({
   const capAt = -(cap - thick) / 2
   // 선에 적는 값. 단위 없이 숫자만 적는다(32). 줄여 그리는 그림에서도 실제 값을 적는다.
   const amount = String(parseFloat(value))
-  // 높이의 선에 적는 값. 폭과 함께 그릴 때는 짝지은 높이다.
-  const amountHigh = String(parseFloat(high))
   /** 재는 상자. 이 상자의 높이(폭)가 그 값이고, 치수선이 그 옆에 같은 길이로 그어진다. */
   // inset은 재는 상자가 눈에 보이는 요소의 가장자리에서 안쪽으로 들어가 있는 만큼이다(전환 버튼의 칸은 바깥 상자의 안쪽 여백만큼 들어가 있다).
   // 그만큼 선을 더 밖으로 내서, 선과 눈에 보이는 요소 사이가 어느 예시에서나 8px이 되게 한다.
@@ -136,7 +125,7 @@ export function SizeSample({
   )
   const m = (children: ReactNode, more = '', inset = 0) => (
     <span data-sample className={`relative flex shrink-0 ${more}`} style={{ ...dims, zoom: 1 / scale }}>
-      {!wide && heightMark(amountHigh, inset)}
+      {!wide && heightMark(amount, inset)}
       {!tall && (
         <span data-measure="width" className="pointer-events-none absolute" style={{ left: 0, right: 0, top: -away - inset * scale, height: thick, background: MARK }}>
           <span className="absolute" style={{ left: 0, top: capAt, height: cap, width: thick, background: MARK }} />
@@ -153,12 +142,12 @@ export function SizeSample({
   // 치수선이 놓이는 쪽(높이는 왼쪽, 폭은 위쪽, 정사각형은 둘 다)은 예시 상자의 안쪽 여백을 그만큼 더 준다.
   // 선은 요소에서 8px 떨어져 있고 굵기 1px에 가로대가 3px 더 나가므로 12px이 든다. 더 주지 않으면 선의 가로대가 상자의 가장자리에 닿는다.
   // 이름표가 놓이는 자리도 더한다: 왼쪽은 이름표의 폭, 위쪽은 이름표의 높이, 그리고 선과 이름표 사이 4px.
-  const roomLeft = `calc(var(--spacing-sample) + ${RESERVE + TAG_GAP + tagWidth(inner ? String(parseFloat(pair!)) : amountHigh)}px)`
+  const roomLeft = `calc(var(--spacing-sample) + ${RESERVE + TAG_GAP + tagWidth(amount)}px)`
   const roomTop = `calc(var(--spacing-sample) + ${RESERVE + TAG_GAP + TAG_HEIGHT}px)`
   const frame = (body: ReactNode) => (
     <span
       className={`flex w-full items-center justify-center overflow-hidden rounded-card p-sample ${EDGE}`}
-      style={{ ...space, background: around.surface, color: around.ink, fontFamily: font, ...(wide && !inner ? {} : { paddingLeft: roomLeft }), ...(tall ? {} : { paddingTop: roomTop }) }}
+      style={{ ...space, background: around.surface, color: around.ink, fontFamily: font, ...(wide ? {} : { paddingLeft: roomLeft }), ...(tall ? {} : { paddingTop: roomTop }) }}
     >
       {body}
     </span>
@@ -326,7 +315,6 @@ export function SizeSample({
             {list.map((text, i) => (
               // 줄을 감싼 상자. 첫 줄 옆에 줄 높이의 치수선을 긋는다(줄은 넘치는 것을 자르므로 선을 줄 안에 둘 수 없다). 4는 메뉴 상자의 안쪽 여백이다.
               <span key={i} className="relative block">
-                {inner && i === 0 && heightMark(String(parseFloat(pair!)), 4)}
                 {isNavLabel(list[0]) ? (
                 <span className={`flex h-row items-center gap-row-inner overflow-hidden rounded-row px-row-x text-base leading-6 whitespace-nowrap ${i === 0 ? 'font-[550]' : ''}`} style={i === 0 ? { background: hover } : { color: soft }}>
                   <NavIcon label={text} />
@@ -473,28 +461,19 @@ export function sizeVars(tokens: Token[]): CSSProperties {
   return vars as CSSProperties
 }
 
-const SIZE_KINDS_IN_ORDER = [KINDS.height, KINDS.width, KINDS.square]
-/**
- * 제 높이가 없는 요소가 빌려 그리는 높이. 숫자 칸은 입력칸의 높이로 놓이고, 메뉴는 그 안의 줄이 줄의 높이다.
- * 요소별 보기에서 그 요소의 폭을 이 모양의 높이와 함께 그린다.
- */
-const PAIR_FROM: Partial<Record<SizeShape, SizeShape>> = { value: 'input', menu: 'row' }
-/** 함께 그릴 높이가 요소 전체가 아니라 그 안의 한 부분(메뉴의 줄)의 높이인 모양. */
-const pairsInside = (shape: SizeShape | undefined) => shape === 'menu'
-/** 요소별 보기의 줄 앞에 적는, 그 값이 어느 쪽 길이인지. */
+/** 판의 줄 앞에 적는, 그 값이 어느 쪽 길이인지. */
 const DIMENSION: Record<string, string> = { height: '높이', width: '너비', square: '정사각형' }
 
-type ThingRow = { t: Token; kind: Kind; short: string; group: SizeGroup; text: string; picked?: SizeShape; examples: SizeExample[]; length: string | null; shown: string }
+type SizeRow = { t: Token; kind: Kind; short: string; group: SizeGroup; text: string; picked?: SizeShape; examples: SizeExample[]; length: string | null; shown: string }
 
 /**
- * 의미 크기 판. 묶음(컨트롤, 영역) 안에서 요소마다 한 덩어리로, 그 요소의 높이와 폭과 정사각형을 함께 보여 준다.
- * 어떤 요소는 높이와 폭이 함께 있다(작은 입력칸은 높이 24에 폭이 56, 80, 112). 종류별 보기에서는 그것이 높이 묶음과 폭 묶음으로 흩어져서, 그 요소가 실제로 어떤 크기인지 한눈에 보이지 않는다.
- * 요소는 값의 첫 예시의 모양이다(주석의 "(모양)"). 같은 묶음에서 모양이 같은 값들이 종류를 넘어 한 덩어리가 된다. 모양을 적지 않은 값은 저마다 한 덩어리다.
- * 판은 이 보기 하나다. 높이·너비·정사각형으로 한 번 더 나누지 않는다(그것은 분류가 아니라 값의 속성이라 줄 앞에 적는다).
- * 묶음의 제목을 끌면 묶음의 순서가 바뀌고, 줄을 끌면 같은 요소의 같은 쪽 길이(높이끼리, 너비끼리) 사이에서 순서가 바뀐다. 요소의 순서는 그 값들이 파일에 처음 나오는 순서를 따른다.
- * "원래대로"는 종류와 묶음과 줄을 처음 순서로 돌려놓는다.
+ * 의미 크기 판. 의미 간격 판과 같은 짜임이다: 분류(버튼, 입력칸, 목록 …) 아래에 값이 한 줄씩 놓인다.
+ * 높이·너비·정사각형으로 나누지 않는다. 그것은 분류가 아니라 값의 속성(변수 이름의 앞머리)이라 줄 앞에 적는다.
+ * 분류 안에서 "요소"(예시의 모양이 같은 값들)로 한 번 더 묶지도 않는다. 분류가 곧 컴포넌트라서 그 단계가 필요 없다.
+ * 줄의 순서는 파일의 순서다. 세 종류의 값이 한 줄로 이어져 있어서, 같은 분류 안이면 높이와 너비를 섞어 놓을 수 있다.
+ * 분류의 제목을 끌면 분류의 순서가 바뀌고, 줄을 끌면 같은 분류 안에서 순서가 바뀐다. "원래대로"는 분류와 줄을 처음 순서로 돌려놓는다.
  */
-export function SizeThings({
+export function SizeBoard({
   tokens,
   selected,
   onSelect,
@@ -508,25 +487,21 @@ export function SizeThings({
   onSelect: (name: string, additive: boolean) => void
   onSelectGroup: (names: string[], additive: boolean, focusGroup: boolean) => void
   onRename: (name: string) => void
-  /** 줄을 끌어 같은 요소의 같은 종류 값들 사이에서 순서를 바꾼다. */
-  onMove?: (kind: Kind, name: string, before: string | null) => void
-  /** 묶음 제목을 끌어 묶음의 순서를 바꾼다. */
+  /** 줄을 끌어 같은 분류의 값들 사이에서 순서를 바꾼다. */
+  onMove?: (name: string, before: string | null) => void
+  /** 분류 제목을 끌어 분류의 순서를 바꾼다. */
   onMoveGroup?: (group: SizeGroup, before: SizeGroup | null) => void
 }) {
-  // 종류별 보기에 놓이는 차례 그대로 늘어놓는다: 종류(파일에 적힌 차례) → 묶음(처음 나오는 차례) → 줄.
-  const rows: ThingRow[] = orderKinds(tokens, SIZE_KINDS_IN_ORDER).flatMap((kind) => {
-    const list = tokens
-      .filter((t) => kind.matches(t.name))
-      .map((t) => {
-        const short = shortName(kind, t.name)
-        const { length, shown } = shownOf(tokens, t.value)
-        return { t, kind, short, ...readSizeNote(t.note, short), length, shown }
-      })
-    return [...new Set(list.map((r) => r.group))].flatMap((g) => list.filter((r) => r.group === g))
+  const rows: SizeRow[] = tokens.flatMap((t) => {
+    const kind = sizeKindOf(t)
+    if (!kind) return []
+    const short = shortName(kind, t.name)
+    const { length, shown } = shownOf(tokens, t.value)
+    return [{ t, kind, short, ...readSizeNote(t.note, short), length, shown }]
   })
-  // 묶음은 파일에 처음 나오는 순서대로 놓는다(위에서 늘어놓은 줄에서 처음 나오는 순서. lib/order.ts의 sizeBoardGroupOrder와 같다). 끌어서 바꾼 순서가 파일에 남는다.
+  // 분류는 파일에 처음 나오는 순서대로 놓는다(lib/order.ts의 sizeBoardGroupOrder와 같다). 끌어서 바꾼 순서가 파일에 남는다.
   const groups = [...new Set(rows.map((r) => r.group))].map((id) => SIZE_GROUPS.find((g) => g.id === id)!)
-  const groupDrag = useReorder(groups.map((g) => g.id), onMoveGroup && ((name, before) => onMoveGroup(name as SizeGroup, before as SizeGroup | null)), { attr: 'data-thing-group', gap: 24 })
+  const groupDrag = useReorder(groups.map((g) => g.id), onMoveGroup && ((name, before) => onMoveGroup(name as SizeGroup, before as SizeGroup | null)), { attr: 'data-size-group', gap: 24 })
   if (rows.length === 0) return null
   const around = sampleColors(tokens)
   // 색 칸과 손잡이를 칠할 색. 이 시스템의 선택 색(없으면 주요 색, 그것도 없으면 글자 색)이다.
@@ -536,12 +511,10 @@ export function SizeThings({
     <div className="space-y-groups">
       {groups.map((g) => {
         const list = rows.filter((r) => r.group === g.id)
-        const keyOf = (r: ThingRow) => r.picked ?? `-${r.t.name}`
-        const things = [...new Set(list.map(keyOf))].map((key) => ({ key, rows: list.filter((r) => keyOf(r) === key) }))
         return (
-          <div key={g.id} data-thing-group={g.id} className={`relative ${groupDrag.moving(g.id) ? 'opacity-dragging' : ''}`}>
+          <div key={g.id} data-size-group={g.id} className={`relative ${groupDrag.moving(g.id) ? 'opacity-dragging' : ''}`}>
             {groupDrag.line(g.id)}
-            {/* 묶음의 제목. 누르면 그 묶음의 값이 모두 선택되고, 끌면 묶음의 순서가 바뀐다(다른 의미 판의 묶음 제목과 같다). */}
+            {/* 분류의 제목. 누르면 그 분류의 값이 모두 선택되고, 끌면 분류의 순서가 바뀐다(다른 의미 판의 분류 제목과 같다). */}
             <button
               type="button"
               onClick={(e) => !groupDrag.justDragged() && onSelectGroup(list.map((r) => r.t.name), isAdditive(e), false)}
@@ -551,9 +524,7 @@ export function SizeThings({
               {g.label}
             </button>
             <div className="space-y-rows rounded-float border-edge border-hairline bg-canvas p-menu">
-              {things.map((thing) => (
-                <SizeThing key={thing.key} rows={thing.rows} all={rows} around={around} tint={tint} selected={selected} onSelect={onSelect} onRename={onRename} onMove={onMove} />
-              ))}
+              <SizeRows rows={list} around={around} tint={tint} selected={selected} onSelect={onSelect} onRename={onRename} onMove={onMove} />
             </div>
           </div>
         )
@@ -563,14 +534,13 @@ export function SizeThings({
 }
 
 /**
- * 요소 하나. 왼쪽에 요소의 이름과 그 값들(어느 쪽 길이인지, 이름, 길이)이 한 줄씩 있고, 오른쪽에 그 요소를 그린 예시가 있다.
- * 값의 줄은 종류별 보기의 줄처럼 하나씩 고른다(누르면 그 값의 패널이 열리고, 두 번 누르면 이름을 고친다).
- * 높이가 있고 폭도 있는 요소는 폭마다 한 번씩, 그 폭과 높이로 그려서 두 치수선을 함께 긋는다(높이는 왼쪽, 폭은 위). 높이가 여럿이면 첫 높이와 짝짓고 나머지 높이는 따로 그린다.
- * 높이만, 폭만, 정사각형만 있는 요소는 종류별 보기와 똑같이 그린다. 값마다의 둘째 예시부터(다른 모양의 예시)도 그대로 그린다.
+ * 한 분류의 줄들. 줄마다 왼쪽에 그 값(어느 쪽 길이인지, 이름, 길이, 설명)이 있고 바로 옆에 그 값의 예시가 있다.
+ * 줄은 하나씩 고른다(누르면 그 값의 패널이 열리고, 두 번 누르면 이름을 고친다). 끌면 같은 분류 안에서 순서가 바뀐다.
+ * 예시는 값마다 따로 그린다. 높이 값은 높이의 치수선만, 너비 값은 너비의 치수선만 긋는다(정사각형은 두 선).
+ * 값은 하나씩 따로 만들고 고치는 것이라, 그림 하나가 값 하나를 보여 줘야 추가 창과 패널의 예시와 같다.
  */
-function SizeThing({
+function SizeRows({
   rows,
-  all,
   around,
   tint,
   selected,
@@ -578,56 +548,28 @@ function SizeThing({
   onRename,
   onMove,
 }: {
-  rows: ThingRow[]
-  /** 판의 모든 값. 제 높이가 없는 요소가 빌려 그릴 높이를 여기서 찾는다. */
-  all: ThingRow[]
+  rows: SizeRow[]
   around: Around
   tint: string
   selected: string[]
   onSelect: (name: string, additive: boolean) => void
   onRename: (name: string) => void
-  onMove?: (kind: Kind, name: string, before: string | null) => void
+  onMove?: (name: string, before: string | null) => void
 }) {
   // 판을 접었으면 설명과 예시를 숨기고 이름과 값만 보여 준다.
   const plain = useContext(DetailsFolded)
-  // 줄을 끌면 같은 요소의 같은 쪽 길이(높이끼리, 너비끼리) 사이에서 순서가 바뀐다. 다른 요소나 다른 쪽으로는 옮기지 않는다(요소는 주석의 모양이, 쪽은 이름이 정한다).
-  // 모양을 적지 않은 값은 저 혼자 한 요소라 옮길 곳이 없다.
-  const kindOfRow = (name: string) => rows.find((r) => r.t.name === name)!.kind
-  const reorder = useReorder(rows.map((r) => r.t.name), onMove && rows[0].picked ? (name, before) => onMove(kindOfRow(name), name, before) : undefined, { scopeOf: (name) => kindOfRow(name).id })
-  const shape = rows[0].picked
-  const heights = rows.filter((r) => r.kind.id === 'height' && r.length !== null)
-  const widths = rows.filter((r) => r.kind.id === 'width' && r.length !== null)
-  // 폭과 짝지을 높이. 높이와 폭이 함께 있는 요소에만 있다.
-  // 제 높이가 없으면 정해 둔 모양의 높이를 빌린다(숫자 칸은 입력칸의 높이, 메뉴는 줄의 높이).
-  const lent = shape && PAIR_FROM[shape] ? all.find((r) => r.kind.id === 'height' && r.picked === PAIR_FROM[shape] && r.length !== null) : undefined
-  const base = shape && widths.length > 0 ? (heights[0] ?? lent ?? null) : null
-  const paired = (r: ThingRow) => base !== null && r.kind.id === 'width' && r.length !== null
-  // 그 값의 그림을 몇 분의 일로 줄여 그렸는지. 짝지은 높이는 그것과 함께 그린 폭들 가운데 가장 많이 줄인 것을 따른다.
-  const scaleOf = (r: ThingRow) => {
-    if (r.length === null || r.examples.length === 0) return 1
-    if (base && paired(r)) return sampleScale(r.kind, r.length, pairsInside(shape) ? undefined : base.length!)
-    if (r === base) return Math.max(...widths.map((w) => sampleScale(w.kind, w.length!, base.length!)))
-    return sampleScale(r.kind, r.length)
-  }
+  const reorder = useReorder(rows.map((r) => r.t.name), onMove)
+  // 그 값의 그림을 몇 분의 일로 줄여 그렸는지.
+  const scaleOf = (r: SizeRow) => (r.length === null || r.examples.length === 0 ? 1 : sampleScale(r.kind, r.length))
   // 값마다 그 값의 예시를 바로 옆에 놓는다. 설명과 그림이 한 줄에 있어야 어느 그림이 어느 값의 것인지 보인다.
-  // (왼쪽에 값들을 모으고 오른쪽에 그림들을 모아 두면, 값이 여럿인 요소에서 설명과 그림이 서로 다른 높이에 놓인다.)
-  const drawingsOf = (r: ThingRow) =>
+  const drawingsOf = (r: SizeRow) =>
     plain || r.length === null
       ? []
-      : r.examples.flatMap((e, k) => {
-          // 짝지은 제 높이의 첫 예시는 폭과 함께 그렸으므로 따로 그리지 않는다.
-          if (k === 0 && r === base) return []
-          return [<SizeSample key={`${r.t.name}:${k}`} kind={r.kind} shape={e.shape} value={r.length!} pair={k === 0 && paired(r) ? base!.length! : undefined} around={around} tint={tint} words={e.words} />]
-        })
-  // 그림이 하나라도 있는 요소는 왼쪽 칸의 폭을 정해 두어, 그림들이 같은 자리에서 시작하게 한다.
+      : r.examples.map((e, k) => <SizeSample key={`${r.t.name}:${k}`} kind={r.kind} shape={e.shape} value={r.length!} around={around} tint={tint} words={e.words} />)
+  // 그림이 하나라도 있는 분류는 왼쪽 칸의 폭을 정해 두어, 그림들이 같은 자리에서 시작하게 한다.
   const any = rows.some((r) => drawingsOf(r).length > 0)
   return (
-    <div data-thing={shape ?? rows[0].short} className="space-y-rows">
-      {shape && (
-        <p data-thing-name className="px-board-row-x pt-board-row-y type-label">
-          {SIZE_SHAPES.find((s) => s.id === shape)!.label}
-        </p>
-      )}
+    <>
       {rows.map((r) => {
         const isSelected = selected.includes(r.t.name)
         const scale = scaleOf(r)
@@ -636,7 +578,7 @@ function SizeThing({
           <button
             key={r.t.name}
             type="button"
-            data-thing-row
+            data-size-row
             data-token={r.t.name}
             aria-pressed={isSelected}
             aria-label={`${DIMENSION[r.kind.id]} ${r.short} ${r.shown}`}
@@ -646,7 +588,7 @@ function SizeThing({
             className={`group relative flex w-full items-center gap-columns rounded-row px-board-row-x py-board-row-y text-left select-none ${reorder.moving(r.t.name) ? 'opacity-dragging' : ''} ${isSelected ? SELECTED : ''} ${HOVER} ${OUTLINE}`}
           >
             {reorder.line(r.t.name)}
-            {/* 왼쪽은 이름·길이·설명. 그림이 하나라도 있는 요소는 이 칸의 폭을 정해 두어, 그림들이 같은 자리에서 시작하게 한다. */}
+            {/* 왼쪽은 이름·길이·설명. 그림이 하나라도 있는 분류는 이 칸의 폭을 정해 두어, 그림들이 같은 자리에서 시작하게 한다. */}
             <span className={any ? 'w-row-name shrink-0' : 'min-w-0 flex-1'}>
               <span className="flex flex-wrap items-baseline gap-x-row-inner">
                 <span data-dimension className="type-caption text-ink-faint">
@@ -673,7 +615,7 @@ function SizeThing({
           </button>
         )
       })}
-    </div>
+    </>
   )
 }
 
@@ -689,7 +631,7 @@ function classesOf(kind: Kind, token: Token) {
 }
 
 /**
- * 의미 크기 하나를 고치는 패널. 구역의 차례는 다른 패널과 같다: 이름, 값(가리키는 크기), 묶음, 설명, 쓰이는 곳, 코드.
+ * 의미 크기 하나를 고치는 패널. 구역의 차례는 다른 패널과 같다: 이름, 값(가리키는 크기), 분류, 설명, 쓰이는 곳, 코드.
  * 의미 크기는 크기 판의 값을 가리키기만 한다. 길이를 여기에 직접 적지 않는다(의미 색이 색상 판의 색만 가리키는 것과 같다).
  * 예시는 여기서 고치지 않는다. 그 크기가 화면 어디에 쓰였는지는 페이지를 만든 AI가 파일의 주석에 적는다(파일 맨 위의 안내 참고).
  */
@@ -715,7 +657,7 @@ export function SizeInspector({
   /** 가리키는 크기가 있는 판(크기 판)으로 가서 그 값을 보여 준다. */
   onOpenToken: (name: string) => void
   onRename: (next: string) => void
-  /** 값(가리키는 크기)이나 주석(묶음, 설명, 예시)을 바꾼다. */
+  /** 값(가리키는 크기)이나 주석(분류, 설명, 예시)을 바꾼다. */
   onChange: (patch: { value?: string; note?: string }) => void
   onCopy: (text: string) => void
 }) {
@@ -776,8 +718,8 @@ export function SizeInspector({
         )}
       </Section>
 
-      <Section title="묶음">
-        <UsePicker label="묶음" options={SIZE_GROUPS} value={group} onChange={(next) => saveNote({ group: next })} />
+      <Section title="분류">
+        <UsePicker label="분류" options={SIZE_GROUPS} value={group} nameWidth="w-picker-name" onChange={(next) => saveNote({ group: next })} />
       </Section>
 
       <Section title="설명">
@@ -819,15 +761,15 @@ export function SizeInspector({
 /** 추가 창의 예시 영역에 너비의 그림이 들어가는 가장 큰 길이(px). 영역의 안쪽 너비가 290px쯤이고 예시 상자의 좌우 여백이 12px씩이다. 이보다 넓은 너비는 판에서보다 더 줄여 그리고, 몇 분의 일인지 그림 아래에 적는다. */
 const ADD_FIT = 264
 
-/** 의미 크기의 종류. 추가 창에서 고른다(이름은 진하게, 쓰는 클래스와 그 종류에 드는 것은 옅게). */
-const SIZE_KINDS: { id: 'height' | 'width' | 'square'; label: string; hint: string }[] = [
-  { id: 'height', label: '높이', hint: 'h-이름. 입력칸, 줄, 막대' },
-  { id: 'width', label: '너비', hint: 'w-이름. 메뉴, 패널, 창' },
-  { id: 'square', label: '정사각형', hint: 'size-이름. 아이콘, 아이콘 버튼' },
+/** 의미 크기의 종류. 추가 창에서 나란한 전환 버튼으로 고른다. 선택지가 셋뿐이라 펼치지 않고 한 줄에 다 보인다. */
+const SIZE_KINDS: { id: 'height' | 'width' | 'square'; label: string }[] = [
+  { id: 'height', label: '높이' },
+  { id: 'width', label: '너비' },
+  { id: 'square', label: '정사각형' },
 ]
 
 /**
- * 의미 크기를 만드는 양식. 종류(높이, 폭, 정사각형), 이름, 가리키는 크기, 묶음, 설명을 정한다. 설명은 비워 두어도 되고 만든 뒤에 패널에서도 고친다.
+ * 의미 크기를 만드는 양식. 종류(높이, 폭, 정사각형), 이름, 가리키는 크기, 분류, 설명을 정한다. 설명은 비워 두어도 되고 만든 뒤에 패널에서도 고친다.
  * 가리키는 크기는 고르지 않은 채로 시작한다. 첫 값을 골라 두면 이름만 적고 만들었을 때 엉뚱한 크기를 가리키는 값이 생긴다.
  * "추가"는 판에 하나뿐이고 종류는 여기서 고른다(효과의 추가가 쓰임을 창 안에서 고르는 것과 같다). start는 처음에 골라 둘 종류다.
  * 예시의 모양을 고르고, 크기를 고르면 판의 줄과 같은 예시를 창 오른쪽의 영역에 보여 준다(WithExample). 고른 모양은 주석에 적힌다(문구는 적지 않아 모양의 기본 문구로 그려진다).
@@ -839,12 +781,12 @@ export function NewSizeForm({ start, tokens, onCreate, onCancel }: { start?: Kin
   const [name, setName] = useState('')
   // 창을 열자마자 예시가 보이게, 가리키는 값은 흔히 쓰는 크기(32px)에 가장 가까운 것을 골라 둔다(DESIGN.md dialog-defaults). 예시를 보며 바꾼다.
   const [ref, setRef] = useState<string | null>(() => nearestRef(tokens, options.map((o) => o.id), 32))
-  // 묶음은 직접 고르기 전까지 이름에서 짐작한 것을 보여 준다.
+  // 분류는 직접 고르기 전까지 이름에서 짐작한 것을 보여 준다.
   const [group, setGroup] = useState<SizeGroup | null>(null)
   const [text, setText] = useState('')
   const [error, setError] = useState<{ name?: string; ref?: string }>({})
-  const baseGroup = group ?? guessSizeGroup(name.trim())
-  // 예시의 모양. 직접 고르기 전까지는 종류와 묶음에 맞는 모양을 따라간다.
+  const baseGroup = group ?? (name.trim() ? guessSizeGroup(name.trim()) : 'input')
+  // 예시의 모양. 직접 고르기 전까지는 종류와 분류에 맞는 모양을 따라간다.
   const [picked, setPicked] = useState<SizeShape | null>(null)
   const shape = picked ?? SIZE_SHAPE_FOR[kindId][baseGroup]
   // 이름 칸은 비워 두고, 고른 예시에 맞는 이름을 옅은 글자로 추천한다(DESIGN.md dialog-defaults). 추천은 값이 아니다. 비운 채 추가하면 "이름을 입력해 주세요."다.
@@ -854,7 +796,7 @@ export function NewSizeForm({ start, tokens, onCreate, onCancel }: { start?: Kin
   const length = ref ? resolveLength(tokens, `var(${ref})`) : null
   // 너비는 예시 영역에 들어가게 줄여 그린다. 줄여 그렸으면 판의 줄과 같은 말로 알린다.
   const fit = kindId === 'width' ? ADD_FIT : undefined
-  const scale = length !== null ? sampleScale(kind, length, undefined, fit) : 1
+  const scale = length !== null ? sampleScale(kind, length, fit) : 1
   const around = sampleColors(tokens)
   const tinted = tokens.find((t) => t.name === '--color-selection') ?? tokens.find((t) => t.name === '--color-primary')
   const tint = (tinted && resolveColor(tokens, tinted.value)) || around.ink
@@ -887,10 +829,9 @@ export function NewSizeForm({ start, tokens, onCreate, onCancel }: { start?: Kin
     <form onSubmit={submit}>
       <WithExample example={length !== null ? <SizeSample kind={kind} shape={shape} value={length} fit={fit} around={around} tint={tint} /> : null} note={scale > 1 ? `그림은 1/${scale}` : undefined}>
       <Field label="종류" plain>
-        <UsePicker
+        <Segmented
           label="종류"
           options={SIZE_KINDS}
-          nameWidth="w-picker-name-wide"
           value={kindId}
           onChange={(next) => {
             setKindId(next)
@@ -924,8 +865,8 @@ export function NewSizeForm({ start, tokens, onCreate, onCancel }: { start?: Kin
           }}
         />
       </Field>
-      <Field label="묶음" plain>
-        <UsePicker label="묶음" options={SIZE_GROUPS} value={shownGroup} onChange={setGroup} />
+      <Field label="분류" plain>
+        <UsePicker label="분류" options={SIZE_GROUPS} value={shownGroup} nameWidth="w-picker-name" onChange={setGroup} />
       </Field>
       <Field label="예시" plain>
         <UsePicker label="예시" options={SIZE_SHAPES} value={shape} nameWidth="w-picker-name-long" onChange={setPicked} />

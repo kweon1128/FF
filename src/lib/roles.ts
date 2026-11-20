@@ -12,12 +12,12 @@ import { groupFromNote, headOf } from './kindnote'
 export type RoleUse = 'text' | 'surface' | 'border' | 'fill' | 'status' | 'chart' | 'other'
 
 /**
- * 역할의 묶음들. 앞의 넷은 색이 어디에 칠해지는지로 나눈 것이고, 뒤의 둘은 그것으로 나눌 수 없는 색이다.
- * 상태 색은 뜻이 먼저다. 위험 색 하나가 글자에도 바탕에도 테두리에도 버튼에도 쓰이므로, 칠해지는 곳으로 흩지 않고 한 묶음에 모은다(뜻이 상태면 어디에 칠하든 상태).
+ * 역할의 분류들. 앞의 넷은 색이 어디에 칠해지는지로 나눈 것이고, 뒤의 둘은 그것으로 나눌 수 없는 색이다.
+ * 상태 색은 뜻이 먼저다. 위험 색 하나가 글자에도 바탕에도 테두리에도 버튼에도 쓰이므로, 칠해지는 곳으로 흩지 않고 한 분류에 모은다(뜻이 상태면 어디에 칠하든 상태).
  * 차트 색은 글자도 바탕도 아니고 계열끼리 구분하려고 쓴다.
- * 채움은 버튼만이 아니라 뱃지, 칩, 전환 버튼, 선택 표시처럼 색으로 채우는 것 모두다. 컴포넌트마다 묶음을 나누지 않는다. 같은 색이 버튼에도 켜진 토글에도 쓰여서,
- * 나누면 같은 색을 가리키는 의미 색이 묶음마다 따로 생긴다. 어느 컴포넌트가 어느 색을 쓰는지는 컴포넌트 화면에서 정한다.
- * hint는 그 묶음에 드는 것들. 역할을 고르는 칸에 함께 적는다.
+ * 채움은 버튼만이 아니라 뱃지, 칩, 전환 버튼, 선택 표시처럼 색으로 채우는 것 모두다. 컴포넌트마다 분류를 나누지 않는다. 같은 색이 버튼에도 켜진 토글에도 쓰여서,
+ * 나누면 같은 색을 가리키는 의미 색이 분류마다 따로 생긴다. 어느 컴포넌트가 어느 색을 쓰는지는 컴포넌트 화면에서 정한다.
+ * hint는 그 분류에 드는 것들. 역할을 고르는 칸에 함께 적는다.
  */
 export const ROLE_USES: { id: RoleUse; label: string; hint: string }[] = [
   { id: 'text', label: '글자', hint: '본문, 링크, 아이콘' },
@@ -26,7 +26,7 @@ export const ROLE_USES: { id: RoleUse; label: string; hint: string }[] = [
   { id: 'fill', label: '채움', hint: '버튼, 뱃지, 칩, 전환 버튼, 선택' },
   { id: 'status', label: '상태', hint: '성공, 경고, 위험, 정보' },
   { id: 'chart', label: '차트', hint: '그래프의 계열' },
-  // 목록에 없는 쓰임. 주석에 목록에 없는 묶음이 적힌 값도 여기에 놓인다(kindnote.ts의 groupFromNote).
+  // 목록에 없는 쓰임. 주석에 목록에 없는 분류가 적힌 값도 여기에 놓인다(kindnote.ts의 groupFromNote).
   { id: 'other', label: '그 밖', hint: '목록에 없는 쓰임' },
 ]
 
@@ -198,7 +198,7 @@ const isRole = (t: Token) => t.name.startsWith('--color-') && refOf(t.value) !==
 const useOf = (t: Token) => readNote(t.note, t.name.slice('--color-'.length)).use
 
 /**
- * 의미 색을 역할별로 묶는다. 묶음의 순서는 파일에서 그 역할이 처음 나오는 순서이고, 묶음 안의 순서도 파일에 적힌 순서다.
+ * 의미 색을 역할별로 묶는다. 분류의 순서는 파일에서 그 역할이 처음 나오는 순서이고, 분류 안의 순서도 파일에 적힌 순서다.
  * 순서를 따로 저장하지 않고 파일의 순서가 곧 판의 순서다.
  */
 export function roleGroups(tokens: Token[]): { use: RoleUse; items: Token[] }[] {
@@ -213,14 +213,14 @@ export function roleGroups(tokens: Token[]): { use: RoleUse; items: Token[] }[] 
   return groups
 }
 
-/** 묶음의 순서대로 의미 색을 다시 늘어놓아, 값 목록에서 의미 색이 있던 자리들에 차례로 넣는다. 다른 값의 자리는 그대로다. */
+/** 분류의 순서대로 의미 색을 다시 늘어놓아, 값 목록에서 의미 색이 있던 자리들에 차례로 넣는다. 다른 값의 자리는 그대로다. */
 function place(tokens: Token[], groups: { items: Token[] }[]): Token[] {
   const sorted = groups.flatMap((g) => g.items)
   let k = 0
   return tokens.map((t) => (isRole(t) ? sorted[k++] : t))
 }
 
-/** 역할 묶음을 통째로 옮긴다. before 묶음의 앞에 놓고, null이면 맨 뒤에 놓는다. */
+/** 역할 분류를 통째로 옮긴다. before 분류의 앞에 놓고, null이면 맨 뒤에 놓는다. */
 export function moveRoleGroup(tokens: Token[], use: RoleUse, before: RoleUse | null): Token[] {
   const groups = roleGroups(tokens)
   const moving = groups.find((g) => g.use === use)
@@ -231,7 +231,7 @@ export function moveRoleGroup(tokens: Token[], use: RoleUse, before: RoleUse | n
   return place(tokens, rest)
 }
 
-/** 의미 색 하나를 같은 묶음 안에서 옮긴다. before 색의 앞에 놓고, null이면 묶음의 맨 뒤에 놓는다. */
+/** 의미 색 하나를 같은 분류 안에서 옮긴다. before 색의 앞에 놓고, null이면 분류의 맨 뒤에 놓는다. */
 export function moveRole(tokens: Token[], name: string, before: string | null): Token[] {
   const groups = roleGroups(tokens)
   const group = groups.find((g) => g.items.some((t) => t.name === name))
@@ -244,7 +244,7 @@ export function moveRole(tokens: Token[], name: string, before: string | null): 
   return place(tokens, groups)
 }
 
-/** 고른 의미 색들을 같은 묶음 안에서 한 칸 뒤(1)나 앞(-1)으로 옮긴다. 묶음의 끝에 닿으면 그대로 둔다. */
+/** 고른 의미 색들을 같은 분류 안에서 한 칸 뒤(1)나 앞(-1)으로 옮긴다. 분류의 끝에 닿으면 그대로 둔다. */
 export function shiftRoles(tokens: Token[], names: string[], dir: 1 | -1): Token[] {
   const groups = roleGroups(tokens)
   for (const g of groups) {
@@ -271,7 +271,7 @@ const NEUTRAL_CHROMA = 0.04
 
 /**
  * 판 안의 순서를 기본으로 돌려놓는다.
- * 묶음은 글자, 바탕, 테두리, 채움, 상태, 차트 순서. 묶음 안에서는 무채색(회색·검정·흰색)을 가리키는 색을 먼저, 색깔 있는 것을 뒤에 둔다.
+ * 분류는 글자, 바탕, 테두리, 채움, 상태, 차트 순서. 분류 안에서는 무채색(회색·검정·흰색)을 가리키는 색을 먼저, 색깔 있는 것을 뒤에 둔다.
  * 글자·테두리·버튼은 진한 것부터, 바탕은 밝은 것부터 놓는다. 색깔 있는 것은 색상 판의 목록 순서를 따르고, 같은 목록 안에서는 같은 밝기 규칙을 쓴다.
  * 가리키는 색이 없는 것은 맨 뒤에 둔다. 조건이 같으면 지금 순서 그대로다.
  */

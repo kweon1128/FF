@@ -212,7 +212,7 @@ export function RoleSample({ shape, color, around, words: written = '' }: { shap
 
 /**
  * 의미 색 판의 내용. 역할(글자, 바탕, 테두리, 채움, 상태, 차트)별로 묶어 보여 준다.
- * 묶음의 순서와 묶음 안의 순서는 파일에 적힌 순서이고, 끌어서 바꾸면 파일의 순서가 바뀐다.
+ * 분류의 순서와 분류 안의 순서는 파일에 적힌 순서이고, 끌어서 바꾸면 파일의 순서가 바뀐다.
  * folded면 설명과 예시를 숨기고 색과 이름만 한 줄에 세 개씩 놓는다.
  */
 export function RoleList({
@@ -234,16 +234,16 @@ export function RoleList({
   selected: string[]
   folded: boolean
   onSelect: (name: string, additive: boolean) => void
-  /** 묶음 제목을 누르면 그 묶음의 색을 모두 선택한다. */
+  /** 분류 제목을 누르면 그 분류의 색을 모두 선택한다. */
   onSelectGroup: (names: string[], additive: boolean, rename: boolean) => void
   onRename: (name: string) => void
-  /** 색을 같은 묶음 안의 다른 자리로 옮긴다. before는 그 앞에 놓일 색(묶음의 맨 끝이면 null). */
+  /** 색을 같은 분류 안의 다른 자리로 옮긴다. before는 그 앞에 놓일 색(분류의 맨 끝이면 null). */
   onMove: (name: string, before: string | null) => void
   onMoveGroup: (use: RoleUse, before: RoleUse | null) => void
 }) {
   const around = sampleColors(all)
   const groups = roleGroups(items)
-  // 줄은 같은 묶음 안에서만 옮겨진다. 접은 판은 한 줄에 세 칸이라 읽는 순서로 자리를 찾는다.
+  // 줄은 같은 분류 안에서만 옮겨진다. 접은 판은 한 줄에 세 칸이라 읽는 순서로 자리를 찾는다.
   const useOf = new Map(groups.flatMap((g) => g.items.map((t) => [t.name, g.use] as const)))
   const rows = useReorder(groups.flatMap((g) => g.items.map((t) => t.name)), onMove, { grid: folded, gap: 4, scopeOf: (name) => useOf.get(name) ?? '' })
   const groupDrag = useReorder(groups.map((g) => g.use), (use, before) => onMoveGroup(use as RoleUse, before as RoleUse | null), { attr: 'data-role-group', gap: 24 })
@@ -254,7 +254,7 @@ export function RoleList({
         return (
           <div key={use} data-role-group={use} className={`relative ${groupDrag.moving(use) ? 'opacity-dragging' : ''}`}>
             {groupDrag.line(use)}
-            {/* 묶음 제목을 누르면 그 묶음의 색이 모두 선택되고, 잡고 위아래로 끌면 묶음이 통째로 옮겨진다. */}
+            {/* 분류 제목을 누르면 그 분류의 색이 모두 선택되고, 잡고 위아래로 끌면 분류가 통째로 옮겨진다. */}
             <div className="mb-heading -ml-chip-x flex">
               <button
                 type="button"
@@ -352,7 +352,7 @@ export function RefPicker({ tokens, value, onChange }: { tokens: Token[]; value:
   groups.delete('')
   if (solo) groups.set('', solo)
   if (groups.size === 0) return <p className="type-body text-ink-faint">색상 판에 색이 아직 없어요.</p>
-  // 마우스로 고를 수 있는 것은 자판으로도 고른다. Tab은 견본 묶음에 한 번만 서고(고른 색, 없으면 첫 색), 방향키로 견본 사이를 옮긴다. Enter나 스페이스로 고른다.
+  // 마우스로 고를 수 있는 것은 자판으로도 고른다. Tab은 견본 분류에 한 번만 서고(고른 색, 없으면 첫 색), 방향키로 견본 사이를 옮긴다. Enter나 스페이스로 고른다.
   const all = [...groups.values()].flat()
   const stop = all.find((t) => t.name === value)?.name ?? all[0]?.name
   function onKeys(e: KeyboardEvent<HTMLDivElement>) {

@@ -8,13 +8,13 @@ import { useContext, useState, type FormEvent, type ReactNode } from 'react'
 import { ArrowUpRight } from 'lucide-react'
 import type { Token } from './lib/api'
 import { KINDS, SLUG, slugMessage, lengthLabel, shortName, type Kind } from './lib/catalog'
-import { BORDER_NAMES, BORDER_SHAPES, BORDER_WORDS, isBorderListShape, readBorderNote, resolveThickness, thicknessRefOf, writeBorderNote, type BorderKind, type BorderShape } from './lib/borders'
+import { BORDER_GROUPS, BORDER_NAMES, BORDER_SHAPES, BORDER_SHAPE_FOR, BORDER_WORDS, guessBorderGroup, isBorderListShape, readBorderNote, resolveThickness, thicknessRefOf, writeBorderNote, type BorderExample, type BorderGroup, type BorderKind, type BorderShape } from './lib/borders'
 import { sampleColors, type SampleColors } from './lib/sample'
 import { NavRows, PanelSection } from './SampleParts'
 import { PreviewFontContext, PreviewSpaceContext } from './ColorUses'
 import { CODE_OPEN, CodeRows, FoldSection, Section, WHERE_OPEN, ICON_BUTTON } from './Inspector'
 import { DetailsFolded, HOVER, OUTLINE, SELECTED, SelectionLabel, isAdditive } from './TokenScreen'
-import { Button, Field, Phrases, UsePicker, inputClass , linkRowClass } from './ui'
+import { Button, Field, Phrases, UsePicker, inputClass, linkRowClass } from './ui'
 import { freeName, nearestRef } from './lib/nearest'
 import { nameRules, useField } from './useField'
 import { useReorder } from './useReorder'
@@ -154,9 +154,12 @@ function shownOf(tokens: Token[], value: string) {
   return { ref, length, shown: length ?? (ref ? `${lengthLabel(THICKNESS, ref)} · 없어짐` : value) }
 }
 
+type BorderRow = { t: Token; short: string; group: BorderGroup; text: string; examples: BorderExample[] }
+
 /**
- * 의미 테두리 판에서 한 종류(테두리 선, 외곽선)의 내용. 한 줄에 값 하나. 왼쪽 칸(224px)에 이름, 가리키는 굵기, 설명이 있고 오른쪽에 그 선이 그어진 모습이 있다.
- * 이름과 값, 설명은 자르지 않고 줄을 바꿔 다 보여 준다.
+ * 의미 테두리 판에서 한 종류(테두리 선, 외곽선)의 내용. 종류 안을 분류(버튼, 입력칸, 패널 …)로 나누고, 분류 아래에 값이 한 줄씩 놓인다.
+ * 판은 종류로 먼저 나누고 그 안을 분류로 나눈다(DESIGN.md "종류와 분류"). 종류의 제목이 판의 제목 글자라서, 분류의 제목은 그보다 작고 옅게 적는다.
+ * 분류의 제목을 누르면 그 분류의 값이 모두 선택되고, 끌면 이 종류 안에서 분류의 순서가 바뀐다(다른 의미 판의 분류 제목과 같다).
  */
 export function BorderList({
   kind,
@@ -164,8 +167,10 @@ export function BorderList({
   all,
   selected,
   onSelect,
+  onSelectGroup,
   onRename,
   onMove,
+  onMoveGroup,
 }: {
   kind: Kind
   items: Token[]
@@ -173,22 +178,82 @@ export function BorderList({
   all: Token[]
   selected: string[]
   onSelect: (name: string, additive: boolean) => void
+  onSelectGroup: (names: string[], additive: boolean, focusGroup: boolean) => void
   onRename: (name: string) => void
-  /** 끌어서 차례를 바꾼다. 의미 테두리는 쓰임으로 이름 붙인 값이라 차례를 사람이 정한다. */
+  /** 끌어서 순서를 바꾼다. 의미 테두리는 쓰임으로 이름 붙인 값이라 순서를 사람이 정한다. */
+  onMove?: (name: string, before: string | null) => void
+  /** 분류 제목을 끌어 이 종류 안에서 분류의 순서를 바꾼다. */
+  onMoveGroup?: (kind: Kind, group: BorderGroup, before: BorderGroup | null) => void
+}) {
+  const id = kind.id as BorderKind
+  const rows: BorderRow[] = items.map((t) => {
+    const short = shortName(kind, t.name)
+    return { t, short, ...readBorderNote(id, t.note, short) }
+  })
+  // 분류는 파일에 처음 나오는 순서대로 놓는다. 끌어서 바꾼 순서가 파일에 남는다. 두 종류의 분류가 서로 섞여 끌리지 않게 종류를 앞에 붙인다.
+  const groups = [...new Set(rows.map((r) => r.group))]
+  const key = (g: BorderGroup) => `${id}:${g}`
+  const bare = (k: string | null) => (k === null ? null : (k.slice(id.length + 1) as BorderGroup))
+  const groupDrag = useReorder(groups.map(key), onMoveGroup && ((name, before) => onMoveGroup(kind, bare(name)!, bare(before))), { attr: 'data-border-group', gap: 16 })
+  // 값이 없으면 빈 상자를 남기지 않는다. 추가는 종류 제목 줄의 버튼으로 한다.
+  if (items.length === 0) return null
+  const colors = sampleColors(all)
+  return (
+    <div className="space-y-settings">
+      {groups.map((g) => {
+        const list = rows.filter((r) => r.group === g)
+        // 줄을 분류의 맨 끝에 놓으면, 파일에서도 이 분류의 마지막 줄 바로 뒤에 놓는다. 파일의 맨 끝으로 보내면 다른 분류의 값들 뒤로 간다.
+        const moveRow =
+          onMove &&
+          ((name: string, before: string | null) => {
+            if (before !== null) return onMove(name, before)
+            const last = list.filter((r) => r.t.name !== name).at(-1)
+            const after = last ? items.slice(items.indexOf(last.t) + 1).find((t) => t.name !== name) : undefined
+            onMove(name, after?.name ?? null)
+          })
+        return (
+          <div key={g} data-border-group={key(g)} className={`relative ${groupDrag.moving(key(g)) ? 'opacity-dragging' : ''}`}>
+            {groupDrag.line(key(g))}
+            <button
+              type="button"
+              onClick={(e) => !groupDrag.justDragged() && onSelectGroup(list.map((r) => r.t.name), isAdditive(e), false)}
+              {...groupDrag.grab(key(g))}
+              className={`mb-label -ml-chip-x block rounded-small px-chip-x type-label text-ink-faint outline-selection hover:bg-hover focus-visible:outline-focus ${onMoveGroup ? 'cursor-grab active:cursor-grabbing' : ''}`}
+            >
+              {BORDER_GROUPS.find((x) => x.id === g)!.label}
+            </button>
+            <BorderRows list={list} all={all} colors={colors} selected={selected} onSelect={onSelect} onRename={onRename} onMove={moveRow} />
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/** 한 분류의 줄들. 한 줄에 값 하나. 왼쪽 칸(224px)에 이름, 가리키는 굵기, 설명이 있고 오른쪽에 그 선이 그어진 모습이 있다. 이름과 값, 설명은 자르지 않고 줄을 바꿔 다 보여 준다. */
+function BorderRows({
+  list,
+  all,
+  colors,
+  selected,
+  onSelect,
+  onRename,
+  onMove,
+}: {
+  list: BorderRow[]
+  all: Token[]
+  colors: SampleColors
+  selected: string[]
+  onSelect: (name: string, additive: boolean) => void
+  onRename: (name: string) => void
   onMove?: (name: string, before: string | null) => void
 }) {
   // 판을 접었으면 설명과 예시를 숨기고 이름과 값만 보여 준다.
   const plain = useContext(DetailsFolded)
-  const reorder = useReorder(items.map((t) => t.name), onMove)
-  // 값이 없으면 빈 상자를 남기지 않는다. 추가는 묶음 제목 줄의 버튼으로 한다.
-  if (items.length === 0) return null
-  const id = kind.id as BorderKind
-  const colors = sampleColors(all)
+  const reorder = useReorder(list.map((r) => r.t.name), onMove)
   return (
     <div className="space-y-rows rounded-float border-edge border-hairline bg-canvas p-menu">
-      {items.map((t) => {
-        const short = shortName(kind, t.name)
-        const { text, examples } = readBorderNote(id, t.note)
+      {list.map(({ t, short, text, examples }) => {
         const isSelected = selected.includes(t.name)
         const { length, shown } = shownOf(all, t.value)
         // 예시는 굵기를 알고(가리키는 값이 없어졌으면 그릴 수 없다) 주석에 모양이 적혀 있을 때만 그린다. 없으면 왼쪽 칸이 줄 전체를 쓴다.
@@ -257,6 +322,7 @@ function nameProblem(kind: Kind, name: string, tokens: Token[], self?: string) {
 
 /**
  * 의미 테두리 하나(테두리 선, 외곽선)를 고치는 패널. 구역의 차례는 다른 패널과 같다: 이름, 값(가리키는 테두리), 설명, 쓰이는 곳, 코드.
+ * 종류(테두리 선, 외곽선)는 여기서 바꾸지 않는다. 만들 때 판의 제목 줄에서 정해지고, 바꾸려면 지우고 다시 만든다(다른 판도 패널에서 종류를 바꾸지 않는다).
  * 의미 테두리는 테두리 판의 값을 가리키기만 한다. 길이를 여기에 직접 적지 않는다.
  * 예시는 여기서 고치지 않는다. 그 선이 화면 어디에 그어졌는지는 페이지를 만든 AI가 파일의 주석에 적는다(파일 맨 위의 안내 참고).
  */
@@ -288,7 +354,7 @@ export function BorderInspector({
 }) {
   const id = kind.id as BorderKind
   const short = shortName(kind, token.name)
-  const { text, picked, words, more } = readBorderNote(id, token.note)
+  const { group, text, picked, words, more } = readBorderNote(id, token.note, short)
   // 이름 칸. 쓸 수 없는 글자는 적는 중에 알리고 벗어나면 되돌린다. 모양이 틀린 이름과 이 판의 규칙은 벗어날 때 알리고 칸에 남긴다(useField).
   const nameField = useField(nameRules({ saved: short, done: (next) => nameProblem(kind, next, tokens, token.name), save: (next) => onRename(kind.prefix + next) }))
   const [textDraft, setTextDraft] = useState(text)
@@ -298,7 +364,7 @@ export function BorderInspector({
 
   function commitText() {
     // 같은 주석에 적혀 있는 예시(모양과 문구)는 그대로 둔다.
-    if (textDraft.trim() !== text) onChange({ note: writeBorderNote(id, textDraft, picked, words, more) })
+    if (textDraft.trim() !== text) onChange({ note: writeBorderNote(group, textDraft, picked, words, more) })
   }
 
   return (
@@ -346,6 +412,10 @@ export function BorderInspector({
         )}
       </Section>
 
+      <Section title="분류">
+        <UsePicker label="분류" options={BORDER_GROUPS} value={group} nameWidth="w-picker-name" onChange={(next) => onChange({ note: writeBorderNote(next, textDraft, picked, words, more) })} />
+      </Section>
+
       <Section title="설명">
         <input className={inputClass} aria-label="설명" value={textDraft} onChange={(e) => setTextDraft(e.target.value)} onBlur={commitText} onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()} />
       </Section>
@@ -376,31 +446,25 @@ export function BorderInspector({
 }
 
 /**
- * 의미 테두리(테두리 선, 외곽선)를 만드는 양식. 종류, 이름, 가리키는 테두리, 설명을 정한다. 추가는 판 위에 하나이고 종류는 여기서 고른다(의미 크기의 추가와 같다).
- * 두 종류는 묻는 것이 같아서 추가를 나누지 않는다. 효과는 종류마다 묻는 것이 달라 추가가 종류마다 있다.
+ * 의미 테두리(테두리 선, 외곽선)를 만드는 양식. 이름, 가리키는 테두리, 예시, 설명을 정한다(다른 의미 판의 추가 창과 같은 순서다).
+ * 종류는 묻지 않는다. 판이 테두리 선과 외곽선의 제목으로 나뉘어 있고 "추가"가 그 제목 줄마다 있어서, 누른 자리가 종류를 정한다(kind). 효과, 움직임, 글꼴 판과 같다.
  * 가리키는 테두리는 고르지 않은 채로 시작한다. 첫 값을 골라 두면 이름만 적고 만들었을 때 엉뚱한 굵기를 가리키는 값이 생긴다.
  * 예시의 모양을 고르고, 테두리를 고르면 판의 줄과 같은 예시를 창 오른쪽의 영역에 보여 준다(WithExample). 고른 모양은 주석에 적힌다(문구는 적지 않아 모양의 기본 문구로 그려진다).
  */
-/** 의미 테두리의 종류. 추가 창에서 고른다(이름은 진하게, 쓰는 클래스와 그 종류에 드는 것은 옅게). */
-const BORDER_KINDS: { id: BorderKind; label: string; hint: string }[] = [
-  { id: 'border', label: '테두리 선', hint: 'border-이름. 테두리, 구분선' },
-  { id: 'outline', label: '외곽선', hint: 'outline-이름. 초점 표시' },
-]
-
-export function NewBorderForm({ start, tokens, onCreate, onCancel }: { start?: Kind; tokens: Token[]; onCreate: (kind: Kind, name: string, value: string, note: string) => void; onCancel: () => void }) {
-  // 의미 테두리 하나를 골라 둔 채 열면 그 종류가 골라져 있다.
-  const [kindId, setKindId] = useState<BorderKind>(start?.id === 'outline' ? 'outline' : 'border')
-  const kind = KINDS[kindId]
+export function NewBorderForm({ kind, tokens, onCreate, onCancel }: { kind: Kind; tokens: Token[]; onCreate: (kind: Kind, name: string, value: string, note: string) => void; onCancel: () => void }) {
+  const kindId = kind.id as BorderKind
   const options = baseOptions(tokens)
   const [name, setName] = useState('')
   // 창을 열자마자 예시가 보이게, 가리키는 값은 흔히 쓰는 굵기(1px)에 가장 가까운 것을 골라 둔다(DESIGN.md dialog-defaults). 예시를 보며 바꾼다.
   const [ref, setRef] = useState<string | null>(() => nearestRef(tokens, options.map((o) => o.id), 1))
   const [text, setText] = useState('')
   const [error, setError] = useState<{ name?: string; ref?: string }>({})
-  // 예시의 모양. 종류마다 고를 수 있는 모양이 다르다. 처음에는 그 종류의 첫 모양이고, 종류를 바꿔 고른 모양이 맞지 않게 되면 새 종류의 첫 모양으로 돌아간다.
+  // 예시의 모양. 종류마다 고를 수 있는 모양이 다르다. 처음에는 그 종류의 첫 모양이다.
   const shapes = BORDER_SHAPES.filter((s) => s.kind === kindId)
   const [picked, setPicked] = useState<BorderShape | null>(null)
-  const shape = shapes.find((s) => s.id === picked)?.id ?? shapes[0].id
+  const [group, setGroup] = useState<BorderGroup | null>(null)
+  const shownGroup = group ?? (name.trim() ? guessBorderGroup(name.trim()) : 'input')
+  const shape = shapes.find((s) => s.id === picked)?.id ?? BORDER_SHAPE_FOR[kindId][shownGroup]
   // 이름 칸은 비워 두고, 고른 예시에 맞는 이름을 옅은 글자로 추천한다(DESIGN.md dialog-defaults). 추천은 값이 아니다. 비운 채 추가하면 "이름을 입력해 주세요."다.
   const suggestedName = freeName(tokens, kind.prefix, BORDER_NAMES[shape])
   // 고른 테두리의 굵기. 판의 줄(BorderList)과 같이 길이로 그린다.
@@ -414,7 +478,7 @@ export function NewBorderForm({ start, tokens, onCreate, onCancel }: { start?: K
     if (problem) next.name = problem
     if (!ref) next.ref = '테두리를 골라 주세요.'
     setError(next)
-    if (Object.keys(next).length === 0 && ref) onCreate(kind, kind.prefix + n, `var(${ref})`, writeBorderNote(kindId, text, shape))
+    if (Object.keys(next).length === 0 && ref) onCreate(kind, kind.prefix + n, `var(${ref})`, writeBorderNote(shownGroup, text, shape))
   }
 
   // 가리킬 굵기가 하나도 없으면 만들 수 없다. 막다른 곳이라 무엇을 먼저 할지 알려 준다.
@@ -431,19 +495,6 @@ export function NewBorderForm({ start, tokens, onCreate, onCancel }: { start?: K
   return (
     <form onSubmit={submit}>
       <WithExample example={length !== null ? <BorderSample shape={shape} value={length} colors={sampleColors(tokens)} /> : null}>
-      <Field label="종류" plain>
-        <UsePicker
-          label="종류"
-          options={BORDER_KINDS}
-          nameWidth="w-picker-name-wide"
-          value={kindId}
-          onChange={(next) => {
-            setKindId(next)
-            // 같은 이름이 있는지는 종류마다 다르다.
-            setError({ ...error, name: undefined })
-          }}
-        />
-      </Field>
       <Field label="이름" error={error.name}>
         <input
           autoFocus
@@ -468,6 +519,9 @@ export function NewBorderForm({ start, tokens, onCreate, onCancel }: { start?: K
             setError({ ...error, ref: undefined })
           }}
         />
+      </Field>
+      <Field label="분류" plain>
+        <UsePicker label="분류" options={BORDER_GROUPS} value={shownGroup} nameWidth="w-picker-name" onChange={setGroup} />
       </Field>
       <Field label="예시" plain>
         <UsePicker label="예시" options={shapes} value={shape} nameWidth="w-picker-name-long" onChange={setPicked} />

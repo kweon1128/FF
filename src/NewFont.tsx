@@ -7,7 +7,7 @@ import { CATALOG, FALLBACKS, commonFonts, fontValue, loadCatalog, loadFont, name
 import { useUndo } from './lib/useUndo'
 import { Button, inputClass } from './ui'
 
-/** 한 묶음에서 한 번에 그리는 글꼴의 수. 줄마다 그 글꼴로 그리므로 너무 많으면 느려진다. 더 찾으려면 이름을 적어 좁힌다. */
+/** 한 분류에서 한 번에 그리는 글꼴의 수. 줄마다 그 글꼴로 그리므로 너무 많으면 느려진다. 더 찾으려면 이름을 적어 좁힌다. */
 const MAX_ROWS = 80
 /** 나란히 견주는 후보의 수. */
 const SLOTS = 3
@@ -146,7 +146,7 @@ export function FontSample({
   const [, setLoaded] = useState(0)
   useEffect(() => {
     let alive = true
-    // 한글 글꼴은 글자 묶음별로 나뉘어 있어서, 견본에 실제로 쓰는 글자들을 청해야 그 묶음이 불려 온다.
+    // 한글 글꼴은 글자 분류별로 나뉘어 있어서, 견본에 실제로 쓰는 글자들을 청해야 그 분류가 불려 온다.
     Promise.all([W_CONTROL, W_HEADING, weight].map((w) => document.fonts.load(`${w} 16px ${family}`, BOXED.join('') + 'H')))
       .then(() => alive && setLoaded((n) => n + 1))
       .catch(() => {})
@@ -379,7 +379,7 @@ export function NewFontForm({
   const typed = query.trim().toLowerCase()
   const hit = (family: string) => !typed || family.toLowerCase().includes(typed)
   const groups = new Map<string, string[]>()
-  // 맨 위는 이 시스템의 글꼴. 같은 글꼴이 아래 묶음에 또 나오지 않게 한다.
+  // 맨 위는 이 시스템의 글꼴. 같은 글꼴이 아래 분류에 또 나오지 않게 한다.
   const mineFirst = own.filter(hit)
   if (mineFirst.length > 0) groups.set(SYSTEM, mineFirst)
   for (const f of CATALOG) if (hit(f.family) && !own.includes(f.family)) groups.set(f.group, [...(groups.get(f.group) ?? []), f.family])

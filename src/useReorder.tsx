@@ -1,5 +1,5 @@
 // 끌어서 차례를 바꾸는 동작. 판에서 끌 수 있는 것은 모두 이것 하나로 끈다:
-// 값의 줄과 칸(효과, 글꼴 종류, 의미 색, 의미 글꼴, 의미 간격, 예외 색), 그리고 묶음(색 목록, 의미 판의 묶음, 판 안의 종류).
+// 값의 줄과 칸(효과, 글꼴 종류, 의미 색, 의미 글꼴, 의미 간격, 예외 색), 그리고 분류(색 목록, 의미 판의 분류, 판 안의 종류).
 // 끄는 법이 한 곳에 있어야 어느 판에서나 똑같이 움직인다(얼마나 끌어야 옮기기로 치는지, 놓일 자리를 어떻게 찾는지, 선을 어디에 긋는지).
 
 import { useRef, useState, type PointerEvent } from 'react'
@@ -13,11 +13,11 @@ const LINE = 'pointer-events-none absolute z-mark bg-selection'
 type Options = {
   /** 여러 칸으로 놓인 목록. 읽는 순서(왼쪽에서 오른쪽, 위에서 아래)로 자리를 찾고, 선을 칸의 왼쪽·오른쪽에 세로로 긋는다. */
   grid?: boolean
-  /** 끄는 것을 화면에서 찾을 때 쓰는 속성의 이름. 값은 data-token, 묶음은 그 묶음에 붙인 속성(data-kind 등)이다. */
+  /** 끄는 것을 화면에서 찾을 때 쓰는 속성의 이름. 값은 data-token, 분류는 그 분류에 붙인 속성(data-kind 등)이다. */
   attr?: string
-  /** 이웃한 둘 사이의 틈(px). 줄 사이는 4, 격자의 칸 사이는 12, 묶음 사이는 24(종류 안의 묶음 사이는 16). 주지 않으면 줄은 4, 격자는 12다. */
+  /** 이웃한 둘 사이의 틈(px). 줄 사이는 4, 격자의 칸 사이는 12, 분류 사이는 24(종류 안의 분류 사이는 16). 주지 않으면 줄은 4, 격자는 12다. */
   gap?: 4 | 12 | 16 | 24
-  /** 그 이름이 속한 묶음. 주면 같은 묶음 안에서만 옮겨진다(다른 묶음의 자리는 놓을 곳으로 치지 않는다). */
+  /** 그 이름이 속한 분류. 주면 같은 분류 안에서만 옮겨진다(다른 분류의 자리는 놓을 곳으로 치지 않는다). */
   scopeOf?: (name: string) => string
 }
 
@@ -31,7 +31,7 @@ export function useReorder(names: string[], onMove: ((name: string, before: stri
   const dragged = useRef(false)
   const [drop, setDrop] = useState<{ name: string; before: string | null } | null>(null)
 
-  /** 그 이름과 자리를 바꿀 수 있는 것들(같은 묶음의 것들). */
+  /** 그 이름과 자리를 바꿀 수 있는 것들(같은 분류의 것들). */
   const peers = (name: string) => (scopeOf ? names.filter((n) => scopeOf(n) === scopeOf(name)) : names)
 
   /** 마우스 자리에서 놓으면 어느 것의 앞에 들어가는지. */
@@ -45,7 +45,7 @@ export function useReorder(names: string[], onMove: ((name: string, before: stri
     return null
   }
 
-  /** 잡고 끄는 것(줄, 칸, 묶음 제목)의 버튼에 펼쳐 붙인다. 5px 넘게 끌어야 옮기기로 치고, 그냥 누르면 선택이다. */
+  /** 잡고 끄는 것(줄, 칸, 분류 제목)의 버튼에 펼쳐 붙인다. 5px 넘게 끌어야 옮기기로 치고, 그냥 누르면 선택이다. */
   const grab = (name: string) =>
     onMove
       ? {
@@ -82,7 +82,7 @@ export function useReorder(names: string[], onMove: ((name: string, before: stri
         }
       : {}
 
-  /** 그 줄(칸, 묶음) 안에 그릴, 놓일 자리의 선. 놓일 자리가 아니면 null. 그 요소는 relative여야 한다. */
+  /** 그 줄(칸, 분류) 안에 그릴, 놓일 자리의 선. 놓일 자리가 아니면 null. 그 요소는 relative여야 한다. */
   const line = (name: string) => {
     if (!drop || drop.name === name) return null
     const list = peers(drop.name)

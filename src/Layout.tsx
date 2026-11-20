@@ -21,7 +21,7 @@ const FIT = 213
 const WIDTH = KINDS.width
 
 /** 그 폭을 몇 분의 일로 줄여 그리는지. */
-const scaleOf = (value: string) => sampleScale(WIDTH, `${pxOf(value)}px`, undefined, FIT)
+const scaleOf = (value: string) => sampleScale(WIDTH, `${pxOf(value)}px`, FIT)
 const scaleNote = (value: string) => (Number.isNaN(pxOf(value)) || scaleOf(value) === 1 ? '' : ` · 그림은 1/${scaleOf(value)}`)
 
 /**

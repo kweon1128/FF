@@ -266,7 +266,7 @@ export function Segmented<T extends string>({ label, options, value, fit = false
       role="radiogroup"
       aria-label={label}
       className="flex gap-actions-tight rounded-control bg-hover p-menu"
-      // 하나를 고르는 묶음이라 Tab은 고른 칸에만 서고, ←→(↑↓)로 옆 칸을 고른다.
+      // 하나를 고르는 분류라 Tab은 고른 칸에만 서고, ←→(↑↓)로 옆 칸을 고른다.
       onKeyDown={(e) => {
         const step = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0
         if (!step) return
@@ -397,9 +397,9 @@ export function Modal({
 }
 
 /**
- * 정해 둔 묶음 가운데 하나를 고르는 칸(의미 색의 역할, 의미 글꼴의 묶음). 닫혀 있을 때는 고르는 칸의 모양이고, 누르면 목록이 아래에 펼쳐진다.
+ * 정해 둔 분류 가운데 하나를 고르는 칸(의미 색의 역할, 의미 글꼴의 분류). 닫혀 있을 때는 고르는 칸의 모양이고, 누르면 목록이 아래에 펼쳐진다.
  * 브라우저의 고르는 칸(select)을 쓰지 않는다. 그 목록에서는 글자를 한 가지 모양으로만 적을 수 있어서,
- * 묶음의 이름(글자, 바탕…)과 그 묶음에 드는 것들(본문, 링크, 아이콘)이 한 줄에 같은 모양으로 이어져 무엇이 이름인지 헷갈린다.
+ * 분류의 이름(글자, 바탕…)과 그 분류에 드는 것들(본문, 링크, 아이콘)이 한 줄에 같은 모양으로 이어져 무엇이 이름인지 헷갈린다.
  * 여기서는 이름을 진하게 정해진 폭에 적고, 드는 것들은 그 옆에 옅게 적는다. 이름들이 한 열로 줄을 서서 이름만 훑어 고를 수 있다.
  * nameWidth는 이름 칸의 폭이다. 가장 긴 이름이 들어가는 폭으로 정한다(세 글자까지는 w-picker-name 48px, 네 글자나 "숫자·코드"가 있으면 w-picker-name-wide 64px).
  * value가 null이면 아직 고르지 않은 칸이다(추가 창의 가리키는 값). 칸에 옅게 "고르기"가 보이고 목록에는 고른 줄이 없다.
@@ -415,7 +415,7 @@ export function UsePicker<T extends string>({
   lost,
 }: {
   label: string
-  /** heading이 있는 줄 앞에는 그 글자로 묶음 제목이 놓인다(의미 색 / 색상처럼 목록이 두 묶음일 때). */
+  /** heading이 있는 줄 앞에는 그 글자로 분류 제목이 놓인다(의미 색 / 색상처럼 목록이 두 분류일 때). */
   options: { id: T; label: string; hint: string; heading?: string }[]
   value: T | null
   onChange: (use: T) => void
@@ -526,7 +526,7 @@ export function UsePicker<T extends string>({
         ref={anchor}
         onClick={toggle}
         onKeyDown={(e) => {
-          // ↑↓로 펼치지 않고도 묶음을 바꾼다. 아직 고르지 않았으면 어느 쪽을 눌러도 첫 값부터 고른다. Esc는 목록을 닫는다.
+          // ↑↓로 펼치지 않고도 분류를 바꾼다. 아직 고르지 않았으면 어느 쪽을 눌러도 첫 값부터 고른다. Esc는 목록을 닫는다.
           if (e.key === 'Escape') return setOpen(false)
           if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
           e.preventDefault()

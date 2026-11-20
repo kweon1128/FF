@@ -85,7 +85,7 @@ import { EffectInspector } from './Effects'
 import { NewRadiusForm, RadiusInspector } from './Radius'
 import { RADIUS_GROUPS, readRadiusNote, type RadiusGroup } from './lib/radius'
 import { BorderInspector, NewBorderForm } from './Borders'
-import { isBorderKind } from './lib/borders'
+import { BORDER_GROUPS, borderGroupOf, isBorderKind, type BorderGroup } from './lib/borders'
 import { LayerInspector, NewLayerForm } from './Layers'
 import { NewValueForm, ValueInspector } from './ValueBoard'
 import { specOf } from './valueSpecs'
@@ -93,10 +93,10 @@ import { followShadowRefs, isEffectKind, shadowRefs } from './lib/effects'
 import { colorRefsIn, followColorRefs } from './lib/gradient'
 import { easeRefsIn, followEaseRefs } from './lib/motion'
 import { NewSpaceUseForm, SpaceUseInspector, spaceVars } from './Spacing'
-import { LengthInspector, NewLengthForm, NewSizeForm, SizeInspector, SizeThings, sizeVars } from './Sizes'
-import { SIZE_GROUPS, isSizeKind, readSizeNote } from './lib/sizes'
+import { LengthInspector, NewLengthForm, NewSizeForm, SizeBoard, SizeInspector, sizeVars } from './Sizes'
+import { SIZE_GROUPS, isSizeKind, readSizeNote, sizeGroupOfToken, sizeKindOf } from './lib/sizes'
 import type { SpaceUse } from './lib/spacing'
-import { autoOrder, colorListSlot, newGroupSlot, moveRadiusGroup, radiusGroupOrder, shiftRadii, defaultFreeOrder, defaultKindOrder, isAutoOrdered, isFreeKind, moveException, moveInKind, moveKind, moveSpaceGroup, orderKinds, shiftSpaceUses, spaceUseOrder, stepBefore, moveSizeBoardGroup, moveSizeInThing, shiftSizeInThing, sizeBoardGroupOrder } from './lib/order'
+import { autoOrder, colorListSlot, newGroupSlot, moveRadiusGroup, borderGroupOrder, moveBorderGroup, shiftBorders, radiusGroupOrder, shiftRadii, defaultFreeOrder, defaultKindOrder, isAutoOrdered, isFreeKind, moveException, moveInKind, moveKind, moveSpaceGroup, orderKinds, shiftSpaceUses, spaceUseOrder, stepBefore, moveSizeBoardGroup, moveSizeInGroup, shiftSizeInGroup, sizeBoardGroupOrder, defaultSizeOrder } from './lib/order'
 import { SPACE_USES, readSpaceNote } from './lib/spacing'
 import { NewTypesForm } from './NewTypes'
 import { TYPE_USES, readTypeNote, defaultTypeOrder, followTypeRefs, moveType, moveTypeGroup, shiftTypes, syncTypes, typeGroups, typeUsers, withTypeTrack, type TypeUse } from './lib/types'
@@ -707,8 +707,8 @@ export function App() {
   }
 
   /**
-   * 묶음이 있는 의미 값(의미 색, 의미 글꼴, 의미 간격, 의미 크기, 의미 모서리)을 추가한다.
-   * 그 묶음이 판에 이미 있으면 늘 놓던 자리(after 뒤)에 놓는다. 아직 없던 묶음이면 맨 뒤가 아니라 정해진 묶음 순서의 제자리에 놓는다(newGroupSlot).
+   * 분류가 있는 의미 값(의미 색, 의미 글꼴, 의미 간격, 의미 크기, 의미 모서리)을 추가한다.
+   * 그 분류가 판에 이미 있으면 늘 놓던 자리(after 뒤)에 놓는다. 아직 없던 분류면 맨 뒤가 아니라 정해진 분류 순서의 제자리에 놓는다(newGroupSlot).
    */
   function insertInGroup<G>(token: Token, group: G, groupOf: (t: Token) => G | null, order: readonly G[], after: (t: Token) => boolean) {
     const at = newGroupSlot(tokens, groupOf, group, order)
@@ -740,7 +740,7 @@ export function App() {
     if (specOf(kind)) return setAddingValue(kind)
     // 의미 모서리도 이름과 가리키는 모서리를 정해야 만들 수 있다.
     if (kind.id === 'radius') return setAddingRadius(true)
-    // 의미 글꼴도 이름과 조합, 묶음을 묻는 창을 연다(다른 의미 판의 추가와 같다). 짝지을 재료(글꼴 종류, 글자 크기, 굵기)가 모자라면 그 창이 무엇을 먼저 만들지 알린다.
+    // 의미 글꼴도 이름과 조합, 분류를 묻는 창을 연다(다른 의미 판의 추가와 같다). 짝지을 재료(글꼴 종류, 글자 크기, 굵기)가 모자라면 그 창이 무엇을 먼저 만들지 알린다.
     if (kind.id === 'style') return setAddingType(true)
 
     if (kind.id === 'color' && group) {
@@ -779,7 +779,7 @@ export function App() {
     const next = nextPreset(kind, tokens)
     const name = kind.prefix + next.name
     if (kind.id === 'size') {
-      // 글자 크기는 줄 높이, 글자 사이와 한 묶음으로 만든다. 다른 크기의 묶인 값 뒤에 놓이도록 --text-로 시작하는 마지막 줄 뒤에 넣는다.
+      // 글자 크기는 줄 높이, 글자 사이와 한 분류로 만든다. 다른 크기의 묶인 값 뒤에 놓이도록 --text-로 시작하는 마지막 줄 뒤에 넣는다.
       // 크기는 정해진 표의 값이 아니라 지금 있는 크기들을 이어 간 값이다. 한 벌 만들기로 만든 단계들 뒤에 눌러도 같은 간격으로 이어진다.
       const made = nextSize(tokens)
       const line = made.line
@@ -1601,15 +1601,15 @@ export function App() {
       duplicate()
     } else if (
       (mod && !e.altKey && (e.code === 'BracketRight' || e.code === 'BracketLeft')) ||
-      // 값이나 묶음을 고른 채의 그냥 방향키도 같은 일을 한다(↓→는 뒤로, ↑←는 앞으로). 판을 고른 채의 방향키는 캔버스가 판을 옮기는 데 쓰는데, 판과 값은 함께 골라지지 않아 겹치지 않는다.
+      // 값이나 분류를 고른 채의 그냥 방향키도 같은 일을 한다(↓→는 뒤로, ↑←는 앞으로). 판을 고른 채의 방향키는 캔버스가 판을 옮기는 데 쓰는데, 판과 값은 함께 골라지지 않아 겹치지 않는다.
       // 패널의 고르는 칸이 이미 받은 방향키(defaultPrevented)는 건드리지 않는다.
       (!mod && !e.altKey && !e.shiftKey && !e.defaultPrevented && (e.code === 'ArrowDown' || e.code === 'ArrowRight' || e.code === 'ArrowUp' || e.code === 'ArrowLeft'))
     ) {
       if (screen === 'components' || selected.length === 0) return
       e.preventDefault()
       const dir = e.code === 'BracketRight' || e.code === 'ArrowDown' || e.code === 'ArrowRight' ? 1 : -1
-      // 끌어서 옮길 수 있는 것은 단축키로도 옮긴다. 묶음을 통째로(그리고 그것만) 골랐으면 그 묶음을, 아니면 고른 값을 묶음 안에서 옮긴다.
-      // 묶음의 제목을 누르면 그 묶음이 통째로 골라지므로, 제목을 누르고 단축키를 누르면 묶음이 옮겨진다.
+      // 끌어서 옮길 수 있는 것은 단축키로도 옮긴다. 분류를 통째로(그리고 그것만) 골랐으면 그 분류를, 아니면 고른 값을 분류 안에서 옮긴다.
+      // 분류의 제목을 누르면 그 분류가 통째로 골라지므로, 제목을 누르고 단축키를 누르면 분류가 옮겨진다.
       const picked = new Set(selected)
       const whole = (items: Token[]) => items.length > 0 && items.length === picked.size && items.every((t) => picked.has(t.name))
       const roleGroup = roleGroups(tokens).find((g) => whole(g.items))
@@ -1619,13 +1619,16 @@ export function App() {
       // 종류가 여럿인 판에서 한 종류의 값을 통째로 골랐으면 그 종류를 옮긴다.
       const board = TOKEN_SCREEN_IDS.map((id) => TOKEN_SCREENS[id].kinds).find((kinds) => kinds.length > 1 && kinds.some((k) => whole(tokens.filter((t) => k.matches(t.name)))))
       const wholeKind = board?.find((k) => whole(tokens.filter((t) => k.matches(t.name))))
-      // 의미 크기의 묶음(컨트롤, 영역)을 통째로 골랐으면 그 묶음을 옮긴다. 판의 묶음은 높이·너비·정사각형에 걸쳐 있다.
+      // 의미 크기의 분류를 통째로 골랐으면 그 분류를 옮긴다. 판의 분류는 높이·너비·정사각형에 걸쳐 있다.
       const sizes = tokens.filter((t) => [KINDS.height, KINDS.width, KINDS.square].some((k) => k.matches(t.name)))
       const sizeKindOf = (t: Token) => [KINDS.height, KINDS.width, KINDS.square].find((k) => k.matches(t.name))!
       const sizeGroup = sizeBoardGroupOrder(tokens).find((g) => whole(sizes.filter((t) => readSizeNote(t.note, shortName(sizeKindOf(t), t.name)).group === g)))
-      // 의미 모서리의 묶음(컨트롤, 컨테이너, 표시)을 통째로 골랐으면 그 묶음을 옮긴다.
+      // 의미 모서리의 분류(컨트롤, 컨테이너, 표시)을 통째로 골랐으면 그 분류를 옮긴다.
       const radii = tokens.filter((t) => KINDS.radius.matches(t.name))
       const radiusGroup = radiusGroupOrder(tokens).find((g) => whole(radii.filter((t) => readRadiusNote(t.note, shortName(KINDS.radius, t.name)).group === g)))
+      const BORDER_KINDS = [KINDS.border, KINDS.outline]
+      const borderKind = BORDER_KINDS.find((k) => borderGroupOrder(tokens, k).some((g) => whole(tokens.filter((t) => borderGroupOf(k, t) === g))))
+      const borderGroup = borderKind && borderGroupOrder(tokens, borderKind).find((g) => whole(tokens.filter((t) => borderGroupOf(borderKind, t) === g)))
       if (movableGroup !== null) moveGroup(movableGroup, dir)
       else if (roleGroup) {
         const before = stepBefore(roleGroups(tokens).map((g) => g.use), roleGroup.use, dir)
@@ -1642,24 +1645,28 @@ export function App() {
       } else if (radiusGroup) {
         const before = stepBefore(radiusGroupOrder(tokens), radiusGroup, dir)
         if (before !== undefined) commitIfMoved(moveRadiusGroup(tokens, radiusGroup, before))
+      } else if (borderKind && borderGroup && !BORDER_KINDS.some((k) => whole(tokens.filter((t) => k.matches(t.name))))) {
+        const before = stepBefore(borderGroupOrder(tokens, borderKind), borderGroup, dir)
+        if (before !== undefined) commitIfMoved(moveBorderGroup(tokens, borderKind, borderGroup, before))
       } else if (board && wholeKind) {
         const filled = orderKinds(tokens, board).filter((k) => tokens.some((t) => k.matches(t.name)))
         const before = stepBefore(filled, wholeKind, dir)
         if (before !== undefined) commitIfMoved(moveKind(tokens, board, wholeKind, before))
       }
-      // 의미 색은 같은 역할 묶음 안에서만 옮긴다(파일에서 이웃한 다른 묶음의 색과 자리를 바꾸지 않는다).
+      // 의미 색은 같은 역할 분류 안에서만 옮긴다(파일에서 이웃한 다른 분류의 색과 자리를 바꾸지 않는다).
       else if (selected.every((n) => ROLE.matches(n))) commitIfMoved(shiftRoles(tokens, selected, dir))
-      // 의미 글꼴도 같은 묶음 안에서만 옮긴다.
+      // 의미 글꼴도 같은 분류 안에서만 옮긴다.
       else if (selected.every((n) => STYLE.matches(n))) commitIfMoved(shiftTypes(tokens, selected, dir))
-      // 의미 간격도 같은 묶음 안에서만 옮긴다.
+      // 의미 간격도 같은 분류 안에서만 옮긴다.
       else if (selected.every((n) => KINDS.spaceUse.matches(n))) commitIfMoved(shiftSpaceUses(tokens, selected, dir))
-      // 의미 크기(높이, 폭, 정사각형)도 같은 묶음 안에서만 옮긴다.
-      // 판에서 한 요소 아래에 함께 놓인 줄들 사이에서다(같은 종류, 같은 묶음, 같은 모양). 하나를 골랐을 때만 옮긴다.
-      else if (commonKind && isSizeKind(commonKind)) {
-        if (selected.length === 1) commitIfMoved(shiftSizeInThing(tokens, commonKind, selected[0], dir))
+      // 의미 크기(높이, 폭, 정사각형)도 같은 분류 안에서만 옮긴다.
+      // 높이·너비·정사각형을 가리지 않고 같은 분류의 줄들 사이에서다. 하나를 골랐을 때만 옮긴다.
+      else if (selectedTokens.length > 0 && selectedTokens.every((t) => sizeKindOf(t))) {
+        if (selected.length === 1) commitIfMoved(shiftSizeInGroup(tokens, selected[0], dir))
       }
-      // 의미 모서리도 같은 묶음 안에서만 옮긴다.
+      // 의미 모서리도 같은 분류 안에서만 옮긴다.
       else if (selected.every((n) => KINDS.radius.matches(n))) commitIfMoved(shiftRadii(tokens, selected, dir))
+      else if (commonKind && isBorderKind(commonKind)) commitIfMoved(shiftBorders(tokens, commonKind, selected, dir))
       // 차례가 값의 크기로 정해지는 값(글자 크기, 간격, 색 목록 안의 단계…)은 옮기지 않는다.
       else if (selectedTokens.some(isAutoOrdered)) return
       else commitIfMoved(shiftTokens(tokens, selected, dir))
@@ -1711,7 +1718,7 @@ export function App() {
     return () => window.removeEventListener('keydown', listen)
   }, [])
 
-  /** 줄이 끌려 다닐 수 있는 범위. 종류와, 묶음이 있는 종류는 그 묶음이다(끌기의 scopeOf와 같은 뜻). */
+  /** 줄이 끌려 다닐 수 있는 범위. 종류와, 분류가 있는 종류는 그 분류다(끌기의 scopeOf와 같은 뜻). */
   const scopeOfToken = (t: Token) => {
     const kind = kindOf(t.name)
     if (!kind) return ''
@@ -1726,7 +1733,9 @@ export function App() {
             ? readSizeNote(t.note, short).group
             : KINDS.radius.matches(t.name)
               ? readRadiusNote(t.note, short).group
-              : ''
+              : isBorderKind(kind)
+                ? borderGroupOf(kind, t)
+                : ''
     return `${kind.id}:${group ?? ''}`
   }
 
@@ -1736,7 +1745,7 @@ export function App() {
    */
   const moveTogether = (move: (list: Token[], name: string, before: string | null) => Token[], name: string, before: string | null) => {
     const many = selected.length > 1 && selected.includes(name) && (before === null || !selected.includes(before))
-    // 잡은 줄과 같은 묶음에 있는 것만 함께 옮긴다. 줄은 묶음 밖으로 나가지 못하므로, 다른 묶음의 것까지 같은 자리로 보내면 그 값이 제 묶음의 끝으로 튄다.
+    // 잡은 줄과 같은 분류에 있는 것만 함께 옮긴다. 줄은 분류 밖으로 나가지 못하므로, 다른 분류의 것까지 같은 자리로 보내면 그 값이 제 분류의 끝으로 튄다.
     const held = tokens.find((t) => t.name === name)
     const scope = held ? scopeOfToken(held) : ''
     const names = many ? tokens.filter((t) => selected.includes(t.name) && scopeOfToken(t) === scope).map((t) => t.name) : [name]
@@ -1772,12 +1781,13 @@ export function App() {
     onMoveKind: (kinds: Kind[], kind: Kind, before: Kind | null) => commitIfMoved(moveKind(tokens, kinds, kind, before)),
     onMoveSpaceGroup: (use: SpaceUse, before: SpaceUse | null) => commitIfMoved(moveSpaceGroup(tokens, use, before)),
     onMoveRadiusGroup: (group: RadiusGroup, before: RadiusGroup | null) => commitIfMoved(moveRadiusGroup(tokens, group, before)),
+    onMoveBorderGroup: (kind: Kind, group: BorderGroup, before: BorderGroup | null) => commitIfMoved(moveBorderGroup(tokens, kind, group, before)),
     resetOf: (kind: Kind) => {
       const next = defaultFreeOrder(tokens, kind)
       return next === tokens ? undefined : () => commit(next)
     },
     onMoveTypeGroup: (use: TypeUse, before: TypeUse | null) => commitIfMoved(moveTypeGroup(tokens, use, before)),
-    // 의미 글꼴 판은 묶음을 제목, 본문, 보조, 컨트롤, 숫자·코드 순서로, 묶음 안은 큰 글자부터(같은 크기면 굵은 것부터) 놓는다. 이미 그 순서면 버튼이 꺼진다.
+    // 의미 글꼴 판은 분류를 제목, 본문, 보조, 컨트롤, 숫자·코드 순서로, 분류 안은 큰 글자부터(같은 크기면 굵은 것부터) 놓는다. 이미 그 순서면 버튼이 꺼진다.
     onResetTypes: (() => {
       const next = defaultTypeOrder(tokens)
       return next.every((t, i) => t === tokens[i]) ? undefined : () => commit(next)
@@ -1870,7 +1880,7 @@ export function App() {
     const next = defaultColorOrder(tokens)
     return sameOrder(next) ? null : next
   })()
-  // 의미 색 판은 묶음을 글자, 바탕, 테두리, 채움, 상태, 차트 순서로, 묶음 안은 가리키는 색을 기준으로 놓는다(무채색 먼저).
+  // 의미 색 판은 분류를 글자, 바탕, 테두리, 채움, 상태, 차트 순서로, 분류 안은 가리키는 색을 기준으로 놓는다(무채색 먼저).
   const rolesSorted = (() => {
     const next = defaultRoleOrder(tokens)
     return sameOrder(next) ? null : next
@@ -1897,7 +1907,7 @@ export function App() {
         { id: 'a:corner', group: '명령', label: '모서리 추가', run: () => setAddingLength(KINDS.corner) },
         { id: 'a:radius', group: '명령', label: '의미 모서리 추가', run: () => setAddingRadius(true) },
         { id: 'a:thickness', group: '명령', label: '테두리 추가', run: () => setAddingLength(KINDS.thickness) },
-        { id: 'a:border', group: '명령', label: '의미 테두리 추가', run: () => setAddingBorder(KINDS.border) },
+        ...[KINDS.border, KINDS.outline].map((kind) => ({ id: `a:${kind.id}`, group: '명령', label: kind.addLabel, run: () => setAddingBorder(kind) })),
         { id: 'a:shadow', group: '명령', label: '그림자 추가', run: () => setAddingEffect(KINDS.shadow) },
         { id: 'a:opacity', group: '명령', label: '투명도 추가', run: () => setAddingEffect(KINDS.opacity) },
         { id: 'a:blur', group: '명령', label: '흐림 추가', run: () => setAddingEffect(KINDS.blur) },
@@ -2049,7 +2059,8 @@ export function App() {
                       (() => {
                         // "원래대로"는 판마다 하나다. 종류의 차례와, 손으로 바꿀 수 있는 종류 안의 값의 차례를 한 번에 돌려놓는다.
                         const kinds = TOKEN_SCREENS[id].kinds
-                        const next = kinds.filter(isFreeKind).reduce((list, kind) => defaultFreeOrder(list, kind), defaultKindOrder(tokens, kinds))
+                        // 의미 크기는 세 종류의 값이 분류 안에서 한 줄로 이어져 있어서, 종류마다 따로 돌려놓지 않고 한 번에 놓는다.
+                        const next = id === 'sizeuse' ? defaultSizeOrder(tokens) : kinds.filter(isFreeKind).reduce((list, kind) => defaultFreeOrder(list, kind), defaultKindOrder(tokens, kinds))
                         return (
                           <div className="mb-header flex justify-end gap-actions-tight">
                             <ResetButton title="종류와 그 안의 값을 처음 순서로 돌려놓아요" onReset={next === tokens ? undefined : () => commit(next)} />
@@ -2061,27 +2072,20 @@ export function App() {
                                 추가
                               </Button>
                             )}
-                            {/* 의미 테두리도 종류가 둘이지만 묻는 것이 같아서 추가는 판에 하나다. 의미 테두리 하나를 골라 둔 채 누르면 그 종류로 열린다. */}
-                            {id === 'border' && (
-                              <Button variant="ghost" aria-label="의미 테두리 추가" onClick={() => setAddingBorder(commonKind && isBorderKind(commonKind) ? commonKind : KINDS.border)}>
-                                <Plus size={16} strokeWidth={ICON_STROKE} />
-                                추가
-                              </Button>
-                            )}
                           </div>
                         )
                       })()}
                     {id === 'sizeuse' ? (
-                      // 의미 크기 판. 높이·너비·정사각형으로 나누지 않고 묶음 안에서 요소마다 그 높이와 너비를 함께 보여 준다.
+                      // 의미 크기 판. 높이·너비·정사각형으로 나누지 않고 분류 아래에 값을 한 줄씩 놓는다(의미 간격 판과 같은 짜임).
                       <DetailsFolded.Provider value={!!plainBoards[id]}>
                         <MissingNotices kinds={TOKEN_SCREENS[id].kinds} tokens={tokens} onSelect={sectionProps.onSelect} />
-                        <SizeThings
+                        <SizeBoard
                           tokens={tokens}
                           selected={selected}
                           onSelect={sectionProps.onSelect}
                           onSelectGroup={sectionProps.onSelectGroup}
                           onRename={sectionProps.onRename}
-                          onMove={(kind, name, before) => commitIfMoved(moveSizeInThing(tokens, kind, name, before))}
+                          onMove={(name, before) => commitIfMoved(moveTogether(moveSizeInGroup, name, before))}
                           onMoveGroup={(group, before) => commitIfMoved(moveSizeBoardGroup(tokens, group, before))}
                         />
                       </DetailsFolded.Provider>
@@ -2545,11 +2549,12 @@ export function App() {
             onCancel={() => setAddingSize(false)}
             onCreate={(kind, name, value, note) => {
               setAddingSize(false)
-              // 같은 종류의 같은 묶음 뒤에 놓는다(묶음의 값들이 파일에서 한데 모여 있게). 그 묶음의 첫 값이면 그 종류의 맨 뒤, 그 종류의 첫 값이면 다른 의미 크기나 크기의 뒤에 놓는다.
+              // 같은 분류의 마지막 값 뒤에 놓는다(높이·너비·정사각형을 가리지 않는다. 분류의 값들이 파일에서 한데 모여 있게).
+              // 그 분류의 첫 값이면 정해진 분류 순서의 제자리에, 의미 크기가 하나도 없으면 크기의 뒤에 놓는다.
               const group = readSizeNote(note, shortName(kind, name)).group
-              const inGroup = (t: Token) => kind.matches(t.name) && readSizeNote(t.note, shortName(kind, t.name)).group === group
-              const after = tokens.some(inGroup) ? inGroup : tokens.some((t) => kind.matches(t.name)) ? (t: Token) => kind.matches(t.name) : (t: Token) => [KINDS.length, KINDS.height, KINDS.width, KINDS.square].some((k) => k.matches(t.name))
-              insertInGroup({ name, value, note }, group, (t) => (kind.matches(t.name) ? readSizeNote(t.note, shortName(kind, t.name)).group : null), SIZE_GROUPS.map((g) => g.id), after)
+              const inGroup = (t: Token) => sizeGroupOfToken(t) === group
+              const after = tokens.some(inGroup) ? inGroup : tokens.some((t) => sizeKindOf(t)) ? (t: Token) => !!sizeKindOf(t) : (t: Token) => KINDS.length.matches(t.name)
+              insertInGroup({ name, value, note }, group, sizeGroupOfToken, SIZE_GROUPS.map((g) => g.id), after)
             }}
           />
         </Modal>
@@ -2587,16 +2592,18 @@ export function App() {
       )}
 
       {addingBorder && (
-        <Modal title="의미 테두리 추가" onClose={() => setAddingBorder(null)}>
+        <Modal title={addingBorder.addLabel} onClose={() => setAddingBorder(null)}>
           <NewBorderForm
-            start={addingBorder}
+            kind={addingBorder}
             tokens={tokens}
             onCancel={() => setAddingBorder(null)}
             onCreate={(kind, name, value, note) => {
               setAddingBorder(null)
               // 같은 종류의 뒤에 놓는다. 그 종류의 첫 값이면 테두리(토대)와 다른 의미 테두리의 뒤에 놓는다.
-              const after = tokens.some((t) => kind.matches(t.name)) ? (t: Token) => kind.matches(t.name) : (t: Token) => [KINDS.thickness, KINDS.border, KINDS.outline].some((k) => k.matches(t.name))
-              insert({ name, value, note }, after)
+              const group = borderGroupOf(kind, { name, value, note })!
+              const inGroup = (t: Token) => borderGroupOf(kind, t) === group
+              const after = tokens.some(inGroup) ? inGroup : tokens.some((t) => kind.matches(t.name)) ? (t: Token) => kind.matches(t.name) : (t: Token) => [KINDS.thickness, KINDS.border, KINDS.outline].some((k) => k.matches(t.name))
+              insertInGroup({ name, value, note }, group, (t) => borderGroupOf(kind, t), BORDER_GROUPS.map((g) => g.id), after)
             }}
           />
         </Modal>
@@ -2609,7 +2616,7 @@ export function App() {
             onCancel={() => setAddingRadius(false)}
             onCreate={(name, value, note) => {
               setAddingRadius(false)
-              // 같은 묶음 뒤에 놓는다(묶음의 값들이 파일에서 한데 모여 있게). 그 묶음의 첫 값이면 의미 모서리의 맨 뒤, 첫 의미 모서리면 모서리(토대)의 뒤에 놓는다.
+              // 같은 분류 뒤에 놓는다(분류의 값들이 파일에서 한데 모여 있게). 그 분류의 첫 값이면 의미 모서리의 맨 뒤, 첫 의미 모서리면 모서리(토대)의 뒤에 놓는다.
               const kind = KINDS.radius
               const group = readRadiusNote(note, shortName(kind, name)).group
               const inGroup = (t: Token) => kind.matches(t.name) && readRadiusNote(t.note, shortName(kind, t.name)).group === group

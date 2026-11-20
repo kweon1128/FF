@@ -7,7 +7,7 @@ import { LEADINGS, lineFor, trackFor } from './presets'
 
 export const kindOf = (name: string) => ALL_KINDS.find((k) => k.matches(name)) ?? null
 
-/** 같은 묶음인지 가린다. 같은 종류이고, 색이면 같은 목록이어야 한다. */
+/** 같은 분류인지 가린다. 같은 종류이고, 색이면 같은 목록이어야 한다. */
 export function siblingTest(name: string): (t: Token) => boolean {
   const kind = kindOf(name)
   if (!kind) return (t) => t.name === name
@@ -45,7 +45,7 @@ export function duplicateTokens(tokens: Token[], names: string[]) {
   return { next: next.flatMap((t) => [t, ...(after.get(t.name) ?? [])]), added }
 }
 
-/** 고른 값을 같은 묶음 안에서 한 칸 뒤(1)나 앞(-1)으로 옮긴다. */
+/** 고른 값을 같은 분류 안에서 한 칸 뒤(1)나 앞(-1)으로 옮긴다. */
 export function shiftTokens(tokens: Token[], names: string[], dir: 1 | -1) {
   const next = [...tokens]
   const order = next.map((_, i) => i).filter((i) => names.includes(next[i].name))
@@ -115,7 +115,7 @@ export function pasteName(name: string, intoGroup: string | null) {
 }
 
 /**
- * 붙여넣기. 같은 묶음의 맨 끝에 넣는다.
+ * 붙여넣기. 같은 분류의 맨 끝에 넣는다.
  * 이름이 이미 있으면 overwrite일 때는 그 값만 바꾸고, 아니면 copy를 붙여 따로 만든다.
  * intoGroup이 있으면 색은 그 목록으로 들어간다('' 는 예외 색).
  * added는 새로 생기거나 값이 바뀐 이름들, replaced는 그중 덮어쓴 수.

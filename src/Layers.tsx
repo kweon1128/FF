@@ -1,5 +1,5 @@
 // 겹치는 차례 판의 내용과 예시, 패널, 추가 창.
-// 의미 모서리 판과 같은 짜임이다. 묶음마다 한 줄에 값 하나, 왼쪽에 이름·차례·설명, 오른쪽에 그것이 무엇 위에 놓이는지를 보여 주는 예시.
+// 의미 모서리 판과 같은 짜임이다. 분류마다 한 줄에 값 하나, 왼쪽에 이름·차례·설명, 오른쪽에 그것이 무엇 위에 놓이는지를 보여 주는 예시.
 
 import { useContext, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import { Check as CheckIcon, ChevronDown, Folder, Minus, Plus } from 'lucide-react'
@@ -358,7 +358,7 @@ export function LayerSample({ shape, value, colors: c, shadows, words: written =
 }
 
 /**
- * 겹치는 차례 판의 내용. 묶음(화면 위, 요소 위)마다 제목을 두고, 한 줄에 값 하나.
+ * 겹치는 차례 판의 내용. 분류(화면 위, 요소 위)마다 제목을 두고, 한 줄에 값 하나.
  * 왼쪽 칸(224px)에 이름, 차례의 숫자, 설명이 있고 오른쪽에 그것이 무엇 위에 놓이는지를 보여 주는 예시가 있다.
  * 줄은 숫자가 큰 것부터 놓는다. 위에 적힌 것이 화면에서도 위에 놓인다. 차례가 숫자에서 정해지므로 끌어 옮기지 않는다. 숫자가 같으면 파일에 적힌 차례다.
  */
@@ -387,7 +387,7 @@ export function LayerList({
   const rows = items.map((t) => ({ t, short: shortName(kind, t.name), ...readLayerNote(t.note, shortName(kind, t.name)) }))
   const colors = sampleColors(all)
   const shadows: LayerShadows = { float: all.find((t) => t.name === '--shadow-float')?.value, dialog: all.find((t) => t.name === '--shadow-dialog')?.value }
-  // 숫자로 읽을 수 없는 값(calc(), var())은 묶음의 맨 아래에 둔다.
+  // 숫자로 읽을 수 없는 값(calc(), var())은 분류의 맨 아래에 둔다.
   const order = (value: string) => (Number.isNaN(layerNumber(value)) ? -Infinity : layerNumber(value))
   return (
     <div className="space-y-groups">
@@ -395,7 +395,7 @@ export function LayerList({
         const list = rows.filter((r) => r.group === g.id).sort((a, b) => order(b.t.value) - order(a.t.value))
         return (
           <div key={g.id} data-layer-group={g.id}>
-            {/* 묶음의 제목. 누르면 그 묶음의 값이 모두 선택된다. 묶음의 차례는 정해져 있어서 끌어 옮기지 않는다. */}
+            {/* 분류의 제목. 누르면 그 분류의 값이 모두 선택된다. 분류의 차례는 정해져 있어서 끌어 옮기지 않는다. */}
             <button
               type="button"
               onClick={(e) => onSelectGroup(list.map((r) => r.t.name), isAdditive(e), false)}
@@ -465,7 +465,7 @@ function nameProblem(kind: Kind, name: string, tokens: Token[], self?: string) {
 }
 
 /**
- * 겹치는 차례 하나를 고치는 패널. 구역의 차례는 다른 패널과 같다: 이름, 값(차례), 묶음, 설명, 쓰이는 곳, 코드.
+ * 겹치는 차례 하나를 고치는 패널. 구역의 차례는 다른 패널과 같다: 이름, 값(차례), 분류, 설명, 쓰이는 곳, 코드.
  * 차례는 적는 동안 저장하지 않고, 칸을 벗어나거나 Enter를 누를 때 저장한다. 71을 적으려면 7을 거치는데, 그 7이 저장되면 FF 자신의 값일 때 떠 있는 것이 그사이에 다른 것 아래로 내려간다.
  * 같은 숫자를 둘이 써도 된다. 서로 겹칠 일이 없는 것(화면 위의 메뉴와 요소 위의 표시)은 같은 숫자여도 문제가 없고, 겹치는 것끼리 같으면 화면에 나중에 놓인 것이 위다.
  * 예시는 여기서 고치지 않는다. 페이지를 만든 AI가 파일의 주석에 적는다(파일 맨 위의 안내 참고).
@@ -489,7 +489,7 @@ export function LayerInspector({
   uses: { index: number; name: string; where: string[] }[]
   onOpenComponent: (index: number) => void
   onRename: (next: string) => void
-  /** 값(차례)이나 주석(묶음, 설명, 예시)을 바꾼다. */
+  /** 값(차례)이나 주석(분류, 설명, 예시)을 바꾼다. */
   onChange: (patch: { value?: string; note?: string }) => void
   onCopy: (text: string) => void
 }) {
@@ -545,8 +545,8 @@ export function LayerInspector({
         {valueField.error && <span className="mt-label block type-body text-danger">{valueField.error}</span>}
       </Section>
 
-      <Section title="묶음">
-        <UsePicker label="묶음" options={LAYER_GROUPS} value={group} nameWidth="w-picker-name-wide" onChange={(next) => saveNote({ group: next })} />
+      <Section title="분류">
+        <UsePicker label="분류" options={LAYER_GROUPS} value={group} nameWidth="w-picker-name-wide" onChange={(next) => saveNote({ group: next })} />
       </Section>
 
       <Section title="설명">
@@ -586,7 +586,7 @@ export function LayerInspector({
 }
 
 /**
- * 겹치는 차례를 만드는 양식. 이름, 차례(숫자), 묶음, 설명을 정한다. 설명은 비워 두어도 되고 만든 뒤에 패널에서도 고친다.
+ * 겹치는 차례를 만드는 양식. 이름, 차례(숫자), 분류, 설명을 정한다. 설명은 비워 두어도 되고 만든 뒤에 패널에서도 고친다.
  * 차례는 비운 채로 시작한다. 무엇보다 위여야 하는지는 사람이 정하는 것이라, 숫자를 미리 채워 두면 이름만 적고 만들었을 때 엉뚱한 차례가 생긴다.
  * 예시의 모양을 고르고, 순서를 적으면 판의 줄과 같은 예시를 창 오른쪽의 영역에 보여 준다(WithExample). 고른 모양은 주석에 적힌다(문구는 적지 않아 모양의 기본 문구로 그려진다).
  */
@@ -597,12 +597,12 @@ export function NewLayerForm({ tokens, onCreate, onCancel }: { tokens: Token[]; 
   const [value, setValue] = useState(() =>
     String(Math.max(0, ...tokens.filter((t) => kind.matches(t.name)).map((t) => Number(t.value)).filter((n) => Number.isFinite(n))) + 10),
   )
-  // 묶음은 직접 고르기 전까지 이름에서 짐작한 것을 보여 준다.
+  // 분류는 직접 고르기 전까지 이름에서 짐작한 것을 보여 준다.
   const [group, setGroup] = useState<LayerGroup | null>(null)
   const [text, setText] = useState('')
   const [error, setError] = useState<{ name?: string; value?: string }>({})
   const baseGroup = group ?? guessLayerGroup(name.trim())
-  // 예시의 모양. 직접 고르기 전까지는 묶음에 맞는 모양을 따라간다.
+  // 예시의 모양. 직접 고르기 전까지는 분류에 맞는 모양을 따라간다.
   const [picked, setPicked] = useState<LayerShape | null>(null)
   const shape = picked ?? LAYER_SHAPE_FOR[baseGroup]
   // 이름 칸은 비워 두고, 고른 예시에 맞는 이름을 옅은 글자로 추천한다(DESIGN.md dialog-defaults). 추천은 값이 아니다. 비운 채 추가하면 "이름을 입력해 주세요."다.
@@ -653,8 +653,8 @@ export function NewLayerForm({ tokens, onCreate, onCancel }: { tokens: Token[]; 
           }}
         />
       </Field>
-      <Field label="묶음" plain>
-        <UsePicker label="묶음" options={LAYER_GROUPS} value={shownGroup} nameWidth="w-picker-name-wide" onChange={setGroup} />
+      <Field label="분류" plain>
+        <UsePicker label="분류" options={LAYER_GROUPS} value={shownGroup} nameWidth="w-picker-name-wide" onChange={setGroup} />
       </Field>
       <Field label="예시" plain>
         <UsePicker label="예시" options={LAYER_SHAPES} value={shape} nameWidth="w-picker-name-long" onChange={setPicked} />

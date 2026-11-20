@@ -609,7 +609,7 @@ export function shortName(kind: Kind, name: string) {
   return name.startsWith(kind.prefix) ? name.slice(kind.prefix.length) : name.replace(/^--/, '')
 }
 
-/** 색 묶음 이름. 예: primary-500 → primary, white → '' */
+/** 색 분류 이름. 예: primary-500 → primary, white → '' */
 export function groupOf(short: string) {
   const i = short.lastIndexOf('-')
   return i > 0 ? short.slice(0, i) : ''

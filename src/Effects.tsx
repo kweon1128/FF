@@ -310,7 +310,7 @@ export function EffectList({
   // 판을 접었으면 설명과 예시를 숨기고 이름과 값만 보여 준다.
   const plain = useContext(DetailsFolded)
   const reorder = useReorder(items.map((t) => t.name), onMove)
-  // 값이 없으면 빈 상자를 남기지 않는다. 추가는 묶음 제목 줄의 버튼으로 한다.
+  // 값이 없으면 빈 상자를 남기지 않는다. 추가는 분류 제목 줄의 버튼으로 한다.
   if (items.length === 0) return null
   const id = kind.id as EffectKind
   const around = sampleColors(all)

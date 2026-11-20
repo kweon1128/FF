@@ -63,7 +63,7 @@ export function hasFont(name: string) {
   return found
 }
 
-/** "내 컴퓨터" 묶음에 보여 줄 흔한 글꼴들. 이 가운데 이 컴퓨터에 있는 것만 보여 준다. 브라우저는 깔린 글꼴 전체를 허락 없이 알려 주지 않는다. */
+/** "내 컴퓨터" 분류에 보여 줄 흔한 글꼴들. 이 가운데 이 컴퓨터에 있는 것만 보여 준다. 브라우저는 깔린 글꼴 전체를 허락 없이 알려 주지 않는다. */
 const COMMON = [
   'Pretendard',
   'Pretendard Variable',
@@ -243,7 +243,7 @@ let fontSystem = ''
 let fontFamilies: string[] = []
 const FONTS_FILE = 'fonts.css'
 
-/** fonts.css에 들어 있는 글꼴 이름들. "글꼴 종류 추가" 창의 "이 시스템의 글꼴" 묶음이 된다. */
+/** fonts.css에 들어 있는 글꼴 이름들. "글꼴 종류 추가" 창의 "이 시스템의 글꼴" 분류가 된다. */
 export function systemFamilies() {
   return fontFamilies
 }

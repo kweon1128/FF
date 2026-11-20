@@ -5,7 +5,7 @@
 
 export type EffectKind = 'shadow' | 'opacity' | 'blur' | 'gradient'
 
-/** 주석 맨 앞에 적는 종류의 이름. 의미 색의 역할, 의미 글꼴의 묶음이 놓이는 자리다. */
+/** 주석 맨 앞에 적는 종류의 이름. 의미 색의 역할, 의미 글꼴의 분류가 놓이는 자리다. */
 export const EFFECT_TITLES: Record<EffectKind, string> = { shadow: '그림자', opacity: '투명도', blur: '흐림', gradient: '그라데이션' }
 
 export const isEffectKind = (id: string): id is EffectKind => id === 'shadow' || id === 'opacity' || id === 'blur' || id === 'gradient'
